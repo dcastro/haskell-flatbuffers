@@ -19,38 +19,47 @@ import Data.ByteString.Builder (Builder, toLazyByteString)
 
 go =
   putStrLn "Dumping" >>
-  BSL.writeFile "bs.txt" (toLazyByteString $ root vectors)
+  BSL.writeFile "bs.txt" (toLazyByteString $ root st)
+
+st =
+  table [
+    scalar struct [
+      padded 4 $ int32 1,
+      int64 2,
+      padded 4 $ float 3
+    ]
+  ]
 
 vectors =
   table [
     vector [text "hi", string "bye"],
-    vector [int32 12, int32 34],
-    vector [int64 23, int64 45]
+    vector [scalar int32 12, scalar int32 34],
+    vector [scalar int64 23, scalar int64 45]
   ]
 
 variety =
   table [
-    word8 8,
-    word8 2,
+    scalar word8 8,
+    scalar word8 2,
     table [
-      int32 670
+      scalar int32 670
     ],
-    bool True
+    scalar bool True
   ]
 
 obj = table [
-    int32 123,
+    scalar int32 123,
     text "hello",
-    int64 999,
+    scalar int64 999,
     text "bye",
-    int32 456
+    scalar int32 456
   ]
 
 nested = 
   table [
-    int32 12399,
+    scalar int32 12399,
     table [
-      int32 99456,
+      scalar int32 99456,
       text "byehello"
     ]
   ]
@@ -67,26 +76,40 @@ newtype InlineField = InlineField { write :: State BState InlineSize }
 referenceSize :: Num a => a
 referenceSize = 4
 
-int32 :: Int32 -> Field
+scalar' :: InlineField -> Field
+scalar' = Field . pure
+
+scalar :: (a -> InlineField) -> (a -> Field)
+scalar f = scalar' . f
+
+primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
+primitive size f a =
+  InlineField $ do
+    (b, bw) <- get
+    put (f a <> b, bw + fromIntegral size)
+    pure size
+
+
+int32 :: Int32 -> InlineField
 int32 = primitive 4 B.int32LE
 
-int64 :: Int64 -> Field
+int64 :: Int64 -> InlineField
 int64 = primitive 8 B.int64LE
 
-word8 :: Word8 -> Field
+word8 :: Word8 -> InlineField
 word8 = primitive 1 B.word8
 
-bool :: Bool -> Field
+float :: Float -> InlineField
+float = primitive 4 B.floatLE
+
+double :: Double -> InlineField
+double = primitive 4 B.doubleLE
+
+bool :: Bool -> InlineField
 bool = primitive 1 $ \case
   True  -> B.word8 1
   False -> B.word8 0
 
-primitive :: InlineSize -> (a -> Builder) -> a -> Field
-primitive size f a =
-  Field . pure . InlineField $ do
-    (b, bw) <- get
-    put (f a <> b, bw + fromIntegral size)
-    pure size
 
 -- | A missing field.
 -- | Use this when serializing a deprecated field, or to tell clients to use the default value.
@@ -114,6 +137,17 @@ root field =
     (mempty, 0)
 
 
+struct :: [InlineField] -> InlineField
+struct fields = InlineField $
+  sum <$> traverse write (reverse fields)
+
+
+padded :: Word16 -> InlineField -> InlineField
+padded n field = InlineField $ do
+  sequence_ $ L.genericReplicate n (write $ word8 0)
+  size <- write field
+  pure (size + n)
+
 table :: [Field] -> Field
 table fields = Field $ do
   inlineFields <- traverse dump (reverse fields)
@@ -138,14 +172,14 @@ vector :: [Field] -> Field
 vector fields = Field $ do
   inlineFields <- traverse dump (reverse fields)
   inlineSizes <- traverse write inlineFields
-  dump (int32 $ L.genericLength fields) >>= write
+  write (int32 (L.genericLength fields))
   (_, bw) <- get
   pure $ offsetFrom bw
 
 offsetFrom :: BytesWritten -> InlineField
 offsetFrom bw = InlineField $ do
   (_, bw2) <- get
-  dump (int32 (fromIntegral (bw2 - bw) + referenceSize)) >>= write
+  write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
 calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
 calcFieldOffsets seed [] = []
