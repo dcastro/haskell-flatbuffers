@@ -1,0 +1,7 @@
+:set prompt "\ESC[1;34m%s\n\ESC[0;34mλ> \ESC[m"
+
+:def hoogle \x -> Prelude.pure (":!hoogle \"" Prelude.++ x Prelude.++ "\"")
+:def doc \x -> Prelude.pure (":!hoogle --info \"" Prelude.++ x Prelude.++ "\"")
+
+:set +t
+:set -fprint-explicit-foralls
