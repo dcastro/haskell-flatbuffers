@@ -98,24 +98,14 @@ text t = Field $ do
   (b, bw) <- get
   let (b2, bw2) = (B.int32LE (fromIntegral (T.length t)) <> T.encodeUtf8Builder t <> b, bw + referenceSize + T.length t)
   put (b2, bw2)
-  pure $ InlineField $ do
-    (b3, bw3) <- get
-    let bw4 = bw3 + referenceSize
-    let b4 = B.int32LE (fromIntegral (bw4 - bw2)) <> b3
-    put (b4, bw4)
-    pure referenceSize
+  pure $ offsetFrom bw2
 
 string :: String -> Field
 string s = Field $ do
   (b, bw) <- get
   let (b2, bw2) = (B.int32LE (L.genericLength s) <> B.stringUtf8 s <> b, bw + referenceSize + length s)
   put (b2, bw2)
-  pure $ InlineField $ do
-    (b3, bw3) <- get
-    let bw4 = bw3 + referenceSize
-    let b4 = B.int32LE (fromIntegral (bw4 - bw2)) <> b3
-    put (b4, bw4)
-    pure referenceSize
+  pure $ offsetFrom bw2
 
 root :: Field -> Builder
 root field =
@@ -124,12 +114,10 @@ root field =
     (mempty, 0)
 
 
-
 table :: [Field] -> Field
 table fields = Field $ do
   inlineFields <- traverse dump (reverse fields)
   inlineSizes <- traverse write inlineFields
-
 
   let fieldOffsets = calcFieldOffsets referenceSize (reverse inlineSizes)
   let vtableSize = 2 + 2 + 2 * L.genericLength fields
@@ -144,13 +132,7 @@ table fields = Field $ do
   let (b3, bw3) = (B.word16LE vtableSize <> B.word16LE tableSize <> foldMap B.word16LE fieldOffsets <> b2, bw2 + vtableSize)
   
   put (b3, bw3)
-  
-  pure $ InlineField $ do
-    (b4, bw4) <- get
-    let bw5 = bw4 + referenceSize
-    let b5 = B.int32LE (fromIntegral (bw5 - bw2)) <> b4
-    put (b5, bw5)
-    pure referenceSize
+  pure $ offsetFrom bw2
 
 vector :: [Field] -> Field
 vector fields = Field $ do
@@ -158,13 +140,12 @@ vector fields = Field $ do
   inlineSizes <- traverse write inlineFields
   dump (int32 $ L.genericLength fields) >>= write
   (_, bw) <- get
-  pure $ InlineField $
-    offsetFrom bw >>= dump . int32 >>= write
+  pure $ offsetFrom bw
 
-offsetFrom :: BytesWritten -> State BState Int32
-offsetFrom bw = do
+offsetFrom :: BytesWritten -> InlineField
+offsetFrom bw = InlineField $ do
   (_, bw2) <- get
-  pure (fromIntegral (bw2 - bw) + referenceSize)
+  dump (int32 (fromIntegral (bw2 - bw) + referenceSize)) >>= write
 
 calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
 calcFieldOffsets seed [] = []
