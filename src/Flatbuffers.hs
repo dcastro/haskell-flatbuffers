@@ -22,7 +22,7 @@ import           Debug.Trace
 
 go =
   putStrLn "Dumping" >>
-  BSL.writeFile "bs.txt" (toLazyByteString st)
+  BSL.writeFile "bs.txt" (toLazyByteString nested)
 
 st =
   root [
@@ -54,21 +54,50 @@ variety =
 
 obj =
   root [
-    scalar int32 123,
+    scalar int32 1,
     text "hello",
-    scalar int64 999,
-    text "bye",
-    scalar int32 456
+    scalar int64 978,
+    text "hello",
+    missing
   ]
 
 nested = 
   root [
-    scalar int32 12399,
+    scalar int32 99,
     table [
-      scalar int32 99456,
-      text "byehello"
+      scalar int32 111,
+      string "hello"
+    ],
+    table [
+      scalar int32 111,
+      string "hello"
     ]
   ]
+
+lowLevelSimple2 =
+  runRoot $ do
+    hello <- string' "hello"
+    root'
+      [ int32 1
+      , hello
+      , int64 978
+      , hello
+      , missing'
+      ]
+
+lowLevelNested =
+  runRoot $ do
+    hello <- string' "hello"
+    obj <- table'
+      [ int32 111
+      , hello
+      ]
+    root'
+      [ int32 99
+      , obj
+      , obj
+      ]
+
 
 type BytesWritten = Int
 type Offset = BytesWritten
@@ -119,7 +148,10 @@ bool = primitive 1 $ \case
 -- | A missing field.
 -- | Use this when serializing a deprecated field, or to tell clients to use the default value.
 missing :: Field
-missing = Field . pure . InlineField $ pure 0
+missing = Field $ pure missing'
+
+missing' :: InlineField
+missing' = InlineField $ pure 0
 
 lazyText :: TL.Text -> Field
 lazyText = lazyByteString . TL.encodeUtf8
@@ -130,7 +162,10 @@ text = byteString . T.encodeUtf8
 string :: String -> Field
 string = lazyByteString . BSLU.fromString
 
--- | Encodes a bytestring as text
+string' :: String -> State BState InlineField
+string' = dump . string
+
+-- | Encodes a bytestring as text.
 byteString :: BS.ByteString -> Field
 byteString bs = Field $ do
   (b, bw) <- get
@@ -139,7 +174,7 @@ byteString bs = Field $ do
   put (b2, bw2)
   pure $ offsetFrom bw2
 
--- | Encodes a lazy bytestring as text
+-- | Encodes a lazy bytestring as text.
 lazyByteString :: BSL.ByteString -> Field
 lazyByteString bs = Field $ do
   (b, bw) <- get
@@ -153,6 +188,15 @@ root fields =
   fst $ execState
     (dump (table fields) >>= write)
     (mempty, 0)
+
+runRoot :: State BState () -> Builder
+runRoot state =
+  fst $ execState
+    state
+    (mempty, 0)
+
+root' :: [InlineField] -> State BState ()
+root' fields = void $ table' fields >>= write
 
 struct :: [InlineField] -> InlineField
 struct fields = InlineField $
@@ -168,7 +212,11 @@ padded n field = InlineField $ do
 table :: [Field] -> Field
 table fields = Field $ do
   inlineFields <- traverse dump (reverse fields)
-  inlineSizes <- traverse write inlineFields
+  table' (reverse inlineFields)
+
+table' :: [InlineField] -> State BState InlineField
+table' fields = do
+  inlineSizes <- traverse write (reverse fields)
 
   let fieldOffsets = calcFieldOffsets referenceSize (reverse inlineSizes)
   let vtableSize = 2 + 2 + 2 * L.genericLength fields
