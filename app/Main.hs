@@ -1,6 +1,6 @@
 module Main where
 
-import Flatbuffers
+import Examples
 
 main :: IO ()
 main = go
