@@ -4,22 +4,25 @@
 
 module Flatbuffers where
 
-import Control.Monad.State
-import Data.Bifunctor
-import Data.Int
-import Data.Word
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Data.List as L
-import Debug.Trace
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Builder as B
-import Data.ByteString.Builder (Builder, toLazyByteString)
+import           Control.Monad.State
+import qualified Data.ByteString           as BS
+import           Data.ByteString.Builder   (Builder, toLazyByteString)
+import qualified Data.ByteString.Builder   as B
+import qualified Data.ByteString.Lazy      as BSL
+import qualified Data.ByteString.Lazy.UTF8 as BSLU
+import qualified Data.ByteString.UTF8      as BSU
+import           Data.Int
+import qualified Data.List                 as L
+import qualified Data.Text                 as T
+import qualified Data.Text.Encoding        as T
+import qualified Data.Text.Lazy            as TL
+import qualified Data.Text.Lazy.Encoding   as TL
+import           Data.Word
+import           Debug.Trace
 
 go =
   putStrLn "Dumping" >>
-  BSL.writeFile "bs.txt" (toLazyByteString $ root st)
+  BSL.writeFile "bs.txt" (toLazyByteString $ root vectors)
 
 st =
   table [
@@ -32,7 +35,7 @@ st =
 
 vectors =
   table [
-    vector [text "hi", string "bye"],
+    vector [text "bye 👬", string "bye 👬", byteString "bye 👬", lazyByteString "bye 👬", lazyText "bye 👬"],
     vector [scalar int32 12, scalar int32 34],
     vector [scalar int64 23, scalar int64 45]
   ]
@@ -110,23 +113,35 @@ bool = primitive 1 $ \case
   True  -> B.word8 1
   False -> B.word8 0
 
-
 -- | A missing field.
 -- | Use this when serializing a deprecated field, or to tell clients to use the default value.
 missing :: Field
 missing = Field . pure . InlineField $ pure 0
 
-text :: Text -> Field
-text t = Field $ do
+lazyText :: TL.Text -> Field
+lazyText = lazyByteString . TL.encodeUtf8
+
+text :: T.Text -> Field
+text = byteString . T.encodeUtf8
+
+string :: String -> Field
+string = lazyByteString . BSLU.fromString
+
+-- | Encodes a bytestring as text
+byteString :: BS.ByteString -> Field
+byteString bs = Field $ do
   (b, bw) <- get
-  let (b2, bw2) = (B.int32LE (fromIntegral (T.length t)) <> T.encodeUtf8Builder t <> b, bw + referenceSize + T.length t)
+  let length = BS.length bs
+  let (b2, bw2) = (B.int32LE (fromIntegral length) <> B.byteString bs <> b, bw + referenceSize + fromIntegral length)
   put (b2, bw2)
   pure $ offsetFrom bw2
 
-string :: String -> Field
-string s = Field $ do
+-- | Encodes a lazy bytestring as text
+lazyByteString :: BSL.ByteString -> Field
+lazyByteString bs = Field $ do
   (b, bw) <- get
-  let (b2, bw2) = (B.int32LE (L.genericLength s) <> B.stringUtf8 s <> b, bw + referenceSize + length s)
+  let length = BSL.length bs
+  let (b2, bw2) = (B.int32LE (fromIntegral length) <> B.lazyByteString bs <> b, bw + referenceSize + fromIntegral length)
   put (b2, bw2)
   pure $ offsetFrom bw2
 
