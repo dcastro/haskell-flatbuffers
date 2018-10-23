@@ -22,26 +22,28 @@ import           Debug.Trace
 
 go =
   putStrLn "Dumping" >>
-  BSL.writeFile "bs.txt" (toLazyByteString $ root vectors)
+  BSL.writeFile "bs.txt" (toLazyByteString st)
 
 st =
-  table [
+  root [
     scalar struct [
-      padded 4 $ int32 1,
-      int64 2,
-      padded 4 $ float 3
+      padded 4 $ int32 9876,
+      struct [
+        int64 765,
+        int64 98760
+      ]
     ]
   ]
 
 vectors =
-  table [
+  root [
     vector [text "bye 👬", string "bye 👬", byteString "bye 👬", lazyByteString "bye 👬", lazyText "bye 👬"],
     vector [scalar int32 12, scalar int32 34],
     vector [scalar int64 23, scalar int64 45]
   ]
 
 variety =
-  table [
+  root [
     scalar word8 8,
     scalar word8 2,
     table [
@@ -50,7 +52,8 @@ variety =
     scalar bool True
   ]
 
-obj = table [
+obj =
+  root [
     scalar int32 123,
     text "hello",
     scalar int64 999,
@@ -59,7 +62,7 @@ obj = table [
   ]
 
 nested = 
-  table [
+  root [
     scalar int32 12399,
     table [
       scalar int32 99456,
@@ -145,12 +148,11 @@ lazyByteString bs = Field $ do
   put (b2, bw2)
   pure $ offsetFrom bw2
 
-root :: Field -> Builder
-root field =
+root :: [Field] -> Builder
+root fields =
   fst $ execState
-    (dump field >>= write)
+    (dump (table fields) >>= write)
     (mempty, 0)
-
 
 struct :: [InlineField] -> InlineField
 struct fields = InlineField $
@@ -197,8 +199,6 @@ offsetFrom bw = InlineField $ do
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
 calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
-calcFieldOffsets seed [] = []
-calcFieldOffsets seed (0 : xs) = 0 : calcFieldOffsets seed xs
-calcFieldOffsets seed (x : xs) = seed : calcFieldOffsets (seed + x) xs
-
-
+calcFieldOffsets seed []     = []
+calcFieldOffsets seed (0:xs) = 0 : calcFieldOffsets seed xs
+calcFieldOffsets seed (x:xs) = seed : calcFieldOffsets (seed + x) xs
