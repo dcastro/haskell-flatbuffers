@@ -25,6 +25,8 @@ dependencies:
   - utf8-string
   - text
   - mtl
+  - containers
+  - lens
 
 
 library:

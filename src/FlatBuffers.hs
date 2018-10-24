@@ -1,8 +1,10 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module FlatBuffers where
 
+import           Control.Lens
 import           Control.Monad.State
 import qualified Data.ByteString           as BS
 import           Data.ByteString.Builder   (Builder, toLazyByteString)
@@ -12,6 +14,7 @@ import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import qualified Data.ByteString.UTF8      as BSU
 import           Data.Int
 import qualified Data.List                 as L
+import qualified Data.Map.Strict           as M
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Lazy            as TL
@@ -20,14 +23,21 @@ import           Data.Word
 import           Debug.Trace
 
 
-type BytesWritten = Int
-type Offset = BytesWritten
 type InlineSize = Word16
-type BState = (Builder, BytesWritten)
+type Offset = BytesWritten
+type BytesWritten = Int
 
-newtype Field = Field { dump :: State BState InlineField }
+data FBState = FBState
+  { _builder      :: !Builder
+  , _bytesWritten :: !Int
+  , _cache        :: !(M.Map BSL.ByteString Offset)
+  }
 
-newtype InlineField = InlineField { write :: State BState InlineSize }
+makeLenses ''FBState
+
+newtype Field = Field { dump :: State FBState InlineField }
+
+newtype InlineField = InlineField { write :: State FBState InlineSize }
 
 referenceSize :: Num a => a
 referenceSize = 4
@@ -41,10 +51,9 @@ scalar f = scalar' . f
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =
   InlineField $ do
-    (b, bw) <- get
-    put (f a <> b, bw + fromIntegral size)
+    builder %= mappend (f a)
+    bytesWritten += fromIntegral size
     pure size
-
 
 int32 :: Int32 -> InlineField
 int32 = primitive 4 B.int32LE
@@ -83,40 +92,38 @@ text = byteString . T.encodeUtf8
 string :: String -> Field
 string = lazyByteString . BSLU.fromString
 
-string' :: String -> State BState InlineField
+string' :: String -> State FBState InlineField
 string' = dump . string
 
 -- | Encodes a bytestring as text.
 byteString :: BS.ByteString -> Field
 byteString bs = Field $ do
-  (b, bw) <- get
   let length = BS.length bs
-  let (b2, bw2) = (B.int32LE (fromIntegral length) <> B.byteString bs <> b, bw + referenceSize + fromIntegral length)
-  put (b2, bw2)
-  pure $ offsetFrom bw2
+  builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
+  bw <- bytesWritten <+= referenceSize + fromIntegral length
+  pure $ offsetFrom bw
 
 -- | Encodes a lazy bytestring as text.
 lazyByteString :: BSL.ByteString -> Field
 lazyByteString bs = Field $ do
-  (b, bw) <- get
   let length = BSL.length bs
-  let (b2, bw2) = (B.int32LE (fromIntegral length) <> B.lazyByteString bs <> b, bw + referenceSize + fromIntegral length)
-  put (b2, bw2)
-  pure $ offsetFrom bw2
+  builder %= mappend (B.int32LE (fromIntegral length) <> B.lazyByteString bs)
+  bw <- bytesWritten <+= referenceSize + fromIntegral length
+  pure $ offsetFrom bw
 
 root :: [Field] -> Builder
 root fields =
-  fst $ execState
+  _builder $ execState
     (dump (table fields) >>= write)
-    (mempty, 0)
+    (FBState mempty 0 mempty)
 
-runRoot :: State BState () -> Builder
+runRoot :: State FBState () -> Builder
 runRoot state =
-  fst $ execState
+  _builder $ execState
     state
-    (mempty, 0)
+    (FBState mempty 0 mempty)
 
-root' :: [InlineField] -> State BState ()
+root' :: [InlineField] -> State FBState ()
 root' fields = void $ table' fields >>= write
 
 struct :: [InlineField] -> InlineField
@@ -135,7 +142,7 @@ table fields = Field $ do
   inlineFields <- traverse dump (reverse fields)
   table' (reverse inlineFields)
 
-table' :: [InlineField] -> State BState InlineField
+table' :: [InlineField] -> State FBState InlineField
 table' fields = do
   inlineSizes <- traverse write (reverse fields)
 
@@ -143,28 +150,31 @@ table' fields = do
   let vtableSize = 2 + 2 + 2 * L.genericLength fields
   let tableSize = referenceSize + fromIntegral (sum inlineSizes)
 
-  (b, bw)  <- get
-
   -- table
-  let (b2, bw2) = (B.int32LE vtableSize <> b, bw + 4)
+  bw <- bytesWritten <+= referenceSize
+  builder %= mappend (B.int32LE vtableSize)
 
   -- vtable
-  let (b3, bw3) = (B.word16LE vtableSize <> B.word16LE tableSize <> foldMap B.word16LE fieldOffsets <> b2, bw2 + vtableSize)
-  
-  put (b3, bw3)
-  pure $ offsetFrom bw2
+  bytesWritten += vtableSize
+  builder %= mappend
+    (  B.word16LE vtableSize
+    <> B.word16LE tableSize
+    <> foldMap B.word16LE fieldOffsets
+    )
+
+  pure $ offsetFrom bw
 
 vector :: [Field] -> Field
 vector fields = Field $ do
   inlineFields <- traverse dump (reverse fields)
   inlineSizes <- traverse write inlineFields
   write (int32 (L.genericLength fields))
-  (_, bw) <- get
+  bw <- gets _bytesWritten
   pure $ offsetFrom bw
 
 offsetFrom :: BytesWritten -> InlineField
 offsetFrom bw = InlineField $ do
-  (_, bw2) <- get
+  bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
 calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
