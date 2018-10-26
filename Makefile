@@ -15,13 +15,22 @@ ghcid:  ## Launch ghcid
 ghcid-test:  ## Launch ghcid and automatically run tests
 	ghcid \
 		--command "stack ghci \
-			--test \
-			--bench" \
+			--test" \
 		--test main \
-		--warnings \
 		--restart package.yaml
 .PHONY: ghcid-test
 
+flatb: ## Generate java flatbuffers
+	cd ./test/integration/ && \
+	flatc \
+		--java \
+		-o ./test-api/src/main/java/ \
+		schema.fbs
+
+test-api: ## Generate java flatbuffers and launch test-api
+	make flatb && \
+		cd ./test/integration/test-api/ && \
+		sbt run
 
 docs:  ## Builds haddock documentation and watch files for changes
 	$(STACK) haddock --file-watch
@@ -30,6 +39,6 @@ docs:  ## Builds haddock documentation and watch files for changes
 ################################################################################
 
 help:	## Display this message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
 .DEFAULT_GOAL := help

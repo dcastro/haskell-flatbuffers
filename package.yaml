@@ -32,8 +32,15 @@ dependencies:
 library:
   source-dirs:      src
 
-executables:
-  flatbuffers-test:
-    source-dirs:      app
-    main:             Main.hs
+tests:
+  test:
+    main: Spec.hs
+    source-dirs: test/integration
+    dependencies:
+    - flatbuffers
+    - hspec
+    - http-client
+    - http-types
+    - aeson
+    - aeson-pretty
 

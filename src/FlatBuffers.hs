@@ -55,6 +55,12 @@ primitive size f a =
     bytesWritten += fromIntegral size
     pure size
 
+int8 :: Int8 -> InlineField
+int8 = primitive 1 B.int8
+
+int16 :: Int16 -> InlineField
+int16 = primitive 2 B.int16LE
+
 int32 :: Int32 -> InlineField
 int32 = primitive 4 B.int32LE
 
@@ -64,11 +70,15 @@ int64 = primitive 8 B.int64LE
 word8 :: Word8 -> InlineField
 word8 = primitive 1 B.word8
 
+word32 :: Word32 -> InlineField
+word32 = primitive 4 B.word32LE
+
+
 float :: Float -> InlineField
 float = primitive 4 B.floatLE
 
 double :: Double -> InlineField
-double = primitive 4 B.doubleLE
+double = primitive 8 B.doubleLE
 
 bool :: Bool -> InlineField
 bool = primitive 1 $ \case

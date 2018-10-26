@@ -1,0 +1,65 @@
+namespace testapi.flatbuffers;
+
+table Simple {
+  n: int;
+  s: string;
+}
+
+table FiveFields {
+  n1: int;
+  s1: string;
+  n2: long;
+  s2: string;
+  n3: double;
+}
+
+table ManyTables {
+  n: int;
+  x: Simple;
+  y: Simple;
+}
+
+enum Color:ubyte { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
+
+union U { UA, UB }
+table UA { x: string; }
+table UB { y: int; }
+
+table UnionByteBool {
+  color: Color;
+  uni1: U;
+  uni2: U;
+  uni3: U;
+  boo: bool;
+}
+
+table Vectors {
+  x: [int];
+  y: [string];
+  z: [long];
+}
+
+struct RegularStruct {
+  x: int;
+  y: uint;
+}
+
+struct IrregularStruct {
+  w: int;
+  x: ubyte;
+  y: long;
+  z: bool;
+}
+
+struct WithNestedStruct {
+  x: RegularStruct;
+  y: IrregularStruct;
+}
+
+table Structs {
+  x: RegularStruct;
+  y: IrregularStruct;
+  z: WithNestedStruct;
+}
+
+
