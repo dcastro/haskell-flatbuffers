@@ -112,7 +112,7 @@ byteString bs = Field $ do
   let length = BS.length bs
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
   bw <- bytesWritten <+= referenceSize + fromIntegral length
-  pure $ offsetFrom bw
+  pure $ uoffsetFrom bw
 
 -- | Encodes a lazy bytestring as text.
 lazyByteString :: BSL.ByteString -> Field
@@ -120,7 +120,7 @@ lazyByteString bs = Field $ do
   let length = BSL.length bs
   builder %= mappend (B.int32LE (fromIntegral length) <> B.lazyByteString bs)
   bw <- bytesWritten <+= referenceSize + fromIntegral length
-  pure $ offsetFrom bw
+  pure $ uoffsetFrom bw
 
 root :: [Field] -> Builder
 root fields =
@@ -151,28 +151,32 @@ table :: [Field] -> Field
 table fields = Field $
   traverse dump fields >>= table'
 
-table' :: [InlineField] -> State FBState InlineField
-table' fields = do
-  let inlineSizes = map size fields
-  traverse_ write (reverse fields)
-
+vtable :: [InlineSize] -> Field
+vtable inlineSizes = Field $ do
   let fieldOffsets = calcFieldOffsets referenceSize inlineSizes
-  let vtableSize = 2 + 2 + 2 * L.genericLength fields
+  let vtableSize = 2 + 2 + 2 * L.genericLength inlineSizes
   let tableSize = referenceSize + fromIntegral (sum inlineSizes)
-
-  -- table
-  bw <- bytesWritten <+= referenceSize
-  builder %= mappend (B.int32LE vtableSize)
-
-  -- vtable
-  bytesWritten += vtableSize
+  
+  bw <- bytesWritten <+= vtableSize
   builder %= mappend
     (  B.word16LE vtableSize
     <> B.word16LE tableSize
     <> foldMap B.word16LE fieldOffsets
     )
+  pure $ soffsetFrom bw
 
-  pure $ offsetFrom bw
+table' :: [InlineField] -> State FBState InlineField
+table' fields = do
+  -- vtable
+  let inlineSizes = map size fields
+  vtableRef <- dump $ vtable inlineSizes
+
+  -- table
+  traverse_ write (reverse fields)
+  write vtableRef
+  bw <- gets _bytesWritten
+
+  pure $ uoffsetFrom bw
 
 vector :: [Field] -> Field
 vector fields = Field $ do
@@ -180,12 +184,17 @@ vector fields = Field $ do
   traverse_ write (reverse inlineFields)
   write (int32 (L.genericLength fields))
   bw <- gets _bytesWritten
-  pure $ offsetFrom bw
+  pure $ uoffsetFrom bw
 
-offsetFrom :: BytesWritten -> InlineField
-offsetFrom bw = InlineField referenceSize $ do
+uoffsetFrom :: BytesWritten -> InlineField
+uoffsetFrom bw = InlineField referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
+
+soffsetFrom :: BytesWritten -> InlineField
+soffsetFrom bw = InlineField referenceSize $ do
+  bw2 <- gets _bytesWritten
+  write (int32 (negate (fromIntegral (bw2 - bw) + referenceSize)))
 
 calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
 calcFieldOffsets seed []     = []
