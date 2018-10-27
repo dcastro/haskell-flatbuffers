@@ -148,9 +148,8 @@ padded n field = InlineField (size field + fromIntegral n) $ do
   write field
 
 table :: [Field] -> Field
-table fields = Field $ do
-  inlineFields <- traverse dump (reverse fields)
-  table' (reverse inlineFields)
+table fields = Field $
+  traverse dump fields >>= table'
 
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
@@ -177,8 +176,8 @@ table' fields = do
 
 vector :: [Field] -> Field
 vector fields = Field $ do
-  inlineFields <- traverse dump (reverse fields)
-  inlineSizes <- traverse write inlineFields
+  inlineFields <- traverse dump fields
+  traverse_ write (reverse inlineFields)
   write (int32 (L.genericLength fields))
   bw <- gets _bytesWritten
   pure $ offsetFrom bw
