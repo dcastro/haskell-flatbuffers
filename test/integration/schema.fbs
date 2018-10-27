@@ -62,4 +62,7 @@ table Structs {
   z: WithNestedStruct;
 }
 
+table VectorOfTables {
+  xs: [Simple];
+}
 

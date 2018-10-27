@@ -99,6 +99,16 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                       )
                     )
                   ).some
+                case "VectorOfTables" =>
+                  val obj = VectorOfTables.getRootAsVectorOfTables(bb)
+                  Json.obj(
+                    "xs" := Json.fromValues((0 until obj.xsLength()).map(obj.xs).map { simple =>
+                      Json.obj(
+                        "n" := simple.n,
+                        "s" := simple.s
+                      )
+                    })
+                  ).some
 
                 case _ => none
               }

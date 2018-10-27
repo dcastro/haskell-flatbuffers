@@ -7,7 +7,7 @@ module FlatBuffers where
 import           Control.Lens
 import           Control.Monad.State
 import qualified Data.ByteString           as BS
-import           Data.ByteString.Builder   (Builder, toLazyByteString)
+import           Data.ByteString.Builder   (Builder)
 import qualified Data.ByteString.Builder   as B
 import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
@@ -16,6 +16,7 @@ import           Data.Foldable
 import           Data.Int
 import qualified Data.List                 as L
 import qualified Data.Map.Strict           as M
+import           Data.Maybe
 import           Data.Monoid
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
@@ -155,16 +156,27 @@ vtable :: [InlineSize] -> Field
 vtable inlineSizes = Field $ do
   let fieldOffsets = calcFieldOffsets referenceSize inlineSizes
   let vtableSize = 2 + 2 + 2 * L.genericLength inlineSizes
-  let tableSize = referenceSize + fromIntegral (sum inlineSizes)
-  
-  bw <- bytesWritten <+= vtableSize
-  builder %= mappend
-    (  B.word16LE vtableSize
-    <> B.word16LE tableSize
-    <> foldMap B.word16LE fieldOffsets
-    )
-  pure $ soffsetFrom bw
+  let tableSize = referenceSize + sum inlineSizes
 
+  let bytestring = B.toLazyByteString
+        (  B.word16LE vtableSize
+        <> B.word16LE tableSize
+        <> foldMap B.word16LE fieldOffsets
+        )
+  bw <- (+ vtableSize) <$> gets _bytesWritten
+  
+  map <- gets _cache
+
+  case M.insertLookupWithKey (\k new old -> old) bytestring bw map of
+    (Nothing, map') -> do
+      builder %= mappend (B.lazyByteString bytestring)
+      bytesWritten += vtableSize
+      cache .= map'
+      pure $ soffsetFrom bw
+
+    (Just oldBw, _) ->
+      pure $ soffsetFrom oldBw
+      
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
   -- vtable

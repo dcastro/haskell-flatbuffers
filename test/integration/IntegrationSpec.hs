@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TypeApplications  #-}
 
 module IntegrationSpec where
 
@@ -18,25 +18,32 @@ import           Network.HTTP.Client
 import           Network.HTTP.Types.Status (statusCode)
 import           Test.Hspec
 
-newtype Pretty = Pretty Value
-  deriving Eq
-  
+newtype Pretty =
+  Pretty Value
+  deriving (Eq)
+
 instance Show Pretty where
   show (Pretty v) = BSLU.toString (encodePretty v)
 
 spec :: Spec
 spec =
   describe "FlatBuffers" $
-    parallel $
-      forM_ cases $ \Case{..} ->
-        it name $ do
-          man <- newManager defaultManagerSettings
-          req <- parseRequest ("http://localhost:8080/" ++ flatbufferName)
-          let req' = req { method = "POST", requestBody = RequestBodyLBS (toLazyByteString builder) }
-          rsp <- httpLbs req' man
-          case statusCode $ responseStatus rsp of
-            200 -> (Pretty <$> decode @Value (responseBody rsp)) `shouldBe` Just (Pretty expectedJson)
-            _   -> expectationFailure ("Failed: " ++ BSLU.toString (responseBody rsp))
+  parallel $
+  forM_ cases $ \Case {..} ->
+    it name $ do
+      man <- newManager defaultManagerSettings
+      req <- parseRequest ("http://localhost:8080/" ++ flatbufferName)
+      let req' =
+            req
+            { method = "POST"
+            , requestBody = RequestBodyLBS (toLazyByteString builder)
+            }
+      rsp <- httpLbs req' man
+      case statusCode $ responseStatus rsp of
+        200 ->
+          (Pretty <$> decode @Value (responseBody rsp)) `shouldBe`
+          Just (Pretty expectedJson)
+        _ -> expectationFailure ("Failed: " ++ BSLU.toString (responseBody rsp))
 
 data Case = Case
   { name           :: String
@@ -44,6 +51,7 @@ data Case = Case
   , builder        :: Builder
   , expectedJson   :: Value
   }
+
 cases :: [Case]
 cases =
   [ Case
@@ -149,26 +157,41 @@ cases =
              ]
          ])
       (object
-         [ "x" .=
-           object ["x" .= (maxBound :: Int32), "y" .= (maxBound :: Word32)]
+         [ "x" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
          , "y" .=
            object
-             [ "w" .= (maxBound :: Int32)
-             , "x" .= (maxBound :: Word8)
-             , "y" .= (maxBound :: Int64)
+             [ "w" .= maxBound @Int32
+             , "x" .= maxBound @Word8
+             , "y" .= maxBound @Int64
              , "z" .= True
              ]
          , "z" .=
            object
-             [ "x" .=
-               object ["x" .= (maxBound :: Int32), "y" .= (maxBound :: Word32)]
+             [ "x" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
              , "y" .=
                object
-                 [ "w" .= (maxBound :: Int32)
-                 , "x" .= (maxBound :: Word8)
-                 , "y" .= (maxBound :: Int64)
+                 [ "w" .= maxBound @Int32
+                 , "x" .= maxBound @Word8
+                 , "y" .= maxBound @Int64
                  , "z" .= True
                  ]
              ]
+         ])
+  , Case
+      "VectorOfTables"
+      "VectorOfTables"
+      (root
+         [ vector
+             [ table [scalar int32 1, string "a"]
+             , table [scalar int32 2, string "b"]
+             , table [scalar int32 minBound, string "c"]
+             ]
+         ])
+      (object
+         [ "xs" .=
+           [ object ["n" .= Number 1, "s" .= String "a"]
+           , object ["n" .= Number 2, "s" .= String "b"]
+           , object ["n" .= minBound @Int32, "s" .= String "c"]
+           ]
          ])
   ]
