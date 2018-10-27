@@ -30,7 +30,7 @@ flatb: ## Generate java flatbuffers
 test-api: ## Generate java flatbuffers and launch test-api
 	make flatb && \
 		cd ./test/integration/test-api/ && \
-		sbt run
+		sbt "~reStart"
 
 docs:  ## Builds haddock documentation and watch files for changes
 	$(STACK) haddock --file-watch

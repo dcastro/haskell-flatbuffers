@@ -12,9 +12,11 @@ import qualified Data.ByteString.Builder   as B
 import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import qualified Data.ByteString.UTF8      as BSU
+import           Data.Foldable
 import           Data.Int
 import qualified Data.List                 as L
 import qualified Data.Map.Strict           as M
+import           Data.Monoid
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Lazy            as TL
@@ -37,7 +39,7 @@ makeLenses ''FBState
 
 newtype Field = Field { dump :: State FBState InlineField }
 
-newtype InlineField = InlineField { write :: State FBState InlineSize }
+data InlineField = InlineField { size :: !InlineSize, write :: !(State FBState ()) }
 
 referenceSize :: Num a => a
 referenceSize = 4
@@ -50,10 +52,9 @@ scalar f = scalar' . f
 
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =
-  InlineField $ do
+  InlineField size $ do
     builder %= mappend (f a)
     bytesWritten += fromIntegral size
-    pure size
 
 int8 :: Int8 -> InlineField
 int8 = primitive 1 B.int8
@@ -86,12 +87,12 @@ bool = primitive 1 $ \case
   False -> B.word8 0
 
 -- | A missing field.
--- | Use this when serializing a deprecated field, or to tell clients to use the default value.
+-- Use this when serializing a deprecated field, or to tell clients to use the default value.
 missing :: Field
 missing = Field $ pure missing'
 
 missing' :: InlineField
-missing' = InlineField $ pure 0
+missing' = InlineField 0 $ pure ()
 
 lazyText :: TL.Text -> Field
 lazyText = lazyByteString . TL.encodeUtf8
@@ -137,15 +138,14 @@ root' :: [InlineField] -> State FBState ()
 root' fields = void $ table' fields >>= write
 
 struct :: [InlineField] -> InlineField
-struct fields = InlineField $
-  sum <$> traverse write (reverse fields)
+struct fields = InlineField (getSum $ foldMap (Sum . size) fields) $
+  traverse_ write (reverse fields)
 
 
-padded :: Word16 -> InlineField -> InlineField
-padded n field = InlineField $ do
+padded :: Word8 -> InlineField -> InlineField
+padded n field = InlineField (size field + fromIntegral n) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)
-  size <- write field
-  pure (size + n)
+  write field
 
 table :: [Field] -> Field
 table fields = Field $ do
@@ -154,9 +154,10 @@ table fields = Field $ do
 
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
-  inlineSizes <- traverse write (reverse fields)
+  let inlineSizes = map size fields
+  traverse_ write (reverse fields)
 
-  let fieldOffsets = calcFieldOffsets referenceSize (reverse inlineSizes)
+  let fieldOffsets = calcFieldOffsets referenceSize inlineSizes
   let vtableSize = 2 + 2 + 2 * L.genericLength fields
   let tableSize = referenceSize + fromIntegral (sum inlineSizes)
 
@@ -183,7 +184,7 @@ vector fields = Field $ do
   pure $ offsetFrom bw
 
 offsetFrom :: BytesWritten -> InlineField
-offsetFrom bw = InlineField $ do
+offsetFrom bw = InlineField referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
