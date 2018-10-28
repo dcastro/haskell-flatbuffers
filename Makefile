@@ -22,10 +22,7 @@ ghcid-test:  ## Launch ghcid and automatically run tests
 
 flatb: ## Generate java flatbuffers
 	cd ./test/integration/ && \
-	flatc \
-		--java \
-		-o ./test-api/src/main/java/ \
-		schema.fbs
+	flatc -o ./test-api/src/main/java/ --java schema.fbs
 
 test-api: ## Generate java flatbuffers and launch test-api
 	make flatb && \

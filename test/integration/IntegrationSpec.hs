@@ -77,27 +77,46 @@ cases =
          , "n3" .= Number 12.23
          ])
   , Case
+      "Missing scalars"
+      "FiveFields"
+      (root [missing, missing, missing, string "bye", missing])
+      (object
+         [ "n1" .= Number 0
+         , "s1" .= Null
+         , "n2" .= Number 0
+         , "s2" .= String "bye"
+         , "n3" .= Number 0
+         ])
+  , Case
       "ManyTables"
       "ManyTables"
       (root
          [ scalar int32 12
          , table [scalar int32 23, string "hi"]
+         , missing
          , table [scalar int32 34, string "bye"]
          ])
       (object
          [ "n" .= Number 12
          , "x" .= object ["n" .= Number 23, "s" .= String "hi"]
-         , "y" .= object ["n" .= Number 34, "s" .= String "bye"]
+         , "y" .= Null
+         , "z" .= object ["n" .= Number 34, "s" .= String "bye"]
          ])
   , Case
       "UnionByteBool"
       "UnionByteBool"
       (root
          [ scalar word8 5
+         -- uni1
          , scalar word8 1
          , table [string "hi"]
+         -- uni2
          , scalar word8 0
          , missing
+         -- uni3
+         , missing
+         , missing
+         -- uni4
          , scalar word8 2
          , table [scalar int32 99]
          , scalar bool True
@@ -106,7 +125,8 @@ cases =
          [ "color" .= String "Gray"
          , "uni1" .= object ["x" .= String "hi"]
          , "uni2" .= String "NONE"
-         , "uni3" .= object ["y" .= Number 99]
+         , "uni3" .= String "NONE"
+         , "uni4" .= object ["y" .= Number 99]
          , "boo" .= True
          ])
   , Case
@@ -139,6 +159,7 @@ cases =
       "Structs"
       (root
          [ scalar struct [int32 maxBound, word32 maxBound]
+         , missing
          , scalar
              struct
              [ int32 maxBound
@@ -157,7 +178,8 @@ cases =
              ]
          ])
       (object
-         [ "x" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
+         [ "w" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
+         , "x" .= Null
          , "y" .=
            object
              [ "w" .= maxBound @Int32

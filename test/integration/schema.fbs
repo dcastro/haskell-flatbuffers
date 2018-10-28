@@ -17,6 +17,7 @@ table ManyTables {
   n: int;
   x: Simple;
   y: Simple;
+  z: Simple;
 }
 
 enum Color:ubyte { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
@@ -30,6 +31,7 @@ table UnionByteBool {
   uni1: U;
   uni2: U;
   uni3: U;
+  uni4: U;
   boo: bool;
 }
 
@@ -57,6 +59,7 @@ struct WithNestedStruct {
 }
 
 table Structs {
+  w: RegularStruct;
   x: RegularStruct;
   y: IrregularStruct;
   z: WithNestedStruct;
