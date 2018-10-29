@@ -135,7 +135,8 @@ cases =
       (root
          [ vector [scalar int32 1, scalar int32 2]
          , vector
-             [ text "hi 👬"
+             [ text ""
+             , text "hi 👬"
              , lazyText "hi 👬"
              , string "hi 👬"
              , byteString "hi"
@@ -146,7 +147,8 @@ cases =
       (object
          [ "x" .= [Number 1, Number 2]
          , "y" .=
-           [ String "hi 👬"
+           [ String ""
+           , String "hi 👬"
            , String "hi 👬"
            , String "hi 👬"
            , String "hi"

@@ -12,10 +12,17 @@ ghcid:  ## Launch ghcid
 			--restart package.yaml
 .PHONY: ghcid
 
-ghcid-test:  ## Launch ghcid and automatically run tests
+ghcid-test:  ## Launch ghcid and automatically run unit tests
 	ghcid \
 		--command "stack ghci \
-			--test" \
+			flatbuffers:lib :unit " \
+		--test main \
+		--restart package.yaml
+
+ghcid-int:  ## Launch ghcid and automatically run integration tests
+	ghcid \
+		--command "stack ghci \
+			flatbuffers:lib :integration " \
 		--test main \
 		--restart package.yaml
 .PHONY: ghcid-test

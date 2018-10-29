@@ -32,7 +32,7 @@ library:
   source-dirs:      src
 
 tests:
-  test:
+  integration:
     main: Spec.hs
     source-dirs: test/integration
     dependencies:
@@ -42,4 +42,12 @@ tests:
     - http-types
     - aeson
     - aeson-pretty
+  unit:
+    main: Spec.hs
+    source-dirs: test/unit
+    dependencies:
+    - flatbuffers
+    - hspec
+    - hedgehog
+    - hw-hspec-hedgehog
 

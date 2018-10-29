@@ -15,3 +15,4 @@
   * offsets can't be written to structs
   * Vectors cannot contain `missing`
 * Be able to choose the order in which fields are laid out inside the table, without affecting the order of the vtable. Check out the java classes generated for `table T {c: Color; u: SomeUnion; b: bool;}`.
+* "Force defaults" mode

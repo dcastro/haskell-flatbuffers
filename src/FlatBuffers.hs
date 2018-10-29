@@ -110,7 +110,10 @@ string' = dump . string
 -- | Encodes a bytestring as text.
 byteString :: BS.ByteString -> Field
 byteString bs = Field $ do
+  write $ word8 0 -- trailing zero
   let length = BS.length bs
+
+  prep referenceSize (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
   bw <- bytesWritten <+= referenceSize + fromIntegral length
   pure $ uoffsetFrom bw
@@ -118,10 +121,21 @@ byteString bs = Field $ do
 -- | Encodes a lazy bytestring as text.
 lazyByteString :: BSL.ByteString -> Field
 lazyByteString bs = Field $ do
+  write $ word8 0 -- trailing zero
   let length = BSL.length bs
+
+  prep referenceSize (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.lazyByteString bs)
   bw <- bytesWritten <+= referenceSize + fromIntegral length
   pure $ uoffsetFrom bw
+
+-- | Prepare to write @n@ bytes after writing @additionalBytes@.
+prep :: Word -> Word -> State FBState ()
+prep n additionalBytes = do
+  bw <- gets _bytesWritten
+  let r = (fromIntegral bw + additionalBytes) `rem` n
+  let needed = if r == 0 then 0 else n - r
+  sequence_ $ L.genericReplicate needed (write $ word8 0)
 
 root :: [Field] -> Builder
 root fields =
