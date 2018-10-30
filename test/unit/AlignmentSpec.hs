@@ -26,8 +26,8 @@ spec =
           BSL.toStrict $
           B.toLazyByteString $
           _builder $ flip execState state $ dump (byteString bs)
-    BS.length finalBs `mod` 4 === 0
     let padding = BS.length finalBs - (4 + BS.length bs + 1 + BS.length buffer)
+    BS.length finalBs `mod` 4 === 0
     assert $ padding >= 0
     assert $ padding < 4
 
