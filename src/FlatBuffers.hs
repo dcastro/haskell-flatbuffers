@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RecordWildCards #-}
+
 
 module FlatBuffers where
 
@@ -54,7 +56,6 @@ scalar f = scalar' . f
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =
   InlineField size $ do
-    prep size 0
     builder %= mappend (f a)
     bytesWritten += fromIntegral size
 
@@ -131,7 +132,7 @@ lazyByteString bs = Field $ do
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
-prep :: Word16 -> Word16 -> State FBState ()
+prep :: Word16 -> Word16 {- ^ additionalBytes -} -> State FBState ()
 prep n additionalBytes = do
   bw <- gets _bytesWritten
   let needed = calcPadding (bw + fromIntegral additionalBytes) n
@@ -165,23 +166,13 @@ padded n field = InlineField (size field + fromIntegral n) $ do
 table :: [Field] -> Field
 table fields = Field $
   traverse dump fields >>= table'
-
-calcPadding :: BytesWritten -> InlineSize -> InlineSize
-calcPadding bw n = if n == 0 || remainder == 0 then 0 else n - remainder
-  where
-    remainder = fromIntegral bw `rem` n
   
 vtable :: [InlineSize] -> Field
 vtable inlineSizes = Field $ do
   
-  let addPaddingToSize :: InlineSize -> ([InlineSize], BytesWritten) -> ([InlineSize], BytesWritten)
-      addPaddingToSize s (sizes, bw) =
-        ((s + padding) : sizes, bw + fromIntegral s + fromIntegral padding)
-        where padding = calcPadding bw s
-        
-  bw0 <- gets _bytesWritten
-  let (sizesWithPadding, _) = foldr' addPaddingToSize ([], fromIntegral bw0) inlineSizes
-  let fieldOffsets = calcFieldOffsets referenceSize sizesWithPadding
+  let (_, tableHeaderAlignedSize : alignedSizes) = foldr calcAlignedSizes (0, []) (referenceSize : inlineSizes)
+  let fieldOffsets = calcFieldOffsets tableHeaderAlignedSize alignedSizes
+
   let vtableSize = 2 + 2 + 2 * L.genericLength inlineSizes
   let tableSize = referenceSize + sum inlineSizes
 
@@ -211,8 +202,8 @@ table' fields = do
   vtableRef <- dump $ vtable inlineSizes
 
   -- table
-  traverse_ write (reverse fields)
-  write vtableRef
+  traverse_ (\f -> prep (size f) 0 >> write f) (reverse fields)
+  prep referenceSize 0 >> write vtableRef
   bw <- gets _bytesWritten
 
   pure $ uoffsetFrom bw
@@ -227,13 +218,11 @@ vector fields = Field $ do
 
 uoffsetFrom :: BytesWritten -> InlineField
 uoffsetFrom bw = InlineField referenceSize $ do
-  prep referenceSize 0
   bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
 soffsetFrom :: BytesWritten -> InlineField
 soffsetFrom bw = InlineField referenceSize $ do
-  prep referenceSize 0
   bw2 <- gets _bytesWritten
   write (int32 (negate (fromIntegral (bw2 - bw) + referenceSize)))
 
@@ -241,3 +230,14 @@ calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
 calcFieldOffsets seed []     = []
 calcFieldOffsets seed (0:xs) = 0 : calcFieldOffsets seed xs
 calcFieldOffsets seed (x:xs) = seed : calcFieldOffsets (seed + x) xs
+
+calcAlignedSizes :: InlineSize -> (Word16, [InlineSize]) -> (Word16, [InlineSize])
+calcAlignedSizes size (totalSize, sizes) =
+  (totalSize + alignedSize, alignedSize : sizes)
+  where
+    alignedSize = size + calcPadding (fromIntegral totalSize) size
+
+calcPadding :: BytesWritten -> InlineSize -> InlineSize
+calcPadding bw n = if n == 0 || remainder == 0 then 0 else n - remainder
+  where
+    remainder = fromIntegral bw `rem` n
