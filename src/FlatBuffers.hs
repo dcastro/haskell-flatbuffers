@@ -174,7 +174,7 @@ vtable inlineSizes = Field $ do
   let fieldOffsets = calcFieldOffsets tableHeaderAlignedSize alignedSizes
 
   let vtableSize = 2 + 2 + 2 * L.genericLength inlineSizes
-  let tableSize = referenceSize + sum inlineSizes
+  let tableSize = referenceSize + sum alignedSizes
 
   let bytestring = B.toLazyByteString
         (  B.word16LE vtableSize
