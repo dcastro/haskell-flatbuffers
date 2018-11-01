@@ -20,13 +20,13 @@ import qualified Data.List                 as L
 import qualified Data.Map.Strict           as M
 import           Data.Maybe
 import           Data.Monoid
+import           Data.Semigroup            (Max (..))
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Lazy            as TL
 import qualified Data.Text.Lazy.Encoding   as TL
 import           Data.Word
 import           Debug.Trace
-
 
 type InlineSize = Word16
 type Offset = BytesWritten
@@ -42,7 +42,7 @@ makeLenses ''FBState
 
 newtype Field = Field { dump :: State FBState InlineField }
 
-data InlineField = InlineField { size :: !InlineSize, write :: !(State FBState ()) }
+data InlineField = InlineField { size :: !InlineSize, align :: !InlineSize, write :: !(State FBState ()) }
 
 referenceSize :: Num a => a
 referenceSize = 4
@@ -55,7 +55,7 @@ scalar f = scalar' . f
 
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =
-  InlineField size $ do
+  InlineField size size $ do
     builder %= mappend (f a)
     bytesWritten += fromIntegral size
 
@@ -95,7 +95,7 @@ missing :: Field
 missing = Field $ pure missing'
 
 missing' :: InlineField
-missing' = InlineField 0 $ pure ()
+missing' = InlineField 0 0 $ pure ()
 
 lazyText :: TL.Text -> Field
 lazyText = lazyByteString . TL.encodeUtf8
@@ -133,10 +133,14 @@ lazyByteString bs = Field $ do
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
 prep :: Word16 -> Word16 {- ^ additionalBytes -} -> State FBState ()
-prep n additionalBytes = do
-  bw <- gets _bytesWritten
-  let needed = calcPadding (bw + fromIntegral additionalBytes) n
-  sequence_ $ L.genericReplicate needed (write $ word8 0)
+prep n additionalBytes =
+  if n == 0
+    then pure ()
+    else do
+      bw <- gets _bytesWritten
+      let remainder = (fromIntegral bw + additionalBytes) `rem` n
+      let needed = if remainder == 0 then 0 else n - remainder
+      sequence_ $ L.genericReplicate needed (write $ word8 0)
 
 root :: [Field] -> Builder
 root fields =
@@ -154,59 +158,67 @@ root' :: [InlineField] -> State FBState ()
 root' fields = void $ table' fields >>= write
 
 struct :: [InlineField] -> InlineField
-struct fields = InlineField (getSum $ foldMap (Sum . size) fields) $
+struct fields = InlineField (getSum $ foldMap (Sum . size) fields) (getMax $ foldMap (Max . align) fields) $
   traverse_ write (reverse fields)
 
-
 padded :: Word8 -> InlineField -> InlineField
-padded n field = InlineField (size field + fromIntegral n) $ do
+padded n field = InlineField (size field + fromIntegral n) (align field + fromIntegral n) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)
   write field
 
 table :: [Field] -> Field
 table fields = Field $
   traverse dump fields >>= table'
-  
-vtable :: [InlineSize] -> Field
-vtable inlineSizes = Field $ do
-  
-  let (_, tableHeaderAlignedSize : alignedSizes) = foldr calcAlignedSizes (0, []) (referenceSize : inlineSizes)
-  let fieldOffsets = calcFieldOffsets tableHeaderAlignedSize alignedSizes
 
-  let vtableSize = 2 + 2 + 2 * L.genericLength inlineSizes
-  let tableSize = referenceSize + sum alignedSizes
-
-  let bytestring = B.toLazyByteString
-        (  B.word16LE vtableSize
-        <> B.word16LE tableSize
-        <> foldMap B.word16LE fieldOffsets
-        )
-  bw <- (+ vtableSize) <$> gets _bytesWritten
-  
-  map <- gets _cache
-
-  case M.insertLookupWithKey (\k new old -> old) bytestring bw map of
-    (Nothing, map') -> do
-      builder %= mappend (B.lazyByteString bytestring)
-      bytesWritten += vtableSize
-      cache .= map'
-      pure $ soffsetFrom bw
-
-    (Just oldBw, _) ->
-      pure $ soffsetFrom oldBw
+vtable :: [InlineSize] -> InlineSize -> BSL.ByteString
+vtable fieldOffsets tableSize = bytestring
+  where
+    vtableSize = 2 + 2 + 2 * L.genericLength fieldOffsets
+    bytestring = B.toLazyByteString
+      (  B.word16LE vtableSize
+      <> B.word16LE tableSize
+      <> foldMap B.word16LE fieldOffsets
+      )
       
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
-  -- vtable
-  let inlineSizes = map size fields
-  vtableRef <- dump $ vtable inlineSizes
-
   -- table
-  traverse_ (\f -> prep (size f) 0 >> write f) (reverse fields)
-  prep referenceSize 0 >> write vtableRef
-  bw <- gets _bytesWritten
+  tableEnd <- gets _bytesWritten
+  locations <-
+    fmap reverse $ forM (reverse fields) $ \f ->
+      if size f == 0
+        then pure 0
+        else prep (align f) 0 >> write f >> gets _bytesWritten
+  prep referenceSize 0
+  tableStart <- gets _bytesWritten
 
-  pure $ uoffsetFrom bw
+  let tableLocation = tableStart + referenceSize
+  let tableSize = tableLocation - tableEnd
+  let fieldOffsets = flip fmap locations $ \case
+                  0 -> 0
+                  loc -> fromIntegral (tableLocation - loc)
+
+  let newVtable = vtable fieldOffsets (fromIntegral tableSize)
+  let newVtableSize = fromIntegral (BSL.length newVtable)
+  let newVtableLocation = tableLocation + newVtableSize
+
+  map <- gets _cache
+  case M.insertLookupWithKey (\k new old -> old) newVtable newVtableLocation map of
+    (Nothing, map') -> do
+      -- update the cache
+      cache .= map'
+
+      -- pointer to vtable
+      write $ int32 (fromIntegral newVtableSize)
+      
+      -- vtable
+      builder %= mappend (B.lazyByteString newVtable)
+      bytesWritten += newVtableSize
+    (Just oldVtableLocation, _) ->
+      -- pointer to vtable
+      write $ int32 $ negate $ fromIntegral (tableLocation - oldVtableLocation)
+
+  pure $ uoffsetFrom tableLocation
 
 vector :: [Field] -> Field
 vector fields = Field $ do
@@ -217,27 +229,11 @@ vector fields = Field $ do
   pure $ uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
-uoffsetFrom bw = InlineField referenceSize $ do
+uoffsetFrom bw = InlineField referenceSize referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
 soffsetFrom :: BytesWritten -> InlineField
-soffsetFrom bw = InlineField referenceSize $ do
+soffsetFrom bw = InlineField referenceSize referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (negate (fromIntegral (bw2 - bw) + referenceSize)))
-
-calcFieldOffsets :: Word16 -> [InlineSize] -> [Word16]
-calcFieldOffsets seed []     = []
-calcFieldOffsets seed (0:xs) = 0 : calcFieldOffsets seed xs
-calcFieldOffsets seed (x:xs) = seed : calcFieldOffsets (seed + x) xs
-
-calcAlignedSizes :: InlineSize -> (Word16, [InlineSize]) -> (Word16, [InlineSize])
-calcAlignedSizes size (totalSize, sizes) =
-  (totalSize + alignedSize, alignedSize : sizes)
-  where
-    alignedSize = size + calcPadding (fromIntegral totalSize) size
-
-calcPadding :: BytesWritten -> InlineSize -> InlineSize
-calcPadding bw n = if n == 0 || remainder == 0 then 0 else n - remainder
-  where
-    remainder = fromIntegral bw `rem` n
