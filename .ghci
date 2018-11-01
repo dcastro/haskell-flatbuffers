@@ -4,4 +4,3 @@
 :def doc \x -> Prelude.pure (":!hoogle --info \"" Prelude.++ x Prelude.++ "\"")
 
 :set +t
-:set -fprint-explicit-foralls

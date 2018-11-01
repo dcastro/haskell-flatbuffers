@@ -7,6 +7,7 @@ import           Control.Monad.State
 import qualified Data.ByteString             as BS
 import qualified Data.ByteString.Builder     as B
 import qualified Data.ByteString.Lazy        as BSL
+import           Data.Semigroup              (Max (..))
 import           FlatBuffers                 as F
 import           HaskellWorks.Hspec.Hedgehog
 import           Hedgehog
@@ -21,7 +22,7 @@ spec =
   requireProperty $ do
     bs <- forAll $ G.bytes (R.linear 0 20)
     buffer <- forAll $ G.bytes (R.linear 0 30)
-    let state = FBState (B.byteString buffer) (BS.length buffer) mempty
+    let state = FBState (B.byteString buffer) (BS.length buffer) (Max 1) mempty
     let finalBs =
           BSL.toStrict $
           B.toLazyByteString $

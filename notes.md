@@ -16,6 +16,8 @@
 * Memory alignment
 * Rules to be enforced at the type level
   * offsets can't be written to structs
-  * Vectors cannot contain `missing`
+  * vectors cannot contain `missing`
+  * vector elements must all be of the same type - or at least of the same size
+* Override table alignment
 * Be able to choose the order in which fields are laid out inside the table, without affecting the order of the vtable. Check out the java classes generated for `table T {c: Color; u: SomeUnion; b: bool;}`.
 * "Force defaults" mode

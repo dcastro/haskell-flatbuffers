@@ -1,8 +1,5 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RecordWildCards #-}
-
 
 module FlatBuffers where
 
@@ -34,7 +31,8 @@ type BytesWritten = Int
 
 data FBState = FBState
   { _builder      :: !Builder
-  , _bytesWritten :: !Int
+  , _bytesWritten :: !BytesWritten
+  , _maxAlign     :: !(Max Word16)
   , _cache        :: !(M.Map BSL.ByteString Offset)
   }
 
@@ -42,7 +40,11 @@ makeLenses ''FBState
 
 newtype Field = Field { dump :: State FBState InlineField }
 
-data InlineField = InlineField { size :: !InlineSize, align :: !InlineSize, write :: !(State FBState ()) }
+data InlineField = InlineField
+  { size :: !InlineSize
+  , align :: !InlineSize
+  , write :: !(State FBState ())
+  }
 
 referenceSize :: Num a => a
 referenceSize = 4
@@ -137,6 +139,7 @@ prep n additionalBytes =
   if n == 0
     then pure ()
     else do
+      maxAlign <>= Max n
       bw <- gets _bytesWritten
       let remainder = (fromIntegral bw + additionalBytes) `rem` n
       let needed = if remainder == 0 then 0 else n - remainder
@@ -145,17 +148,26 @@ prep n additionalBytes =
 root :: [Field] -> Builder
 root fields =
   _builder $ execState
-    (dump (table fields) >>= write)
-    (FBState mempty 0 mempty)
+    (do
+      ref <- dump (table fields)
+      align <- uses maxAlign getMax
+      prep align referenceSize
+      write ref
+    )
+    (FBState mempty 0 (Max 1) mempty)
 
 runRoot :: State FBState () -> Builder
 runRoot state =
   _builder $ execState
     state
-    (FBState mempty 0 mempty)
+    (FBState mempty 0 (Max 1) mempty)
 
 root' :: [InlineField] -> State FBState ()
-root' fields = void $ table' fields >>= write
+root' fields = do
+  ref <- table' fields
+  align <- uses maxAlign getMax
+  prep align referenceSize
+  write ref
 
 struct :: [InlineField] -> InlineField
 struct fields = InlineField (getSum $ foldMap (Sum . size) fields) (getMax $ foldMap (Max . align) fields) $
@@ -223,6 +235,15 @@ table' fields = do
 vector :: [Field] -> Field
 vector fields = Field $ do
   inlineFields <- traverse dump fields
+
+  -- TODO: all elements should have the same size
+  let elemSize = getMax $ foldMap (Max . size) inlineFields
+  let elemAlign = getMax $ foldMap (Max . align) inlineFields
+  let elemCount = L.genericLength inlineFields
+
+  prep 4 (elemSize * elemCount)
+  prep elemAlign (elemSize * elemCount)
+  
   traverse_ write (reverse inlineFields)
   write (int32 (L.genericLength fields))
   bw <- gets _bytesWritten
@@ -232,8 +253,3 @@ uoffsetFrom :: BytesWritten -> InlineField
 uoffsetFrom bw = InlineField referenceSize referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
-
-soffsetFrom :: BytesWritten -> InlineField
-soffsetFrom bw = InlineField referenceSize referenceSize $ do
-  bw2 <- gets _bytesWritten
-  write (int32 (negate (fromIntegral (bw2 - bw) + referenceSize)))
