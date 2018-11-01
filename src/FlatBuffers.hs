@@ -42,10 +42,7 @@ makeLenses ''FBState
 
 newtype Field = Field { dump :: State FBState InlineField }
 
-data InlineField = InlineField
-  { align :: !InlineSize
-  , write :: !(State FBState InlineSize)
-  }
+data InlineField = InlineField { size :: !InlineSize, align :: !InlineSize, write :: !(State FBState ()) }
 
 referenceSize :: Num a => a
 referenceSize = 4
@@ -58,13 +55,9 @@ scalar f = scalar' . f
 
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =
-  InlineField
-  { align = size
-  , write = do
-      builder %= mappend (f a)
-      bytesWritten += fromIntegral size
-      pure size
-  }
+  InlineField size size $ do
+    builder %= mappend (f a)
+    bytesWritten += fromIntegral size
 
 int8 :: Int8 -> InlineField
 int8 = primitive 1 B.int8
@@ -102,7 +95,7 @@ missing :: Field
 missing = Field $ pure missing'
 
 missing' :: InlineField
-missing' = InlineField 0 $ pure 0
+missing' = InlineField 0 0 $ pure ()
 
 lazyText :: TL.Text -> Field
 lazyText = lazyByteString . TL.encodeUtf8
@@ -165,14 +158,13 @@ root' :: [InlineField] -> State FBState ()
 root' fields = void $ table' fields >>= write
 
 struct :: [InlineField] -> InlineField
-struct fields = InlineField (getMax $ foldMap (Max . align) fields) $
-  sum <$> traverse write (reverse fields)
+struct fields = InlineField (getSum $ foldMap (Sum . size) fields) (getMax $ foldMap (Max . align) fields) $
+  traverse_ write (reverse fields)
 
 padded :: Word8 -> InlineField -> InlineField
-padded n field = InlineField (align field + fromIntegral n) $ do
+padded n field = InlineField (size field + fromIntegral n) (align field + fromIntegral n) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)
-  size <- write field
-  pure $ size + fromIntegral n
+  write field
 
 table :: [Field] -> Field
 table fields = Field $
@@ -193,12 +185,10 @@ table' fields = do
   -- table
   tableEnd <- gets _bytesWritten
   locations <-
-    fmap reverse $ forM (reverse fields) $ \f -> do
-      prep (align f) 0
-      size <- write f
-      if size == 0
+    fmap reverse $ forM (reverse fields) $ \f ->
+      if size f == 0
         then pure 0
-        else gets _bytesWritten
+        else prep (align f) 0 >> write f >> gets _bytesWritten
   prep referenceSize 0
   tableStart <- gets _bytesWritten
 
@@ -226,7 +216,7 @@ table' fields = do
       bytesWritten += newVtableSize
     (Just oldVtableLocation, _) ->
       -- pointer to vtable
-      void $ write $ int32 $ negate $ fromIntegral (tableLocation - oldVtableLocation)
+      write $ int32 $ negate $ fromIntegral (tableLocation - oldVtableLocation)
 
   pure $ uoffsetFrom tableLocation
 
@@ -239,11 +229,11 @@ vector fields = Field $ do
   pure $ uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
-uoffsetFrom bw = InlineField referenceSize $ do
+uoffsetFrom bw = InlineField referenceSize referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (fromIntegral (bw2 - bw) + referenceSize))
 
 soffsetFrom :: BytesWritten -> InlineField
-soffsetFrom bw = InlineField referenceSize $ do
+soffsetFrom bw = InlineField referenceSize referenceSize $ do
   bw2 <- gets _bytesWritten
   write (int32 (negate (fromIntegral (bw2 - bw) + referenceSize)))
