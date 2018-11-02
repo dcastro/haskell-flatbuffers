@@ -22,32 +22,19 @@ import           Test.Hspec
 spec :: Spec
 spec =
   describe "alignment" $ do
-    it "a string's size is aligned to 4 bytes" $
-      requireProperty $ do
-        bs <- forAll $ G.bytes (R.linear 0 20)
-        buffer <- forAll $ G.bytes (R.linear 0 30)
-        let state =
-              FBState (B.byteString buffer) (BS.length buffer) (Max 1) mempty
-        let finalBs =
-              BSL.toStrict $
-              B.toLazyByteString $
-              _builder $ flip execState state $ dump (byteString bs)
-        let padding =
-              BS.length finalBs - (4 + BS.length bs + 1 + BS.length buffer)
-        BS.length finalBs `mod` 4 === 0
-        assert $ padding >= 0
-        assert $ padding < 4
-    it "int64 are properly aligned" $ require alignedProp
+    it "int64 are properly aligned" $ require $
+      alignedProp (WS "scalar int64 maxBound" (scalar int64 maxBound)) (B.int64LE maxBound) 8
+    it "strings are properly aligned" $ require $
+      alignedProp (WS "string \"hellohellohello\"" (string "hellohellohello")) (B.int32LE 15 <> B.stringUtf8 "hellohellohello") 4
 
-alignedProp :: Property
-alignedProp =
+alignedProp :: WithShow Field -> B.Builder -> Int64 -> Property
+alignedProp field expectedBs align =
   property $ do
-    let field = B.int64LE maxBound
     bs <-
       fmap (B.toLazyByteString . root . WS.value) . forAll $
-      FG.tableWith (WS "scalar int64 maxBound" (scalar int64 maxBound))
-    let indices = find (B.toLazyByteString $ B.int64LE maxBound) bs
-    assert $ any (\i -> i `mod` 8 == 0) indices
+      FG.tableWith field
+    let indices = find (B.toLazyByteString expectedBs) bs
+    assert $ any (\i -> i `mod` align == 0) indices
 
 -- | Finds all indices of a substring in a bytestring.
 find :: BSL.ByteString -> BSL.ByteString -> [Int64]
