@@ -76,8 +76,14 @@ int64 = primitive 8 B.int64LE
 word8 :: Word8 -> InlineField
 word8 = primitive 1 B.word8
 
+word16 :: Word16 -> InlineField
+word16 = primitive 2 B.word16LE
+
 word32 :: Word32 -> InlineField
 word32 = primitive 4 B.word32LE
+
+word64 :: Word64 -> InlineField
+word64 = primitive 8 B.word64LE
 
 
 float :: Float -> InlineField
