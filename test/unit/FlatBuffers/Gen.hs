@@ -7,8 +7,8 @@ import qualified Data.ByteString.Lazy as BSL
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 import qualified Data.Text.Lazy       as TL
-import           Data.WithShow        (WithShow (WS), label, tshow, wsmap,
-                                       wssequence)
+import           Data.WithShow        (WithShow (WS), label, labelT, tshow,
+                                       wsmap, wssequence)
 import           FlatBuffers          (Field, InlineField, missing)
 import qualified FlatBuffers          as F
 import           Hedgehog
@@ -54,20 +54,34 @@ numericField =
   G.choice
     [word8, word16, word32, word64, int8, int16, int32, int64, double, float]
 
-field :: Gen (WithShow Field)
-field =
-  G.choice
+fieldRec :: Gen (WithShow Field)
+fieldRec =
+  G.recursive G.choice
     [ pure $ WS "missing" missing
     , textualField
     , scalar numericField
     , scalar bool
     ]
+    [ wsmap (labelT "table ") F.table . wssequence <$> G.list (R.linear 0 4) fieldRec 
+    ]
 
 tableWith :: WithShow Field -> Gen (WithShow [Field])
 tableWith f = do
-  before <- G.list (R.linear 0 20) field
-  after <- G.list (R.linear 0 20) field
+  before <- G.list (R.linear 0 6) fieldRec
+  after <- G.list (R.linear 0 6) fieldRec
   pure $ wssequence $ before ++ [f] ++ after
+
+tableWithRec :: WithShow Field -> Gen (WithShow [Field])
+tableWithRec f = G.recursive G.choice
+  [ tableWith f
+  ]
+  [ 
+    do
+      before <- G.list (R.linear 0 6) fieldRec
+      t <- wsmap (labelT "table ") F.table <$> tableWithRec f
+      after <- G.list (R.linear 0 6) fieldRec
+      pure $ wssequence $ before ++ [t] ++ after
+  ]
 
 char :: Gen Char
 char = G.frequency [(9, G.alphaNum), (1, G.unicodeAll)]

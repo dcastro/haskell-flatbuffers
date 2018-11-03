@@ -32,7 +32,7 @@ alignedProp field expectedBs align =
   property $ do
     bs <-
       fmap (B.toLazyByteString . root . WS.value) . forAll $
-      FG.tableWith field
+      FG.tableWithRec field
     let indices = find (B.toLazyByteString expectedBs) bs
     assert $ any (\i -> i `mod` align == 0) indices
 

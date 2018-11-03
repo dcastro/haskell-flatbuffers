@@ -29,5 +29,8 @@ wssequence xs =
 tshow :: Show a => a -> Text
 tshow = T.pack . show
 
+labelT :: Text -> Text -> Text
+labelT = T.append
+
 label :: Show a => Text -> a -> Text
 label l = T.append l . tshow
