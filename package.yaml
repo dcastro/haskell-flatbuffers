@@ -31,6 +31,13 @@ dependencies:
 library:
   source-dirs:      src
 
+executables:
+  flaths:
+    source-dirs:      app
+    main:             Main.hs
+    dependencies:
+    - megaparsec
+
 tests:
   integration:
     main: Spec.hs

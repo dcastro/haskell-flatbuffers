@@ -15,14 +15,16 @@ ghcid:  ## Launch ghcid
 ghcid-unit:  ## Launch ghcid and automatically run unit tests
 	ghcid \
 		--command "stack ghci \
-			flatbuffers:lib :unit " \
+			--main-is :unit \
+			flatbuffers:lib :flaths :unit " \
 		--test main \
 		--restart package.yaml
 
 ghcid-int:  ## Launch ghcid and automatically run integration tests
 	ghcid \
 		--command "stack ghci \
-			flatbuffers:lib :integration " \
+			--main-is :integration \
+			flatbuffers:lib :flaths :integration " \
 		--test main \
 		--restart package.yaml
 .PHONY: ghcid-test

@@ -4,6 +4,7 @@
 
 * Cannot distinguish empty vector from absent vector (workaround is to wrap vector in a table).
   * This same problem affects ints (`Just 0` vs `Nothing`), etc.
+* Vectors of vectors are not supported (see above workaround).
 * Vectors (e.g. of strings) cannot contains nulls, see <https://github.com/google/flatbuffers/issues/4704>
 * Vector of unions / vectors of unions of structs are not supported by all languages (supported in typescript)
 * Structs, unlike other scalars, are nullable. But when a struct `y` is nested inside a struct `x`, either the whole thing is null, or it isn't. You can't have a nullable nested struct.
