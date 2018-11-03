@@ -54,34 +54,61 @@ numericField =
   G.choice
     [word8, word16, word32, word64, int8, int16, int32, int64, double, float]
 
-fieldRec :: Gen (WithShow Field)
-fieldRec =
+field :: Gen (WithShow Field)
+field =
   G.recursive G.choice
     [ pure $ WS "missing" missing
     , textualField
     , scalar numericField
     , scalar bool
     ]
-    [ wsmap (labelT "table ") F.table . wssequence <$> G.list (R.linear 0 4) fieldRec 
+    [ table
+    , vector
     ]
 
-tableWith :: WithShow Field -> Gen (WithShow [Field])
-tableWith f = do
-  before <- G.list (R.linear 0 6) fieldRec
-  after <- G.list (R.linear 0 6) fieldRec
-  pure $ wssequence $ before ++ [f] ++ after
+table :: Gen (WithShow Field)
+table =
+  wsmap (labelT "table ") F.table . wssequence <$> G.list (R.linear 0 4) field
 
-tableWithRec :: WithShow Field -> Gen (WithShow [Field])
-tableWithRec f = G.recursive G.choice
-  [ tableWith f
-  ]
-  [ 
-    do
-      before <- G.list (R.linear 0 6) fieldRec
-      t <- wsmap (labelT "table ") F.table <$> tableWithRec f
-      after <- G.list (R.linear 0 6) fieldRec
-      pure $ wssequence $ before ++ [t] ++ after
-  ]
+vector :: Gen (WithShow Field)
+vector = do
+  gen <- G.element $
+    fmap scalar [word8, word16, word32, word64, int8, int16, int32, int64, double, float, bool]
+    ++ [textualField, table]
+
+  elems <- G.list (R.linear 0 10) gen
+  pure $ wsmap (labelT "vector ") F.vector $ wssequence elems
+
+-- | Generates a series of fields (which may contain nested tables, or vectors).
+-- The field @f@ is guaranteed to be present somewhere in the structure, at any level of nesting.
+-- If the field @f@ is present in a vector, then @gen@ is used to generate similar fields.
+fieldsWith :: WithShow Field -> Gen (WithShow Field) -> Gen (WithShow [Field])
+fieldsWith f gen =
+  G.recursive
+    G.choice
+    [ do
+        before <- G.list (R.linear 0 6) field
+        after <- G.list (R.linear 0 6) field
+        pure $ wssequence $ before ++ [f] ++ after
+    , do
+        before <- G.list (R.linear 0 6) field
+        v <- vectorWith f gen
+        after <- G.list (R.linear 0 6) field
+        pure $ wssequence $ before ++ [v] ++ after
+    ]
+    [ do
+        before <- G.list (R.linear 0 6) field
+        t <- wsmap (labelT "table ") F.table <$> fieldsWith f gen
+        after <- G.list (R.linear 0 6) field
+        pure $ wssequence $ before ++ [t] ++ after
+    ]
+
+
+vectorWith :: WithShow Field -> Gen (WithShow Field) -> Gen (WithShow Field)
+vectorWith f gen = do
+  before <- G.list (R.linear 0 10) gen
+  after <- G.list (R.linear 0 10) gen
+  pure $ wsmap (labelT "vector ") F.vector $ wssequence (before ++ [f] ++ after)
 
 char :: Gen Char
 char = G.frequency [(9, G.alphaNum), (1, G.unicodeAll)]

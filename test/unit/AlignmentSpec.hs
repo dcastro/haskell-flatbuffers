@@ -23,16 +23,24 @@ spec :: Spec
 spec =
   describe "alignment" $ do
     it "int64 are properly aligned" $ require $
-      alignedProp (WS "scalar int64 maxBound" (scalar int64 maxBound)) (B.int64LE maxBound) 8
+      alignedProp
+        (WS "scalar int64 maxBound" (scalar int64 maxBound))
+        (FG.scalar FG.int64)
+        (B.int64LE maxBound)
+        8
     it "strings are properly aligned" $ require $
-      alignedProp (WS "string \"hellohellohello\"" (string "hellohellohello")) (B.int32LE 15 <> B.stringUtf8 "hellohellohello") 4
+      alignedProp
+        (WS "string \"hellohellohello\"" (string "hellohellohello"))
+        FG.string
+        (B.int32LE 15 <> B.stringUtf8 "hellohellohello")
+        4
 
-alignedProp :: WithShow Field -> B.Builder -> Int64 -> Property
-alignedProp field expectedBs align =
+alignedProp :: WithShow Field -> Gen (WithShow Field) -> B.Builder -> Int64 -> Property
+alignedProp field gen expectedBs align =
   property $ do
     bs <-
       fmap (B.toLazyByteString . root . WS.value) . forAll $
-      FG.tableWithRec field
+      FG.fieldsWith field gen
     let indices = find (B.toLazyByteString expectedBs) bs
     assert $ any (\i -> i `mod` align == 0) indices
 
