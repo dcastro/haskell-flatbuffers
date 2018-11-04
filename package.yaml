@@ -37,6 +37,7 @@ executables:
     main:             Main.hs
     dependencies:
     - megaparsec
+    - parser-combinators
 
 tests:
   integration:
