@@ -85,7 +85,7 @@ semi = symbol ";"
 ident :: Parser Ident
 ident = (lexeme . try) identifier
   where
-    identifier = fmap (Ident . T.pack) $ (:) <$> letterChar <*> many alphaNumChar
+    identifier = fmap (Ident . T.pack) $ (:) <$> letterChar <*> many (alphaNumChar <|> char '_')
 
 typ :: Parser Type
 typ =
