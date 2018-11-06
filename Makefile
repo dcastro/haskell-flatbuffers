@@ -15,16 +15,16 @@ ghcid:  ## Launch ghcid
 ghcid-unit:  ## Launch ghcid and automatically run unit tests
 	ghcid \
 		--command "stack ghci \
-			--main-is :unit \
-			flatbuffers:lib :flaths :unit " \
+			--test \
+			--main-is :unit" \
 		--test main \
 		--restart package.yaml
 
 ghcid-int:  ## Launch ghcid and automatically run integration tests
 	ghcid \
 		--command "stack ghci \
-			--main-is :integration \
-			flatbuffers:lib :flaths :integration " \
+			--test \
+			--main-is :integration" \
 		--test main \
 		--restart package.yaml
 .PHONY: ghcid-test
@@ -39,7 +39,7 @@ test-api: ## Generate java flatbuffers and launch test-api
 		sbt "~reStart"
 
 docs:  ## Builds haddock documentation and watch files for changes
-	$(STACK) haddock --file-watch
+	$(STACK) haddock --no-haddock-deps --file-watch
 .PHONY: docs
 
 ################################################################################

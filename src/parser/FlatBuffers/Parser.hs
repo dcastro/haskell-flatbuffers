@@ -1,4 +1,4 @@
-module Parser where
+module FlatBuffers.Parser where
 
 import qualified Control.Monad.Combinators.NonEmpty as NE
 import           Data.Functor

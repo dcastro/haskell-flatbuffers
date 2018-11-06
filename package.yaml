@@ -29,15 +29,21 @@ dependencies:
 
 
 library:
-  source-dirs:      src
+  source-dirs:      src/lib
+
+internal-libraries:
+  flatbuffers-parser:
+    source-dirs:      src/parser
+    dependencies:
+    - megaparsec
+    - parser-combinators
 
 executables:
   flaths:
     source-dirs:      app
     main:             Main.hs
     dependencies:
-    - megaparsec
-    - parser-combinators
+    - flatbuffers-parser
 
 tests:
   integration:

@@ -4,3 +4,6 @@
 :def doc \x -> Prelude.pure (":!hoogle --info \"" Prelude.++ x Prelude.++ "\"")
 
 :set +t
+
+:set -package pretty-simple
+import Text.Pretty.Simple (pPrint)
