@@ -143,5 +143,8 @@ schema = do
   schemas <-
     many
       ((\x -> Schema [] [x] []) <$> namespace <|>
-       (\x -> Schema [] [] [x]) <$> typeDecl)
+       (\x -> Schema [] [] [x]) <$> typeDecl <|>
+       include *> fail "\"include\" statements must be at the beginning of the file."
+       )
+  eof
   pure $ (mconcat schemas) { includes = includes }
