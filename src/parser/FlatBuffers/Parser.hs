@@ -1,8 +1,11 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module FlatBuffers.Parser where
 
 import qualified Control.Monad.Combinators.NonEmpty as NE
 import           Data.Functor
 import           Data.List.NonEmpty
+import           Data.String                        (IsString)
 import           Data.Text                          (Text)
 import qualified Data.Text                          as T
 import           Data.Void                          (Void)
@@ -28,13 +31,13 @@ instance Monoid Schema where
   Schema i n t `mappend` Schema i2 n2 t2 = Schema (i <> i2) (n <> n2) (t <> t2)
 
 newtype Ident = Ident { unIdent :: Text }
-  deriving Show
+  deriving (Show, Eq, IsString)
 
 newtype Include = Include { unInclude :: StringConst }
-  deriving Show
+  deriving (Show, Eq, IsString)
 
 newtype StringConst = StringConst { unStringConst :: Text }
-  deriving Show
+  deriving (Show, Eq, IsString)
 
 newtype Namespace = Namespace { unNamespace :: NonEmpty Ident }
   deriving Show

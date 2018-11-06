@@ -61,7 +61,9 @@ tests:
     source-dirs: test/unit
     dependencies:
     - flatbuffers
+    - flatbuffers-parser
     - hspec
+    - hspec-megaparsec
     - hedgehog
     - hw-hspec-hedgehog
 
