@@ -14,7 +14,8 @@ type Parser = Parsec Void String
 
 -- | https://google.github.io/flatbuffers/flatbuffers_grammar.html
 data Schema = Schema
-  { namespaces :: [Namespace]
+  { includes :: [Include]
+  , namespaces :: [Namespace]
   , typeDecls  :: [TypeDecl]
   }
   deriving Show
@@ -23,10 +24,16 @@ instance Semigroup Schema where
   (<>) = mappend
 
 instance Monoid Schema where
-  mempty = Schema [] []
-  Schema n t `mappend` Schema n2 t2 = Schema (n <> n2) (t <> t2)
+  mempty = Schema [] [] []
+  Schema i n t `mappend` Schema i2 n2 t2 = Schema (i <> i2) (n <> n2) (t <> t2)
 
 newtype Ident = Ident { unIdent :: Text }
+  deriving Show
+
+newtype Include = Include { unInclude :: StringConst }
+  deriving Show
+
+newtype StringConst = StringConst { unStringConst :: Text }
   deriving Show
 
 newtype Namespace = Namespace { unNamespace :: NonEmpty Ident }
@@ -121,11 +128,20 @@ typeDecl = do
 namespace :: Parser Namespace
 namespace = Namespace <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
 
+stringConst :: Parser StringConst
+stringConst =
+  fmap (StringConst . T.pack) . lexeme $
+    char '"' >> manyTill L.charLiteral (char '"')
+
+include :: Parser Include
+include = Include <$> (rword "include" *> stringConst <* semi)
+
 schema :: Parser Schema
 schema = do
   sc
+  includes <- many include
   schemas <-
     many
-      ((\x -> Schema [x] []) <$> namespace <|>
-       (\x -> Schema [] [x]) <$> typeDecl)
-  pure $ mconcat schemas
+      ((\x -> Schema [] [x] []) <$> namespace <|>
+       (\x -> Schema [] [] [x]) <$> typeDecl)
+  pure $ (mconcat schemas) { includes = includes }
