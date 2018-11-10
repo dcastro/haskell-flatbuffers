@@ -28,6 +28,8 @@ dependencies:
   - lens
   - megaparsec
   - parser-combinators
+  - binary
+  - hw-int
 
 library:
   source-dirs:      src

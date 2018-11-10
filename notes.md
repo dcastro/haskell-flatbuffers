@@ -22,4 +22,4 @@
 * Be able to choose the order in which fields are laid out inside the table, without affecting the order of the vtable. Check out the java classes generated for `table T {c: Color; u: SomeUnion; b: bool;}`.
 * "Force defaults" mode
 * Generalize code, `[Field]` -> `Traversable f => f Field`
-* Bang patterns
+* Bang patterns, unpacked pragma, `$!`
