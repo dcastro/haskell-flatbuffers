@@ -30,6 +30,7 @@ dependencies:
   - parser-combinators
   - binary
   - hw-int
+  - safe-exceptions
 
 library:
   source-dirs:      src
