@@ -13,7 +13,6 @@ import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
 import           Data.Int
 import           Data.Word
-import           FlatBuffers                   (int32, root, scalar)
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 type ReadCtx m = MonadThrow m
@@ -41,18 +40,18 @@ fromLazyByteString bs = runGetM table bs
       pure $ Table {..}
 
 readInt32 :: ReadCtx m => Table -> Index -> Int32 -> m Int32
-readInt32 t ix dflt = readFromOffset t G.getInt32le dflt =<< fieldOffset t ix
+readInt32 t ix dflt = readFromVOffset t G.getInt32le dflt =<< fieldVOffset t ix
 
 readInt64 :: ReadCtx m => Table -> Index -> Int64 -> m Int64
-readInt64 t ix dflt = readFromOffset t G.getInt64le dflt =<< fieldOffset t ix
+readInt64 t ix dflt = readFromVOffset t G.getInt64le dflt =<< fieldVOffset t ix
 
 
-readFromOffset :: ReadCtx m => Table -> Get a -> a -> VOffset -> m a
-readFromOffset _ _ dflt 0 = pure dflt
-readFromOffset t get _ voffset = runGetM (G.skip (fromIntegral $ unVOffset voffset) >> get) (table t)
+readFromVOffset :: ReadCtx m => Table -> Get a -> a -> VOffset -> m a
+readFromVOffset _ _ dflt 0 = pure dflt
+readFromVOffset t get _ voffset = runGetM (G.skip (fromIntegral $ unVOffset voffset) >> get) (table t)
 
-fieldOffset :: ReadCtx m => Table -> Index -> m VOffset
-fieldOffset Table {..} ix = do
+fieldVOffset :: ReadCtx m => Table -> Index -> m VOffset
+fieldVOffset Table {..} ix = do
   vtableSize <- runGetM G.getWord16le vtable
   let vtableIndex = 4 + (unIndex ix * 2)
   voffset <-
