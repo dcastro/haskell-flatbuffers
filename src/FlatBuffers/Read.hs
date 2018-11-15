@@ -57,17 +57,17 @@ getTable root currentOffsetFromRoot = do
   pure $ Table root table vtable (OffsetFromRoot $ widen64 tableOffset)
 
 readInt32 :: ReadCtx m => Table -> Index -> Int32 -> m Int32
-readInt32 t ix dflt = fieldVOffset t ix >>= readFromVOffset t G.getInt32le (pure dflt)
+readInt32 t ix dflt = indexToVOffset t ix >>= readFromVOffset t G.getInt32le (pure dflt)
 
 readInt32Req :: ReadCtx m => Table -> Index -> FieldName -> m Int32
-readInt32Req t ix fn = fieldVOffset t ix >>= readFromVOffset t G.getInt32le (throwM $ MissingField fn)
+readInt32Req t ix fn = indexToVOffset t ix >>= readFromVOffset t G.getInt32le (throwM $ MissingField fn)
 
 readInt64 :: ReadCtx m => Table -> Index -> Int64 -> m Int64
-readInt64 t ix dflt = fieldVOffset t ix >>= readFromVOffset t G.getInt64le (pure dflt)
+readInt64 t ix dflt = indexToVOffset t ix >>= readFromVOffset t G.getInt64le (pure dflt)
 
 readTableReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
 readTableReq t ix fn = do
-  voffset <- fieldVOffset t ix
+  voffset <- indexToVOffset t ix
   if voffset == 0
     then throwM $ MissingField fn
     else
@@ -81,8 +81,8 @@ readFromVOffset :: ReadCtx m => Table -> Get a -> m a -> VOffset -> m a
 readFromVOffset _ _ dflt 0 = dflt
 readFromVOffset t get _ voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) (table t)
 
-fieldVOffset :: ReadCtx m => Table -> Index -> m VOffset
-fieldVOffset Table {..} ix =
+indexToVOffset :: ReadCtx m => Table -> Index -> m VOffset
+indexToVOffset Table {..} ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unIndex ix * 2)
