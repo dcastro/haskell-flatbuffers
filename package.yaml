@@ -14,8 +14,9 @@ extra-source-files:
 ghc-options:
   - -fdefer-typed-holes
   # - -Wall
-  - -fwarn-incomplete-patterns
-  - -fwarn-tabs
+  - -Wincomplete-patterns
+  - -Wincomplete-record-updates
+  - -Wtabs
   - -Wno-unticked-promoted-constructors
 
 dependencies:

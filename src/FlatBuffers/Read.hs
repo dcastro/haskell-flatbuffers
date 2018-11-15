@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.Read where
 
@@ -12,62 +13,92 @@ import           Data.ByteString.Lazy          (ByteString)
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
 import           Data.Int
+import           Data.String                   (IsString)
+import           Data.Text                     (Text)
 import           Data.Word
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 type ReadCtx m = MonadThrow m
- 
+
+newtype FieldName = FieldName Text
+  deriving (Show, Eq, IsString)
+
 newtype Index = Index { unIndex :: Word16 }
-  deriving Num
+  deriving (Show, Num)
 
 newtype VOffset = VOffset { unVOffset :: Word16 }
-  deriving (Num, Eq)
+  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
+
+newtype UOffset = UOffset { unUOffset :: Word32 }
+  deriving (Show, Num, Eq)
+
+newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
+  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table = Table
-  { table  :: !ByteString
-  , vtable :: !ByteString
+  { fbRoot      :: !ByteString
+  , table       :: !ByteString
+  , vtable      :: !ByteString
+  , tableOffset :: !OffsetFromRoot
   }
 
 fromLazyByteString :: ReadCtx m => ByteString -> m Table
-fromLazyByteString bs = runGetM table bs
-  where
-    table = do
-      offset <- widen64 <$> G.getWord32le
-      G.skip (fromIntegral offset - 4)
-      voffset <- G.getInt32le
-      let vtable = BSL.drop (fromIntegral offset - widen64 voffset) bs
-      let table = BSL.drop (fromIntegral offset) bs
-      pure $ Table {..}
+fromLazyByteString root = runGetM (getTable root 0) root
+
+getTable :: ByteString -> OffsetFromRoot -> Get Table
+getTable root currentOffsetFromRoot = do
+  tableOffset <- G.getWord32le
+  G.skip (fromIntegral @Word32 @Int tableOffset - 4)
+  soffset <- G.getInt32le
+
+  let tableOffset64 = fromIntegral @Word32 @Int64 tableOffset
+  let vtable = BSL.drop (tableOffset64 - widen64 soffset + fromIntegral @_ @Int64 currentOffsetFromRoot) root
+  let table = BSL.drop (tableOffset64 + fromIntegral @_ @Int64 currentOffsetFromRoot) root
+  pure $ Table root table vtable (OffsetFromRoot $ widen64 tableOffset)
 
 readInt32 :: ReadCtx m => Table -> Index -> Int32 -> m Int32
-readInt32 t ix dflt = readFromVOffset t G.getInt32le dflt =<< fieldVOffset t ix
+readInt32 t ix dflt = fieldVOffset t ix >>= readFromVOffset t G.getInt32le (pure dflt)
+
+readInt32Req :: ReadCtx m => Table -> Index -> FieldName -> m Int32
+readInt32Req t ix fn = fieldVOffset t ix >>= readFromVOffset t G.getInt32le (throwM $ MissingField fn)
 
 readInt64 :: ReadCtx m => Table -> Index -> Int64 -> m Int64
-readInt64 t ix dflt = readFromVOffset t G.getInt64le dflt =<< fieldVOffset t ix
+readInt64 t ix dflt = fieldVOffset t ix >>= readFromVOffset t G.getInt64le (pure dflt)
 
+readTableReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
+readTableReq t ix fn = do
+  voffset <- fieldVOffset t ix
+  if voffset == 0
+    then throwM $ MissingField fn
+    else
+      flip runGetM (table t) $ do
+        G.skip (fromIntegral @_ @Int voffset)
+        getTable
+          (fbRoot t)
+          (tableOffset t + fromIntegral @VOffset @OffsetFromRoot voffset)
 
-readFromVOffset :: ReadCtx m => Table -> Get a -> a -> VOffset -> m a
-readFromVOffset _ _ dflt 0 = pure dflt
-readFromVOffset t get _ voffset = runGetM (G.skip (fromIntegral $ unVOffset voffset) >> get) (table t)
+readFromVOffset :: ReadCtx m => Table -> Get a -> m a -> VOffset -> m a
+readFromVOffset _ _ dflt 0 = dflt
+readFromVOffset t get _ voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) (table t)
 
 fieldVOffset :: ReadCtx m => Table -> Index -> m VOffset
-fieldVOffset Table {..} ix = do
-  vtableSize <- runGetM G.getWord16le vtable
-  let vtableIndex = 4 + (unIndex ix * 2)
-  voffset <-
-    if vtableIndex < vtableSize
-      then runGetM (G.skip (fromIntegral vtableIndex) >> G.getWord16le) vtable
-      else pure 0
-  pure $ VOffset voffset
+fieldVOffset Table {..} ix =
+  flip runGetM vtable $ do
+    vtableSize <- G.getWord16le
+    let vtableIndex = 4 + (unIndex ix * 2)
+    voffset <-
+      if vtableIndex < vtableSize
+        then G.skip (fromIntegral @Word16 @Int vtableIndex - 2) >> G.getWord16le
+        else pure 0
+    pure $ VOffset voffset
 
-
-data ParsingError = ParsingError
-  { position :: G.ByteOffset
-  , msg      :: String
-  }
+data Error
+  = ParsingError { position :: G.ByteOffset
+                 , msg      :: String }
+  | MissingField { fieldName :: FieldName }
   deriving (Show, Eq)
 
-instance Exception ParsingError
+instance Exception Error
 
 runGetM :: ReadCtx m => Get a -> ByteString -> m a
 runGetM get =
