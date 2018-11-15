@@ -18,6 +18,7 @@ import qualified Data.Map.Strict           as M
 import           Data.Maybe
 import           Data.Monoid
 import           Data.Semigroup            (Max (..))
+import           Data.Tagged               (Tagged, untag)
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Lazy            as TL
@@ -151,15 +152,16 @@ prep n additionalBytes =
       let needed = if remainder == 0 then 0 else n - remainder
       sequence_ $ L.genericReplicate needed (write $ word8 0)
 
-root :: [Field] -> Builder
-root fields =
-  _builder $ execState
-    (do
-      ref <- dump (table fields)
-      align <- uses maxAlign getMax
-      prep align referenceSize
-      write ref
-    )
+rootT :: Tagged t Field -> BSL.ByteString
+rootT = root . untag
+
+root :: Field -> BSL.ByteString
+root table =
+  B.toLazyByteString $
+  _builder $
+  execState
+    (do ref <- dump table
+        root' ref)
     (FBState mempty 0 (Max 1) mempty)
 
 runRoot :: State FBState () -> Builder
@@ -168,9 +170,8 @@ runRoot state =
     state
     (FBState mempty 0 (Max 1) mempty)
 
-root' :: [InlineField] -> State FBState ()
-root' fields = do
-  ref <- table' fields
+root' :: InlineField -> State FBState ()
+root' ref = do
   align <- uses maxAlign getMax
   prep align referenceSize
   write ref

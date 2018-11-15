@@ -20,19 +20,18 @@ spec =
       fromLazyByteString "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
     it "decodes inline table fields" $ do
-      let bs = encodeMyRoot 99 maxBound (encodeNested 123)
+      let bs = rootT $ encodeMyRoot 99 maxBound (encodeNested 123)
       s <- myRootFromLazyByteString bs
 
       myRootA s `shouldBe` Just 99
       myRootB s `shouldBe` Just maxBound
 
     it "decodes nested tables" $ do
-      let bs = encodeMyRoot 99 maxBound (encodeNested 123)
+      let bs = rootT $ encodeMyRoot 99 maxBound (encodeNested 123)
       s <- myRootFromLazyByteString bs
 
       nested <- myRootC s
       nestedA nested `shouldBe` Just 123
-
 
 
 newtype MyRoot =
@@ -41,10 +40,9 @@ newtype MyRoot =
 myRootFromLazyByteString :: ReadCtx m => ByteString -> m MyRoot
 myRootFromLazyByteString bs = MyRoot <$> fromLazyByteString bs
 
-encodeMyRoot :: Int32 -> Int64 -> Tagged Nested Field -> ByteString
+encodeMyRoot :: Int32 -> Int64 -> Tagged Nested Field -> Tagged MyRoot Field
 encodeMyRoot a b c =
-  B.toLazyByteString $
-  root
+  Tagged $ F.table
     [ scalar int32 a
     , scalar int64 b
     , untag c

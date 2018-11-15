@@ -39,7 +39,7 @@ alignedProp :: WithShow Field -> Gen (WithShow Field) -> B.Builder -> Int64 -> P
 alignedProp field gen expectedBs align =
   property $ do
     bs <-
-      fmap (B.toLazyByteString . root . WS.value) . forAll $
+      fmap (root . table . WS.value) . forAll $
       FG.fieldsWith field gen
     let indices = find (B.toLazyByteString expectedBs) bs
     assert $ any (\i -> i `mod` align == 0) indices

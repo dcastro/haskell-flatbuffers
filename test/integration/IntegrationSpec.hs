@@ -7,8 +7,6 @@ module IntegrationSpec where
 import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Encode.Pretty
-import           Data.ByteString.Builder   (Builder, toLazyByteString)
-import qualified Data.ByteString.Builder   as B
 import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import           Data.Int
@@ -36,7 +34,7 @@ spec =
       let req' =
             req
             { method = "POST"
-            , requestBody = RequestBodyLBS (toLazyByteString builder)
+            , requestBody = RequestBodyLBS rootByteString
             }
       rsp <- httpLbs req' man
       case statusCode $ responseStatus rsp of
@@ -48,7 +46,7 @@ spec =
 data Case = Case
   { name           :: String
   , flatbufferName :: String
-  , builder        :: Builder
+  , rootByteString :: BSL.ByteString
   , expectedJson   :: Value
   }
 
@@ -57,12 +55,12 @@ cases =
   [ Case
       "Simple"
       "Simple"
-      (root [scalar int32 12, string "hi"])
+      (root $ table [scalar int32 12, string "hi"])
       (object ["n" .= Number 12, "s" .= String "hi"])
   , Case
       "FiveFields"
       "FiveFields"
-      (root
+      (root $ table
          [ scalar int32 12
          , string "hi"
          , scalar int64 23
@@ -79,7 +77,7 @@ cases =
   , Case
       "Missing scalars"
       "FiveFields"
-      (root [missing, missing, missing, string "bye", missing])
+      (root $ table [missing, missing, missing, string "bye", missing])
       (object
          [ "n1" .= Number 0
          , "s1" .= Null
@@ -90,7 +88,7 @@ cases =
   , Case
       "ManyTables"
       "ManyTables"
-      (root
+      (root $ table
          [ scalar int32 12
          , table [scalar int32 23, string "hi"]
          , missing
@@ -105,7 +103,7 @@ cases =
   , Case
       "UnionByteBool"
       "UnionByteBool"
-      (root
+      (root $ table
          [ scalar word8 5
          -- uni1
          , scalar word8 1
@@ -132,7 +130,7 @@ cases =
   , Case
       "Vectors"
       "Vectors"
-      (root
+      (root $ table
          [ vector [scalar int32 1, scalar int32 2]
          , vector
              [ text ""
@@ -159,7 +157,7 @@ cases =
   , Case
       "Structs"
       "Structs"
-      (root
+      (root $ table
          [ scalar struct [int32 maxBound, word32 maxBound]
          , missing
          , scalar
@@ -204,7 +202,7 @@ cases =
   , Case
       "VectorOfTables"
       "VectorOfTables"
-      (root
+      (root $ table
          [ vector
              [ table [scalar int32 1, string "a"]
              , table [scalar int32 2, string "b"]
