@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module RoundTripSpec where
-  
+
 import qualified Data.ByteString.Builder as B
 import           Data.ByteString.Lazy    (ByteString)
 import qualified Data.ByteString.Lazy    as BSL
 import           Data.Int
+import           Data.Tagged             (Tagged (..), untag)
 import           FlatBuffers
 import qualified FlatBuffers             as F
 import           FlatBuffers.Read
@@ -34,13 +35,13 @@ newtype Simple =
 simpleFromLazyByteString :: ReadCtx m => ByteString -> m Simple
 simpleFromLazyByteString bs = Simple <$> fromLazyByteString bs
 
-encodeSimple :: Int32 -> Int64 -> Field -> ByteString
+encodeSimple :: Int32 -> Int64 -> Tagged Nested Field -> ByteString
 encodeSimple a b c =
   B.toLazyByteString $
   root
     [ scalar int32 a
     , scalar int64 b
-    , c
+    , untag c
     ]
 
 simpleA :: ReadCtx m => Simple -> m Int32
@@ -59,9 +60,9 @@ newtype Nested =
 nestedFromLazyByteString :: ReadCtx m => ByteString -> m Nested
 nestedFromLazyByteString bs = Nested <$> fromLazyByteString bs
 
-encodeNested :: Int32 -> Field
+encodeNested :: Int32 -> Tagged Nested Field
 encodeNested a =
-  F.table
+  Tagged $ F.table
     [ scalar int32 a ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
