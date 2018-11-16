@@ -15,16 +15,13 @@ import           Data.Foldable
 import           Data.Int
 import qualified Data.List                 as L
 import qualified Data.Map.Strict           as M
-import           Data.Maybe
 import           Data.Monoid
 import           Data.Semigroup            (Max (..))
-import           Data.Tagged               (Tagged, untag)
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Lazy            as TL
 import qualified Data.Text.Lazy.Encoding   as TL
 import           Data.Word
-import           Debug.Trace
 
 type InlineSize = Word16
 type Offset = BytesWritten
@@ -50,11 +47,8 @@ data InlineField = InlineField
 referenceSize :: Num a => a
 referenceSize = 4
 
-scalar' :: InlineField -> Field
-scalar' = Field . pure
-
 scalar :: (a -> InlineField) -> (a -> Field)
-scalar f = scalar' . f
+scalar f = Field . pure . f
 
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =
@@ -100,11 +94,8 @@ bool = primitive 1 $ \case
 
 -- | A missing field.
 -- Use this when serializing a deprecated field, or to tell clients to use the default value.
-missing :: Field
-missing = Field $ pure missing'
-
-missing' :: InlineField
-missing' = InlineField 0 0 $ pure ()
+missing :: Field  
+missing = Field . pure . InlineField 0 0 $ pure ()
 
 lazyText :: TL.Text -> Field
 lazyText = lazyByteString . TL.encodeUtf8
@@ -152,8 +143,6 @@ prep n additionalBytes =
       let needed = if remainder == 0 then 0 else n - remainder
       sequence_ $ L.genericReplicate needed (write $ word8 0)
 
-rootT :: Tagged t Field -> BSL.ByteString
-rootT = root . untag
 
 root :: Field -> BSL.ByteString
 root table =

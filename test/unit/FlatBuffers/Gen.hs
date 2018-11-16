@@ -37,7 +37,7 @@ byteString = WS <$> label "byteString " <*> F.byteString <$> G.utf8 textRange ch
 lazyByteString = WS <$> label "lazyByteString " <*> F.lazyByteString . BSL.fromStrict <$> G.utf8 textRange char
 
 scalar :: Gen (WithShow InlineField) -> Gen (WithShow Field)
-scalar field = wsmap (T.append "scalar ") F.scalar' <$> field
+scalar field = wsmap (T.append "scalar ") (F.scalar id) <$> field
 
 textualField :: Gen (WithShow Field)
 textualField =

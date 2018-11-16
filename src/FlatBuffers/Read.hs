@@ -104,9 +104,9 @@ runGetM :: ReadCtx m => Get a -> ByteString -> m a
 runGetM get =
   feedAll (G.runGetIncremental get)
   where
-    feedAll (G.Done bs pos x) lbs = pure x
+    feedAll (G.Done _ _ x) _ = pure x
     feedAll (G.Partial k) lbs = feedAll (k (takeHeadChunk lbs)) (dropHeadChunk lbs)
-    feedAll (G.Fail x pos msg) xs = throwM $ ParsingError pos msg
+    feedAll (G.Fail _ pos msg) _ = throwM $ ParsingError pos msg
 
     takeHeadChunk :: BSL.ByteString -> Maybe BS.ByteString
     takeHeadChunk lbs =

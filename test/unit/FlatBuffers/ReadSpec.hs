@@ -5,11 +5,10 @@ module FlatBuffers.ReadSpec where
 import qualified Data.ByteString.Builder as B
 import           Data.ByteString.Lazy    (ByteString)
 import qualified Data.ByteString.Lazy    as BSL
-import           Data.Functor.Identity
 import           Data.Int
 import           Data.Tagged             (Tagged (..), untag)
-import           FlatBuffers
 import qualified FlatBuffers             as F
+import           FlatBuffers.Dsl
 import           FlatBuffers.Read
 import           Test.Hspec
 
@@ -20,14 +19,24 @@ spec =
       fromLazyByteString "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
     it "decodes inline table fields" $ do
-      let bs = rootT $ encodeMyRoot 99 maxBound (encodeNested 123)
+      let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) (encodeNested (int32 123))
       s <- myRootFromLazyByteString bs
 
-      myRootA s `shouldBe` Just 99
+      myRootA s `shouldBe` Just minBound
       myRootB s `shouldBe` Just maxBound
+      
+    it "decodes missing fields" $ do
+      let bs = root $ encodeMyRoot missing missing (encodeNested missing)
+      s <- myRootFromLazyByteString bs
+      
+      myRootA s `shouldBe` Just 0
+      myRootB s `shouldBe` Just 0
+
+      nested <- myRootC s
+      nestedA nested `shouldBe` Just 0
 
     it "decodes nested tables" $ do
-      let bs = rootT $ encodeMyRoot 99 maxBound (encodeNested 123)
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123))
       s <- myRootFromLazyByteString bs
 
       nested <- myRootC s
@@ -40,11 +49,11 @@ newtype MyRoot =
 myRootFromLazyByteString :: ReadCtx m => ByteString -> m MyRoot
 myRootFromLazyByteString bs = MyRoot <$> fromLazyByteString bs
 
-encodeMyRoot :: Int32 -> Int64 -> Tagged Nested Field -> Tagged MyRoot Field
+encodeMyRoot :: Tagged Int32 Field -> Tagged Int64 Field -> Tagged Nested Field -> Tagged MyRoot Field
 encodeMyRoot a b c =
   Tagged $ F.table
-    [ scalar int32 a
-    , scalar int64 b
+    [ untag a
+    , untag b
     , untag c
     ]
 
@@ -64,10 +73,10 @@ newtype Nested =
 nestedFromLazyByteString :: ReadCtx m => ByteString -> m Nested
 nestedFromLazyByteString bs = Nested <$> fromLazyByteString bs
 
-encodeNested :: Int32 -> Tagged Nested Field
+encodeNested :: Tagged Int32 Field -> Tagged Nested Field
 encodeNested a =
   Tagged $ F.table
-    [ scalar int32 a ]
+    [ untag a ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
 nestedA (Nested t) = readInt32 t 0 0
