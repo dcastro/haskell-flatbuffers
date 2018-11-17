@@ -4,6 +4,7 @@ module FlatBuffers.Dsl
   , root
   , missing
   , bool
+  , text
   , int8
   , int16
   , int32
@@ -19,6 +20,7 @@ module FlatBuffers.Dsl
 import qualified Data.ByteString.Lazy as BSL
 import           Data.Int
 import           Data.Tagged          (Tagged (..), untag)
+import qualified Data.Text            as T
 import           Data.Word
 import           FlatBuffers          (Field (..), InlineField (..))
 import qualified FlatBuffers          as F
@@ -31,6 +33,12 @@ missing = Tagged $ Field $ pure $ InlineField 0 0 $ pure ()
 
 bool :: Bool -> Tagged Bool Field
 bool = Tagged . F.scalar F.bool
+
+-----------------------------------
+--- Text
+-----------------------------------
+text :: T.Text -> Tagged T.Text Field
+text = Tagged . F.text
 
 -----------------------------------
 --- Int

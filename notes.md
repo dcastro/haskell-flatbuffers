@@ -23,3 +23,12 @@
 * "Force defaults" mode
 * Generalize code, `[Field]` -> `Traversable f => f Field`
 * Bang patterns, unpacked pragma, `$!`
+* `FlatBuffers.Read`
+  * Parse a flatbuffer from a strict bytestring
+  * Support for reading lazy text and maybe strings
+  * Failure modes:
+    * Non-nullable fields (e.g. numerical, booleans and enums)
+      * throw, return default
+    * Nullable fields
+      * throw, return Maybe
+  * check if a field is present with `HasField`?

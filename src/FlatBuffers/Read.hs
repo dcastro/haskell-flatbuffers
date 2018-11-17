@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.Read where
-
+  
 import           Control.Exception.Safe        (Exception, MonadThrow, throwM)
 import           Data.Binary.Get               (Get)
 import qualified Data.Binary.Get               as G
@@ -15,6 +15,9 @@ import qualified Data.ByteString.Lazy.Internal as BSL
 import           Data.Int
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
+import qualified Data.Text                     as T
+import qualified Data.Text.Encoding            as T
+import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
@@ -65,6 +68,26 @@ readInt32Req t ix fn = indexToVOffset t ix >>= readFromVOffset t G.getInt32le (t
 readInt64 :: ReadCtx m => Table -> Index -> Int64 -> m Int64
 readInt64 t ix dflt = indexToVOffset t ix >>= readFromVOffset t G.getInt64le (pure dflt)
 
+readTextReq :: ReadCtx m => Table -> Index -> FieldName -> m Text
+readTextReq t ix fn = do
+  voffset <- indexToVOffset t ix
+  if voffset == 0
+    then throwM $ MissingField fn
+    else do
+      bs <- flip runGetM (table t) $ do
+        G.skip (fromIntegral @VOffset @Int voffset)
+        uoffset <- G.getWord32le
+        G.skip (fromIntegral @Word32 @Int uoffset - 4)
+        strLength <- G.getWord32le
+        G.getByteString $ fromIntegral @Word32 @Int strLength
+      case T.decodeUtf8' bs of
+        Right t -> pure t
+        Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError msg b
+        -- The `EncodeError` constructor is deprecated and not used
+        -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
+        Left _ -> error "the impossible happened"
+
+
 readTableReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
 readTableReq t ix fn = do
   voffset <- indexToVOffset t ix
@@ -96,6 +119,8 @@ data Error
   = ParsingError { position :: G.ByteOffset
                  , msg      :: String }
   | MissingField { fieldName :: FieldName }
+  | Utf8DecodingError { msg  :: String
+                      , byte :: Maybe Word8 }
   deriving (Show, Eq)
 
 instance Exception Error
