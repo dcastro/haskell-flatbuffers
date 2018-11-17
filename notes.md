@@ -29,6 +29,6 @@
   * Failure modes:
     * Non-nullable fields (e.g. numerical, booleans and enums)
       * throw, return default
-    * Nullable fields
+    * Nullable fields (e.g. strings, structs, tables)
       * throw, return Maybe
   * check if a field is present with `HasField`?

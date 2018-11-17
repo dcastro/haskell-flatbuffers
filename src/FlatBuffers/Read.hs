@@ -12,6 +12,7 @@ import qualified Data.ByteString               as BS
 import           Data.ByteString.Lazy          (ByteString)
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
+import           Data.Coerce                   (coerce)
 import           Data.Int
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
@@ -19,7 +20,9 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
+import           FlatBuffers.Classes           (NumericField (..))
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
+
 
 type ReadCtx m = MonadThrow m
 
@@ -39,10 +42,16 @@ newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
   deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table = Table
-  { fbRoot      :: !ByteString
+  { tableRoot   :: !ByteString
   , table       :: !ByteString
   , vtable      :: !ByteString
   , tableOffset :: !OffsetFromRoot
+  }
+
+data Struct = Struct
+  { structRoot   :: !ByteString
+  , struct       :: !ByteString
+  , structOffset :: !OffsetFromRoot
   }
 
 fromLazyByteString :: ReadCtx m => ByteString -> m Table
@@ -59,14 +68,12 @@ getTable root currentOffsetFromRoot = do
   let table = BSL.drop (tableOffset64 + fromIntegral @_ @Int64 currentOffsetFromRoot) root
   pure $ Table root table vtable (OffsetFromRoot $ widen64 tableOffset)
 
-readInt32 :: ReadCtx m => Table -> Index -> Int32 -> m Int32
-readInt32 t ix dflt = indexToVOffset t ix >>= readFromVOffset t G.getInt32le (pure dflt)
+indexToNumerical :: (ReadCtx m, NumericField f) => Table -> Index -> f -> m f
+indexToNumerical t ix dflt' = indexToVOffset t ix >>= readFromVOffset (table t) getter (pure dflt')
 
-readInt32Req :: ReadCtx m => Table -> Index -> FieldName -> m Int32
-readInt32Req t ix fn = indexToVOffset t ix >>= readFromVOffset t G.getInt32le (throwM $ MissingField fn)
+vOffsetToNumerical :: (ReadCtx m, NumericField f) => BSL.ByteString -> VOffset -> m f
+vOffsetToNumerical bs voff = readFromVOffset' bs getter voff
 
-readInt64 :: ReadCtx m => Table -> Index -> Int64 -> m Int64
-readInt64 t ix dflt = indexToVOffset t ix >>= readFromVOffset t G.getInt64le (pure dflt)
 
 readTextReq :: ReadCtx m => Table -> Index -> FieldName -> m Text
 readTextReq t ix fn = do
@@ -87,6 +94,17 @@ readTextReq t ix fn = do
         -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
         Left _ -> error "the impossible happened"
 
+readStructReq :: ReadCtx m => Table -> Index -> FieldName -> m Struct
+readStructReq t ix fn = do
+  voffset <- indexToVOffset t ix
+  if voffset == 0
+    then throwM $ MissingField fn
+    else pure
+           Struct
+           { structRoot = tableRoot t
+           , struct = BSL.drop (fromIntegral @VOffset @Int64 voffset) (table t)
+           , structOffset = tableOffset t + (coerce . widen64 . unVOffset $ voffset)
+           }
 
 readTableReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
 readTableReq t ix fn = do
@@ -97,12 +115,16 @@ readTableReq t ix fn = do
       flip runGetM (table t) $ do
         G.skip (fromIntegral @_ @Int voffset)
         getTable
-          (fbRoot t)
+          (tableRoot t)
           (tableOffset t + fromIntegral @VOffset @OffsetFromRoot voffset)
 
-readFromVOffset :: ReadCtx m => Table -> Get a -> m a -> VOffset -> m a
+readFromVOffset' :: ReadCtx m => BSL.ByteString -> Get a -> VOffset -> m a
+readFromVOffset' bs get voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
+
+-- | Returns `dflt` is voffset is 0
+readFromVOffset :: ReadCtx m => BSL.ByteString -> Get a -> m a -> VOffset -> m a
 readFromVOffset _ _ dflt 0 = dflt
-readFromVOffset t get _ voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) (table t)
+readFromVOffset bs get _ voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
 
 indexToVOffset :: ReadCtx m => Table -> Index -> m VOffset
 indexToVOffset Table {..} ix =
