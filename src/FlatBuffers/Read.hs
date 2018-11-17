@@ -54,8 +54,8 @@ data Struct = Struct
   , structOffset :: !OffsetFromRoot
   }
 
-fromLazyByteString :: ReadCtx m => ByteString -> m Table
-fromLazyByteString root = runGetM (getTable root 0) root
+tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
+tableFromLazyByteString root = runGetM (getTable root 0) root
 
 getTable :: ByteString -> OffsetFromRoot -> Get Table
 getTable root currentOffsetFromRoot = do
@@ -68,15 +68,15 @@ getTable root currentOffsetFromRoot = do
   let table = BSL.drop (tableOffset64 + fromIntegral @_ @Int64 currentOffsetFromRoot) root
   pure $ Table root table vtable (OffsetFromRoot $ widen64 tableOffset)
 
-indexToNumerical :: (ReadCtx m, NumericField f) => Table -> Index -> f -> m f
-indexToNumerical t ix dflt' = indexToVOffset t ix >>= readFromVOffset (table t) getter (pure dflt')
+numericalFromIndex :: (ReadCtx m, NumericField f) => Table -> Index -> f -> m f
+numericalFromIndex t ix dflt' = indexToVOffset t ix >>= readFromVOffset (table t) getter (pure dflt')
 
-vOffsetToNumerical :: (ReadCtx m, NumericField f) => BSL.ByteString -> VOffset -> m f
-vOffsetToNumerical bs voff = readFromVOffset' bs getter voff
+numericalFromVOffset :: (ReadCtx m, NumericField f) => BSL.ByteString -> VOffset -> m f
+numericalFromVOffset bs voff = readFromVOffset' bs getter voff
 
 
-readTextReq :: ReadCtx m => Table -> Index -> FieldName -> m Text
-readTextReq t ix fn = do
+textFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Text
+textFromIndexReq t ix fn = do
   voffset <- indexToVOffset t ix
   if voffset == 0
     then throwM $ MissingField fn
@@ -94,8 +94,8 @@ readTextReq t ix fn = do
         -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
         Left _ -> error "the impossible happened"
 
-readStructReq :: ReadCtx m => Table -> Index -> FieldName -> m Struct
-readStructReq t ix fn = do
+structFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Struct
+structFromIndexReq t ix fn = do
   voffset <- indexToVOffset t ix
   if voffset == 0
     then throwM $ MissingField fn
@@ -106,8 +106,8 @@ readStructReq t ix fn = do
            , structOffset = tableOffset t + (coerce . widen64 . unVOffset $ voffset)
            }
 
-readTableReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
-readTableReq t ix fn = do
+tableFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
+tableFromIndexReq t ix fn = do
   voffset <- indexToVOffset t ix
   if voffset == 0
     then throwM $ MissingField fn

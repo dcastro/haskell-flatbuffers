@@ -19,7 +19,7 @@ spec :: Spec
 spec =
   describe "read" $ do 
     it "throws when buffer is exhausted" $
-      fromLazyByteString "" `shouldThrow` \x ->
+      tableFromLazyByteString "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
     it "throws when string is missing" $ do
@@ -79,7 +79,7 @@ newtype MyRoot =
   MyRoot Table
 
 myRootFromLazyByteString :: ReadCtx m => ByteString -> m MyRoot
-myRootFromLazyByteString bs = MyRoot <$> fromLazyByteString bs
+myRootFromLazyByteString bs = MyRoot <$> tableFromLazyByteString bs
 
 encodeMyRoot ::
      Tagged Int32 Field
@@ -91,25 +91,25 @@ encodeMyRoot ::
 encodeMyRoot a b c d e = Tagged $ F.table [untag a, untag b, untag c, untag d, untag e]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
-myRootA (MyRoot t) = indexToNumerical t 0 dflt
+myRootA (MyRoot t) = numericalFromIndex t 0 dflt
 
 myRootB :: ReadCtx m => MyRoot -> m Int64
-myRootB (MyRoot t) = indexToNumerical t 1 dflt
+myRootB (MyRoot t) = numericalFromIndex t 1 dflt
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC (MyRoot t) = Nested <$> readTableReq t 2 "c"
+myRootC (MyRoot t) = Nested <$> tableFromIndexReq t 2 "c"
 
 myRootD :: ReadCtx m => MyRoot -> m T.Text
-myRootD (MyRoot t) = readTextReq t 3 "d"
+myRootD (MyRoot t) = textFromIndexReq t 3 "d"
 
 myRootE :: ReadCtx m => MyRoot -> m MyStruct
-myRootE (MyRoot t) = MyStruct <$> readStructReq t 4 "e"
+myRootE (MyRoot t) = MyStruct <$> structFromIndexReq t 4 "e"
 
 newtype Nested =
   Nested Table
 
 nestedFromLazyByteString :: ReadCtx m => ByteString -> m Nested
-nestedFromLazyByteString bs = Nested <$> fromLazyByteString bs
+nestedFromLazyByteString bs = Nested <$> tableFromLazyByteString bs
 
 encodeNested :: Tagged Int32 Field -> Tagged Nested Field
 encodeNested a =
@@ -117,7 +117,7 @@ encodeNested a =
     [ untag a ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
-nestedA (Nested t) = indexToNumerical t 0 dflt
+nestedA (Nested t) = numericalFromIndex t 0 dflt
     
 newtype MyStruct =
   MyStruct Struct
@@ -131,11 +131,11 @@ encodeMyStruct a b c =
   ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
-myStructA (MyStruct s) = vOffsetToNumerical (struct s) 0
+myStructA (MyStruct s) = numericalFromVOffset (struct s) 0
 
 myStructB :: ReadCtx m => MyStruct -> m Word8
-myStructB (MyStruct s) = vOffsetToNumerical (struct s) 4
+myStructB (MyStruct s) = numericalFromVOffset (struct s) 4
 
 myStructC :: ReadCtx m => MyStruct -> m Int64
-myStructC (MyStruct s) = vOffsetToNumerical (struct s) 8
+myStructC (MyStruct s) = numericalFromVOffset (struct s) 8
 
