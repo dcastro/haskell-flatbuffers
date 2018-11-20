@@ -1,5 +1,6 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers where
 
@@ -12,6 +13,8 @@ import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import qualified Data.ByteString.UTF8      as BSU
 import           Data.Foldable
+import qualified Data.Foldable             as Foldable
+import           Data.Functor.Reverse      (Reverse (..))
 import           Data.Int
 import qualified Data.List                 as L
 import qualified Data.Map.Strict           as M
@@ -228,20 +231,20 @@ table' fields = do
 
   pure $ uoffsetFrom tableLocation
 
-vector :: [Field] -> Field
+vector :: Traversable t => t Field -> Field
 vector fields = Field $ do
   inlineFields <- traverse dump fields
 
   -- TODO: all elements should have the same size
   let elemSize = getMax $ foldMap (Max . size) inlineFields
   let elemAlign = getMax $ foldMap (Max . align) inlineFields
-  let elemCount = L.genericLength inlineFields
+  let elemCount = Foldable.length inlineFields
 
-  prep 4 (elemSize * elemCount)
-  prep elemAlign (elemSize * elemCount)
+  prep 4 (elemSize * fromIntegral @Int @Word16 elemCount)
+  prep elemAlign (elemSize * fromIntegral @Int @Word16 elemCount)
   
-  traverse_ write (reverse inlineFields)
-  write (int32 (L.genericLength fields))
+  traverse_ write (Reverse inlineFields)
+  write (int32 (fromIntegral @Int @Int32 elemCount))
   bw <- gets _bytesWritten
   pure $ uoffsetFrom bw
 

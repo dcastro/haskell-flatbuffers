@@ -25,6 +25,7 @@ dependencies:
   - utf8-string
   - text
   - mtl
+  - transformers
   - containers
   - lens
   - megaparsec
