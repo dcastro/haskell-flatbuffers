@@ -64,16 +64,21 @@ spec =
       nested <- myRootC s
       nestedA nested `shouldBe` Just 123
 
-    it "decodes structs" $ do
+    it "decodes composite structs" $ do
       let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123)) (text "hello")
-            (encodeMyStruct 123 234 456)
+            (encodeSws 1 2 3 4 5 6)
       s <- myRootFromLazyByteString bs
 
-      ms <- myRootE s
-      myStructA ms `shouldBe` Just 123
-      myStructB ms `shouldBe` Just 234
-      myStructC ms `shouldBe` Just 456
+      sws <- myRootE s
+      let ms = swsA sws
+      myStructA ms `shouldBe` Just 1
+      myStructB ms `shouldBe` Just 2
+      myStructC ms `shouldBe` Just 3
 
+      let tb = swsB sws
+      threeBytesA tb `shouldBe` Just 4
+      threeBytesB tb `shouldBe` Just 5
+      threeBytesC tb `shouldBe` Just 6
 
 newtype MyRoot =
   MyRoot Table
@@ -86,7 +91,7 @@ encodeMyRoot ::
   -> Tagged Int64 Field
   -> Tagged Nested Field
   -> Tagged T.Text Field
-  -> Tagged MyStruct Field
+  -> Tagged SWS Field
   -> Tagged MyRoot Field
 encodeMyRoot a b c d e = Tagged $ F.table [untag a, untag b, untag c, untag d, untag e]
 
@@ -102,8 +107,8 @@ myRootC (MyRoot t) = Nested <$> tableFromIndexReq t 2 "c"
 myRootD :: ReadCtx m => MyRoot -> m T.Text
 myRootD (MyRoot t) = textFromIndexReq t 3 "d"
 
-myRootE :: ReadCtx m => MyRoot -> m MyStruct
-myRootE (MyRoot t) = MyStruct <$> structFromIndexReq t 4 "e"
+myRootE :: ReadCtx m => MyRoot -> m SWS
+myRootE (MyRoot t) = SWS <$> structFromIndexReq t 4 "e"
 
 newtype Nested =
   Nested Table
@@ -125,17 +130,56 @@ newtype MyStruct =
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> Tagged MyStruct Field
 encodeMyStruct a b c =
   Tagged $ F.scalar F.struct
-  [ F.int32 a
-  , F.padded 3 $ F.word8 b
-  , F.int64 c
-  ]
+    [ F.int32 a
+    , F.padded 3 $ F.word8 b
+    , F.int64 c
+    ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
-myStructA (MyStruct s) = numericalFromVOffset (struct s) 0
+myStructA (MyStruct s) = numericalFromVOffset s 0
 
 myStructB :: ReadCtx m => MyStruct -> m Word8
-myStructB (MyStruct s) = numericalFromVOffset (struct s) 4
+myStructB (MyStruct s) = numericalFromVOffset s 4
 
 myStructC :: ReadCtx m => MyStruct -> m Int64
-myStructC (MyStruct s) = numericalFromVOffset (struct s) 8
+myStructC (MyStruct s) = numericalFromVOffset s 8
 
+newtype ThreeBytes = ThreeBytes Struct
+
+encodeThreeBytes :: Word8 -> Word8 -> Word8 -> Tagged ThreeBytes Field
+encodeThreeBytes a b c =
+  Tagged $ F.scalar F.struct
+    [ F.word8 a
+    , F.word8 b
+    , F.word8 c
+    ]
+
+threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
+threeBytesA (ThreeBytes s) = numericalFromVOffset s 0
+
+threeBytesB :: ReadCtx m => ThreeBytes -> m Word8
+threeBytesB (ThreeBytes s) = numericalFromVOffset s 1
+
+threeBytesC :: ReadCtx m => ThreeBytes -> m Word8
+threeBytesC (ThreeBytes s) = numericalFromVOffset s 2
+
+
+-- struct with structs
+newtype SWS = SWS Struct
+
+encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> Tagged SWS Field
+encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
+  Tagged $ F.scalar F.struct
+    [ F.int32 myStructA
+    , F.padded 3 $ F.word8 myStructB
+    , F.int64 myStructC
+    , F.word8 threeBytesA
+    , F.word8 threeBytesB
+    , F.padded 5 $ F.word8 threeBytesC
+    ]
+
+swsA :: SWS -> MyStruct
+swsA (SWS (Struct bs)) = MyStruct $ structFromVOffsetReq bs 0
+
+swsB :: SWS -> ThreeBytes
+swsB (SWS (Struct bs)) = ThreeBytes $ structFromVOffsetReq bs 16

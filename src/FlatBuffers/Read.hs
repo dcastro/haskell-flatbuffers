@@ -48,11 +48,7 @@ data Table = Table
   , tableOffset :: !OffsetFromRoot
   }
 
-data Struct = Struct
-  { structRoot   :: !ByteString
-  , struct       :: !ByteString
-  , structOffset :: !OffsetFromRoot
-  }
+newtype Struct = Struct { unStruct :: ByteString }
 
 tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
 tableFromLazyByteString root = runGetM (getTable root 0) root
@@ -71,8 +67,8 @@ getTable root currentOffsetFromRoot = do
 numericalFromIndex :: (ReadCtx m, NumericField f) => Table -> Index -> f -> m f
 numericalFromIndex t ix dflt' = indexToVOffset t ix >>= readFromVOffset (table t) getter (pure dflt')
 
-numericalFromVOffset :: (ReadCtx m, NumericField f) => BSL.ByteString -> VOffset -> m f
-numericalFromVOffset bs voff = readFromVOffset' bs getter voff
+numericalFromVOffset :: (ReadCtx m, NumericField f) => Struct -> VOffset -> m f
+numericalFromVOffset (Struct bs) voff = readFromVOffset' bs getter voff
 
 
 textFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Text
@@ -96,15 +92,15 @@ textFromIndexReq t ix fn = do
 
 structFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Struct
 structFromIndexReq t ix fn = do
-  voffset <- indexToVOffset t ix
-  if voffset == 0
+  voff <- indexToVOffset t ix
+  if voff == 0
     then throwM $ MissingField fn
-    else pure
-           Struct
-           { structRoot = tableRoot t
-           , struct = BSL.drop (fromIntegral @VOffset @Int64 voffset) (table t)
-           , structOffset = tableOffset t + (coerce . widen64 . unVOffset $ voffset)
-           }
+    else pure $
+           Struct $ BSL.drop (fromIntegral @VOffset @Int64 voff) (table t)
+
+structFromVOffsetReq :: ByteString -> VOffset -> Struct
+structFromVOffsetReq s voff = Struct $ BSL.drop (fromIntegral @VOffset @Int64 voff) s
+
 
 tableFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
 tableFromIndexReq t ix fn = do
