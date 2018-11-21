@@ -42,13 +42,19 @@ newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
   deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table = Table
-  { tableRoot   :: !ByteString
-  , table       :: !ByteString
-  , vtable      :: !ByteString
-  , tableOffset :: !OffsetFromRoot
+  { tablePos :: !Position
+  , vtable   :: !ByteString
   }
 
 newtype Struct = Struct { unStruct :: ByteString }
+
+-- | Current position in the buffer
+data Position = Position
+  { posRoot           :: !ByteString -- ^ Pointer to the buffer root
+  , posCurrent        :: !ByteString -- ^ Pointer to current position
+  , posOffsetFromRoot :: !OffsetFromRoot -- ^ Number of bytes between current poition and root
+  }
+
 
 tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
 tableFromLazyByteString root = runGetM (getTable root 0) root
@@ -62,58 +68,49 @@ getTable root currentOffsetFromRoot = do
   let tableOffset64 = fromIntegral @Word32 @Int64 tableOffset
   let vtable = BSL.drop (tableOffset64 - widen64 soffset + fromIntegral @_ @Int64 currentOffsetFromRoot) root
   let table = BSL.drop (tableOffset64 + fromIntegral @_ @Int64 currentOffsetFromRoot) root
-  pure $ Table root table vtable (OffsetFromRoot $ widen64 tableOffset)
+  pure $ Table (Position root table (OffsetFromRoot $ widen64 tableOffset)) vtable
 
-numericalFromIndex :: (ReadCtx m, NumericField f) => Table -> Index -> f -> m f
-numericalFromIndex t ix dflt' = indexToVOffset t ix >>= readFromVOffset (table t) getter (pure dflt')
+readNumerical :: (ReadCtx m, NumericField f) => Position -> f -> VOffset -> m f
+readNumerical pos dflt' voffset = readFromVOffset (posCurrent pos) getter (pure dflt') voffset
 
-numericalFromVOffset :: (ReadCtx m, NumericField f) => Struct -> VOffset -> m f
-numericalFromVOffset (Struct bs) voff = readFromVOffset' bs getter voff
+readNumerical' :: (ReadCtx m, NumericField f) => Struct -> VOffset -> m f
+readNumerical' (Struct bs) voff = readFromVOffset' bs getter voff
 
+readText :: ReadCtx m => Position -> VOffset -> m Text
+readText Position{..} voffset = do
+  bs <- flip runGetM posCurrent $ do
+    G.skip (fromIntegral @VOffset @Int voffset)
+    uoffset <- G.getWord32le
+    G.skip (fromIntegral @Word32 @Int uoffset - 4)
+    strLength <- G.getWord32le
+    G.getByteString $ fromIntegral @Word32 @Int strLength
+  case T.decodeUtf8' bs of
+    Right t -> pure t
+    Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError msg b
+    -- The `EncodeError` constructor is deprecated and not used
+    -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
+    Left _ -> error "the impossible happened"
 
-textFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Text
-textFromIndexReq t ix fn = do
-  voffset <- indexToVOffset t ix
-  if voffset == 0
-    then throwM $ MissingField fn
-    else do
-      bs <- flip runGetM (table t) $ do
-        G.skip (fromIntegral @VOffset @Int voffset)
-        uoffset <- G.getWord32le
-        G.skip (fromIntegral @Word32 @Int uoffset - 4)
-        strLength <- G.getWord32le
-        G.getByteString $ fromIntegral @Word32 @Int strLength
-      case T.decodeUtf8' bs of
-        Right t -> pure t
-        Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError msg b
-        -- The `EncodeError` constructor is deprecated and not used
-        -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
-        Left _ -> error "the impossible happened"
-
-structFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Struct
-structFromIndexReq t ix fn = do
-  voff <- indexToVOffset t ix
-  if voff == 0
-    then throwM $ MissingField fn
-    else pure $
-           Struct $ BSL.drop (fromIntegral @VOffset @Int64 voff) (table t)
+readStruct :: Position -> VOffset -> Struct
+readStruct Position{..} voffset =
+  Struct $ BSL.drop (fromIntegral @VOffset @Int64 voffset) posCurrent
 
 structFromVOffsetReq :: ByteString -> VOffset -> Struct
 structFromVOffsetReq s voff = Struct $ BSL.drop (fromIntegral @VOffset @Int64 voff) s
 
+readTable :: ReadCtx m => Position -> VOffset -> m Table
+readTable Position{..} voffset =
+  flip runGetM posCurrent $ do
+    G.skip (fromIntegral @_ @Int voffset)
+    getTable
+      posRoot
+      (posOffsetFromRoot + fromIntegral @VOffset @OffsetFromRoot voffset)
 
-tableFromIndexReq :: ReadCtx m => Table -> Index -> FieldName -> m Table
-tableFromIndexReq t ix fn = do
-  voffset <- indexToVOffset t ix
-  if voffset == 0
-    then throwM $ MissingField fn
-    else
-      flip runGetM (table t) $ do
-        G.skip (fromIntegral @_ @Int voffset)
-        getTable
-          (tableRoot t)
-          (tableOffset t + fromIntegral @VOffset @OffsetFromRoot voffset)
+required :: ReadCtx m => FieldName -> VOffset -> m VOffset
+required fn 0 = throwM $ MissingField fn
+required _ off = pure off
 
+-- | Doesn't check if voffset == 0
 readFromVOffset' :: ReadCtx m => BSL.ByteString -> Get a -> VOffset -> m a
 readFromVOffset' bs get voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
 
@@ -122,8 +119,8 @@ readFromVOffset :: ReadCtx m => BSL.ByteString -> Get a -> m a -> VOffset -> m a
 readFromVOffset _ _ dflt 0 = dflt
 readFromVOffset bs get _ voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
 
-indexToVOffset :: ReadCtx m => Table -> Index -> m VOffset
-indexToVOffset Table {..} ix =
+tableIndexToVOffset :: ReadCtx m => Table -> Index -> m VOffset
+tableIndexToVOffset Table {..} ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unIndex ix * 2)

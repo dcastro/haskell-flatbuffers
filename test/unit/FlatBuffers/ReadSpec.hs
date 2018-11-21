@@ -5,6 +5,7 @@ module FlatBuffers.ReadSpec where
 import qualified Data.ByteString.Builder as B
 import           Data.ByteString.Lazy    (ByteString)
 import qualified Data.ByteString.Lazy    as BSL
+import           Data.Functor            ((<&>))
 import           Data.Int
 import           Data.Tagged             (Tagged (..), untag)
 import qualified Data.Text               as T
@@ -96,19 +97,19 @@ encodeMyRoot ::
 encodeMyRoot a b c d e = Tagged $ F.table [untag a, untag b, untag c, untag d, untag e]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
-myRootA (MyRoot t) = numericalFromIndex t 0 dflt
+myRootA (MyRoot t) = tableIndexToVOffset t 0 >>= readNumerical (tablePos t) dflt
 
 myRootB :: ReadCtx m => MyRoot -> m Int64
-myRootB (MyRoot t) = numericalFromIndex t 1 dflt
+myRootB (MyRoot t) = tableIndexToVOffset t 1 >>= readNumerical (tablePos t) dflt
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC (MyRoot t) = Nested <$> tableFromIndexReq t 2 "c"
+myRootC (MyRoot t) = tableIndexToVOffset t 2 >>= required "c" >>= readTable (tablePos t) <&> Nested
 
 myRootD :: ReadCtx m => MyRoot -> m T.Text
-myRootD (MyRoot t) = textFromIndexReq t 3 "d"
+myRootD (MyRoot t) = tableIndexToVOffset t 3 >>= required "d" >>= readText (tablePos t)
 
 myRootE :: ReadCtx m => MyRoot -> m SWS
-myRootE (MyRoot t) = SWS <$> structFromIndexReq t 4 "e"
+myRootE (MyRoot t) = tableIndexToVOffset t 4 >>= required "e" <&> readStruct (tablePos t) <&> SWS
 
 newtype Nested =
   Nested Table
@@ -122,7 +123,7 @@ encodeNested a =
     [ untag a ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
-nestedA (Nested t) = numericalFromIndex t 0 dflt
+nestedA (Nested t) = tableIndexToVOffset t 0 >>= readNumerical (tablePos t) dflt
     
 newtype MyStruct =
   MyStruct Struct
@@ -136,13 +137,13 @@ encodeMyStruct a b c =
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
-myStructA (MyStruct s) = numericalFromVOffset s 0
+myStructA (MyStruct s) = readNumerical' s 0
 
 myStructB :: ReadCtx m => MyStruct -> m Word8
-myStructB (MyStruct s) = numericalFromVOffset s 4
+myStructB (MyStruct s) = readNumerical' s 4
 
 myStructC :: ReadCtx m => MyStruct -> m Int64
-myStructC (MyStruct s) = numericalFromVOffset s 8
+myStructC (MyStruct s) = readNumerical' s 8
 
 newtype ThreeBytes = ThreeBytes Struct
 
@@ -155,13 +156,13 @@ encodeThreeBytes a b c =
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesA (ThreeBytes s) = numericalFromVOffset s 0
+threeBytesA (ThreeBytes s) = readNumerical' s 0
 
 threeBytesB :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesB (ThreeBytes s) = numericalFromVOffset s 1
+threeBytesB (ThreeBytes s) = readNumerical' s 1
 
 threeBytesC :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesC (ThreeBytes s) = numericalFromVOffset s 2
+threeBytesC (ThreeBytes s) = readNumerical' s 2
 
 
 -- struct with structs
