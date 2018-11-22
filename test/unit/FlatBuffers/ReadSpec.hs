@@ -41,7 +41,7 @@ spec =
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
-      let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) (encodeNested (int32 123)) (text "hello") missing
+      let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) missing (text "hello") missing
       s <- myRootFromLazyByteString bs
 
       myRootA s `shouldBe` Just minBound
@@ -49,7 +49,7 @@ spec =
       myRootD s `shouldBe` Just "hello"
       
     it "decodes missing fields" $ do
-      let bs = root $ encodeMyRoot missing missing (encodeNested missing) missing missing
+      let bs = root $ encodeMyRoot missing missing (encodeNested missing missing) missing missing
       s <- myRootFromLazyByteString bs
       
       myRootA s `shouldBe` Just 0
@@ -59,15 +59,17 @@ spec =
       nestedA nested `shouldBe` Just 0
 
     it "decodes nested tables" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123)) (text "hello") missing
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123) (encodeDeepNested (int32 234))) (text "hello") missing
       s <- myRootFromLazyByteString bs
 
       nested <- myRootC s
       nestedA nested `shouldBe` Just 123
 
+      deepNested <- nestedB nested
+      deepNestedA deepNested `shouldBe` Just 234
+
     it "decodes composite structs" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123)) (text "hello")
-            (encodeSws 1 2 3 4 5 6)
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6)
       s <- myRootFromLazyByteString bs
 
       sws <- myRootE s
@@ -114,17 +116,27 @@ myRootE (MyRoot t) = tableIndexToVOffset t 4 >>= required "e" (pure . readStruct
 newtype Nested =
   Nested Table
 
-nestedFromLazyByteString :: ReadCtx m => ByteString -> m Nested
-nestedFromLazyByteString bs = Nested <$> tableFromLazyByteString bs
-
-encodeNested :: Tagged Int32 Field -> Tagged Nested Field
-encodeNested a =
+encodeNested :: Tagged Int32 Field -> Tagged DeepNested Field -> Tagged Nested Field
+encodeNested a b =
   Tagged $ F.table
-    [ untag a ]
+    [ untag a, untag b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
 nestedA (Nested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
+
+nestedB :: ReadCtx m => Nested -> m DeepNested
+nestedB (Nested t) = tableIndexToVOffset t 1 >>= required "b" (readTable (tablePos t)) <&> DeepNested
     
+newtype DeepNested = DeepNested Table
+
+encodeDeepNested :: Tagged Int32 Field -> Tagged DeepNested Field
+encodeDeepNested a =
+  Tagged $ F.table
+    [ untag a ]
+
+deepNestedA :: ReadCtx m => DeepNested -> m Int32
+deepNestedA (DeepNested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
+
 newtype MyStruct =
   MyStruct Struct
 

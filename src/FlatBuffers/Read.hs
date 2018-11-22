@@ -70,7 +70,7 @@ getTable root currentOffsetFromRoot = do
   let tableOffset64 = fromIntegral @Word32 @Int64 tableOffset
   let vtable = BSL.drop (tableOffset64 - widen64 soffset + fromIntegral @_ @Int64 currentOffsetFromRoot) root
   let table = BSL.drop (tableOffset64 + fromIntegral @_ @Int64 currentOffsetFromRoot) root
-  pure $ Table (Position root table (OffsetFromRoot $ widen64 tableOffset)) vtable
+  pure $ Table (Position root table (currentOffsetFromRoot + OffsetFromRoot (widen64 tableOffset))) vtable
 
 readNumerical :: (ReadCtx m, NumericField f) => Position -> VOffset -> m f
 readNumerical pos voffset = readFromVOffset (posCurrent pos) getter voffset
