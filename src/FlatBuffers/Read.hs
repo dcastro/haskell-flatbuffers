@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TypeApplications           #-}
 
@@ -13,6 +14,7 @@ import           Data.ByteString.Lazy          (ByteString)
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
 import           Data.Coerce                   (coerce)
+import           Data.Functor                  ((<&>))
 import           Data.Int
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
@@ -70,11 +72,11 @@ getTable root currentOffsetFromRoot = do
   let table = BSL.drop (tableOffset64 + fromIntegral @_ @Int64 currentOffsetFromRoot) root
   pure $ Table (Position root table (OffsetFromRoot $ widen64 tableOffset)) vtable
 
-readNumerical :: (ReadCtx m, NumericField f) => Position -> f -> VOffset -> m f
-readNumerical pos dflt' voffset = readFromVOffset (posCurrent pos) getter (pure dflt') voffset
+readNumerical :: (ReadCtx m, NumericField f) => Position -> VOffset -> m f
+readNumerical pos voffset = readFromVOffset (posCurrent pos) getter voffset
 
 readNumerical' :: (ReadCtx m, NumericField f) => Struct -> VOffset -> m f
-readNumerical' (Struct bs) voff = readFromVOffset' bs getter voff
+readNumerical' (Struct bs) voff = readFromVOffset bs getter voff
 
 readText :: ReadCtx m => Position -> VOffset -> m Text
 readText Position{..} voffset = do
@@ -106,29 +108,29 @@ readTable Position{..} voffset =
       posRoot
       (posOffsetFromRoot + fromIntegral @VOffset @OffsetFromRoot voffset)
 
-required :: ReadCtx m => FieldName -> VOffset -> m VOffset
-required fn 0 = throwM $ MissingField fn
-required _ off = pure off
+required :: ReadCtx m => FieldName -> (VOffset -> m a) -> Maybe VOffset -> m a
+required _ f (Just vo) = f vo
+required fn _ _ = throwM $ MissingField fn
 
--- | Doesn't check if voffset == 0
-readFromVOffset' :: ReadCtx m => BSL.ByteString -> Get a -> VOffset -> m a
-readFromVOffset' bs get voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
+optional :: ReadCtx m => a -> (VOffset -> m a) -> Maybe VOffset -> m a
+optional _ f (Just vo) = f vo
+optional dflt _ _ = pure dflt
 
--- | Returns `dflt` is voffset is 0
-readFromVOffset :: ReadCtx m => BSL.ByteString -> Get a -> m a -> VOffset -> m a
-readFromVOffset _ _ dflt 0 = dflt
-readFromVOffset bs get _ voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
+readFromVOffset :: ReadCtx m => BSL.ByteString -> Get a -> VOffset -> m a
+readFromVOffset bs get voffset = runGetM (G.skip (fromIntegral @_ @Int voffset) >> get) bs
 
-tableIndexToVOffset :: ReadCtx m => Table -> Index -> m VOffset
+tableIndexToVOffset :: ReadCtx m => Table -> Index -> m (Maybe VOffset)
 tableIndexToVOffset Table {..} ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unIndex ix * 2)
-    voffset <-
-      if vtableIndex < vtableSize
-        then G.skip (fromIntegral @Word16 @Int vtableIndex - 2) >> G.getWord16le
-        else pure 0
-    pure $ VOffset voffset
+    if vtableIndex >= vtableSize
+      then pure Nothing
+      else do
+        G.skip (fromIntegral @Word16 @Int vtableIndex - 2)
+        G.getWord16le <&> \case
+          0 -> Nothing
+          word16 -> Just (VOffset word16)
 
 data Error
   = ParsingError { position :: G.ByteOffset

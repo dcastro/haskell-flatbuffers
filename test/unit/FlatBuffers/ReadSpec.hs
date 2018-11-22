@@ -97,19 +97,19 @@ encodeMyRoot ::
 encodeMyRoot a b c d e = Tagged $ F.table [untag a, untag b, untag c, untag d, untag e]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
-myRootA (MyRoot t) = tableIndexToVOffset t 0 >>= readNumerical (tablePos t) dflt
+myRootA (MyRoot t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
 
 myRootB :: ReadCtx m => MyRoot -> m Int64
-myRootB (MyRoot t) = tableIndexToVOffset t 1 >>= readNumerical (tablePos t) dflt
+myRootB (MyRoot t) = tableIndexToVOffset t 1 >>= optional 0 (readNumerical (tablePos t))
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC (MyRoot t) = tableIndexToVOffset t 2 >>= required "c" >>= readTable (tablePos t) <&> Nested
+myRootC (MyRoot t) = tableIndexToVOffset t 2 >>= required "c" (readTable (tablePos t)) <&> Nested
 
 myRootD :: ReadCtx m => MyRoot -> m T.Text
-myRootD (MyRoot t) = tableIndexToVOffset t 3 >>= required "d" >>= readText (tablePos t)
+myRootD (MyRoot t) = tableIndexToVOffset t 3 >>= required "d" (readText (tablePos t))
 
 myRootE :: ReadCtx m => MyRoot -> m SWS
-myRootE (MyRoot t) = tableIndexToVOffset t 4 >>= required "e" <&> readStruct (tablePos t) <&> SWS
+myRootE (MyRoot t) = tableIndexToVOffset t 4 >>= required "e" (pure . readStruct (tablePos t)) <&> SWS
 
 newtype Nested =
   Nested Table
@@ -123,7 +123,7 @@ encodeNested a =
     [ untag a ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
-nestedA (Nested t) = tableIndexToVOffset t 0 >>= readNumerical (tablePos t) dflt
+nestedA (Nested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
     
 newtype MyStruct =
   MyStruct Struct
