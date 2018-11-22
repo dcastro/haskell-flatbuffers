@@ -23,16 +23,21 @@ spec =
       tableFromLazyByteString "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
+    let missingFields = root $ encodeMyRoot missing missing missing missing missing
+    
     it "throws when string is missing" $ do
-      let bs = root $ encodeMyRoot missing missing missing missing missing
-      s <- myRootFromLazyByteString bs
+      s <- myRootFromLazyByteString missingFields
       myRootD s `shouldThrow` \x -> x == MissingField "d"
 
     it "throws when table is missing" $ do
-      let bs = root $ encodeMyRoot missing missing missing missing missing
-      s <- myRootFromLazyByteString bs
+      s <- myRootFromLazyByteString missingFields
       myRootC s `shouldThrow` \x -> x == MissingField "c"
+
+    it "throws when struct is missing" $ do
+      s <- myRootFromLazyByteString missingFields
+      myRootE s `shouldThrow` \x -> x == MissingField "e"
       
+    
     it "throws when string is invalid utf-8" $ do
       let text = Tagged $ F.vector [F.scalar F.word8 255]
       let bs = root $ encodeMyRoot missing missing missing text missing
