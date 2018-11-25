@@ -104,19 +104,21 @@ encodeMyRoot ::
 encodeMyRoot a b c d e = Tagged $ F.table [untag a, untag b, untag c, untag d, untag e]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
-myRootA (MyRoot t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
+myRootA (MyRoot t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical . move (tablePos t))
 
 myRootB :: ReadCtx m => MyRoot -> m Int64
-myRootB (MyRoot t) = tableIndexToVOffset t 1 >>= optional 0 (readNumerical (tablePos t))
+myRootB (MyRoot t) = tableIndexToVOffset t 1 >>= optional 0 (readNumerical . move (tablePos t))
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC (MyRoot t) = tableIndexToVOffset t 2 >>= required "c" (readTable (tablePos t)) <&> Nested
+myRootC (MyRoot t) = tableIndexToVOffset t 2 >>= required "c" (readTable . move (tablePos t)) <&> Nested
 
 myRootD :: ReadCtx m => MyRoot -> m T.Text
-myRootD (MyRoot t) = tableIndexToVOffset t 3 >>= required "d" (readText (tablePos t))
+myRootD (MyRoot t) = tableIndexToVOffset t 3 >>= required "d" (readText . move (tablePos t))
 
 myRootE :: ReadCtx m => MyRoot -> m SWS
-myRootE (MyRoot t) = tableIndexToVOffset t 4 >>= required "e" (pure . readStruct (tablePos t)) <&> SWS
+myRootE (MyRoot t) = tableIndexToVOffset t 4 >>= required "e" (pure . readStruct . move (tablePos t)) <&> SWS
+
+
 
 newtype Nested =
   Nested Table
@@ -127,10 +129,10 @@ encodeNested a b =
     [ untag a, untag b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
-nestedA (Nested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
+nestedA (Nested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical . move (tablePos t))
 
 nestedB :: ReadCtx m => Nested -> m DeepNested
-nestedB (Nested t) = tableIndexToVOffset t 1 >>= required "b" (readTable (tablePos t)) <&> DeepNested
+nestedB (Nested t) = tableIndexToVOffset t 1 >>= required "b" (readTable . move (tablePos t)) <&> DeepNested
     
 newtype DeepNested = DeepNested Table
 
@@ -140,7 +142,7 @@ encodeDeepNested a =
     [ untag a ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
-deepNestedA (DeepNested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical (tablePos t))
+deepNestedA (DeepNested t) = tableIndexToVOffset t 0 >>= optional 0 (readNumerical . move (tablePos t))
 
 newtype MyStruct =
   MyStruct Struct
@@ -154,13 +156,13 @@ encodeMyStruct a b c =
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
-myStructA (MyStruct s) = readNumerical' s 0
+myStructA (MyStruct s) = readNumerical $ move (unStruct s) 0
 
 myStructB :: ReadCtx m => MyStruct -> m Word8
-myStructB (MyStruct s) = readNumerical' s 4
+myStructB (MyStruct s) = readNumerical $ move (unStruct s) 4
 
 myStructC :: ReadCtx m => MyStruct -> m Int64
-myStructC (MyStruct s) = readNumerical' s 8
+myStructC (MyStruct s) = readNumerical $ move (unStruct s) 8
 
 newtype ThreeBytes = ThreeBytes Struct
 
@@ -173,13 +175,13 @@ encodeThreeBytes a b c =
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesA (ThreeBytes s) = readNumerical' s 0
+threeBytesA (ThreeBytes s) = readNumerical $ move (unStruct s) 0
 
 threeBytesB :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesB (ThreeBytes s) = readNumerical' s 1
+threeBytesB (ThreeBytes s) = readNumerical $ move (unStruct s) 1
 
 threeBytesC :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesC (ThreeBytes s) = readNumerical' s 2
+threeBytesC (ThreeBytes s) = readNumerical $ move (unStruct s) 2
 
 
 -- struct with structs
@@ -197,7 +199,7 @@ encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
     ]
 
 swsA :: SWS -> MyStruct
-swsA (SWS (Struct bs)) = MyStruct $ structFromVOffsetReq bs 0
+swsA (SWS (Struct bs)) = MyStruct . Struct $ move bs 0
 
 swsB :: SWS -> ThreeBytes
-swsB (SWS (Struct bs)) = ThreeBytes $ structFromVOffsetReq bs 16
+swsB (SWS (Struct bs)) = ThreeBytes . Struct $ move bs 16
