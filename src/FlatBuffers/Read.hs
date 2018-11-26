@@ -91,8 +91,7 @@ readNumerical Position{..} = runGetM getter posCurrent
 readText :: ReadCtx m => Position -> m Text
 readText Position{..} = do
   bs <- flip runGetM posCurrent $ do
-    uoffset <- G.getWord32le
-    G.skip (fromIntegral @Word32 @Int uoffset - 4)
+    moveUOffset
     strLength <- G.getWord32le
     G.getByteString $ fromIntegral @Word32 @Int strLength
   case T.decodeUtf8' bs of
@@ -108,8 +107,7 @@ readStruct = Struct
 readTable :: ReadCtx m => Position -> m Table
 readTable Position{..} =
   flip runGetM posCurrent $ do
-    tableOffset <- G.getWord32le
-    G.skip (fromIntegral @Word32 @Int tableOffset - 4)
+    tableOffset <- moveUOffset
     soffset <- G.getInt32le
 
     let tableOffset64 = fromIntegral @Word32 @Int64 tableOffset
@@ -139,6 +137,13 @@ tableIndexToVOffset a ix =
           0 -> Nothing
           word16 -> Just (VOffset word16)
   where Table{..} = getTable a
+
+moveUOffset :: Get Word32
+moveUOffset = do
+  uoffset <- G.getWord32le
+  G.skip (fromIntegral @Word32 @Int uoffset - 4)
+  pure uoffset
+
 
 data Error
   = ParsingError { position :: G.ByteOffset
