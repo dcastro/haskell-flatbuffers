@@ -57,19 +57,33 @@ data Position = Position
   , posOffsetFromRoot :: !OffsetFromRoot -- ^ Number of bytes between current position and root
   }
 
+class HasPosition a where
+  getPos :: a -> Position
+
+instance HasPosition Position where getPos = id
+instance HasPosition Table    where getPos = tablePos
+instance HasPosition Struct   where getPos = unStruct
+
+class HasTable a where
+  getTable :: a -> Table
+
+instance HasTable Table where getTable = id
+
+
 
 tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
 tableFromLazyByteString root = readTable initialPos
   where
     initialPos = Position root root 0
 
-move :: Position -> VOffset -> Position
-move Position{..} offset =
+move :: HasPosition p => p -> VOffset -> Position
+move hs offset =
   Position
   { posRoot = posRoot
   , posCurrent = BSL.drop (fromIntegral @VOffset @Int64 offset) posCurrent
   , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @VOffset @OffsetFromRoot offset
   }
+  where Position{..} = getPos hs
 
 readNumerical :: (ReadCtx m, NumericField f) => Position -> m f 
 readNumerical Position{..} = runGetM getter posCurrent
@@ -112,8 +126,8 @@ optional :: ReadCtx m => a -> (VOffset -> m a) -> Maybe VOffset -> m a
 optional _ f (Just vo) = f vo
 optional dflt _ _ = pure dflt
 
-tableIndexToVOffset :: ReadCtx m => Table -> Index -> m (Maybe VOffset)
-tableIndexToVOffset Table {..} ix =
+tableIndexToVOffset :: (ReadCtx m, HasTable t) => t -> Index -> m (Maybe VOffset)
+tableIndexToVOffset a ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unIndex ix * 2)
@@ -124,6 +138,7 @@ tableIndexToVOffset Table {..} ix =
         G.getWord16le <&> \case
           0 -> Nothing
           word16 -> Just (VOffset word16)
+  where Table{..} = getTable a
 
 data Error
   = ParsingError { position :: G.ByteOffset
