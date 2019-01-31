@@ -244,7 +244,7 @@ vector fields = Field $ do
   prep elemAlign (elemSize * fromIntegral @Int @Word16 elemCount)
   
   traverse_ write (Reverse inlineFields)
-  write (int32 (fromIntegral @Int @Int32 elemCount))
+  write (word32 (fromIntegral @Int @Word32 elemCount))
   bw <- gets _bytesWritten
   pure $ uoffsetFrom bw
 
