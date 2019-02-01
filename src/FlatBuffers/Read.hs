@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.Read where
@@ -34,6 +35,12 @@ newtype FieldName = FieldName Text
 newtype Index = Index { unIndex :: Word16 }
   deriving (Show, Num)
 
+newtype VectorLength = VectorLength { unVectorLength :: Word32 }
+  deriving (Show, Num, Eq)
+
+newtype VectorIndex = VectorIndex { unVectorIndex :: Word32 }
+  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
+
 newtype VOffset = VOffset { unVOffset :: Word16 }
   deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
 
@@ -50,6 +57,11 @@ data Table = Table
 
 newtype Struct = Struct { unStruct :: Position }
 
+data Vector a = Vector
+  { vectorLength :: !VectorLength
+  , vectorPos    :: !Position
+  }
+
 -- | Current position in the buffer
 data Position = Position
   { posRoot           :: !ByteString -- ^ Pointer to the buffer root
@@ -60,16 +72,23 @@ data Position = Position
 class HasPosition a where
   getPos :: a -> Position
 
-instance HasPosition Position where getPos = id
-instance HasPosition Table    where getPos = tablePos
-instance HasPosition Struct   where getPos = unStruct
+instance HasPosition Position   where getPos = id
+instance HasPosition Table      where getPos = tablePos
+instance HasPosition Struct     where getPos = unStruct
+instance HasPosition (Vector a) where getPos = vectorPos
 
 class HasTable a where
   getTable :: a -> Table
 
 instance HasTable Table where getTable = id
 
+class Sized a where
+  getInlineSize :: Proxy a -> Word16
+  readInline :: ReadCtx m => Position -> m a
 
+instance Sized Text where
+  getInlineSize _ = 4
+  readInline = readText
 
 tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
 tableFromLazyByteString root = readTable initialPos
@@ -78,12 +97,45 @@ tableFromLazyByteString root = readTable initialPos
 
 move :: HasPosition p => p -> VOffset -> Position
 move hs offset =
+  moveInt64 hs (fromIntegral @VOffset @Int64 offset)
+
+moveInt64 :: HasPosition p => p -> Int64 -> Position
+moveInt64 hs offset =
   Position
   { posRoot = posRoot
-  , posCurrent = BSL.drop (fromIntegral @VOffset @Int64 offset) posCurrent
-  , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @VOffset @OffsetFromRoot offset
+  , posCurrent = BSL.drop offset posCurrent
+  , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Int64 @OffsetFromRoot offset
   }
   where Position{..} = getPos hs
+
+readElem :: forall m a. (ReadCtx m, Sized a) => VectorIndex -> Vector a -> m a
+readElem n vec =
+  if unVectorIndex n >= unVectorLength (vectorLength vec)
+    then throwM $ VectorIndexOutOfBounds (vectorLength vec) n
+    else readInline elemPos
+  where
+    elemSize = fromIntegral @Word16 @Int64 (getInlineSize (Proxy @a))
+    elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
+    elemPos = moveInt64 vec elemOffset
+
+toList :: (ReadCtx m, Sized a) => Vector a -> m [a]
+toList vec@Vector{..} =
+  traverse (\i -> readElem i vec) [0.. coerce vectorLength - 1]
+
+readVector :: ReadCtx m => Position -> m (Vector a)
+readVector Position{..} =
+  flip runGetM posCurrent $ do
+    uoffset <- moveUOffset
+    length <- G.getWord32le
+    pure $ Vector
+      { vectorLength = VectorLength length
+      , vectorPos =
+          Position
+          { posRoot = posRoot
+          , posCurrent = BSL.drop (fromIntegral @Word32 @Int64 uoffset) posCurrent
+          , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Word32 @OffsetFromRoot uoffset
+          }
+      }
 
 readNumerical :: (ReadCtx m, NumericField f) => Position -> m f 
 readNumerical Position{..} = runGetM getter posCurrent
@@ -151,6 +203,7 @@ data Error
   | MissingField { fieldName :: FieldName }
   | Utf8DecodingError { msg  :: String
                       , byte :: Maybe Word8 }
+  | VectorIndexOutOfBounds VectorLength VectorIndex
   deriving (Show, Eq)
 
 instance Exception Error

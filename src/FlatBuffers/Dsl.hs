@@ -3,6 +3,7 @@ module FlatBuffers.Dsl
   , InlineField(..)
   , root
   , missing
+  , vector
   , bool
   , text
   , int8
@@ -30,6 +31,9 @@ root = F.root . untag
 
 missing :: Tagged a Field
 missing = Tagged $ Field $ pure $ InlineField 0 0 $ pure ()
+
+vector :: Traversable t => t (Tagged a Field) -> Tagged (t a) Field
+vector xs = Tagged $ F.vector $ untag <$> xs
 
 bool :: Bool -> Tagged Bool Field
 bool = Tagged . F.scalar F.bool
