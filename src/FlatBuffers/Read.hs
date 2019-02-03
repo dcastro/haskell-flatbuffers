@@ -17,6 +17,8 @@ import qualified Data.ByteString.Lazy.Internal as BSL
 import           Data.Coerce                   (coerce)
 import           Data.Functor                  ((<&>))
 import           Data.Int
+import           Data.Proxy                    (Proxy (..))
+import           Data.Roles                    (Representational)
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
@@ -27,7 +29,7 @@ import           FlatBuffers.Classes           (NumericField (..))
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 
-type ReadCtx m = MonadThrow m
+type ReadCtx m = (MonadThrow m, Representational m)
 
 newtype FieldName = FieldName Text
   deriving (Show, Eq, IsString)
@@ -89,6 +91,10 @@ class Sized a where
 instance Sized Text where
   getInlineSize _ = 4
   readInline = readText
+
+instance Sized Table where
+  getInlineSize _ = 4
+  readInline = readTable
 
 tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
 tableFromLazyByteString root = readTable initialPos

@@ -1,5 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.ReadSpec where
@@ -7,10 +9,13 @@ module FlatBuffers.ReadSpec where
 import qualified Data.ByteString.Builder as B
 import           Data.ByteString.Lazy    (ByteString)
 import qualified Data.ByteString.Lazy    as BSL
+import           Data.Coerce             (coerce)
 import           Data.Functor            ((<&>))
 import           Data.Int
+import           Data.Roles              (rep)
 import           Data.Tagged             (Tagged (..), untag)
 import qualified Data.Text               as T
+import           Data.Type.Coercion      (Coercion (Coercion), coerceWith)
 import           Data.Word
 import qualified FlatBuffers             as F
 import           FlatBuffers.Classes     (dflt)
@@ -25,7 +30,7 @@ spec =
       tableFromLazyByteString "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
-    let missingFields = root $ encodeMyRoot @[] missing missing missing missing missing missing
+    let missingFields = root $ encodeMyRoot @[] missing missing missing missing missing missing missing
     
     it "throws when string is missing" $ do
       s <- myRootFromLazyByteString missingFields
@@ -45,13 +50,13 @@ spec =
     
     it "throws when string is invalid utf-8" $ do
       let text = Tagged $ F.vector [F.scalar F.word8 255]
-      let bs = root $ encodeMyRoot missing missing missing text missing (vector [])
+      let bs = root $ encodeMyRoot missing missing missing text missing (vector []) missing
       s <- myRootFromLazyByteString bs
       myRootD s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
-      let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) missing (text "hello") missing (vector [])
+      let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) missing (text "hello") missing (vector []) missing
       s <- myRootFromLazyByteString bs
 
       myRootA s `shouldBe` Just minBound
@@ -59,7 +64,7 @@ spec =
       myRootD s `shouldBe` Just "hello"
       
     it "decodes missing fields" $ do
-      let bs = root $ encodeMyRoot missing missing (encodeNested missing missing) missing missing (vector [])
+      let bs = root $ encodeMyRoot missing missing (encodeNested missing missing) missing missing (vector []) missing
       s <- myRootFromLazyByteString bs
       
       myRootA s `shouldBe` Just 0
@@ -69,7 +74,7 @@ spec =
       nestedA nested `shouldBe` Just 0
 
     it "decodes nested tables" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123) (encodeDeepNested (int32 234))) (text "hello") missing (vector [])
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123) (encodeDeepNested (int32 234))) (text "hello") missing (vector []) missing
       s <- myRootFromLazyByteString bs
 
       nested <- myRootC s
@@ -79,7 +84,7 @@ spec =
       deepNestedA deepNested `shouldBe` Just 234
 
     it "decodes composite structs" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [])
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector []) missing
       s <- myRootFromLazyByteString bs
 
       sws <- myRootE s
@@ -94,7 +99,7 @@ spec =
       threeBytesC tb `shouldBe` Just 6
 
     it "decodes vector of strings" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"])
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"]) missing
       s <- myRootFromLazyByteString bs
 
       vec <- myRootF s
@@ -104,6 +109,16 @@ spec =
       readElem 3 vec `shouldThrow` \x -> x == VectorIndexOutOfBounds 2 3
       toList vec `shouldBe` Just ["hello", "world"]
 
+    it "decodes vectors of tables" $ do
+      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"])
+            (vector [encodeDeepNested (int32 11), encodeDeepNested (int32 22)])
+      s <- myRootFromLazyByteString bs
+
+      vec <- myRootG s
+      list <- toList vec
+      traverse deepNestedA list `shouldBe` Just [11, 22]
+
+      
 newtype MyRoot =
   MyRoot Table
   deriving (HasPosition, HasTable)
@@ -119,10 +134,11 @@ encodeMyRoot ::
   -> Tagged T.Text Field
   -> Tagged SWS Field
   -> Tagged (t1 T.Text) Field
+  -> Tagged (t1 DeepNested) Field
   -> Tagged MyRoot Field
-encodeMyRoot a b c d e f =
+encodeMyRoot a b c d e f g =
   Tagged $
-  F.table [untag a, untag b, untag c, untag d, untag e, untag f]
+  F.table [untag a, untag b, untag c, untag d, untag e, untag f, untag g]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
 myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readNumerical . move x)
@@ -142,6 +158,9 @@ myRootE x = tableIndexToVOffset x 4 >>= required "e" (pure . readStruct . move x
 myRootF :: ReadCtx m => MyRoot -> m (Vector T.Text)
 myRootF x = tableIndexToVOffset x 5 >>= required "f" (readVector . move x)
 
+myRootG :: ReadCtx m => MyRoot -> m (Vector DeepNested)
+myRootG x = tableIndexToVOffset x 6 >>= required "g" (readVector . move x)
+
 newtype Nested =
   Nested Table
   deriving (HasPosition, HasTable)
@@ -159,6 +178,14 @@ nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> De
     
 newtype DeepNested = DeepNested Table
   deriving (HasTable, HasPosition)
+
+instance Sized DeepNested where
+  getInlineSize = coerce (getInlineSize @Table)
+  -- readInline pos = coerceWith (rep Coercion) (readInline @Table pos)
+  readInline :: forall m. ReadCtx m => Position -> m DeepNested
+  readInline =
+    case rep Coercion :: Coercion (m Table) (m DeepNested) of
+      Coercion -> coerce (readInline :: Position -> m Table)
 
 encodeDeepNested :: Tagged Int32 Field -> Tagged DeepNested Field
 encodeDeepNested a =
