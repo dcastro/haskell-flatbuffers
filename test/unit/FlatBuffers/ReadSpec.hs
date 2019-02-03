@@ -12,7 +12,6 @@ import qualified Data.ByteString.Lazy    as BSL
 import           Data.Coerce             (coerce)
 import           Data.Functor            ((<&>))
 import           Data.Int
-import           Data.Roles              (rep)
 import           Data.Tagged             (Tagged (..), untag)
 import qualified Data.Text               as T
 import           Data.Type.Coercion      (Coercion (Coercion), coerceWith)
@@ -181,11 +180,7 @@ newtype DeepNested = DeepNested Table
 
 instance Sized DeepNested where
   getInlineSize = coerce (getInlineSize @Table)
-  -- readInline pos = coerceWith (rep Coercion) (readInline @Table pos)
-  readInline :: forall m. ReadCtx m => Position -> m DeepNested
-  readInline =
-    case rep Coercion :: Coercion (m Table) (m DeepNested) of
-      Coercion -> coerce (readInline :: Position -> m Table)
+  readInline = fmap DeepNested . readInline
 
 encodeDeepNested :: Tagged Int32 Field -> Tagged DeepNested Field
 encodeDeepNested a =

@@ -18,7 +18,6 @@ import           Data.Coerce                   (coerce)
 import           Data.Functor                  ((<&>))
 import           Data.Int
 import           Data.Proxy                    (Proxy (..))
-import           Data.Roles                    (Representational)
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
@@ -29,7 +28,7 @@ import           FlatBuffers.Classes           (NumericField (..))
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 
-type ReadCtx m = (MonadThrow m, Representational m)
+type ReadCtx m = MonadThrow m
 
 newtype FieldName = FieldName Text
   deriving (Show, Eq, IsString)

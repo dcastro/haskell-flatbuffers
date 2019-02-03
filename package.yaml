@@ -34,7 +34,6 @@ dependencies:
   - hw-int
   - safe-exceptions
   - tagged
-  - roles
 
 library:
   source-dirs:      src
