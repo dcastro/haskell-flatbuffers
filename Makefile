@@ -27,7 +27,6 @@ ghcid-int:  ## Launch ghcid and automatically run integration tests
 			--main-is :integration" \
 		--test main \
 		--restart package.yaml
-.PHONY: ghcid-test
 
 flatb: ## Generate java flatbuffers
 	cd ./test/integration/ && \
