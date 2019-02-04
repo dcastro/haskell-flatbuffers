@@ -1,13 +1,26 @@
 # Notes
 
+* when writing to a table, any field can be "missing"
+* when reading from a table:
+  - a missing field of type table/string/vector/struct will default to `null`/`Nothing` in the host language
+  - a missing field of type `bool`/numeric will default to the corresponding default values, which can be configured in the schema.
+
 ## Flatbuffers limitations
 
-* Cannot distinguish empty vector from absent vector (workaround is to wrap vector in a table).
-  * This same problem affects ints (`Just 0` vs `Nothing`), etc.
-* Vectors of vectors are not supported (see above workaround).
-* Vectors (e.g. of strings) cannot contains nulls, see <https://github.com/google/flatbuffers/issues/4704>
-* Vector of unions / vectors of unions of structs are not supported by all languages (supported in typescript)
-* Structs, unlike other scalars, are nullable. But when a struct `y` is nested inside a struct `x`, either the whole thing is null, or it isn't. You can't have a nullable nested struct.
+* Vectors cannot contain:
+  * other vectors
+  * null/missing elements
+* `bool`/numeric types - cannot be null/missing.
+  * `bool`/numeric types have default values (configurable), which the user should be able to select.
+* structs *can* be null/missing.
+  * nested stucts *can't* be null/missing. When a struct contains nested structs, either the whole thing is null, or it isn't/
+  * structs don't have default values, but its fields do.
+  * structs can only contain: numeric fields, boolean, unions???
+
+## Implementation specific limitations
+
+* Vector of unions / vectors of unions of structs are not supported by all languages (Languages where this is supported: typescript)
+* (Java) Cannot distinguish between a missing/null vector and an empty vector (workaround is to wrap vector in table).
 
 ## TODO
 
@@ -23,6 +36,7 @@
 * "Force defaults" mode
 * Generalize code, `[Field]` -> `Traversable f => f Field`
 * Bang patterns, unpacked pragma, `$!`
+* Use strict version of `Maybe`, etc.
 * `FlatBuffers.Read`
   * Parse a flatbuffer from a strict bytestring
   * Support for reading lazy text and maybe strings
@@ -32,3 +46,4 @@
     * Nullable fields (e.g. strings, structs, tables)
       * throw, return Maybe
   * check if a field is present with `HasField`?
+* Define our own `Widen a b` typeclass
