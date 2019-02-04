@@ -36,6 +36,7 @@ table UnionByteBool {
 }
 
 table Vectors {
+  w: [int];
   x: [int];
   y: [string];
   z: [long];

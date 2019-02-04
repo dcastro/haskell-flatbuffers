@@ -79,6 +79,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                 case "Vectors" =>
                   val obj = Vectors.getRootAsVectors(bb)
                   Json.obj(
+                    "w" =>> Json.fromValues((0 until obj.wLength()).map(obj.w).map(_.asJson)),
                     "x" =>> Json.fromValues((0 until obj.xLength()).map(obj.x).map(_.asJson)),
                     "y" =>> Json.fromValues((0 until obj.yLength()).map(obj.y).map(_.asJson)),
                     "z" =>> Json.fromValues((0 until obj.zLength()).map(obj.z).map(_.asJson))

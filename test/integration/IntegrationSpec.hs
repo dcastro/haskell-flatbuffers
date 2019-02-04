@@ -131,7 +131,8 @@ cases =
       "Vectors"
       "Vectors"
       (root $ table
-         [ vector [scalar int32 1, scalar int32 2]
+         [ missing
+         , vector [scalar int32 1, scalar int32 2]
          , vector
              [ text ""
              , text "hi 👬"
@@ -143,7 +144,8 @@ cases =
          , vector [scalar int64 3, scalar int64 4]
          ])
       (object
-         [ "x" .= [Number 1, Number 2]
+         [ "w" .= [] @Value
+         , "x" .= [Number 1, Number 2]
          , "y" .=
            [ String ""
            , String "hi 👬"
