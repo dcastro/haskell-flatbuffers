@@ -18,6 +18,8 @@ language: generic
 cache:
   directories:
   - $HOME/.stack
+  - $HOME/.ivy2/cache
+  - $HOME/.sbt/boot
 
 # Ensure necessary system libraries are present
 addons:
@@ -28,8 +30,17 @@ addons:
 before_install:
 # Download and unpack the stack executable
 - mkdir -p ~/.local/bin
+- mkdir -p $HOME/.sbt/launchers/1.2.3/
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+- travis_retry curl -L https://piccolo.link/sbt-1.2.8.tgz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/sbt'
+- travis_retry curl -L -o $HOME/.sbt/launchers/1.2.3/sbt-launch.jar http://repo.scala-sbt.org/scalasbt/maven-releases/org/scala-sbt/sbt-launch/1.2.3/sbt-launch.jar
+- cd $HOME
+- git clone https://github.com/google/flatbuffers.git
+- cd flatbuffers
+- cmake -G "Unix Makefiles"
+- make
+
 
 install:
 # Build dependencies
@@ -37,4 +48,8 @@ install:
 
 script:
 # Build the package, its tests, and its docs and run the tests
+- make flatb
+- cd test/integration/test-api
+- sbt -Djline.terminal=jline.UnsupportedTerminal run &
+- cd ../../..
 - stack --no-terminal test --haddock --no-haddock-deps
