@@ -28,18 +28,21 @@ addons:
       - libgmp-dev
 
 before_install:
-# Download and unpack the stack executable
 - mkdir -p ~/.local/bin
 - mkdir -p $HOME/.sbt/launchers/1.2.3/
 - export PATH=$HOME/.local/bin:$PATH
+# Download and unpack the stack executable
 - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+# Download sbt
 - travis_retry curl -L https://piccolo.link/sbt-1.2.8.tgz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/sbt'
 - travis_retry curl -L -o $HOME/.sbt/launchers/1.2.3/sbt-launch.jar http://repo.scala-sbt.org/scalasbt/maven-releases/org/scala-sbt/sbt-launch/1.2.3/sbt-launch.jar
-- cd $HOME
-- git clone https://github.com/google/flatbuffers.git
-- cd flatbuffers
+# Download and compile flatbuffers
+- git clone https://github.com/google/flatbuffers.git $HOME/flatbuffers
+- cd $HOME/flatbuffers
 - cmake -G "Unix Makefiles"
 - make
+- cp flatc ~/.local/bin
+- cd -
 
 
 install:
@@ -51,5 +54,6 @@ script:
 - make flatb
 - cd test/integration/test-api
 - sbt -Djline.terminal=jline.UnsupportedTerminal run &
-- cd ../../..
+- while ! nc -z localhost 8080; do sleep 0.1; done
+- cd -
 - stack --no-terminal test --haddock --no-haddock-deps
