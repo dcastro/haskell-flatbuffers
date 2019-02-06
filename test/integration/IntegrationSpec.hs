@@ -180,6 +180,7 @@ cases =
              , int64 maxBound
              , padded 7 $ bool True
              ]
+         , scalar struct [] -- an empty struct
          ])
       (object
          [ "w" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
@@ -202,6 +203,7 @@ cases =
                  , "z" .= True
                  ]
              ]
+         , "z1" .= Null
          ])
   , Case
       "VectorOfTables"

@@ -126,7 +126,8 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                           )
                         }
                       )
-                    }
+                    },
+                    "z1" =>> inside(obj.z1) { empty => "Empty".asJson }
                   ).some
                 case "VectorOfTables" =>
                   val obj = VectorOfTables.getRootAsVectorOfTables(bb)

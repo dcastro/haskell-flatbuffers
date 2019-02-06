@@ -60,11 +60,14 @@ struct WithNestedStruct {
   y: IrregularStruct;
 }
 
+struct EmptyStruct {}
+
 table Structs {
   w: RegularStruct;
   x: RegularStruct;
   y: IrregularStruct;
   z: WithNestedStruct;
+  z1: EmptyStruct;
 }
 
 table VectorOfTables {

@@ -30,6 +30,9 @@
 
 * Emptiness
   * Tables and structs can be empty (i.e. have 0 fields).
+    * An empty struct inside a table: will be encoded the same way as a missing field, i.e. a `0` offset in the vtable. It should be read as "null".
+    * An empty struct inside another struct is simply ignored. In Java, you can write this to a buffer, but the code generated for reading said empty struct will throw an `IndexOutOfBoundsException`.
+    * Empty structs inside vectors ???
 
 ## Flatbuffers limitations
 
