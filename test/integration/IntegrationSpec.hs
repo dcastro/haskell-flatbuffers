@@ -32,10 +32,7 @@ spec =
       man <- newManager defaultManagerSettings
       req <- parseRequest ("http://localhost:8080/" ++ flatbufferName)
       let req' =
-            req
-            { method = "POST"
-            , requestBody = RequestBodyLBS rootByteString
-            }
+            req {method = "POST", requestBody = RequestBodyLBS rootByteString}
       rsp <- httpLbs req' man
       case statusCode $ responseStatus rsp of
         200 ->
@@ -60,7 +57,8 @@ cases =
   , Case
       "FiveFields"
       "FiveFields"
-      (root $ table
+      (root $
+       table
          [ scalar int32 12
          , string "hi"
          , scalar int64 23
@@ -88,7 +86,8 @@ cases =
   , Case
       "ManyTables"
       "ManyTables"
-      (root $ table
+      (root $
+       table
          [ scalar int32 12
          , table [scalar int32 23, string "hi"]
          , missing
@@ -103,7 +102,8 @@ cases =
   , Case
       "UnionByteBool"
       "UnionByteBool"
-      (root $ table
+      (root $
+       table
          [ scalar word8 5
          , missing
          -- uni1
@@ -132,7 +132,8 @@ cases =
   , Case
       "Vectors"
       "Vectors"
-      (root $ table
+      (root $
+       table
          [ missing
          , vector [scalar int32 1, scalar int32 2]
          , vector
@@ -159,9 +160,34 @@ cases =
          , "z" .= [Number 3, Number 4]
          ])
   , Case
+      "EmptyStructs"
+      "EmptyStructs"
+      (root $
+       table
+         [ scalar struct []
+         , vector [scalar struct [], scalar struct []]
+         , scalar struct [struct []]
+         , scalar struct [int32 11, struct [], int32 22]
+         ])
+      (object
+         [ "w" .= Null
+         , "x" .=
+           [ String "testapi.flatbuffers.EmptyStruct"
+           , String "testapi.flatbuffers.EmptyStruct"
+           ]
+         , "y" .= Null
+         , "z" .=
+           object
+             [ "x" .= Number 11
+             , "y" .= String "testapi.flatbuffers.EmptyStruct"
+             , "z" .= Number 22
+             ]
+         ])
+  , Case
       "Structs"
       "Structs"
-      (root $ table
+      (root $
+       table
          [ scalar struct [int32 maxBound, word32 maxBound]
          , missing
          , scalar
@@ -180,7 +206,6 @@ cases =
              , int64 maxBound
              , padded 7 $ bool True
              ]
-         , scalar struct [] -- an empty struct
          ])
       (object
          [ "w" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
@@ -203,12 +228,12 @@ cases =
                  , "z" .= True
                  ]
              ]
-         , "z1" .= Null
          ])
   , Case
       "VectorOfTables"
       "VectorOfTables"
-      (root $ table
+      (root $
+       table
          [ vector
              [ table [scalar int32 1, string "a"]
              , table [scalar int32 2, string "b"]

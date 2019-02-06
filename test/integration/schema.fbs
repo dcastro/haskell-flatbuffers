@@ -62,12 +62,28 @@ struct WithNestedStruct {
 
 struct EmptyStruct {}
 
+struct EmptyStructWithEmptyStruct {
+  x: EmptyStruct;
+}
+
+struct EmptyStructWithEmptyStructAndMore {
+  x: int32;
+  y: EmptyStruct;
+  z: int32;
+}
+
+table EmptyStructs {
+  w: EmptyStruct;
+  x: [EmptyStruct];
+  y: EmptyStructWithEmptyStruct;
+  z: EmptyStructWithEmptyStructAndMore;
+}
+
 table Structs {
   w: RegularStruct;
   x: RegularStruct;
   y: IrregularStruct;
   z: WithNestedStruct;
-  z1: EmptyStruct;
 }
 
 table VectorOfTables {
