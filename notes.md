@@ -29,11 +29,8 @@
   * The C++ code generator allows recursive structs, but the Java and TypeScript generators hang. Either way, the spec disallows this: `A struct cannot contain fields that contain itself directly or indirectly`.
 
 * Emptiness
-  * Tables and structs can be empty (i.e. have 0 fields).
-    * An empty struct inside a table: will be encoded the same way as a missing field, i.e. a `0` offset in the vtable. It should be read as "null".
-    * An empty struct inside another struct is simply ignored.
-    * An empty struct inside another empty struct is simply ignored: they're both considered one empty struct. See point above.
-    * An empty struct inside a vector works as expected. We'll write the vector length but no content.
+  * Tables can be empty (i.e. have 0 fields).
+  * Structs cannot be empty, as of [2018-10-30][empty structs].
 
 ## Flatbuffers limitations
 
@@ -43,7 +40,7 @@
 * `bool`/numeric types - cannot be null/missing.
   * `bool`/numeric types have default values (configurable), which the user should be able to select.
 * structs *can* be null/missing.
-  * nested stucts *can't* be null/missing. When a struct contains nested structs, either the whole thing is null, or it isn't/
+  * nested stucts *can't* be null/missing. When a struct contains nested structs, either the whole thing is null, or it isn't.
   * structs don't have default values, but its fields do.
   * structs can only contain: numeric fields, boolean, unions???
 
@@ -79,3 +76,8 @@
       * throw, return Maybe
   * check if a field is present with `HasField`?
 * Define our own `Widen a b` typeclass
+
+
+
+  [scalars]: https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#scalars
+  [empty structs]: https://github.com/google/flatbuffers/commit/160e8f2fdc9d5989e652709fae3fac0bd9aaed14

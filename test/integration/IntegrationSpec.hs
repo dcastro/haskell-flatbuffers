@@ -160,30 +160,6 @@ cases =
          , "z" .= [Number 3, Number 4]
          ])
   , Case
-      "EmptyStructs"
-      "EmptyStructs"
-      (root $
-       table
-         [ scalar struct []
-         , vector [scalar struct [], scalar struct []]
-         , scalar struct [struct []]
-         , scalar struct [int32 11, struct [], int32 22]
-         ])
-      (object
-         [ "w" .= Null
-         , "x" .=
-           [ String "testapi.flatbuffers.EmptyStruct"
-           , String "testapi.flatbuffers.EmptyStruct"
-           ]
-         , "y" .= Null
-         , "z" .=
-           object
-             [ "x" .= Number 11
-             , "y" .= String "testapi.flatbuffers.EmptyStruct"
-             , "z" .= Number 22
-             ]
-         ])
-  , Case
       "Structs"
       "Structs"
       (root $
