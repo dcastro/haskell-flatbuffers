@@ -168,9 +168,11 @@ root' ref = do
   prep align referenceSize
   write ref
 
-struct :: [InlineField] -> InlineField
-struct fields = InlineField (getSum $ foldMap (Sum . size) fields) (getMax $ foldMap (Max . align) fields) $
-  traverse_ write (reverse fields)
+struct :: InlineField -> [InlineField] -> Field
+struct head tail =
+  let fields = head : tail
+  in Field . pure . InlineField (getSum $ foldMap (Sum . size) fields) (getMax $ foldMap (Max . align) fields) $
+      traverse_ write (Reverse fields)
 
 padded :: Word8 -> InlineField -> InlineField
 padded n field = InlineField (size field + fromIntegral n) (align field + fromIntegral n) $ do

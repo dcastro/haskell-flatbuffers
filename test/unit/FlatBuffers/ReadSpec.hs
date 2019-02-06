@@ -196,9 +196,9 @@ newtype MyStruct =
 
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> Tagged MyStruct Field
 encodeMyStruct a b c =
-  Tagged $ F.scalar F.struct
-    [ F.int32 a
-    , F.padded 3 $ F.word8 b
+  Tagged $ F.struct
+    ( F.int32 a )
+    [ F.padded 3 $ F.word8 b
     , F.int64 c
     ]
 
@@ -216,9 +216,9 @@ newtype ThreeBytes = ThreeBytes Struct
 
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> Tagged ThreeBytes Field
 encodeThreeBytes a b c =
-  Tagged $ F.scalar F.struct
-    [ F.word8 a
-    , F.word8 b
+  Tagged $ F.struct
+    ( F.word8 a )
+    [ F.word8 b
     , F.word8 c
     ]
 
@@ -237,9 +237,9 @@ newtype SWS = SWS Struct
 
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> Tagged SWS Field
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
-  Tagged $ F.scalar F.struct
-    [ F.int32 myStructA
-    , F.padded 3 $ F.word8 myStructB
+  Tagged $ F.struct
+    ( F.int32 myStructA )
+    [ F.padded 3 $ F.word8 myStructB
     , F.int64 myStructC
     , F.word8 threeBytesA
     , F.word8 threeBytesB

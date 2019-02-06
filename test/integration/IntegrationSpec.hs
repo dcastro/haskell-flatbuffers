@@ -164,19 +164,14 @@ cases =
       "Structs"
       (root $
        table
-         [ scalar struct [int32 maxBound, word32 maxBound]
+         [ struct (int32 maxBound) [word32 maxBound]
          , missing
-         , scalar
-             struct
-             [ int32 maxBound
-             , padded 3 $ word8 maxBound
-             , int64 maxBound
-             , padded 7 $ bool True
-             ]
-         , scalar
-             struct
-             [ int32 maxBound
-             , word32 maxBound
+         , struct
+             (int32 maxBound)
+             [padded 3 $ word8 maxBound, int64 maxBound, padded 7 $ bool True]
+         , struct
+             (int32 maxBound)
+             [ word32 maxBound
              , int32 maxBound
              , padded 3 $ word8 maxBound
              , int64 maxBound
