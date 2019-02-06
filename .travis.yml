@@ -51,9 +51,6 @@ install:
 
 script:
 # Build the package, its tests, and its docs and run the tests
-- make flatb
-- cd test/integration/test-api
-- sbt -Djline.terminal=jline.UnsupportedTerminal run &
-- while ! nc -z localhost 8080; do sleep 0.1; done
-- cd -
+- make test-api-detached
+- timeout 60 bash -c 'while ! nc -z localhost 8080; do sleep 0.1; done'
 - stack --no-terminal test --haddock --no-haddock-deps

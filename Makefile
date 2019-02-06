@@ -37,6 +37,11 @@ test-api: ## Generate java flatbuffers and launch test-api
 		cd ./test/integration/test-api/ && \
 		sbt "~reStart"
 
+test-api-detached: ## Generate java flatbuffers and launch test-api in detached mode
+	make flatb && \
+		cd ./test/integration/test-api/ && \
+		sbt -Djline.terminal=jline.UnsupportedTerminal run &
+
 docs:  ## Builds haddock documentation and watch files for changes
 	$(STACK) haddock --no-haddock-deps --file-watch
 .PHONY: docs
