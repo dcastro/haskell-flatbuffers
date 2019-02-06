@@ -28,6 +28,7 @@ table UB { y: int; }
 
 table UnionByteBool {
   color: Color;
+  color2: Color = Blue;
   uni1: U;
   uni2: U;
   uni3: U;

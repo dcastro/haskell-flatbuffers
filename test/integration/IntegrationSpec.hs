@@ -105,6 +105,7 @@ cases =
       "UnionByteBool"
       (root $ table
          [ scalar word8 5
+         , missing
          -- uni1
          , scalar word8 1
          , table [string "hi"]
@@ -121,6 +122,7 @@ cases =
          ])
       (object
          [ "color" .= String "Gray"
+         , "color2" .= String "Blue"
          , "uni1" .= object ["x" .= String "hi"]
          , "uni2" .= String "NONE"
          , "uni3" .= String "NONE"

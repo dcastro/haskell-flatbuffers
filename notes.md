@@ -1,9 +1,35 @@
 # Notes
 
-* when writing to a table, any field can be "missing"
+
+* Data types: tables, vectors, string, struct, numeric, bool, union, enums
+  * numeric: signed/unsigned 8/16/32/64-bit integers, 32/64-bit floating point.
+  * unions are encoded as two contiguous fields:
+    * the byte: an unsigned byte that signals which member of the union this is
+    * the pointer: an offset to where the actual member is located
+      * QUESTION: this is true when the member is a table. what if it's a struct? or an int32? or another union?
+
+* when writing to a table, any field can be null/missing
+* when writing to a vector, no element can be null/missing
 * when reading from a table:
-  - a missing field of type table/string/vector/struct will default to `null`/`Nothing` in the host language
-  - a missing field of type `bool`/numeric will default to the corresponding default values, which can be configured in the schema.
+  - a missing field of type table/vector/string/struct will default to `null`/`Nothing` in the host language
+  - a missing field of type bool/numeric/enum will default to the corresponding default values, which can be configured in the schema.
+  - a missing field of type union should default to some concept of "none". We consider that a union is "missing" if "the byte" field is missing or if it's 0.
+    - QUESTION: what to do if the byte field of a union is invalid? fail? default to "none"? leave it to the user?
+
+* vectors of unions?
+  > A vector can also hold unions, but it is not supported by all implementations. A union vector is in reality two separate vectors: a type vector and an offset vector in place of a single unions type and value fields in table. See unions.
+
+* Enum
+  * values must start at 0 and be declared in ascending order
+  * underlying type is integral
+  * [the spec says][scalars] an enum with an underlying type of bool is technically possible, but this leads to all sorts of nonsense, e.g. `enum Geg: bool { Qw, We = 1, Ui = 2}`. Furthermore, in Java, an enum with bool leads to generated code that doesn't compile
+
+* Recursiveness
+  * Tables can reference themselves
+  * The C++ code generator allows recursive structs, but the Java and TypeScript generators hang. Either way, the spec disallows this: `A struct cannot contain fields that contain itself directly or indirectly`.
+
+* Emptiness
+  * Tables and structs can be empty (i.e. have 0 fields).
 
 ## Flatbuffers limitations
 
@@ -27,6 +53,8 @@
 * Add support for:
   * unions of structs / unions of strings: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions>
   * (possibly) vectors of unions
+  * `file_identifier` and `root_type`
+  * "size prefix before the standard header"?
 * Rules to be enforced at the type level
   * offsets can't be written to structs
   * vectors cannot contain `missing`
