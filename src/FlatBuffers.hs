@@ -12,6 +12,7 @@ import qualified Data.ByteString.Builder   as B
 import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import qualified Data.ByteString.UTF8      as BSU
+import           Data.Coerce               (coerce)
 import           Data.Foldable
 import qualified Data.Foldable             as Foldable
 import           Data.Functor.Reverse      (Reverse (..))
@@ -198,7 +199,7 @@ table' fields = do
   -- table
   tableEnd <- gets _bytesWritten
   locations <-
-    fmap reverse $ forM (reverse fields) $ \f ->
+    coerce $ forM (Reverse fields) $ \f ->
       if size f == 0
         then pure 0
         else prep (align f) 0 >> write f >> gets _bytesWritten
