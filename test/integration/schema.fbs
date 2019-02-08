@@ -27,12 +27,8 @@ table UnionA { x: string; }
 table UnionB { y: int; }
 
 table UnionByteBool {
-  color: Color;
-  color2: Color = Blue;
-  uni1: Union;
-  uni2: Union;
-  uni3: Union;
-  uni4: Union;
+  color: Color = Blue;
+  uni: Union;
   boo: bool;
 }
 

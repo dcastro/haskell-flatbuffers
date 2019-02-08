@@ -69,11 +69,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                   val obj = UnionByteBool.getRootAsUnionByteBool(bb)
                   Json.obj(
                     "color" =>> Color.name(obj.color),
-                    "color2" =>> Color.name(obj.color2),
-                    "uni1" =>> readUnion(obj)(_.uni1Type, _.uni1),
-                    "uni2" =>> readUnion(obj)(_.uni2Type, _.uni2),
-                    "uni3" =>> readUnion(obj)(_.uni3Type, _.uni3),
-                    "uni4" =>> readUnion(obj)(_.uni4Type, _.uni4),
+                    "uni" =>> readUnion(obj)(_.uniType, _.uni),
                     "boo" =>> obj.boo()
                   ).some
 

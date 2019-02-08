@@ -100,36 +100,55 @@ cases =
          , "z" .= object ["n" .= Number 34, "s" .= String "bye"]
          ])
   , Case
-      "UnionByteBool"
+      "UnionByteBool with UnionA"
       "UnionByteBool"
       (root $
        table
          [ scalar word8 5
-         , missing
-         -- uni1
          , scalar word8 1
          , table [string "hi"]
-         -- uni2
-         , scalar word8 0
-         , missing
-         -- uni3
-         , missing
-         , missing
-         -- uni4
-         , scalar word8 2
-         , table [scalar int32 99]
-         -- bool
          , scalar bool True
          ])
       (object
          [ "color" .= String "Gray"
-         , "color2" .= String "Blue"
-         , "uni1" .= object ["x" .= String "hi"]
-         , "uni2" .= String "NONE"
-         , "uni3" .= String "NONE"
-         , "uni4" .= object ["y" .= Number 99]
+         , "uni" .= object ["x" .= String "hi"]
          , "boo" .= True
          ])
+  , Case
+      "UnionByteBool with UnionB and missing Enum"
+      "UnionByteBool"
+      (root $
+       table
+         [ missing
+         , scalar word8 2
+         , table [scalar int32 99]
+         , scalar bool False
+         ])
+      (object
+         [ "color" .= String "Blue"
+         , "uni" .= object ["y" .= Number 99]
+         , "boo" .= False
+         ])
+  , Case
+      "UnionByteBool with union type = None"
+      "UnionByteBool"
+      (root $
+       table
+         [ missing
+         , scalar word8 0
+         , missing
+         ])
+      (object ["color" .= String "Blue", "uni" .= String "NONE", "boo" .= False])
+  , Case
+      "UnionByteBool with missing union type"
+      "UnionByteBool"
+      (root $
+       table
+         [ missing
+         , missing
+         , missing
+         ])
+      (object ["color" .= String "Blue", "uni" .= String "NONE", "boo" .= False])
   , Case
       "Vectors"
       "Vectors"
