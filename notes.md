@@ -1,9 +1,10 @@
 # Notes
 
+* Spec: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md>
 
 * Data types: tables, vectors, string, struct, numeric, bool, union, enums
   * numeric: signed/unsigned 8/16/32/64-bit integers, 32/64-bit floating point.
-  * unions are encoded as two contiguous fields:
+  * unions are encoded as two contiguous fields, each of which has its own entry in the vtable:
     * the byte: an unsigned byte that signals which member of the union this is
     * the pointer: an offset to where the actual member is located
       * QUESTION: this is true when the member is a table. what if it's a struct? or an int32? or another union?
@@ -19,6 +20,17 @@
 * vectors of unions?
   > A vector can also hold unions, but it is not supported by all implementations. A union vector is in reality two separate vectors: a type vector and an offset vector in place of a single unions type and value fields in table. See unions.
 
+* Containers
+  * Structs: can contain other structs, numeric, bool, enums. Can't contain tables, vectors, strings, unions, or "missing" elements.
+  * Vectors: can contain tables, strings, structs, numeric, bool, unions, enums. Can't contain other vectors, or "missing" elements.
+  * Table: can contain all types.
+  * Union: union members can be structs or tables. They cannot be unions themselves. The spec says strings can be members of unions, but as of Feb 2019 this doesn't seem to be the case.
+    > A later addition (mid 2017) to the format allows for structs and strings to also be member of a union.
+
+* Structs
+  * Structs can be null when embedded in tables, but not when embedded in other structs.
+    When a struct contains nested structs, either the whole thing is null, or it isn't.
+
 * Enum
   * values must start at 0 and be declared in ascending order
   * underlying type is integral
@@ -32,17 +44,6 @@
   * Tables can be empty (i.e. have 0 fields).
   * Structs cannot be empty, as of [2018-10-30][empty structs].
 
-## Flatbuffers limitations
-
-* Vectors cannot contain:
-  * other vectors
-  * null/missing elements
-* `bool`/numeric types - cannot be null/missing.
-  * `bool`/numeric types have default values (configurable), which the user should be able to select.
-* structs *can* be null/missing.
-  * nested stucts *can't* be null/missing. When a struct contains nested structs, either the whole thing is null, or it isn't.
-  * structs don't have default values, but its fields do.
-  * structs can only contain: numeric fields, boolean, unions???
 
 ## Implementation specific limitations
 

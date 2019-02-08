@@ -175,12 +175,12 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
 
   def readUnion[A <: Table](obj: A)(unionType: A => Byte, union: A => Table => Table): Json =
     unionType(obj) match {
-      case U.NONE => "NONE".asJson
-      case U.UA =>
-        val uni = union(obj)(new UA()).asInstanceOf[UA]
+      case Union.NONE => "NONE".asJson
+      case Union.UnionA   =>
+        val uni = union(obj)(new UnionA()).asInstanceOf[UnionA]
         Json.obj("x" =>> uni.x)
-      case U.UB =>
-        val uni = union(obj)(new UB()).asInstanceOf[UB]
+      case Union.UnionB   =>
+        val uni = union(obj)(new UnionB()).asInstanceOf[UnionB]
         Json.obj("y" =>> uni.y)
     }
 }

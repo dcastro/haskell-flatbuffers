@@ -22,17 +22,17 @@ table ManyTables {
 
 enum Color:ubyte { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
 
-union U { UA, UB }
-table UA { x: string; }
-table UB { y: int; }
+union Union { UnionA, UnionB }
+table UnionA { x: string; }
+table UnionB { y: int; }
 
 table UnionByteBool {
   color: Color;
   color2: Color = Blue;
-  uni1: U;
-  uni2: U;
-  uni3: U;
-  uni4: U;
+  uni1: Union;
+  uni2: Union;
+  uni3: Union;
+  uni4: Union;
   boo: bool;
 }
 
