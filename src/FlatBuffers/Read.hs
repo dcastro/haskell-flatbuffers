@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE RecordWildCards            #-}
@@ -14,7 +15,7 @@ import qualified Data.ByteString               as BS
 import           Data.ByteString.Lazy          (ByteString)
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
-import           Data.Coerce                   (coerce)
+import           Data.Coerce                   (Coercible, coerce)
 import           Data.Functor                  ((<&>))
 import           Data.Int
 import           Data.Proxy                    (Proxy (..))
@@ -77,11 +78,6 @@ instance HasPosition Position   where getPos = id
 instance HasPosition Table      where getPos = tablePos
 instance HasPosition Struct     where getPos = unStruct
 instance HasPosition (Vector a) where getPos = vectorPos
-
-class HasTable a where
-  getTable :: a -> Table
-
-instance HasTable Table where getTable = id
 
 class Sized a where
   getInlineSize :: Proxy a -> Word16
@@ -181,7 +177,7 @@ optional :: ReadCtx m => a -> (VOffset -> m a) -> Maybe VOffset -> m a
 optional _ f (Just vo) = f vo
 optional dflt _ _ = pure dflt
 
-tableIndexToVOffset :: (ReadCtx m, HasTable t) => t -> Index -> m (Maybe VOffset)
+tableIndexToVOffset :: (ReadCtx m, Coercible t Table) => t -> Index -> m (Maybe VOffset)
 tableIndexToVOffset a ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
@@ -193,7 +189,7 @@ tableIndexToVOffset a ix =
         G.getWord16le <&> \case
           0 -> Nothing
           word16 -> Just (VOffset word16)
-  where Table{..} = getTable a
+  where Table{..} = coerce a
 
 moveUOffset :: Get Word32
 moveUOffset = do

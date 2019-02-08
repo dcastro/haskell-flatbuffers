@@ -1,6 +1,13 @@
-# Notes
+
+## Links
 
 * Spec: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md>
+* Schema grammar: <https://google.github.io/flatbuffers/flatbuffers_grammar.html>
+  * The grammar for unions seems to be wrong. It allows `union U { T = 3 }` which shouldn't be possible.
+    It also doesn't support aliases like `union U { A: T }`.
+* More schema info (attributes, etc): <https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html>
+
+## Notes
 
 * Data types: tables, vectors, string, struct, numeric, bool, union, enums
   * numeric: signed/unsigned 8/16/32/64-bit integers, 32/64-bit floating point.

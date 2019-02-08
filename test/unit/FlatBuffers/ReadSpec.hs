@@ -120,7 +120,7 @@ spec =
       
 newtype MyRoot =
   MyRoot Table
-  deriving (HasPosition, HasTable)
+  deriving (HasPosition)
 
 myRootFromLazyByteString :: ReadCtx m => ByteString -> m MyRoot
 myRootFromLazyByteString bs = MyRoot <$> tableFromLazyByteString bs
@@ -162,7 +162,7 @@ myRootG x = tableIndexToVOffset x 6 >>= required "g" (readVector . move x)
 
 newtype Nested =
   Nested Table
-  deriving (HasPosition, HasTable)
+  deriving (HasPosition)
 
 encodeNested :: Tagged Int32 Field -> Tagged DeepNested Field -> Tagged Nested Field
 encodeNested a b =
@@ -176,7 +176,7 @@ nestedB :: ReadCtx m => Nested -> m DeepNested
 nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> DeepNested
     
 newtype DeepNested = DeepNested Table
-  deriving (HasTable, HasPosition)
+  deriving (HasPosition)
 
 instance Sized DeepNested where
   getInlineSize = coerce (getInlineSize @Table)
