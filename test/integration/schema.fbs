@@ -71,3 +71,30 @@ table VectorOfTables {
   xs: [Simple];
 }
 
+// There's a bug in the java implementation for now: https://github.com/google/flatbuffers/issues/5165
+table VectorOfUnions {
+  xs: [Union];
+}
+
+// TODO: add support
+
+// union UnionOfStructs { UOS_A, UOS_B }
+// struct UOS_A { x: int32; }
+// struct UOS_B { x: int64; }
+
+// union UnionOfStrings {
+//   Name: string,
+//   Thing: string,
+//   Id: UnionA
+// }
+
+// table ManyUnionsOfStructs {
+//   x: UnionOfStructs;
+//   xs: [UnionOfStructs];
+// }
+
+// table MenyUnionsOfStrings {
+//   x: UnionOfString;
+//   xs: [UnionOfStrings]
+// }
+

@@ -118,6 +118,7 @@ cases =
          -- uni4
          , scalar word8 2
          , table [scalar int32 99]
+         -- bool
          , scalar bool True
          ])
       (object
