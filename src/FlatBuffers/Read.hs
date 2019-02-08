@@ -91,8 +91,8 @@ instance Sized Table where
   getInlineSize _ = 4
   readInline = readTable
 
-tableFromLazyByteString :: ReadCtx m => ByteString -> m Table
-tableFromLazyByteString root = readTable initialPos
+tableFromLazyByteString :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
+tableFromLazyByteString root = coerce <$> readTable initialPos
   where
     initialPos = Position root root 0
 
