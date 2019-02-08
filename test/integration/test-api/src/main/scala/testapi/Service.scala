@@ -139,6 +139,18 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     })
                   ).some
 
+                case "VectorOfStructs" =>
+                  val obj = VectorOfStructs.getRootAsVectorOfStructs(bb)
+                  Json.obj(
+                    "xs" =>> Json.fromValues((0 until obj.xsLength()).map(obj.xs).map { threeBytes =>
+                      Json.obj(
+                        "x" =>> threeBytes.x,
+                        "y" =>> threeBytes.y,
+                        "z" =>> threeBytes.z
+                      )
+                    })
+                  ).some
+
                 case _ => none
               }
             }

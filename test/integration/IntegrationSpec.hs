@@ -219,4 +219,22 @@ cases =
            , object ["n" .= minBound @Int32, "s" .= String "c"]
            ]
          ])
+  , Case
+      "VectorOfStructs"
+      "VectorOfStructs"
+      (root $
+       table
+         [ vector
+             [ struct (word8 1) [word8 2, word8 3]
+             , struct (word8 4) [word8 5, word8 6]
+             , struct (word8 7) [word8 8, word8 9]
+             ]
+         ])
+      (object
+         [ "xs" .=
+           [ object ["x" .= Number 1, "y" .= Number 2, "z" .= Number 3]
+           , object ["x" .= Number 4, "y" .= Number 5, "z" .= Number 6]
+           , object ["x" .= Number 7, "y" .= Number 8, "z" .= Number 9]
+           ]
+         ])
   ]
