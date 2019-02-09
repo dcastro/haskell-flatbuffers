@@ -17,7 +17,6 @@ import qualified Data.Text               as T
 import           Data.Type.Coercion      (Coercion (Coercion), coerceWith)
 import           Data.Word
 import qualified FlatBuffers             as F
-import           FlatBuffers.Classes     (dflt)
 import           FlatBuffers.Dsl
 import           FlatBuffers.Read
 import           Test.Hspec
@@ -26,37 +25,37 @@ spec :: Spec
 spec =
   describe "read" $ do 
     it "throws when buffer is exhausted" $
-      tableFromLazyByteString @Table "" `shouldThrow` \x ->
+      decode @Table "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
     let missingFields = root $ encodeMyRoot @[] missing missing missing missing missing missing missing
     
     it "throws when string is missing" $ do
-      s <- tableFromLazyByteString missingFields
+      s <- decode missingFields
       myRootD s `shouldThrow` \x -> x == MissingField "d"
 
     it "throws when table is missing" $ do
-      s <- tableFromLazyByteString missingFields
+      s <- decode missingFields
       myRootC s `shouldThrow` \x -> x == MissingField "c"
 
     it "throws when struct is missing" $ do
-      s <- tableFromLazyByteString missingFields
+      s <- decode missingFields
       myRootE s `shouldThrow` \x -> x == MissingField "e"
 
     it "throws when vector is missing" $ do
-      s <- tableFromLazyByteString missingFields
+      s <- decode missingFields
       myRootF s `shouldThrow` \x -> x == MissingField "f"
     
     it "throws when string is invalid utf-8" $ do
       let text = Tagged $ F.vector [F.scalar F.word8 255]
       let bs = root $ encodeMyRoot missing missing missing text missing (vector []) missing
-      s <- tableFromLazyByteString bs
+      s <- decode bs
       myRootD s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
       let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) missing (text "hello") missing (vector []) missing
-      s <- tableFromLazyByteString bs
+      s <- decode bs
 
       myRootA s `shouldBe` Just minBound
       myRootB s `shouldBe` Just maxBound
@@ -64,7 +63,7 @@ spec =
       
     it "decodes missing fields" $ do
       let bs = root $ encodeMyRoot missing missing (encodeNested missing missing) missing missing (vector []) missing
-      s <- tableFromLazyByteString bs
+      s <- decode bs
       
       myRootA s `shouldBe` Just 0
       myRootB s `shouldBe` Just 0
@@ -74,7 +73,7 @@ spec =
 
     it "decodes nested tables" $ do
       let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123) (encodeDeepNested (int32 234))) (text "hello") missing (vector []) missing
-      s <- tableFromLazyByteString bs
+      s <- decode bs
 
       nested <- myRootC s
       nestedA nested `shouldBe` Just 123
@@ -84,7 +83,7 @@ spec =
 
     it "decodes composite structs" $ do
       let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector []) missing
-      s <- tableFromLazyByteString bs
+      s <- decode bs
 
       sws <- myRootE s
       let ms = swsA sws
@@ -99,7 +98,7 @@ spec =
 
     it "decodes vector of strings" $ do
       let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"]) missing
-      s <- tableFromLazyByteString bs
+      s <- decode bs
 
       vec <- myRootF s
       readElem 0 vec `shouldBe` Just "hello"
@@ -111,7 +110,7 @@ spec =
     it "decodes vectors of tables" $ do
       let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"])
             (vector [encodeDeepNested (int32 11), encodeDeepNested (int32 22)])
-      s <- tableFromLazyByteString bs
+      s <- decode bs
 
       vec <- myRootG s
       list <- toList vec

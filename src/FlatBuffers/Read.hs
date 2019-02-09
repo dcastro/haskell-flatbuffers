@@ -91,8 +91,8 @@ instance Sized Table where
   getInlineSize _ = 4
   readInline = readTable
 
-tableFromLazyByteString :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
-tableFromLazyByteString root = coerce <$> readTable initialPos
+decode :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
+decode root = coerce <$> readTable initialPos
   where
     initialPos = Position root root 0
 
@@ -205,6 +205,7 @@ data Error
   | Utf8DecodingError { msg  :: String
                       , byte :: Maybe Word8 }
   | VectorIndexOutOfBounds VectorLength VectorIndex
+  | EnumUnknownValue { enumName :: String, enumValue :: Word64 }
   deriving (Show, Eq)
 
 instance Exception Error
