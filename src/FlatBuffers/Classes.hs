@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module FlatBuffers.Classes where
 
 import           Data.Binary.Get (Get)
@@ -42,4 +44,10 @@ instance NumericField Word32 where
 instance NumericField Word64 where
   dflt = 0
   getter = G.getWord64le
-  
+
+instance NumericField Bool where
+  dflt = False
+  getter = toBool <$> getter @Word8
+    where
+      toBool 0 = False
+      toBool _ = True

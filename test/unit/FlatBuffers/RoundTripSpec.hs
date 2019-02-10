@@ -25,26 +25,32 @@ spec =
       x <- decode $ root $ encodeUnionByteBool
               (encodeColor Red)
               (encodeUnionUnionA (encodeUnionA (text "hi")))
+              (bool True)
       unionByteBoolColor x `shouldBe` Just Red
+      unionByteBoolBoo x `shouldBe` Just True
       unionByteBoolUnion x >>= \case
         UnionUnionA x -> unionAX x `shouldBe` Just "hi"
         _             -> expectationFailure "Unexpected union type"
 
-      x <- decode $ root $ encodeUnionByteBool missing
-               (encodeUnionUnionB (encodeUnionB (int32 maxBound)))
+      x <- decode $ root $ encodeUnionByteBool
+              missing
+              (encodeUnionUnionB (encodeUnionB (int32 maxBound)))
+              (bool False)
+      unionByteBoolBoo x `shouldBe` Just False
       unionByteBoolUnion x >>= \case
         UnionUnionB x -> unionBX x `shouldBe` Just maxBound
         _             -> expectationFailure "Unexpected union type"
 
-      x <- decode $ root $ encodeUnionByteBool missing encodeUnionNone
+      x <- decode $ root $ encodeUnionByteBool missing encodeUnionNone missing
       unionByteBoolUnion x >>= \case
         UnionNone -> pure ()
         _ -> expectationFailure "Unexpected union type"
 
     it "all fields missing" $ do
-      x <- decode $ root $ encodeUnionByteBool missing (missing, missing)
+      x <- decode $ root $ encodeUnionByteBool missing (missing, missing) missing
       unionByteBoolColor x `shouldThrow` \x -> x == MissingField "color"
       unionByteBoolUnion x `shouldThrow` \x -> x == MissingField "union"
+      unionByteBoolBoo x `shouldThrow` \x -> x == MissingField "boo"
 
 ----------------------------------
 ------------- Color --------------
@@ -139,9 +145,10 @@ newtype UnionByteBool =
 encodeUnionByteBool ::
      Tagged Color Field
   -> (Tagged Word8 Field, Tagged Union Field)
+  -> Tagged Bool Field
   -> Tagged UnionByteBool Field
-encodeUnionByteBool x1 x2 =
-  Tagged $ F.table [untag x1, untag (fst x2), untag (snd x2)]
+encodeUnionByteBool x1 x2 x3 =
+  Tagged $ F.table [untag x1, untag (fst x2), untag (snd x2), untag x3]
 
 unionByteBoolColor :: ReadCtx m => UnionByteBool -> m Color
 unionByteBoolColor x = tableIndexToVOffset x 0 >>= required "color" (readColor . move x)
@@ -152,3 +159,7 @@ unionByteBoolUnion x = do
   if n == 0
     then pure UnionNone
     else tableIndexToVOffset x 2 >>= required "union" (readUnion n . move x)
+
+unionByteBoolBoo :: ReadCtx m => UnionByteBool -> m Bool
+unionByteBoolBoo x = tableIndexToVOffset x 3 >>= required "boo" (readNumerical . move x)
+
