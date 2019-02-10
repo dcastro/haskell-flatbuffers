@@ -205,7 +205,8 @@ data Error
   | Utf8DecodingError { msg  :: String
                       , byte :: Maybe Word8 }
   | VectorIndexOutOfBounds VectorLength VectorIndex
-  | EnumUnknownValue { enumName :: String, enumValue :: Word64 }
+  | EnumUnknown { enumName :: String, enumValue :: Word64 }
+  | UnionUnknown { unionName :: String, unionValue :: Word8 }
   deriving (Show, Eq)
 
 instance Exception Error
