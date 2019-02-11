@@ -136,10 +136,10 @@ encodeMyRoot a b c d e f g =
   F.table [untag a, untag b, untag c, untag d, untag e, untag f, untag g]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
-myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readNumerical . move x)
+myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
 
 myRootB :: ReadCtx m => MyRoot -> m Int64
-myRootB x = tableIndexToVOffset x 1 >>= optional 0 (readNumerical . move x)
+myRootB x = tableIndexToVOffset x 1 >>= optional 0 (readPrim . move x)
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
 myRootC x = tableIndexToVOffset x 2 >>= required "c" (readTable . move x) <&> Nested
@@ -166,7 +166,7 @@ encodeNested a b =
     [ untag a, untag b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
-nestedA x = tableIndexToVOffset x 0 >>= optional 0 (readNumerical . move x)
+nestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
 
 nestedB :: ReadCtx m => Nested -> m DeepNested
 nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> DeepNested
@@ -184,7 +184,7 @@ encodeDeepNested a =
     [ untag a ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
-deepNestedA x = tableIndexToVOffset x 0 >>= optional 0 (readNumerical . move x)
+deepNestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
 
 newtype MyStruct =
   MyStruct Struct
@@ -199,13 +199,13 @@ encodeMyStruct a b c =
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
-myStructA x = readNumerical $ move x 0
+myStructA x = readPrim $ move x 0
 
 myStructB :: ReadCtx m => MyStruct -> m Word8
-myStructB x = readNumerical $ move x 4
+myStructB x = readPrim $ move x 4
 
 myStructC :: ReadCtx m => MyStruct -> m Int64
-myStructC x = readNumerical $ move x 8
+myStructC x = readPrim $ move x 8
 
 newtype ThreeBytes = ThreeBytes Struct
   deriving HasPosition
@@ -219,13 +219,13 @@ encodeThreeBytes a b c =
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesA x = readNumerical $ move x 0
+threeBytesA x = readPrim $ move x 0
 
 threeBytesB :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesB x = readNumerical $ move x 1
+threeBytesB x = readPrim $ move x 1
 
 threeBytesC :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesC x = readNumerical $ move x 2
+threeBytesC x = readPrim $ move x 2
 
 -- struct with structs
 newtype SWS = SWS Struct

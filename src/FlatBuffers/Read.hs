@@ -25,7 +25,7 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
-import           FlatBuffers.Classes           (NumericField (..))
+import           FlatBuffers.Classes           (PrimField (..))
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 
@@ -138,8 +138,8 @@ readVector Position{..} =
           }
       }
 
-readNumerical :: (ReadCtx m, NumericField f) => Position -> m f 
-readNumerical Position{..} = runGetM getter posCurrent
+readPrim :: (ReadCtx m, PrimField f) => Position -> m f 
+readPrim Position{..} = runGetM getter posCurrent
 
 readText :: ReadCtx m => Position -> m Text
 readText Position{..} = do

@@ -105,17 +105,17 @@ primitivesH :: ReadCtx m => Primitives -> m Int64
 primitivesI :: ReadCtx m => Primitives -> m Float
 primitivesJ :: ReadCtx m => Primitives -> m Double
 primitivesK :: ReadCtx m => Primitives -> m Bool
-primitivesA x = tableIndexToVOffset x 0 >>= required "a" (readNumerical . move x)
-primitivesB x = tableIndexToVOffset x 1 >>= required "b" (readNumerical . move x)
-primitivesC x = tableIndexToVOffset x 2 >>= required "c" (readNumerical . move x)
-primitivesD x = tableIndexToVOffset x 3 >>= required "d" (readNumerical . move x)
-primitivesE x = tableIndexToVOffset x 4 >>= required "e" (readNumerical . move x)
-primitivesF x = tableIndexToVOffset x 5 >>= required "f" (readNumerical . move x)
-primitivesG x = tableIndexToVOffset x 6 >>= required "g" (readNumerical . move x)
-primitivesH x = tableIndexToVOffset x 7 >>= required "h" (readNumerical . move x)
-primitivesI x = tableIndexToVOffset x 8 >>= required "i" (readNumerical . move x)
-primitivesJ x = tableIndexToVOffset x 9 >>= required "j" (readNumerical . move x)
-primitivesK x = tableIndexToVOffset x 10 >>= required "k" (readNumerical . move x)
+primitivesA x = tableIndexToVOffset x 0 >>= required "a" (readPrim . move x)
+primitivesB x = tableIndexToVOffset x 1 >>= required "b" (readPrim . move x)
+primitivesC x = tableIndexToVOffset x 2 >>= required "c" (readPrim . move x)
+primitivesD x = tableIndexToVOffset x 3 >>= required "d" (readPrim . move x)
+primitivesE x = tableIndexToVOffset x 4 >>= required "e" (readPrim . move x)
+primitivesF x = tableIndexToVOffset x 5 >>= required "f" (readPrim . move x)
+primitivesG x = tableIndexToVOffset x 6 >>= required "g" (readPrim . move x)
+primitivesH x = tableIndexToVOffset x 7 >>= required "h" (readPrim . move x)
+primitivesI x = tableIndexToVOffset x 8 >>= required "i" (readPrim . move x)
+primitivesJ x = tableIndexToVOffset x 9 >>= required "j" (readPrim . move x)
+primitivesK x = tableIndexToVOffset x 10 >>= required "k" (readPrim . move x)
 
 ----------------------------------
 ------------- Color --------------
@@ -140,7 +140,7 @@ encodeColor c =
 
 readColor :: ReadCtx m => Position -> m Color
 readColor p =
-  readNumerical p >>= \n ->
+  readPrim p >>= \n ->
     case (n :: Word8) of
       0 -> pure Red
       1 -> pure Green
@@ -173,7 +173,7 @@ encodeUnionB :: Tagged Int32 Field -> Tagged UnionB Field
 encodeUnionB x1 = Tagged $ F.table [untag x1]
 
 unionBX :: ReadCtx m => UnionB -> m Int32
-unionBX x = tableIndexToVOffset x 0 >>= required "x" (readNumerical . move x)
+unionBX x = tableIndexToVOffset x 0 >>= required "x" (readPrim . move x)
 
 ----------------------------------
 ------------- Union --------------
@@ -220,11 +220,11 @@ unionByteBoolColor x = tableIndexToVOffset x 0 >>= required "color" (readColor .
 
 unionByteBoolUnion :: ReadCtx m => UnionByteBool -> m Union
 unionByteBoolUnion x = do
-  n <- tableIndexToVOffset x 1 >>= required "union" (readNumerical . move x)
+  n <- tableIndexToVOffset x 1 >>= required "union" (readPrim . move x)
   if n == 0
     then pure UnionNone
     else tableIndexToVOffset x 2 >>= required "union" (readUnion n . move x)
 
 unionByteBoolBoo :: ReadCtx m => UnionByteBool -> m Bool
-unionByteBoolBoo x = tableIndexToVOffset x 3 >>= required "boo" (readNumerical . move x)
+unionByteBoolBoo x = tableIndexToVOffset x 3 >>= required "boo" (readPrim . move x)
 
