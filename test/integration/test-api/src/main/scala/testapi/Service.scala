@@ -31,14 +31,20 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     "s" =>> obj.s
                   ).some
 
-                case "FiveFields" =>
-                  val obj = FiveFields.getRootAsFiveFields(bb)
+                case "Primitives" =>
+                  val obj = Primitives.getRootAsPrimitives(bb)
                   Json.obj(
-                    "n1" =>> obj.n1(),
-                    "s1" =>> obj.s1(),
-                    "n2" =>> obj.n2(),
-                    "s2" =>> obj.s2(),
-                    "n3" =>> obj.n3()
+                    "a" =>> obj.a,
+                    "b" =>> obj.b,
+                    "c" =>> obj.c,
+                    "d" =>> JsonNumber.fromIntegralStringUnsafe(java.lang.Long.toUnsignedString(obj.d)),
+                    "e" =>> obj.e,
+                    "f" =>> obj.f,
+                    "g" =>> obj.g,
+                    "h" =>> obj.h,
+                    "i" =>> obj.i,
+                    "j" =>> obj.j,
+                    "k" =>> obj.k
                   ).some
 
                 case "ManyTables" =>

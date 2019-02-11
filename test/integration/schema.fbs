@@ -5,12 +5,19 @@ table Simple {
   s: string;
 }
 
-table FiveFields {
-  n1: int;
-  s1: string;
-  n2: long;
-  s2: string;
-  n3: double;
+table Primitives {
+  // scalars, excluding enums
+  a: uint8;
+  b: uint16;
+  c: uint32;
+  d: uint64;
+  e: int8;
+  f: int16;
+  g: int32;
+  h: int64;
+  i: float32;
+  j: float64;
+  k: bool;
 }
 
 table ManyTables {

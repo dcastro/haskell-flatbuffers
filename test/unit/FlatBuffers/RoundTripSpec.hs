@@ -19,38 +19,103 @@ import           Test.Hspec
 
 spec :: Spec
 spec =
-  describe "Round Trip" $
-  describe "Union" $ do
-    it "all fields present" $ do
-      x <- decode $ root $ encodeUnionByteBool
-              (encodeColor Red)
-              (encodeUnionUnionA (encodeUnionA (text "hi")))
-              (bool True)
-      unionByteBoolColor x `shouldBe` Just Red
-      unionByteBoolBoo x `shouldBe` Just True
-      unionByteBoolUnion x >>= \case
-        UnionUnionA x -> unionAX x `shouldBe` Just "hi"
-        _             -> expectationFailure "Unexpected union type"
+  describe "Round Trip" $ do
+    it "Primitives" $ do
+      x <- decode @Primitives $ root $ encodePrimitives
+        (word8 maxBound) (word16 maxBound) (word32 maxBound) (word64 maxBound)
+        (int8 maxBound) (int16 maxBound) (int32 maxBound) (int64 maxBound)
+        (float 1234.56) (double 2873242.82782) (bool True)
+      primitivesA x `shouldBe` Just maxBound
+      primitivesB x `shouldBe` Just maxBound
+      primitivesC x `shouldBe` Just maxBound
+      primitivesD x `shouldBe` Just maxBound
+      primitivesE x `shouldBe` Just maxBound
+      primitivesF x `shouldBe` Just maxBound
+      primitivesG x `shouldBe` Just maxBound
+      primitivesH x `shouldBe` Just maxBound
+      primitivesI x `shouldBe` Just 1234.56
+      primitivesJ x `shouldBe` Just 2873242.82782
+      primitivesK x `shouldBe` Just True
 
-      x <- decode $ root $ encodeUnionByteBool
-              missing
-              (encodeUnionUnionB (encodeUnionB (int32 maxBound)))
-              (bool False)
-      unionByteBoolBoo x `shouldBe` Just False
-      unionByteBoolUnion x >>= \case
-        UnionUnionB x -> unionBX x `shouldBe` Just maxBound
-        _             -> expectationFailure "Unexpected union type"
+      shouldBe 1 1
+    describe "Union" $ do
+      it "all fields present" $ do
+        x <- decode $ root $ encodeUnionByteBool
+                (encodeColor Red)
+                (encodeUnionUnionA (encodeUnionA (text "hi")))
+                (bool True)
+        unionByteBoolColor x `shouldBe` Just Red
+        unionByteBoolBoo x `shouldBe` Just True
+        unionByteBoolUnion x >>= \case
+          UnionUnionA x -> unionAX x `shouldBe` Just "hi"
+          _             -> expectationFailure "Unexpected union type"
 
-      x <- decode $ root $ encodeUnionByteBool missing encodeUnionNone missing
-      unionByteBoolUnion x >>= \case
-        UnionNone -> pure ()
-        _ -> expectationFailure "Unexpected union type"
+        x <- decode $ root $ encodeUnionByteBool
+                missing
+                (encodeUnionUnionB (encodeUnionB (int32 maxBound)))
+                (bool False)
+        unionByteBoolBoo x `shouldBe` Just False
+        unionByteBoolUnion x >>= \case
+          UnionUnionB x -> unionBX x `shouldBe` Just maxBound
+          _             -> expectationFailure "Unexpected union type"
 
-    it "all fields missing" $ do
-      x <- decode $ root $ encodeUnionByteBool missing (missing, missing) missing
-      unionByteBoolColor x `shouldThrow` \x -> x == MissingField "color"
-      unionByteBoolUnion x `shouldThrow` \x -> x == MissingField "union"
-      unionByteBoolBoo x `shouldThrow` \x -> x == MissingField "boo"
+        x <- decode $ root $ encodeUnionByteBool missing encodeUnionNone missing
+        unionByteBoolUnion x >>= \case
+          UnionNone -> pure ()
+          _ -> expectationFailure "Unexpected union type"
+
+      it "all fields missing" $ do
+        x <- decode $ root $ encodeUnionByteBool missing (missing, missing) missing
+        unionByteBoolColor x `shouldThrow` \x -> x == MissingField "color"
+        unionByteBoolUnion x `shouldThrow` \x -> x == MissingField "union"
+        unionByteBoolBoo x `shouldThrow` \x -> x == MissingField "boo"
+
+----------------------------------
+---------- Primitives ------------
+----------------------------------
+
+newtype Primitives =
+  Primitives Table
+  deriving (HasPosition)
+
+encodePrimitives ::
+     Tagged Word8 Field
+  -> Tagged Word16 Field
+  -> Tagged Word32 Field
+  -> Tagged Word64 Field
+  -> Tagged Int8 Field
+  -> Tagged Int16 Field
+  -> Tagged Int32 Field
+  -> Tagged Int64 Field
+  -> Tagged Float Field
+  -> Tagged Double Field
+  -> Tagged Bool Field
+  -> Tagged Primitives Field
+encodePrimitives a b c d e f g h i j k =
+  Tagged $ F.table [untag a, untag b, untag c, untag d, untag e, untag f, untag g, untag h, untag i, untag j, untag k]
+
+primitivesA :: ReadCtx m => Primitives -> m Word8
+primitivesB :: ReadCtx m => Primitives -> m Word16
+primitivesC :: ReadCtx m => Primitives -> m Word32
+primitivesD :: ReadCtx m => Primitives -> m Word64
+primitivesE :: ReadCtx m => Primitives -> m Int8
+primitivesF :: ReadCtx m => Primitives -> m Int16
+primitivesG :: ReadCtx m => Primitives -> m Int32
+primitivesH :: ReadCtx m => Primitives -> m Int64
+primitivesI :: ReadCtx m => Primitives -> m Float
+primitivesJ :: ReadCtx m => Primitives -> m Double
+primitivesK :: ReadCtx m => Primitives -> m Bool
+primitivesA x = tableIndexToVOffset x 0 >>= required "a" (readNumerical . move x)
+primitivesB x = tableIndexToVOffset x 1 >>= required "b" (readNumerical . move x)
+primitivesC x = tableIndexToVOffset x 2 >>= required "c" (readNumerical . move x)
+primitivesD x = tableIndexToVOffset x 3 >>= required "d" (readNumerical . move x)
+primitivesE x = tableIndexToVOffset x 4 >>= required "e" (readNumerical . move x)
+primitivesF x = tableIndexToVOffset x 5 >>= required "f" (readNumerical . move x)
+primitivesG x = tableIndexToVOffset x 6 >>= required "g" (readNumerical . move x)
+primitivesH x = tableIndexToVOffset x 7 >>= required "h" (readNumerical . move x)
+primitivesI x = tableIndexToVOffset x 8 >>= required "i" (readNumerical . move x)
+primitivesJ x = tableIndexToVOffset x 9 >>= required "j" (readNumerical . move x)
+primitivesK x = tableIndexToVOffset x 10 >>= required "k" (readNumerical . move x)
 
 ----------------------------------
 ------------- Color --------------

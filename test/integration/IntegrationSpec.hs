@@ -55,33 +55,94 @@ cases =
       (root $ table [scalar int32 12, string "hi"])
       (object ["n" .= Number 12, "s" .= String "hi"])
   , Case
-      "FiveFields"
-      "FiveFields"
+      "Primitives - maxBound"
+      "Primitives"
       (root $
        table
-         [ scalar int32 12
-         , string "hi"
-         , scalar int64 23
-         , string "bye"
-         , scalar double 12.23
+         [ scalar word8 maxBound
+         , scalar word16 maxBound
+         , scalar word32 maxBound
+         , scalar word64 maxBound
+         , scalar int8 maxBound
+         , scalar int16 maxBound
+         , scalar int32 maxBound
+         , scalar int64 maxBound
+         , scalar float 2873242.8
+         , scalar double 2873242.82782
+         , scalar bool True
          ])
       (object
-         [ "n1" .= Number 12
-         , "s1" .= String "hi"
-         , "n2" .= Number 23
-         , "s2" .= String "bye"
-         , "n3" .= Number 12.23
+         [ "a" .= maxBound @Word8
+         , "b" .= maxBound @Word16
+         , "c" .= maxBound @Word32
+         , "d" .= maxBound @Word64
+         , "e" .= maxBound @Int8
+         , "f" .= maxBound @Int16
+         , "g" .= maxBound @Int32
+         , "h" .= maxBound @Int64
+         , "i" .= Number 2873242.8
+         , "j" .= Number 2873242.82782
+         , "k" .= True
          ])
   , Case
-      "Missing scalars"
-      "FiveFields"
-      (root $ table [missing, missing, missing, string "bye", missing])
+      "Primitives - minBound"
+      "Primitives"
+      (root $
+       table
+         [ scalar word8 minBound
+         , scalar word16 minBound
+         , scalar word32 minBound
+         , scalar word64 minBound
+         , scalar int8 minBound
+         , scalar int16 minBound
+         , scalar int32 minBound
+         , scalar int64 minBound
+         , missing
+         , missing
+         , scalar bool False
+         ])
       (object
-         [ "n1" .= Number 0
-         , "s1" .= Null
-         , "n2" .= Number 0
-         , "s2" .= String "bye"
-         , "n3" .= Number 0
+         [ "a" .= minBound @Word8
+         , "b" .= minBound @Word16
+         , "c" .= minBound @Word32
+         , "d" .= minBound @Word64
+         , "e" .= minBound @Int8
+         , "f" .= minBound @Int16
+         , "g" .= minBound @Int32
+         , "h" .= minBound @Int64
+         , "i" .= Number 0
+         , "j" .= Number 0
+         , "k" .= False
+         ])
+  , Case
+      "Primitives - missing fields"
+      "Primitives"
+      (root $
+       table
+         [ missing
+         , missing
+         , missing
+         , missing
+         , missing
+         , missing
+         , missing
+         , missing
+         , missing
+         , missing
+         , missing
+         ])
+      (object
+         [ "a" .= Number 0
+         , "b" .= Number 0
+         , "c" .= Number 0
+         , "d" .= Number 0
+         , "e" .= Number 0
+         , "f" .= Number 0
+         , "g" .= Number 0
+         , "h" .= Number 0
+         , "i" .= Number 0
+         , "j" .= Number 0
+         , "k" .= False
          ])
   , Case
       "ManyTables"
@@ -104,11 +165,7 @@ cases =
       "UnionByteBool"
       (root $
        table
-         [ scalar word8 5
-         , scalar word8 1
-         , table [string "hi"]
-         , scalar bool True
-         ])
+         [scalar word8 5, scalar word8 1, table [string "hi"], scalar bool True])
       (object
          [ "color" .= String "Gray"
          , "uni" .= object ["x" .= String "hi"]
@@ -119,11 +176,7 @@ cases =
       "UnionByteBool"
       (root $
        table
-         [ missing
-         , scalar word8 2
-         , table [scalar int32 99]
-         , scalar bool False
-         ])
+         [missing, scalar word8 2, table [scalar int32 99], scalar bool False])
       (object
          [ "color" .= String "Blue"
          , "uni" .= object ["y" .= Number 99]
@@ -132,22 +185,12 @@ cases =
   , Case
       "UnionByteBool with union type = None"
       "UnionByteBool"
-      (root $
-       table
-         [ missing
-         , scalar word8 0
-         , missing
-         ])
+      (root $ table [missing, scalar word8 0, missing])
       (object ["color" .= String "Blue", "uni" .= String "NONE", "boo" .= False])
   , Case
       "UnionByteBool with missing union type"
       "UnionByteBool"
-      (root $
-       table
-         [ missing
-         , missing
-         , missing
-         ])
+      (root $ table [missing, missing, missing])
       (object ["color" .= String "Blue", "uni" .= String "NONE", "boo" .= False])
   , Case
       "Vectors"

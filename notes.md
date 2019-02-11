@@ -59,6 +59,8 @@
 
 ## TODO
 
+* API improvement: union encoding functions leak impl details, e.g. that unions are stored as 2 fields.
+  Also, users shouldn't have to type `(missing, missing)`.
 * Add support for:
   * unions of structs / unions of strings: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions>
   * (possibly) vectors of unions
