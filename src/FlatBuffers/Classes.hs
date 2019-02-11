@@ -51,3 +51,11 @@ instance NumericField Bool where
     where
       toBool 0 = False
       toBool _ = True
+
+instance NumericField Float where
+  dflt = 0
+  getter = G.getFloatle
+
+instance NumericField Double where
+  dflt = 0
+  getter = G.getDoublele
