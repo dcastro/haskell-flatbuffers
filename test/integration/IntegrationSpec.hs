@@ -161,37 +161,35 @@ cases =
          , "z" .= object ["n" .= Number 34, "s" .= String "bye"]
          ])
   , Case
-      "UnionByteBool with UnionA"
-      "UnionByteBool"
-      (root $
-       table
-         [scalar word8 5, scalar word8 1, table [string "hi"], scalar bool True])
-      (object
-         [ "color" .= String "Gray"
-         , "uni" .= object ["x" .= String "hi"]
-         , "boo" .= True
-         ])
+      "Enums"
+      "Enums"
+      (root $ table [scalar word8 5])
+      (object ["color" .= String "Gray"])
   , Case
-      "UnionByteBool with UnionB and missing Enum"
-      "UnionByteBool"
-      (root $
-       table
-         [missing, scalar word8 2, table [scalar int32 99], scalar bool False])
-      (object
-         [ "color" .= String "Blue"
-         , "uni" .= object ["y" .= Number 99]
-         , "boo" .= False
-         ])
+      "Enums - missing"
+      "Enums"
+      (root $ table [missing])
+      (object ["color" .= String "Blue"])
   , Case
-      "UnionByteBool with union type = None"
-      "UnionByteBool"
-      (root $ table [missing, scalar word8 0, missing])
-      (object ["color" .= String "Blue", "uni" .= String "NONE", "boo" .= False])
+      "TableWithUnion with UnionA"
+      "TableWithUnion"
+      (root $ table [scalar word8 1, table [string "hi"]])
+      (object ["uni" .= object ["x" .= String "hi"]])
   , Case
-      "UnionByteBool with missing union type"
-      "UnionByteBool"
-      (root $ table [missing, missing, missing])
-      (object ["color" .= String "Blue", "uni" .= String "NONE", "boo" .= False])
+      "TableWithUnion with UnionB"
+      "TableWithUnion"
+      (root $ table [scalar word8 2, table [scalar int32 99]])
+      (object ["uni" .= object ["y" .= Number 99]])
+  , Case
+      "TableWithUnion with union type = None"
+      "TableWithUnion"
+      (root $ table [scalar word8 0, missing])
+      (object ["uni" .= String "NONE"])
+  , Case
+      "TableWithUnion with missing union type"
+      "TableWithUnion"
+      (root $ table [missing, missing])
+      (object ["uni" .= String "NONE"])
   , Case
       "Vectors"
       "Vectors"

@@ -71,12 +71,16 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     }
                   ).some
 
-                case "UnionByteBool" =>
-                  val obj = UnionByteBool.getRootAsUnionByteBool(bb)
+                case "Enums" =>
+                  val obj = Enums.getRootAsEnums(bb)
                   Json.obj(
-                    "color" =>> Color.name(obj.color),
+                    "color" =>> Color.name(obj.x),
+                  ).some
+
+                case "TableWithUnion" =>
+                  val obj = TableWithUnion.getRootAsTableWithUnion(bb)
+                  Json.obj(
                     "uni" =>> readUnion(obj)(_.uniType, _.uni),
-                    "boo" =>> obj.boo()
                   ).some
 
                 case "Vectors" =>

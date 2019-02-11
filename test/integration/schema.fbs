@@ -29,14 +29,16 @@ table ManyTables {
 
 enum Color:ubyte { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
 
+table Enums {
+  x: Color = Blue;
+}
+
 union Union { UnionA, UnionB }
 table UnionA { x: string; }
 table UnionB { y: int; }
 
-table UnionByteBool {
-  color: Color = Blue;
+table TableWithUnion {
   uni: Union;
-  boo: bool;
 }
 
 table Vectors {

@@ -37,38 +37,34 @@ spec =
       getPrimitives'j x `shouldBe` Just 2873242.82782
       getPrimitives'k x `shouldBe` Just True
 
-      shouldBe 1 1
+    describe "Enums" $ do
+      it "present" $ do
+        x <- decode @Enums $ root $ enums (color Red)
+        getEnums'x x `shouldBe` Just Red
+      it "missing" $ do
+        x <- decode @Enums $ root $ enums missing
+        getEnums'x x `shouldThrow` \x -> x == MissingField "x"
+
     describe "Union" $ do
-      it "all fields present" $ do
-        x <- decode $ root $ unionByteBool
-                (color Red)
-                (union'unionA (unionA (text "hi")))
-                (bool True)
-        getUnionByteBool'color x `shouldBe` Just Red
-        getUnionByteBool'boo x `shouldBe` Just True
-        getUnionByteBool'uni x >>= \case
-          Union'UnionA x -> unionA'x x `shouldBe` Just "hi"
+      it "present" $ do
+        x <- decode $ root $ tableWithUnion (union'unionA (unionA (text "hi")))
+        getTableWithUnion'uni x >>= \case
+          Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
           _             -> expectationFailure "Unexpected union type"
 
-        x <- decode $ root $ unionByteBool
-                missing
-                (union'unionB (unionB (int32 maxBound)))
-                (bool False)
-        getUnionByteBool'boo x `shouldBe` Just False
-        getUnionByteBool'uni x >>= \case
+        x <- decode $ root $ tableWithUnion (union'unionB (unionB (int32 maxBound)))
+        getTableWithUnion'uni x >>= \case
           Union'UnionB x -> getUnionB'x x `shouldBe` Just maxBound
           _             -> expectationFailure "Unexpected union type"
 
-        x <- decode $ root $ unionByteBool missing union'none missing
-        getUnionByteBool'uni x >>= \case
+        x <- decode $ root $ tableWithUnion union'none
+        getTableWithUnion'uni x >>= \case
           Union'None -> pure ()
           _ -> expectationFailure "Unexpected union type"
 
-      it "all fields missing" $ do
-        x <- decode $ root $ unionByteBool missing (missing, missing) missing
-        getUnionByteBool'color x `shouldThrow` \x -> x == MissingField "color"
-        getUnionByteBool'uni x `shouldThrow` \x -> x == MissingField "union"
-        getUnionByteBool'boo x `shouldThrow` \x -> x == MissingField "boo"
+      it "missing" $ do
+        x <- decode $ root $ tableWithUnion (missing, missing)
+        getTableWithUnion'uni x `shouldThrow` \x -> x == MissingField "union"
 
 ----------------------------------
 ---------- Primitives ------------
@@ -149,6 +145,21 @@ readColor p =
       8 -> pure Black
       _ -> throwM $ EnumUnknown "Color" (fromIntegral @Word8 @Word64 n)
 
+
+----------------------------------
+------------- Enums --------------
+----------------------------------
+
+newtype Enums =
+  Enums Table
+  deriving (HasPosition)
+
+enums :: Tagged Color Field -> Tagged Enums Field
+enums x1 = Tagged $ F.table [untag x1]
+
+getEnums'x :: ReadCtx m => Enums -> m Color
+getEnums'x x = tableIndexToVOffset x 0 >>= required "x" (readColor . move x)
+
 ----------------------------------
 ------------- UnionA -------------
 ----------------------------------
@@ -159,8 +170,8 @@ newtype UnionA =
 unionA :: Tagged Text Field -> Tagged UnionA Field
 unionA x1 = Tagged $ F.table [untag x1]
 
-unionA'x :: ReadCtx m => UnionA -> m Text
-unionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
+getUnionA'x :: ReadCtx m => UnionA -> m Text
+getUnionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
 
 ----------------------------------
 ------------- UnionB -------------
@@ -201,30 +212,21 @@ readUnion n pos =
     _ -> throwM $ UnionUnknown "Union" n
 
 ----------------------------------
-------- UnionByteBool ------------
+------- TableWithUnion ------------
 ----------------------------------
-newtype UnionByteBool =
-  UnionByteBool Table
+newtype TableWithUnion =
+  TableWithUnion Table
   deriving (HasPosition)
 
-unionByteBool ::
-     Tagged Color Field
-  -> (Tagged Word8 Field, Tagged Union Field)
-  -> Tagged Bool Field
-  -> Tagged UnionByteBool Field
-unionByteBool x1 x2 x3 =
-  Tagged $ F.table [untag x1, untag (fst x2), untag (snd x2), untag x3]
+tableWithUnion :: (Tagged Word8 Field, Tagged Union Field) -> Tagged TableWithUnion Field
+tableWithUnion x1 =
+  Tagged $ F.table [untag (fst x1), untag (snd x1)]
 
-getUnionByteBool'color :: ReadCtx m => UnionByteBool -> m Color
-getUnionByteBool'color x = tableIndexToVOffset x 0 >>= required "color" (readColor . move x)
 
-getUnionByteBool'uni :: ReadCtx m => UnionByteBool -> m Union
-getUnionByteBool'uni x = do
-  n <- tableIndexToVOffset x 1 >>= required "union" (readPrim . move x)
+getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
+getTableWithUnion'uni x = do
+  n <- tableIndexToVOffset x 0 >>= required "union" (readPrim . move x)
   if n == 0
     then pure Union'None
-    else tableIndexToVOffset x 2 >>= required "union" (readUnion n . move x)
-
-getUnionByteBool'boo :: ReadCtx m => UnionByteBool -> m Bool
-getUnionByteBool'boo x = tableIndexToVOffset x 3 >>= required "boo" (readPrim . move x)
+    else tableIndexToVOffset x 1 >>= required "union" (readUnion n . move x)
 
