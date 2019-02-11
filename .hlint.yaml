@@ -5,6 +5,10 @@
 # This file contains a template configuration file, which is typically
 # placed as .hlint.yaml in the root of your project
 
+- extensions:
+  - default: true
+
+- ignore: {name: Use camelCase, within: FlatBuffers.RoundTripSpec}
 
 # Specify additional command line arguments
 #
