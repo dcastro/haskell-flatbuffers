@@ -21,54 +21,54 @@ spec :: Spec
 spec =
   describe "Round Trip" $ do
     it "Primitives" $ do
-      x <- decode @Primitives $ root $ encodePrimitives
+      x <- decode @Primitives $ root $ primitives
         (word8 maxBound) (word16 maxBound) (word32 maxBound) (word64 maxBound)
         (int8 maxBound) (int16 maxBound) (int32 maxBound) (int64 maxBound)
         (float 1234.56) (double 2873242.82782) (bool True)
-      primitivesA x `shouldBe` Just maxBound
-      primitivesB x `shouldBe` Just maxBound
-      primitivesC x `shouldBe` Just maxBound
-      primitivesD x `shouldBe` Just maxBound
-      primitivesE x `shouldBe` Just maxBound
-      primitivesF x `shouldBe` Just maxBound
-      primitivesG x `shouldBe` Just maxBound
-      primitivesH x `shouldBe` Just maxBound
-      primitivesI x `shouldBe` Just 1234.56
-      primitivesJ x `shouldBe` Just 2873242.82782
-      primitivesK x `shouldBe` Just True
+      getPrimitives'a x `shouldBe` Just maxBound
+      getPrimitives'b x `shouldBe` Just maxBound
+      getPrimitives'c x `shouldBe` Just maxBound
+      getPrimitives'd x `shouldBe` Just maxBound
+      getPrimitives'e x `shouldBe` Just maxBound
+      getPrimitives'f x `shouldBe` Just maxBound
+      getPrimitives'g x `shouldBe` Just maxBound
+      getPrimitives'h x `shouldBe` Just maxBound
+      getPrimitives'i x `shouldBe` Just 1234.56
+      getPrimitives'j x `shouldBe` Just 2873242.82782
+      getPrimitives'k x `shouldBe` Just True
 
       shouldBe 1 1
     describe "Union" $ do
       it "all fields present" $ do
-        x <- decode $ root $ encodeUnionByteBool
-                (encodeColor Red)
-                (encodeUnionUnionA (encodeUnionA (text "hi")))
+        x <- decode $ root $ unionByteBool
+                (color Red)
+                (union'unionA (unionA (text "hi")))
                 (bool True)
-        unionByteBoolColor x `shouldBe` Just Red
-        unionByteBoolBoo x `shouldBe` Just True
-        unionByteBoolUnion x >>= \case
-          UnionUnionA x -> unionAX x `shouldBe` Just "hi"
+        getUnionByteBool'color x `shouldBe` Just Red
+        getUnionByteBool'boo x `shouldBe` Just True
+        getUnionByteBool'uni x >>= \case
+          Union'UnionA x -> unionA'x x `shouldBe` Just "hi"
           _             -> expectationFailure "Unexpected union type"
 
-        x <- decode $ root $ encodeUnionByteBool
+        x <- decode $ root $ unionByteBool
                 missing
-                (encodeUnionUnionB (encodeUnionB (int32 maxBound)))
+                (union'unionB (unionB (int32 maxBound)))
                 (bool False)
-        unionByteBoolBoo x `shouldBe` Just False
-        unionByteBoolUnion x >>= \case
-          UnionUnionB x -> unionBX x `shouldBe` Just maxBound
+        getUnionByteBool'boo x `shouldBe` Just False
+        getUnionByteBool'uni x >>= \case
+          Union'UnionB x -> getUnionB'x x `shouldBe` Just maxBound
           _             -> expectationFailure "Unexpected union type"
 
-        x <- decode $ root $ encodeUnionByteBool missing encodeUnionNone missing
-        unionByteBoolUnion x >>= \case
-          UnionNone -> pure ()
+        x <- decode $ root $ unionByteBool missing union'none missing
+        getUnionByteBool'uni x >>= \case
+          Union'None -> pure ()
           _ -> expectationFailure "Unexpected union type"
 
       it "all fields missing" $ do
-        x <- decode $ root $ encodeUnionByteBool missing (missing, missing) missing
-        unionByteBoolColor x `shouldThrow` \x -> x == MissingField "color"
-        unionByteBoolUnion x `shouldThrow` \x -> x == MissingField "union"
-        unionByteBoolBoo x `shouldThrow` \x -> x == MissingField "boo"
+        x <- decode $ root $ unionByteBool missing (missing, missing) missing
+        getUnionByteBool'color x `shouldThrow` \x -> x == MissingField "color"
+        getUnionByteBool'uni x `shouldThrow` \x -> x == MissingField "union"
+        getUnionByteBool'boo x `shouldThrow` \x -> x == MissingField "boo"
 
 ----------------------------------
 ---------- Primitives ------------
@@ -78,7 +78,7 @@ newtype Primitives =
   Primitives Table
   deriving (HasPosition)
 
-encodePrimitives ::
+primitives ::
      Tagged Word8 Field
   -> Tagged Word16 Field
   -> Tagged Word32 Field
@@ -91,31 +91,31 @@ encodePrimitives ::
   -> Tagged Double Field
   -> Tagged Bool Field
   -> Tagged Primitives Field
-encodePrimitives a b c d e f g h i j k =
+primitives a b c d e f g h i j k =
   Tagged $ F.table [untag a, untag b, untag c, untag d, untag e, untag f, untag g, untag h, untag i, untag j, untag k]
 
-primitivesA :: ReadCtx m => Primitives -> m Word8
-primitivesB :: ReadCtx m => Primitives -> m Word16
-primitivesC :: ReadCtx m => Primitives -> m Word32
-primitivesD :: ReadCtx m => Primitives -> m Word64
-primitivesE :: ReadCtx m => Primitives -> m Int8
-primitivesF :: ReadCtx m => Primitives -> m Int16
-primitivesG :: ReadCtx m => Primitives -> m Int32
-primitivesH :: ReadCtx m => Primitives -> m Int64
-primitivesI :: ReadCtx m => Primitives -> m Float
-primitivesJ :: ReadCtx m => Primitives -> m Double
-primitivesK :: ReadCtx m => Primitives -> m Bool
-primitivesA x = tableIndexToVOffset x 0 >>= required "a" (readPrim . move x)
-primitivesB x = tableIndexToVOffset x 1 >>= required "b" (readPrim . move x)
-primitivesC x = tableIndexToVOffset x 2 >>= required "c" (readPrim . move x)
-primitivesD x = tableIndexToVOffset x 3 >>= required "d" (readPrim . move x)
-primitivesE x = tableIndexToVOffset x 4 >>= required "e" (readPrim . move x)
-primitivesF x = tableIndexToVOffset x 5 >>= required "f" (readPrim . move x)
-primitivesG x = tableIndexToVOffset x 6 >>= required "g" (readPrim . move x)
-primitivesH x = tableIndexToVOffset x 7 >>= required "h" (readPrim . move x)
-primitivesI x = tableIndexToVOffset x 8 >>= required "i" (readPrim . move x)
-primitivesJ x = tableIndexToVOffset x 9 >>= required "j" (readPrim . move x)
-primitivesK x = tableIndexToVOffset x 10 >>= required "k" (readPrim . move x)
+getPrimitives'a :: ReadCtx m => Primitives -> m Word8
+getPrimitives'b :: ReadCtx m => Primitives -> m Word16
+getPrimitives'c :: ReadCtx m => Primitives -> m Word32
+getPrimitives'd :: ReadCtx m => Primitives -> m Word64
+getPrimitives'e :: ReadCtx m => Primitives -> m Int8
+getPrimitives'f :: ReadCtx m => Primitives -> m Int16
+getPrimitives'g :: ReadCtx m => Primitives -> m Int32
+getPrimitives'h :: ReadCtx m => Primitives -> m Int64
+getPrimitives'i :: ReadCtx m => Primitives -> m Float
+getPrimitives'j :: ReadCtx m => Primitives -> m Double
+getPrimitives'k :: ReadCtx m => Primitives -> m Bool
+getPrimitives'a x = tableIndexToVOffset x 0 >>= required "a" (readPrim . move x)
+getPrimitives'b x = tableIndexToVOffset x 1 >>= required "b" (readPrim . move x)
+getPrimitives'c x = tableIndexToVOffset x 2 >>= required "c" (readPrim . move x)
+getPrimitives'd x = tableIndexToVOffset x 3 >>= required "d" (readPrim . move x)
+getPrimitives'e x = tableIndexToVOffset x 4 >>= required "e" (readPrim . move x)
+getPrimitives'f x = tableIndexToVOffset x 5 >>= required "f" (readPrim . move x)
+getPrimitives'g x = tableIndexToVOffset x 6 >>= required "g" (readPrim . move x)
+getPrimitives'h x = tableIndexToVOffset x 7 >>= required "h" (readPrim . move x)
+getPrimitives'i x = tableIndexToVOffset x 8 >>= required "i" (readPrim . move x)
+getPrimitives'j x = tableIndexToVOffset x 9 >>= required "j" (readPrim . move x)
+getPrimitives'k x = tableIndexToVOffset x 10 >>= required "k" (readPrim . move x)
 
 ----------------------------------
 ------------- Color --------------
@@ -128,8 +128,8 @@ data Color
   | Black
   deriving (Eq, Show, Enum)
 
-encodeColor :: Color -> Tagged Color Field
-encodeColor c =
+color :: Color -> Tagged Color Field
+color c =
   coerce . word8 $
   case c of
     Red   -> 0
@@ -156,11 +156,11 @@ newtype UnionA =
   UnionA Table
   deriving (HasPosition)
 
-encodeUnionA :: Tagged Text Field -> Tagged UnionA Field
-encodeUnionA x1 = Tagged $ F.table [untag x1]
+unionA :: Tagged Text Field -> Tagged UnionA Field
+unionA x1 = Tagged $ F.table [untag x1]
 
-unionAX :: ReadCtx m => UnionA -> m Text
-unionAX x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
+unionA'x :: ReadCtx m => UnionA -> m Text
+unionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
 
 ----------------------------------
 ------------- UnionB -------------
@@ -169,35 +169,35 @@ newtype UnionB =
   UnionB Table
   deriving (HasPosition)
 
-encodeUnionB :: Tagged Int32 Field -> Tagged UnionB Field
-encodeUnionB x1 = Tagged $ F.table [untag x1]
+unionB :: Tagged Int32 Field -> Tagged UnionB Field
+unionB x1 = Tagged $ F.table [untag x1]
 
-unionBX :: ReadCtx m => UnionB -> m Int32
-unionBX x = tableIndexToVOffset x 0 >>= required "x" (readPrim . move x)
+getUnionB'x :: ReadCtx m => UnionB -> m Int32
+getUnionB'x x = tableIndexToVOffset x 0 >>= required "x" (readPrim . move x)
 
 ----------------------------------
 ------------- Union --------------
 ----------------------------------
 data Union
-  = UnionNone
-  | UnionUnionA !UnionA
-  | UnionUnionB !UnionB
+  = Union'None
+  | Union'UnionA !UnionA
+  | Union'UnionB !UnionB
 
-encodeUnionNone :: (Tagged Word8 Field, Tagged Union Field)
-encodeUnionNone = (word8 0, missing)
+union'none :: (Tagged Word8 Field, Tagged Union Field)
+union'none = (word8 0, missing)
 
-encodeUnionUnionA :: Tagged UnionA Field -> (Tagged Word8 Field, Tagged Union Field)
-encodeUnionUnionA x = (word8 1, coerce x)
+union'unionA :: Tagged UnionA Field -> (Tagged Word8 Field, Tagged Union Field)
+union'unionA x = (word8 1, coerce x)
 
-encodeUnionUnionB :: Tagged UnionB Field -> (Tagged Word8 Field, Tagged Union Field)
-encodeUnionUnionB x = (word8 2, coerce x)
+union'unionB :: Tagged UnionB Field -> (Tagged Word8 Field, Tagged Union Field)
+union'unionB x = (word8 2, coerce x)
 
 readUnion :: ReadCtx m => Word8 -> Position -> m Union
 readUnion n pos =
   case n of
-    0 -> pure UnionNone
-    1 -> fmap (UnionUnionA . UnionA) (readTable pos)
-    2 -> fmap (UnionUnionB . UnionB) (readTable pos)
+    0 -> pure Union'None
+    1 -> fmap (Union'UnionA . UnionA) (readTable pos)
+    2 -> fmap (Union'UnionB . UnionB) (readTable pos)
     _ -> throwM $ UnionUnknown "Union" n
 
 ----------------------------------
@@ -207,24 +207,24 @@ newtype UnionByteBool =
   UnionByteBool Table
   deriving (HasPosition)
 
-encodeUnionByteBool ::
+unionByteBool ::
      Tagged Color Field
   -> (Tagged Word8 Field, Tagged Union Field)
   -> Tagged Bool Field
   -> Tagged UnionByteBool Field
-encodeUnionByteBool x1 x2 x3 =
+unionByteBool x1 x2 x3 =
   Tagged $ F.table [untag x1, untag (fst x2), untag (snd x2), untag x3]
 
-unionByteBoolColor :: ReadCtx m => UnionByteBool -> m Color
-unionByteBoolColor x = tableIndexToVOffset x 0 >>= required "color" (readColor . move x)
+getUnionByteBool'color :: ReadCtx m => UnionByteBool -> m Color
+getUnionByteBool'color x = tableIndexToVOffset x 0 >>= required "color" (readColor . move x)
 
-unionByteBoolUnion :: ReadCtx m => UnionByteBool -> m Union
-unionByteBoolUnion x = do
+getUnionByteBool'uni :: ReadCtx m => UnionByteBool -> m Union
+getUnionByteBool'uni x = do
   n <- tableIndexToVOffset x 1 >>= required "union" (readPrim . move x)
   if n == 0
-    then pure UnionNone
+    then pure Union'None
     else tableIndexToVOffset x 2 >>= required "union" (readUnion n . move x)
 
-unionByteBoolBoo :: ReadCtx m => UnionByteBool -> m Bool
-unionByteBoolBoo x = tableIndexToVOffset x 3 >>= required "boo" (readPrim . move x)
+getUnionByteBool'boo :: ReadCtx m => UnionByteBool -> m Bool
+getUnionByteBool'boo x = tableIndexToVOffset x 3 >>= required "boo" (readPrim . move x)
 
