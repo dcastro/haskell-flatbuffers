@@ -133,12 +133,11 @@ readElem n v =
         elemPos = moveInt64 vec elemOffset
 
 toList :: forall a m. ReadCtx m => Vector a -> m [a]
-toList vec = traverse (\i -> readElem i vec) [0 .. coerce vlength - 1]
-  where vlength =
-          case vec of
-            -- NOTE: we assume the two vectors have the same length
-            UnionVector v _ _ _ -> rawVectorLength v
-            Vector v _          -> rawVectorLength v
+toList vec = traverse (\i -> readElem i vec) [0 .. coerce (vectorLength vec) - 1]
+
+vectorLength :: Vector a -> VectorLength
+vectorLength (Vector v _         ) = rawVectorLength v
+vectorLength (UnionVector v _ _ _) = rawVectorLength v -- NOTE: we assume the two vectors have the same length
 
 readVector ::
      forall a m. ReadCtx m

@@ -75,6 +75,7 @@ spec =
           , union'unionB (unionB (int32 98))
           ])
         xs <- getVectorOfUnions'xs x
+        vectorLength xs `shouldBe` 2
         readElem 0 xs >>= \case
           Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
           _              -> unexpectedUnionType

@@ -101,6 +101,7 @@ spec =
       s <- decode bs
 
       vec <- myRootF s
+      vectorLength vec `shouldBe` 2
       readElem 0 vec `shouldBe` Just "hello"
       readElem 1 vec `shouldBe` Just "world"
       readElem 2 vec `shouldThrow` \x -> x == VectorIndexOutOfBounds 2 2
@@ -113,6 +114,7 @@ spec =
       s <- decode bs
 
       vec <- myRootG s
+      vectorLength vec `shouldBe` 2
       list <- toList vec
       traverse deepNestedA list `shouldBe` Just [11, 22]
 
