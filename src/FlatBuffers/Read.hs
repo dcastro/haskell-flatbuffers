@@ -72,9 +72,9 @@ data Vector a
       !(forall m. ReadCtx m => Word8 -> Position -> m a) -- ^ A function to read a union value from this vector
 
 data RawVector a = RawVector
-  { vectorLength   :: !VectorLength
-  , vectorPos      :: !Position
-  , vectorElemSize :: !InlineSize
+  { rawVectorLength   :: !VectorLength
+  , rawVectorPos      :: !Position
+  , rawVectorElemSize :: !InlineSize
   }
 
 
@@ -91,7 +91,7 @@ class HasPosition a where
 instance HasPosition Position   where getPos = id
 instance HasPosition Table      where getPos = tablePos
 instance HasPosition Struct     where getPos = unStruct
-instance HasPosition (RawVector a) where getPos = vectorPos
+instance HasPosition (RawVector a) where getPos = rawVectorPos
 
 decode :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
 decode root = readTable initialPos
@@ -124,21 +124,21 @@ readElem n v =
   where
     readElemRaw :: forall a m. ReadCtx m => (Position -> m a) -> VectorIndex -> RawVector a -> m a
     readElemRaw readElem n vec =
-      if unVectorIndex n >= unVectorLength (vectorLength vec)
-        then throwM $ VectorIndexOutOfBounds (vectorLength vec) n
+      if unVectorIndex n >= unVectorLength (rawVectorLength vec)
+        then throwM $ VectorIndexOutOfBounds (rawVectorLength vec) n
         else readElem elemPos
       where
-        elemSize = fromIntegral @Word16 @Int64 (vectorElemSize vec)
+        elemSize = fromIntegral @Word16 @Int64 (rawVectorElemSize vec)
         elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
         elemPos = moveInt64 vec elemOffset
 
-toList :: ReadCtx m => Vector a -> m [a]
+toList :: forall a m. ReadCtx m => Vector a -> m [a]
 toList vec = traverse (\i -> readElem i vec) [0 .. coerce vlength - 1]
   where vlength =
           case vec of
             -- NOTE: we assume the two vectors have the same length
-            UnionVector v _ _ _ -> vectorLength v
-            Vector v _          -> vectorLength v
+            UnionVector v _ _ _ -> rawVectorLength v
+            Vector v _          -> rawVectorLength v
 
 readVector ::
      forall a m. ReadCtx m
@@ -172,14 +172,14 @@ readRawVector elemSize Position{..} =
     uoffset <- moveUOffset
     length <- G.getWord32le
     pure $ RawVector
-      { vectorLength = VectorLength length
-      , vectorPos =
+      { rawVectorLength = VectorLength length
+      , rawVectorPos =
           Position
           { posRoot = posRoot
           , posCurrent = BSL.drop (fromIntegral @Word32 @Int64 uoffset) posCurrent
           , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Word32 @OffsetFromRoot uoffset
           }
-      , vectorElemSize = elemSize
+      , rawVectorElemSize = elemSize
       }
 
 
