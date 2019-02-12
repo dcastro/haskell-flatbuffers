@@ -33,13 +33,13 @@ flatb: ## Generate java flatbuffers
 	flatc -o ./test-api/src/main/java/ --java schema.fbs
 
 test-api: ## Generate java flatbuffers and launch test-api
-	make flatb && \
-		cd ./test/integration/test-api/ && \
+	make flatb
+	cd ./test/integration/test-api/ && \
 		sbt "~reStart"
 
 test-api-detached: ## Generate java flatbuffers and launch test-api in detached mode
-	make flatb && \
-		cd ./test/integration/test-api/ && \
+	make flatb
+	cd ./test/integration/test-api/ && \
 		sbt -Djline.terminal=jline.UnsupportedTerminal run &
 
 docs:  ## Builds haddock documentation and watch files for changes

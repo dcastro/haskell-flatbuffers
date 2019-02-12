@@ -151,10 +151,10 @@ myRootE :: ReadCtx m => MyRoot -> m SWS
 myRootE x = tableIndexToVOffset x 4 >>= required "e" (pure . readStruct . move x) <&> SWS
 
 myRootF :: ReadCtx m => MyRoot -> m (Vector T.Text)
-myRootF x = tableIndexToVOffset x 5 >>= required "f" (readVector . move x)
+myRootF x = tableIndexToVOffset x 5 >>= required "f" (readVector readText 4 . move x)
 
 myRootG :: ReadCtx m => MyRoot -> m (Vector DeepNested)
-myRootG x = tableIndexToVOffset x 6 >>= required "g" (readVector . move x)
+myRootG x = tableIndexToVOffset x 6 >>= required "g" (readVector readTable 4 . move x)
 
 newtype Nested =
   Nested Table
@@ -173,10 +173,6 @@ nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> De
     
 newtype DeepNested = DeepNested Table
   deriving (HasPosition)
-
-instance Sized DeepNested where
-  getInlineSize = coerce (getInlineSize @Table)
-  readInline = fmap DeepNested . readInline
 
 encodeDeepNested :: Tagged Int32 Field -> Tagged DeepNested Field
 encodeDeepNested a =

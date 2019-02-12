@@ -4,6 +4,7 @@ module FlatBuffers.Dsl
   , root
   , missing
   , vector
+  , unionVector
   , bool
   , text
   , int8
@@ -18,7 +19,9 @@ module FlatBuffers.Dsl
   , double
   ) where
 
+import           Data.Bifunctor       (bimap)
 import qualified Data.ByteString.Lazy as BSL
+import           Data.Coerce          (coerce)
 import           Data.Int
 import           Data.Tagged          (Tagged (..), untag)
 import qualified Data.Text            as T
@@ -32,8 +35,14 @@ root = F.root . untag
 missing :: Tagged a Field
 missing = Tagged $ Field $ pure $ InlineField 0 0 $ pure ()
 
-vector :: Traversable t => t (Tagged a Field) -> Tagged (t a) Field
-vector xs = Tagged $ F.vector $ untag <$> xs
+-- Here, we specialize `Traversable t` to `[]` so we can use coercions.
+-- Otherwise, we'd have to incur the performance penalty of `fmap untag`,
+-- because coercions are only safe if the role of `t` is representational.
+vector :: [Tagged a Field] -> Tagged [a] Field
+vector xs = Tagged $ F.vector (coerce xs :: [Field])
+
+unionVector :: [(Tagged Word8 Field, Tagged a Field)] -> (Tagged [Word8] Field, Tagged [a] Field)
+unionVector xs = coerce $ bimap F.vector F.vector $ unzip (coerce xs :: [(Field, Field)])
 
 bool :: Bool -> Tagged Bool Field
 bool = Tagged . F.scalar F.bool

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
@@ -25,6 +26,7 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
+import           FlatBuffers                   (InlineSize)
 import           FlatBuffers.Classes           (PrimField (..))
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
@@ -59,10 +61,22 @@ data Table = Table
 
 newtype Struct = Struct { unStruct :: Position }
 
-data Vector a = Vector
-  { vectorLength :: !VectorLength
-  , vectorPos    :: !Position
+data Vector a
+  = Vector
+      !(RawVector a)                              -- ^ A pointer to an actual FlatBuffers vector
+      !(forall m. ReadCtx m => Position -> m a)   -- ^ A function to read elements from this vector
+  | UnionVector
+      !(RawVector Word8) -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
+      !(RawVector a)     -- ^ A table vector, with the actual union values
+      !a                 -- ^ A value that represents the `None` value for the union type `a`
+      !(forall m. ReadCtx m => Word8 -> Position -> m a) -- ^ A function to read a union value from this vector
+
+data RawVector a = RawVector
+  { vectorLength   :: !VectorLength
+  , vectorPos      :: !Position
+  , vectorElemSize :: !InlineSize
   }
+
 
 -- | Current position in the buffer
 data Position = Position
@@ -77,22 +91,10 @@ class HasPosition a where
 instance HasPosition Position   where getPos = id
 instance HasPosition Table      where getPos = tablePos
 instance HasPosition Struct     where getPos = unStruct
-instance HasPosition (Vector a) where getPos = vectorPos
-
-class Sized a where
-  getInlineSize :: Proxy a -> Word16
-  readInline :: ReadCtx m => Position -> m a
-
-instance Sized Text where
-  getInlineSize _ = 4
-  readInline = readText
-
-instance Sized Table where
-  getInlineSize _ = 4
-  readInline = readTable
+instance HasPosition (RawVector a) where getPos = vectorPos
 
 decode :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
-decode root = coerce <$> readTable initialPos
+decode root = readTable initialPos
   where
     initialPos = Position root root 0
 
@@ -109,26 +111,67 @@ moveInt64 hs offset =
   }
   where Position{..} = getPos hs
 
-readElem :: forall m a. (ReadCtx m, Sized a) => VectorIndex -> Vector a -> m a
-readElem n vec =
-  if unVectorIndex n >= unVectorLength (vectorLength vec)
-    then throwM $ VectorIndexOutOfBounds (vectorLength vec) n
-    else readInline elemPos
+readElem :: forall a m. ReadCtx m => VectorIndex -> Vector a -> m a
+readElem n v =
+  case v of
+    Vector vec readElem' ->
+      readElemRaw readElem' n vec
+    UnionVector types values unionNone readUnion -> do
+      unionType <- readElemRaw readPrim n types
+      case unionType of
+        0 -> pure unionNone
+        _ -> readElemRaw (readUnion unionType) n values
   where
-    elemSize = fromIntegral @Word16 @Int64 (getInlineSize (Proxy @a))
-    elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
-    elemPos = moveInt64 vec elemOffset
+    readElemRaw :: forall a m. ReadCtx m => (Position -> m a) -> VectorIndex -> RawVector a -> m a
+    readElemRaw readElem n vec =
+      if unVectorIndex n >= unVectorLength (vectorLength vec)
+        then throwM $ VectorIndexOutOfBounds (vectorLength vec) n
+        else readElem elemPos
+      where
+        elemSize = fromIntegral @Word16 @Int64 (vectorElemSize vec)
+        elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
+        elemPos = moveInt64 vec elemOffset
 
-toList :: (ReadCtx m, Sized a) => Vector a -> m [a]
-toList vec@Vector{..} =
-  traverse (\i -> readElem i vec) [0.. coerce vectorLength - 1]
+toList :: ReadCtx m => Vector a -> m [a]
+toList vec = traverse (\i -> readElem i vec) [0 .. coerce vlength - 1]
+  where vlength =
+          case vec of
+            -- NOTE: we assume the two vectors have the same length
+            UnionVector v _ _ _ -> vectorLength v
+            Vector v _          -> vectorLength v
 
-readVector :: ReadCtx m => Position -> m (Vector a)
-readVector Position{..} =
+readVector ::
+     forall a m. ReadCtx m
+  => (forall m. ReadCtx m => Position -> m a)
+  -> InlineSize
+  -> Position
+  -> m (Vector a)
+readVector readElem' elemSize pos =
+  fmap (\rv -> Vector rv readElem') (readRawVector elemSize pos)
+
+readUnionVector ::
+     forall a m. ReadCtx m
+  => a
+  -> (forall m. ReadCtx m => Word8 -> Position -> m a)
+  -> Position
+  -> Position
+  -> m (Vector a)
+readUnionVector unionNone readUnion typesPos valuesPos =
+  do
+    typesVec <- readRawVector 1 typesPos
+    valuesVec <- readRawVector 4 valuesPos
+    pure $ UnionVector typesVec valuesVec unionNone readUnion
+
+readRawVector ::
+     forall a m. ReadCtx m
+  => InlineSize
+  -> Position
+  -> m (RawVector a)
+readRawVector elemSize Position{..} =
   flip runGetM posCurrent $ do
     uoffset <- moveUOffset
     length <- G.getWord32le
-    pure $ Vector
+    pure $ RawVector
       { vectorLength = VectorLength length
       , vectorPos =
           Position
@@ -136,7 +179,9 @@ readVector Position{..} =
           , posCurrent = BSL.drop (fromIntegral @Word32 @Int64 uoffset) posCurrent
           , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Word32 @OffsetFromRoot uoffset
           }
+      , vectorElemSize = elemSize
       }
+
 
 readPrim :: (ReadCtx m, PrimField f) => Position -> m f 
 readPrim Position{..} = runGetM getter posCurrent
@@ -157,7 +202,7 @@ readText Position{..} = do
 readStruct :: Position -> Struct
 readStruct = Struct
 
-readTable :: ReadCtx m => Position -> m Table
+readTable :: forall t m. (ReadCtx m, Coercible Table t) => Position -> m t
 readTable Position{..} =
   flip runGetM posCurrent $ do
     tableOffset <- moveUOffset
@@ -167,7 +212,7 @@ readTable Position{..} =
     let tableOffsetFromRoot = tableOffset64 + fromIntegral @_ @Int64 posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
     let table = BSL.drop tableOffsetFromRoot posRoot
-    pure $ Table vtable (Position posRoot table (posOffsetFromRoot + OffsetFromRoot (widen64 tableOffset)))
+    pure . coerce $ Table vtable (Position posRoot table (posOffsetFromRoot + OffsetFromRoot (widen64 tableOffset)))
 
 required :: ReadCtx m => FieldName -> (VOffset -> m a) -> Maybe VOffset -> m a
 required _ f (Just vo) = f vo

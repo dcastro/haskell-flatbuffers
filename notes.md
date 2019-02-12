@@ -14,7 +14,7 @@
   * unions are encoded as two contiguous fields, each of which has its own entry in the vtable:
     * the byte: an unsigned byte that signals which member of the union this is
     * the pointer: an offset to where the actual member is located
-      * QUESTION: this is true when the member is a table. what if it's a struct? or an int32? or another union?
+      * QUESTION: this is true when the member is a table. what if it's a struct or a string?
 
 * when writing to a table, any field can be null/missing
 * when writing to a vector, no element can be null/missing
@@ -29,6 +29,7 @@
   * Structs: can contain other structs, numeric, bool, enums. Can't contain tables, vectors, strings, unions, or "missing" elements.
   * Vectors: can contain tables, strings, structs, numeric, bool, unions, enums. Can't contain other vectors, or "missing" elements.
     * > A union vector is in reality two separate vectors: a type vector and an offset vector in place of a single unions type and value fields in table. See unions.
+    * > each type vector element represents the type of the table in the corresponding value element. If an element is of type NONE the value offset must be stored as 0 which is a circular reference. This is the only offset that can have the value 0.
   * Union: union members can be tables. They cannot be unions themselves.
     * > A later addition (mid 2017) to the format allows for structs and strings to also be member of a union.
     * This is only supported in C++ so far, so I'll wait for wider support before adding it to this project.

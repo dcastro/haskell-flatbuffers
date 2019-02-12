@@ -17,6 +17,8 @@ import           FlatBuffers.Dsl
 import           FlatBuffers.Read
 import           Test.Hspec
 
+unexpectedUnionType = expectationFailure "Unexpected union type"
+
 spec :: Spec
 spec =
   describe "Round Trip" $ do
@@ -50,26 +52,44 @@ spec =
         x <- decode $ root $ tableWithUnion (union'unionA (unionA (text "hi")))
         getTableWithUnion'uni x >>= \case
           Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
-          _             -> expectationFailure "Unexpected union type"
+          _              -> unexpectedUnionType
 
         x <- decode $ root $ tableWithUnion (union'unionB (unionB (int32 maxBound)))
         getTableWithUnion'uni x >>= \case
-          Union'UnionB x -> getUnionB'x x `shouldBe` Just maxBound
-          _             -> expectationFailure "Unexpected union type"
+          Union'UnionB x -> getUnionB'y x `shouldBe` Just maxBound
+          _              -> unexpectedUnionType
 
         x <- decode $ root $ tableWithUnion union'none
         getTableWithUnion'uni x >>= \case
           Union'None -> pure ()
-          _ -> expectationFailure "Unexpected union type"
+          _          -> unexpectedUnionType
 
       it "missing" $ do
         x <- decode $ root $ tableWithUnion (missing, missing)
-        getTableWithUnion'uni x `shouldThrow` \x -> x == MissingField "union"
+        getTableWithUnion'uni x `shouldThrow` \x -> x == MissingField "uni"
+
+    describe "VectorOfUnions" $ do
+      it "present" $ do
+        x <- decode $ root $ vectorOfUnions (unionVector
+          [ union'unionA (unionA (text "hi"))
+          , union'unionB (unionB (int32 98))
+          ])
+        xs <- getVectorOfUnions'xs x
+        readElem 0 xs >>= \case
+          Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
+          _              -> unexpectedUnionType
+        readElem 1 xs >>= \case
+          Union'UnionB x -> getUnionB'y x `shouldBe` Just 98
+          _              -> unexpectedUnionType
+        readElem 2 xs `shouldThrow` \err -> err == VectorIndexOutOfBounds 2 2
+
+      it "missing" $ do
+        x <- decode $ root $ vectorOfUnions (missing, missing)
+        getVectorOfUnions'xs x `shouldThrow` \err -> err == MissingField "xs"
 
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
-
 newtype Primitives =
   Primitives Table
   deriving (HasPosition)
@@ -149,7 +169,6 @@ readColor p =
 ----------------------------------
 ------------- Enums --------------
 ----------------------------------
-
 newtype Enums =
   Enums Table
   deriving (HasPosition)
@@ -183,8 +202,8 @@ newtype UnionB =
 unionB :: Tagged Int32 Field -> Tagged UnionB Field
 unionB x1 = Tagged $ F.table [untag x1]
 
-getUnionB'x :: ReadCtx m => UnionB -> m Int32
-getUnionB'x x = tableIndexToVOffset x 0 >>= required "x" (readPrim . move x)
+getUnionB'y :: ReadCtx m => UnionB -> m Int32
+getUnionB'y x = tableIndexToVOffset x 0 >>= required "y" (readPrim . move x)
 
 ----------------------------------
 ------------- Union --------------
@@ -212,7 +231,7 @@ readUnion n pos =
     _ -> throwM $ UnionUnknown "Union" n
 
 ----------------------------------
-------- TableWithUnion ------------
+------- TableWithUnion -----------
 ----------------------------------
 newtype TableWithUnion =
   TableWithUnion Table
@@ -225,8 +244,25 @@ tableWithUnion x1 =
 
 getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
 getTableWithUnion'uni x = do
-  n <- tableIndexToVOffset x 0 >>= required "union" (readPrim . move x)
+  n <- tableIndexToVOffset x 0 >>= required "uni" (readPrim . move x)
   if n == 0
     then pure Union'None
-    else tableIndexToVOffset x 1 >>= required "union" (readUnion n . move x)
+    else tableIndexToVOffset x 1 >>= required "uni" (readUnion n . move x)
 
+----------------------------------
+------- VectorOfUnions -----------
+----------------------------------
+newtype VectorOfUnions =
+  VectorOfUnions Table
+  deriving (HasPosition)
+
+vectorOfUnions :: (Tagged [Word8] Field, Tagged [Union] Field) -> Tagged VectorOfUnions Field
+vectorOfUnions x1 =
+  Tagged $ F.table [untag (fst x1), untag (snd x1)]
+
+getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
+getVectorOfUnions'xs x =
+  do
+    i <- tableIndexToVOffset x 0 >>= required "xs" (pure . move x)
+    j <- tableIndexToVOffset x 1 >>= required "xs" (pure . move x)
+    readUnionVector Union'None readUnion i j
