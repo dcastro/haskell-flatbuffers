@@ -12,9 +12,12 @@ import           Data.Int
 import           Data.Tagged            (Tagged (..), untag)
 import           Data.Text
 import           Data.Word
+import           FlatBuffers            (Field, bool, double, float, int16,
+                                         int32, int64, int8, scalar, text,
+                                         word16, word32, word64, word8)
 import qualified FlatBuffers            as F
-import           FlatBuffers.Dsl
 import           FlatBuffers.Read
+import           FlatBuffers.Write
 import           Test.Hspec
 
 unexpectedUnionType = expectationFailure "Unexpected union type"
@@ -23,10 +26,10 @@ spec :: Spec
 spec =
   describe "Round Trip" $ do
     it "Primitives" $ do
-      x <- decode @Primitives $ root $ primitives
-        (word8 maxBound) (word16 maxBound) (word32 maxBound) (word64 maxBound)
-        (int8 maxBound) (int16 maxBound) (int32 maxBound) (int64 maxBound)
-        (float 1234.56) (double 2873242.82782) (bool True)
+      x <- decode @Primitives $ encode $ primitives
+        (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+        (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+        (Just 1234.56) (Just 2873242.82782) (Just True)
       getPrimitives'a x `shouldBe` Just maxBound
       getPrimitives'b x `shouldBe` Just maxBound
       getPrimitives'c x `shouldBe` Just maxBound
@@ -41,53 +44,57 @@ spec =
 
     describe "Enums" $ do
       it "present" $ do
-        x <- decode @Enums $ root $ enums (color Red)
+        x <- decode $ encode $ enums (Just Red)
         getEnums'x x `shouldBe` Just Red
       it "missing" $ do
-        x <- decode @Enums $ root $ enums missing
+        x <- decode @Enums $ encode $ enums Nothing
         getEnums'x x `shouldThrow` \x -> x == MissingField "x"
 
     describe "Union" $ do
       it "present" $ do
-        x <- decode $ root $ tableWithUnion (union'unionA (unionA (text "hi")))
+        x <- decode $ encode $ tableWithUnion (Just (union'unionA (unionA (Just "hi"))))
         getTableWithUnion'uni x >>= \case
           Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
 
-        x <- decode $ root $ tableWithUnion (union'unionB (unionB (int32 maxBound)))
+        x <- decode $ encode $ tableWithUnion (Just (union'unionB (unionB (Just maxBound))))
         getTableWithUnion'uni x >>= \case
           Union'UnionB x -> getUnionB'y x `shouldBe` Just maxBound
           _              -> unexpectedUnionType
 
-        x <- decode $ root $ tableWithUnion union'none
+        x <- decode $ encode $ tableWithUnion (Just none)
         getTableWithUnion'uni x >>= \case
           Union'None -> pure ()
           _          -> unexpectedUnionType
 
       it "missing" $ do
-        x <- decode $ root $ tableWithUnion (missing, missing)
+        x <- decode $ encode $ tableWithUnion Nothing
         getTableWithUnion'uni x `shouldThrow` \x -> x == MissingField "uni"
 
     describe "VectorOfUnions" $ do
       it "present" $ do
-        x <- decode $ root $ vectorOfUnions (unionVector
-          [ union'unionA (unionA (text "hi"))
-          , union'unionB (unionB (int32 98))
+        x <- decode $ encode $ vectorOfUnions (Just
+          [ union'unionA (unionA (Just "hi"))
+          , none
+          , union'unionB (unionB (Just 98))
           ])
         xs <- getVectorOfUnions'xs x
-        vectorLength xs `shouldBe` 2
+        vectorLength xs `shouldBe` 3
         readElem 0 xs >>= \case
           Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
         readElem 1 xs >>= \case
+          Union'None -> pure ()
+          _          -> unexpectedUnionType
+        readElem 2 xs >>= \case
           Union'UnionB x -> getUnionB'y x `shouldBe` Just 98
           _              -> unexpectedUnionType
-        readElem 2 xs `shouldThrow` \err -> err == VectorIndexOutOfBounds 2 2
+        readElem 3 xs `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
       it "missing" $ do
-        x <- decode $ root $ vectorOfUnions (missing, missing)
+        x <- decode $ encode $ vectorOfUnions Nothing
         getVectorOfUnions'xs x `shouldThrow` \err -> err == MissingField "xs"
-
+        
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
@@ -96,20 +103,32 @@ newtype Primitives =
   deriving (HasPosition)
 
 primitives ::
-     Tagged Word8 Field
-  -> Tagged Word16 Field
-  -> Tagged Word32 Field
-  -> Tagged Word64 Field
-  -> Tagged Int8 Field
-  -> Tagged Int16 Field
-  -> Tagged Int32 Field
-  -> Tagged Int64 Field
-  -> Tagged Float Field
-  -> Tagged Double Field
-  -> Tagged Bool Field
+     Maybe Word8
+  -> Maybe Word16
+  -> Maybe Word32
+  -> Maybe Word64
+  -> Maybe Int8
+  -> Maybe Int16
+  -> Maybe Int32
+  -> Maybe Int64
+  -> Maybe Float
+  -> Maybe Double
+  -> Maybe Bool
   -> Tagged Primitives Field
 primitives a b c d e f g h i j k =
-  Tagged $ F.table [untag a, untag b, untag c, untag d, untag e, untag f, untag g, untag h, untag i, untag j, untag k]
+  Tagged $ F.table
+    [ mb (scalar word8) a
+    , mb (scalar word16) b
+    , mb (scalar word32) c
+    , mb (scalar word64) d
+    , mb (scalar int8) e
+    , mb (scalar int16) f
+    , mb (scalar int32) g
+    , mb (scalar int64) h
+    , mb (scalar float) i
+    , mb (scalar double) j
+    , mb (scalar bool) k
+    ]
 
 getPrimitives'a :: ReadCtx m => Primitives -> m Word8
 getPrimitives'b :: ReadCtx m => Primitives -> m Word16
@@ -145,9 +164,9 @@ data Color
   | Black
   deriving (Eq, Show, Enum)
 
-color :: Color -> Tagged Color Field
+color :: Color -> Field
 color c =
-  coerce . word8 $
+  scalar word8 $
   case c of
     Red   -> 0
     Green -> 1
@@ -174,8 +193,8 @@ newtype Enums =
   Enums Table
   deriving (HasPosition)
 
-enums :: Tagged Color Field -> Tagged Enums Field
-enums x1 = Tagged $ F.table [untag x1]
+enums :: Maybe Color -> Tagged Enums Field
+enums x1 = Tagged $ F.table [mb color x1]
 
 getEnums'x :: ReadCtx m => Enums -> m Color
 getEnums'x x = tableIndexToVOffset x 0 >>= required "x" (readColor . move x)
@@ -187,8 +206,8 @@ newtype UnionA =
   UnionA Table
   deriving (HasPosition)
 
-unionA :: Tagged Text Field -> Tagged UnionA Field
-unionA x1 = Tagged $ F.table [untag x1]
+unionA :: Maybe Text -> Tagged UnionA Field
+unionA x1 = Tagged $ F.table [mb text x1]
 
 getUnionA'x :: ReadCtx m => UnionA -> m Text
 getUnionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
@@ -200,8 +219,8 @@ newtype UnionB =
   UnionB Table
   deriving (HasPosition)
 
-unionB :: Tagged Int32 Field -> Tagged UnionB Field
-unionB x1 = Tagged $ F.table [untag x1]
+unionB :: Maybe Int32 -> Tagged UnionB Field
+unionB x1 = Tagged $ F.table [mb (scalar int32) x1]
 
 getUnionB'y :: ReadCtx m => UnionB -> m Int32
 getUnionB'y x = tableIndexToVOffset x 0 >>= required "y" (readPrim . move x)
@@ -214,14 +233,11 @@ data Union
   | Union'UnionA !UnionA
   | Union'UnionB !UnionB
 
-union'none :: (Tagged Word8 Field, Tagged Union Field)
-union'none = (word8 0, missing)
+union'unionA :: Tagged UnionA Field -> Tagged Union UnionField
+union'unionA x = Tagged (UnionField (Just (1, untag x)))
 
-union'unionA :: Tagged UnionA Field -> (Tagged Word8 Field, Tagged Union Field)
-union'unionA x = (word8 1, coerce x)
-
-union'unionB :: Tagged UnionB Field -> (Tagged Word8 Field, Tagged Union Field)
-union'unionB x = (word8 2, coerce x)
+union'unionB :: Tagged UnionB Field -> Tagged Union UnionField
+union'unionB x = Tagged (UnionField (Just (2, untag x)))
 
 readUnion :: ReadCtx m => Word8 -> Position -> m Union
 readUnion n pos =
@@ -238,9 +254,9 @@ newtype TableWithUnion =
   TableWithUnion Table
   deriving (HasPosition)
 
-tableWithUnion :: (Tagged Word8 Field, Tagged Union Field) -> Tagged TableWithUnion Field
+tableWithUnion :: Maybe (Tagged Union UnionField) -> Tagged TableWithUnion Field
 tableWithUnion x1 =
-  Tagged $ F.table [untag (fst x1), untag (snd x1)]
+  Tagged $ F.table [mb unionTypeField x1, mb unionValueField x1]
 
 
 getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
@@ -257,9 +273,11 @@ newtype VectorOfUnions =
   VectorOfUnions Table
   deriving (HasPosition)
 
-vectorOfUnions :: (Tagged [Word8] Field, Tagged [Union] Field) -> Tagged VectorOfUnions Field
+vectorOfUnions :: Maybe [Tagged Union UnionField] -> Tagged VectorOfUnions Field
 vectorOfUnions x1 =
-  Tagged $ F.table [untag (fst x1), untag (snd x1)]
+  Tagged $ F.table [x1_1, x1_2]
+    where
+      (x1_1, x1_2) = mb2 unionVector x1
 
 getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
 getVectorOfUnions'xs x =

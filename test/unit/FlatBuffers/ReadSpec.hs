@@ -1,7 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.ReadSpec where
@@ -13,12 +11,15 @@ import           Data.Coerce             (coerce)
 import           Data.Functor            ((<&>))
 import           Data.Int
 import           Data.Tagged             (Tagged (..), untag)
-import qualified Data.Text               as T
+import           Data.Text               (Text)
 import           Data.Type.Coercion      (Coercion (Coercion), coerceWith)
 import           Data.Word
+import           FlatBuffers             (Field, int16, int32, int64, int8,
+                                          padded, scalar, text, word16, word32,
+                                          word64, word8)
 import qualified FlatBuffers             as F
-import           FlatBuffers.Dsl
 import           FlatBuffers.Read
+import           FlatBuffers.Write
 import           Test.Hspec
 
 spec :: Spec
@@ -28,7 +29,7 @@ spec =
       decode @Table "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
-    let missingFields = root $ encodeMyRoot @[] missing missing missing missing missing missing missing
+    let missingFields = encode $ encodeMyRoot Nothing Nothing Nothing Nothing Nothing Nothing Nothing
     
     it "throws when string is missing" $ do
       s <- decode missingFields
@@ -47,14 +48,14 @@ spec =
       myRootF s `shouldThrow` \x -> x == MissingField "f"
     
     it "throws when string is invalid utf-8" $ do
-      let text = Tagged $ F.vector [F.scalar F.word8 255]
-      let bs = root $ encodeMyRoot missing missing missing text missing (vector []) missing
+      let text = F.vector [F.scalar F.word8 255]
+      let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
       s <- decode bs
       myRootD s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
-      let bs = root $ encodeMyRoot (int32 minBound) (int64 maxBound) missing (text "hello") missing (vector []) missing
+      let bs = encode $ encodeMyRoot (Just minBound) (Just maxBound) Nothing (Just "hello") Nothing (Just []) Nothing
       s <- decode bs
 
       myRootA s `shouldBe` Just minBound
@@ -62,7 +63,7 @@ spec =
       myRootD s `shouldBe` Just "hello"
       
     it "decodes missing fields" $ do
-      let bs = root $ encodeMyRoot missing missing (encodeNested missing missing) missing missing (vector []) missing
+      let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just []) Nothing
       s <- decode bs
       
       myRootA s `shouldBe` Just 0
@@ -72,7 +73,7 @@ spec =
       nestedA nested `shouldBe` Just 0
 
     it "decodes nested tables" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) (encodeNested (int32 123) (encodeDeepNested (int32 234))) (text "hello") missing (vector []) missing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just []) Nothing
       s <- decode bs
 
       nested <- myRootC s
@@ -82,7 +83,7 @@ spec =
       deepNestedA deepNested `shouldBe` Just 234
 
     it "decodes composite structs" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector []) missing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just []) Nothing
       s <- decode bs
 
       sws <- myRootE s
@@ -97,7 +98,7 @@ spec =
       threeBytesC tb `shouldBe` Just 6
 
     it "decodes vector of strings" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"]) missing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just ["hello", "world"]) Nothing
       s <- decode bs
 
       vec <- myRootF s
@@ -109,8 +110,8 @@ spec =
       toList vec `shouldBe` Just ["hello", "world"]
 
     it "decodes vectors of tables" $ do
-      let bs = root $ encodeMyRoot (int32 99) (int64 maxBound) missing (text "hello") (encodeSws 1 2 3 4 5 6) (vector [text "hello", text "world"])
-            (vector [encodeDeepNested (int32 11), encodeDeepNested (int32 22)])
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just ["hello", "world"])
+            (Just [encodeDeepNested (Just 11), encodeDeepNested (Just 22)])
       s <- decode bs
 
       vec <- myRootG s
@@ -118,24 +119,23 @@ spec =
       list <- toList vec
       traverse deepNestedA list `shouldBe` Just [11, 22]
 
-      
+
 newtype MyRoot =
   MyRoot Table
   deriving (HasPosition)
 
 encodeMyRoot ::
-     Traversable t1
-  => Tagged Int32 Field
-  -> Tagged Int64 Field
-  -> Tagged Nested Field
-  -> Tagged T.Text Field
-  -> Tagged SWS Field
-  -> Tagged (t1 T.Text) Field
-  -> Tagged (t1 DeepNested) Field
+     Maybe Int32
+  -> Maybe Int64
+  -> Maybe (Tagged Nested Field)
+  -> Maybe Text
+  -> Maybe (Tagged SWS Field)
+  -> Maybe [Text]
+  -> Maybe [Tagged DeepNested Field]
   -> Tagged MyRoot Field
 encodeMyRoot a b c d e f g =
   Tagged $
-  F.table [untag a, untag b, untag c, untag d, untag e, untag f, untag g]
+  F.table [mb (scalar int32) a, mb (scalar int64) b, mb untag c, mb text d, mb untag e, mb (vector text) f, mb (vector untag) g]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
 myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -146,13 +146,13 @@ myRootB x = tableIndexToVOffset x 1 >>= optional 0 (readPrim . move x)
 myRootC :: ReadCtx m => MyRoot -> m Nested
 myRootC x = tableIndexToVOffset x 2 >>= required "c" (readTable . move x) <&> Nested
 
-myRootD :: ReadCtx m => MyRoot -> m T.Text
+myRootD :: ReadCtx m => MyRoot -> m Text
 myRootD x = tableIndexToVOffset x 3 >>= required "d" (readText . move x)
 
 myRootE :: ReadCtx m => MyRoot -> m SWS
 myRootE x = tableIndexToVOffset x 4 >>= required "e" (pure . readStruct . move x) <&> SWS
 
-myRootF :: ReadCtx m => MyRoot -> m (Vector T.Text)
+myRootF :: ReadCtx m => MyRoot -> m (Vector Text)
 myRootF x = tableIndexToVOffset x 5 >>= required "f" (readVector readText 4 . move x)
 
 myRootG :: ReadCtx m => MyRoot -> m (Vector DeepNested)
@@ -162,10 +162,10 @@ newtype Nested =
   Nested Table
   deriving (HasPosition)
 
-encodeNested :: Tagged Int32 Field -> Tagged DeepNested Field -> Tagged Nested Field
+encodeNested :: Maybe Int32 -> Maybe (Tagged DeepNested Field) -> Tagged Nested Field
 encodeNested a b =
   Tagged $ F.table
-    [ untag a, untag b ]
+    [ mb (scalar int32) a, mb untag b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
 nestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -176,10 +176,10 @@ nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> De
 newtype DeepNested = DeepNested Table
   deriving (HasPosition)
 
-encodeDeepNested :: Tagged Int32 Field -> Tagged DeepNested Field
+encodeDeepNested :: Maybe Int32 -> Tagged DeepNested Field
 encodeDeepNested a =
   Tagged $ F.table
-    [ untag a ]
+    [ mb (scalar int32) a ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
 deepNestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -191,9 +191,9 @@ newtype MyStruct =
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> Tagged MyStruct Field
 encodeMyStruct a b c =
   Tagged $ F.struct
-    ( F.int32 a )
-    [ F.padded 3 $ F.word8 b
-    , F.int64 c
+    ( int32 a )
+    [ padded 3 $ word8 b
+    , int64 c
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
@@ -211,9 +211,9 @@ newtype ThreeBytes = ThreeBytes Struct
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> Tagged ThreeBytes Field
 encodeThreeBytes a b c =
   Tagged $ F.struct
-    ( F.word8 a )
-    [ F.word8 b
-    , F.word8 c
+    ( word8 a )
+    [ word8 b
+    , word8 c
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
@@ -232,12 +232,12 @@ newtype SWS = SWS Struct
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> Tagged SWS Field
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
   Tagged $ F.struct
-    ( F.int32 myStructA )
-    [ F.padded 3 $ F.word8 myStructB
-    , F.int64 myStructC
-    , F.word8 threeBytesA
-    , F.word8 threeBytesB
-    , F.padded 5 $ F.word8 threeBytesC
+    ( int32 myStructA )
+    [ padded 3 $ word8 myStructB
+    , int64 myStructC
+    , word8 threeBytesA
+    , word8 threeBytesB
+    , padded 5 $ word8 threeBytesC
     ]
 
 swsA :: SWS -> MyStruct
