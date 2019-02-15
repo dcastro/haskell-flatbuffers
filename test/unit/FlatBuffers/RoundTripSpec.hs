@@ -12,10 +12,6 @@ import           Data.Int
 import           Data.Tagged            (Tagged (..), untag)
 import           Data.Text
 import           Data.Word
-import           FlatBuffers            (Field, bool, double, float, int16,
-                                         int32, int64, int8, scalar, text,
-                                         word16, word32, word64, word8)
-import qualified FlatBuffers            as F
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 import           Test.Hspec
@@ -25,22 +21,39 @@ unexpectedUnionType = expectationFailure "Unexpected union type"
 spec :: Spec
 spec =
   describe "Round Trip" $ do
-    it "Primitives" $ do
-      x <- decode @Primitives $ encode $ primitives
-        (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
-        (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
-        (Just 1234.56) (Just 2873242.82782) (Just True)
-      getPrimitives'a x `shouldBe` Just maxBound
-      getPrimitives'b x `shouldBe` Just maxBound
-      getPrimitives'c x `shouldBe` Just maxBound
-      getPrimitives'd x `shouldBe` Just maxBound
-      getPrimitives'e x `shouldBe` Just maxBound
-      getPrimitives'f x `shouldBe` Just maxBound
-      getPrimitives'g x `shouldBe` Just maxBound
-      getPrimitives'h x `shouldBe` Just maxBound
-      getPrimitives'i x `shouldBe` Just 1234.56
-      getPrimitives'j x `shouldBe` Just 2873242.82782
-      getPrimitives'k x `shouldBe` Just True
+    describe "Primitives" $ do
+      it "present" $ do
+        x <- decode @Primitives $ encode $ primitives
+          (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+          (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+          (Just 1234.56) (Just 2873242.82782) (Just True)
+        getPrimitives'a x `shouldBe` Just maxBound
+        getPrimitives'b x `shouldBe` Just maxBound
+        getPrimitives'c x `shouldBe` Just maxBound
+        getPrimitives'd x `shouldBe` Just maxBound
+        getPrimitives'e x `shouldBe` Just maxBound
+        getPrimitives'f x `shouldBe` Just maxBound
+        getPrimitives'g x `shouldBe` Just maxBound
+        getPrimitives'h x `shouldBe` Just maxBound
+        getPrimitives'i x `shouldBe` Just 1234.56
+        getPrimitives'j x `shouldBe` Just 2873242.82782
+        getPrimitives'k x `shouldBe` Just True
+      it "missing" $ do
+        x <- decode @Primitives $ encode $ primitives
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing
+        getPrimitives'a x `shouldThrow` \x -> x == MissingField "a"
+        getPrimitives'b x `shouldThrow` \x -> x == MissingField "b"
+        getPrimitives'c x `shouldThrow` \x -> x == MissingField "c"
+        getPrimitives'd x `shouldThrow` \x -> x == MissingField "d"
+        getPrimitives'e x `shouldThrow` \x -> x == MissingField "e"
+        getPrimitives'f x `shouldThrow` \x -> x == MissingField "f"
+        getPrimitives'g x `shouldThrow` \x -> x == MissingField "g"
+        getPrimitives'h x `shouldThrow` \x -> x == MissingField "h"
+        getPrimitives'i x `shouldThrow` \x -> x == MissingField "i"
+        getPrimitives'j x `shouldThrow` \x -> x == MissingField "j"
+        getPrimitives'k x `shouldThrow` \x -> x == MissingField "k"
 
     describe "Enums" $ do
       it "present" $ do
@@ -116,19 +129,7 @@ primitives ::
   -> Maybe Bool
   -> Tagged Primitives Field
 primitives a b c d e f g h i j k =
-  Tagged $ F.table
-    [ mb (scalar word8) a
-    , mb (scalar word16) b
-    , mb (scalar word32) c
-    , mb (scalar word64) d
-    , mb (scalar int8) e
-    , mb (scalar int16) f
-    , mb (scalar int32) g
-    , mb (scalar int64) h
-    , mb (scalar float) i
-    , mb (scalar double) j
-    , mb (scalar bool) k
-    ]
+  Tagged $ table [w a, w b, w c, w d, w e, w f, w g, w h, w i, w j, w k]
 
 getPrimitives'a :: ReadCtx m => Primitives -> m Word8
 getPrimitives'b :: ReadCtx m => Primitives -> m Word16
@@ -164,15 +165,17 @@ data Color
   | Black
   deriving (Eq, Show, Enum)
 
-color :: Color -> Field
-color c =
-  scalar word8 $
-  case c of
-    Red   -> 0
-    Green -> 1
-    Blue  -> 2
-    Gray  -> 5
-    Black -> 8
+instance AsTableField Color where
+  w = scalar ws
+instance AsStructField Color where
+  ws x =
+    ws $
+    case x of
+      Red   -> 0 :: Word8
+      Green -> 1 :: Word8
+      Blue  -> 2 :: Word8
+      Gray  -> 5 :: Word8
+      Black -> 8 :: Word8
 
 readColor :: ReadCtx m => Position -> m Color
 readColor p =
@@ -194,7 +197,7 @@ newtype Enums =
   deriving (HasPosition)
 
 enums :: Maybe Color -> Tagged Enums Field
-enums x1 = Tagged $ F.table [mb color x1]
+enums x1 = Tagged $ table [w x1]
 
 getEnums'x :: ReadCtx m => Enums -> m Color
 getEnums'x x = tableIndexToVOffset x 0 >>= required "x" (readColor . move x)
@@ -207,7 +210,7 @@ newtype UnionA =
   deriving (HasPosition)
 
 unionA :: Maybe Text -> Tagged UnionA Field
-unionA x1 = Tagged $ F.table [mb text x1]
+unionA x1 = Tagged $ table [w x1]
 
 getUnionA'x :: ReadCtx m => UnionA -> m Text
 getUnionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
@@ -220,7 +223,7 @@ newtype UnionB =
   deriving (HasPosition)
 
 unionB :: Maybe Int32 -> Tagged UnionB Field
-unionB x1 = Tagged $ F.table [mb (scalar int32) x1]
+unionB x1 = Tagged $ table [w x1]
 
 getUnionB'y :: ReadCtx m => UnionB -> m Int32
 getUnionB'y x = tableIndexToVOffset x 0 >>= required "y" (readPrim . move x)
@@ -256,7 +259,7 @@ newtype TableWithUnion =
 
 tableWithUnion :: Maybe (Tagged Union UnionField) -> Tagged TableWithUnion Field
 tableWithUnion x1 =
-  Tagged $ F.table [mb unionTypeField x1, mb unionValueField x1]
+  Tagged $ table [wType x1, wValue x1]
 
 
 getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
@@ -275,9 +278,7 @@ newtype VectorOfUnions =
 
 vectorOfUnions :: Maybe [Tagged Union UnionField] -> Tagged VectorOfUnions Field
 vectorOfUnions x1 =
-  Tagged $ F.table [x1_1, x1_2]
-    where
-      (x1_1, x1_2) = mb2 unionVector x1
+  Tagged $ table [wType x1, wValue x1]
 
 getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
 getVectorOfUnions'xs x =

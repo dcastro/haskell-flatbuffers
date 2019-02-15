@@ -8,7 +8,10 @@
 - extensions:
   - default: true
 
-- ignore: {name: Use camelCase, within: FlatBuffers.RoundTripSpec}
+- ignore: {
+    name: Use camelCase,
+    within: [FlatBuffers.RoundTripSpec]
+  }
 
 # Specify additional command line arguments
 #

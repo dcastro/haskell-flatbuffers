@@ -4,20 +4,12 @@
 
 module FlatBuffers.ReadSpec where
 
-import qualified Data.ByteString.Builder as B
-import           Data.ByteString.Lazy    (ByteString)
-import qualified Data.ByteString.Lazy    as BSL
-import           Data.Coerce             (coerce)
-import           Data.Functor            ((<&>))
+import           Data.Functor      ((<&>))
 import           Data.Int
-import           Data.Tagged             (Tagged (..), untag)
-import           Data.Text               (Text)
-import           Data.Type.Coercion      (Coercion (Coercion), coerceWith)
+import           Data.Tagged       (Tagged (..))
+import           Data.Text         (Text)
 import           Data.Word
-import           FlatBuffers             (Field, int16, int32, int64, int8,
-                                          padded, scalar, text, word16, word32,
-                                          word64, word8)
-import qualified FlatBuffers             as F
+import qualified FlatBuffers       as F
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 import           Test.Hspec
@@ -49,7 +41,7 @@ spec =
     
     it "throws when string is invalid utf-8" $ do
       let text = F.vector [F.scalar F.word8 255]
-      let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
+      let bs = F.root $ table [F.missing, F.missing, F.missing, text]
       s <- decode bs
       myRootD s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
@@ -135,7 +127,7 @@ encodeMyRoot ::
   -> Tagged MyRoot Field
 encodeMyRoot a b c d e f g =
   Tagged $
-  F.table [mb (scalar int32) a, mb (scalar int64) b, mb untag c, mb text d, mb untag e, mb (vector text) f, mb (vector untag) g]
+  table [w a, w b, w c, w d, w e, w f, w g]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
 myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -164,8 +156,8 @@ newtype Nested =
 
 encodeNested :: Maybe Int32 -> Maybe (Tagged DeepNested Field) -> Tagged Nested Field
 encodeNested a b =
-  Tagged $ F.table
-    [ mb (scalar int32) a, mb untag b ]
+  Tagged $ table
+    [ w a, w b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
 nestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -178,8 +170,8 @@ newtype DeepNested = DeepNested Table
 
 encodeDeepNested :: Maybe Int32 -> Tagged DeepNested Field
 encodeDeepNested a =
-  Tagged $ F.table
-    [ mb (scalar int32) a ]
+  Tagged $ table
+    [ w a ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
 deepNestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -190,10 +182,10 @@ newtype MyStruct =
 
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> Tagged MyStruct Field
 encodeMyStruct a b c =
-  Tagged $ F.struct
-    ( int32 a )
-    [ padded 3 $ word8 b
-    , int64 c
+  Tagged $ struct
+    ( ws a )
+    [ padded 3 $ ws b
+    , ws c
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
@@ -210,10 +202,10 @@ newtype ThreeBytes = ThreeBytes Struct
 
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> Tagged ThreeBytes Field
 encodeThreeBytes a b c =
-  Tagged $ F.struct
-    ( word8 a )
-    [ word8 b
-    , word8 c
+  Tagged $ struct
+    ( ws a )
+    [ ws b
+    , ws c
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
@@ -231,13 +223,13 @@ newtype SWS = SWS Struct
 
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> Tagged SWS Field
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
-  Tagged $ F.struct
-    ( int32 myStructA )
-    [ padded 3 $ word8 myStructB
-    , int64 myStructC
-    , word8 threeBytesA
-    , word8 threeBytesB
-    , padded 5 $ word8 threeBytesC
+  Tagged $ struct
+    ( ws myStructA )
+    [ padded 3 $ ws myStructB
+    , ws myStructC
+    , ws threeBytesA
+    , ws threeBytesB
+    , padded 5 $ ws threeBytesC
     ]
 
 swsA :: SWS -> MyStruct

@@ -42,6 +42,9 @@ test-api-detached: ## Generate java flatbuffers and launch test-api in detached 
 	cd ./test/integration/test-api/ && \
 		sbt -Djline.terminal=jline.UnsupportedTerminal run &
 
+hlint: ## Runs hlint on the project
+	hlint .
+
 docs:  ## Builds haddock documentation and watch files for changes
 	$(STACK) haddock --no-haddock-deps --file-watch
 .PHONY: docs
