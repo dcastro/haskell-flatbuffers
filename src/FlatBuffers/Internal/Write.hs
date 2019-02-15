@@ -11,7 +11,7 @@ module FlatBuffers.Internal.Write
   , vector
   , struct
   , padded
-  , scalar
+  , inline
   , root
   , word8
   , word16
@@ -70,8 +70,8 @@ data InlineField = InlineField
 referenceSize :: Num a => a
 referenceSize = 4
 
-scalar :: (a -> InlineField) -> (a -> Field)
-scalar f = Field . pure . f
+inline :: (a -> InlineField) -> (a -> Field)
+inline f = Field . pure . f
 
 primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
 primitive size f a =

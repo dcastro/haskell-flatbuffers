@@ -32,8 +32,8 @@ bool = WS <$> label "bool " <*> F.bool <$> G.bool
 text :: Gen (WithShow Field)
 text = WS <$> label "text " <*> F.text <$> G.text textRange char
 
-scalar :: Gen (WithShow InlineField) -> Gen (WithShow Field)
-scalar field = wsmap (T.append "scalar ") (F.scalar id) <$> field
+inline :: Gen (WithShow InlineField) -> Gen (WithShow Field)
+inline field = wsmap (T.append "inline ") (F.inline id) <$> field
 
 numericField :: Gen (WithShow InlineField)
 numericField =
@@ -45,8 +45,8 @@ field =
   G.recursive G.choice
     [ pure $ WS "missing" missing
     , text
-    , scalar numericField
-    , scalar bool
+    , inline numericField
+    , inline bool
     ]
     [ table
     , vector
@@ -59,7 +59,7 @@ table =
 vector :: Gen (WithShow Field)
 vector = do
   gen <- G.element $
-    fmap scalar [word8, word16, word32, word64, int8, int16, int32, int64, double, float, bool]
+    fmap inline [word8, word16, word32, word64, int8, int16, int32, int64, double, float, bool]
     ++ [text, table]
 
   elems <- G.list (R.linear 0 10) gen

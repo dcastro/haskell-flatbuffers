@@ -24,8 +24,8 @@ spec =
   describe "alignment" $ do
     it "int64 are properly aligned" $ require $
       alignedProp
-        (WS "scalar int64 maxBound" (scalar int64 maxBound))
-        (FG.scalar FG.int64)
+        (WS "inline int64 maxBound" (inline int64 maxBound))
+        (FG.inline FG.int64)
         (B.int64LE maxBound)
         8
     it "strings are properly aligned" $ require $

@@ -165,7 +165,7 @@ data Color
   deriving (Eq, Show, Enum)
 
 instance AsTableField Color where
-  w = scalar ws
+  w = inline ws
 instance AsStructField Color where
   ws x =
     ws $

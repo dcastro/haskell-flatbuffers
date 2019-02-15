@@ -13,7 +13,7 @@ module FlatBuffers.Write
   , writeUnion
   , writeStruct
   , F.padded
-  , F.scalar
+  , F.inline
   ) where
 
 import           Data.Bifunctor             (bimap)
@@ -54,8 +54,8 @@ class AsUnion a where
   wValue :: a -> Field
 
 instance AsUnion (WriteUnion a) where
-  wType (Some (t, _)) = scalar word8 t
-  wType None          = scalar word8 0
+  wType (Some (t, _)) = inline word8 t
+  wType None          = inline word8 0
   wValue (Some (_, v)) = v
   wValue None          = missing
 
@@ -72,7 +72,7 @@ instance a ~ WriteUnion b => AsUnion [a] where
   wValue = vector . fmap f
     where
       -- in a vector of unions, a `none` value is encoded as the circular reference 0.
-      f None = scalar int32 0
+      f None = inline int32 0
       f x    = wValue x
 
 
@@ -100,17 +100,17 @@ instance AsTableField a => AsTableField [a] where
 instance AsTableField Text where
   w = text
 
-instance AsTableField Word8 where w = scalar ws
-instance AsTableField Word16 where w = scalar ws
-instance AsTableField Word32 where w = scalar ws
-instance AsTableField Word64 where w = scalar ws
-instance AsTableField Int8 where w = scalar ws
-instance AsTableField Int16 where w = scalar ws
-instance AsTableField Int32 where w = scalar ws
-instance AsTableField Int64 where w = scalar ws
-instance AsTableField Float where w = scalar ws
-instance AsTableField Double where w = scalar ws
-instance AsTableField Bool where w = scalar ws
+instance AsTableField Word8 where w = inline ws
+instance AsTableField Word16 where w = inline ws
+instance AsTableField Word32 where w = inline ws
+instance AsTableField Word64 where w = inline ws
+instance AsTableField Int8 where w = inline ws
+instance AsTableField Int16 where w = inline ws
+instance AsTableField Int32 where w = inline ws
+instance AsTableField Int64 where w = inline ws
+instance AsTableField Float where w = inline ws
+instance AsTableField Double where w = inline ws
+instance AsTableField Bool where w = inline ws
 
 -- | Writes a value to a struct.
 class AsStructField a where

@@ -52,24 +52,24 @@ cases =
   [ Case
       "Simple"
       "Simple"
-      (root $ table [scalar int32 12, text "hi"])
+      (root $ table [inline int32 12, text "hi"])
       (object ["n" .= Number 12, "s" .= String "hi"])
   , Case
       "Primitives - maxBound"
       "Primitives"
       (root $
        table
-         [ scalar word8 maxBound
-         , scalar word16 maxBound
-         , scalar word32 maxBound
-         , scalar word64 maxBound
-         , scalar int8 maxBound
-         , scalar int16 maxBound
-         , scalar int32 maxBound
-         , scalar int64 maxBound
-         , scalar float 2873242.8
-         , scalar double 2873242.82782
-         , scalar bool True
+         [ inline word8 maxBound
+         , inline word16 maxBound
+         , inline word32 maxBound
+         , inline word64 maxBound
+         , inline int8 maxBound
+         , inline int16 maxBound
+         , inline int32 maxBound
+         , inline int64 maxBound
+         , inline float 2873242.8
+         , inline double 2873242.82782
+         , inline bool True
          ])
       (object
          [ "a" .= maxBound @Word8
@@ -89,17 +89,17 @@ cases =
       "Primitives"
       (root $
        table
-         [ scalar word8 minBound
-         , scalar word16 minBound
-         , scalar word32 minBound
-         , scalar word64 minBound
-         , scalar int8 minBound
-         , scalar int16 minBound
-         , scalar int32 minBound
-         , scalar int64 minBound
+         [ inline word8 minBound
+         , inline word16 minBound
+         , inline word32 minBound
+         , inline word64 minBound
+         , inline int8 minBound
+         , inline int16 minBound
+         , inline int32 minBound
+         , inline int64 minBound
          , missing
          , missing
-         , scalar bool False
+         , inline bool False
          ])
       (object
          [ "a" .= minBound @Word8
@@ -149,10 +149,10 @@ cases =
       "ManyTables"
       (root $
        table
-         [ scalar int32 12
-         , table [scalar int32 23, text "hi"]
+         [ inline int32 12
+         , table [inline int32 23, text "hi"]
          , missing
-         , table [scalar int32 34, text "bye"]
+         , table [inline int32 34, text "bye"]
          ])
       (object
          [ "n" .= Number 12
@@ -163,7 +163,7 @@ cases =
   , Case
       "Enums"
       "Enums"
-      (root $ table [scalar word8 5])
+      (root $ table [inline word8 5])
       (object ["color" .= String "Gray"])
   , Case
       "Enums - missing"
@@ -173,17 +173,17 @@ cases =
   , Case
       "TableWithUnion with UnionA"
       "TableWithUnion"
-      (root $ table [scalar word8 1, table [text "hi"]])
+      (root $ table [inline word8 1, table [text "hi"]])
       (object ["uni" .= object ["x" .= String "hi"]])
   , Case
       "TableWithUnion with UnionB"
       "TableWithUnion"
-      (root $ table [scalar word8 2, table [scalar int32 99]])
+      (root $ table [inline word8 2, table [inline int32 99]])
       (object ["uni" .= object ["y" .= Number 99]])
   , Case
       "TableWithUnion with union type = None"
       "TableWithUnion"
-      (root $ table [scalar word8 0, missing])
+      (root $ table [inline word8 0, missing])
       (object ["uni" .= String "NONE"])
   , Case
       "TableWithUnion with missing union type"
@@ -196,9 +196,9 @@ cases =
       (root $
        table
          [ missing
-         , vector [scalar int32 1, scalar int32 2]
+         , vector [inline int32 1, inline int32 2]
          , vector [text "", text "hi", text "hi 👬"]
-         , vector [scalar int64 3, scalar int64 4]
+         , vector [inline int64 3, inline int64 4]
          ])
       (object
          [ "w" .= [] @Value
@@ -253,9 +253,9 @@ cases =
       (root $
        table
          [ vector
-             [ table [scalar int32 1, text "a"]
-             , table [scalar int32 2, text "b"]
-             , table [scalar int32 minBound, text "c"]
+             [ table [inline int32 1, text "a"]
+             , table [inline int32 2, text "b"]
+             , table [inline int32 minBound, text "c"]
              ]
          ])
       (object

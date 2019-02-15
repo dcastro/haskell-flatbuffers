@@ -39,7 +39,7 @@ spec =
       myRootF s `shouldThrow` \x -> x == MissingField "f"
     
     it "throws when string is invalid utf-8" $ do
-      let text = F.vector [F.scalar F.word8 255]
+      let text = F.vector [F.inline F.word8 255]
       let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
       s <- decode bs
       myRootD s `shouldThrow` \x ->
