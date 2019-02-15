@@ -6,7 +6,6 @@ module FlatBuffers.ReadSpec where
 
 import           Data.Functor               ((<&>))
 import           Data.Int
-import           Data.Tagged                (Tagged (..))
 import           Data.Text                  (Text)
 import           Data.Word
 import qualified FlatBuffers.Internal.Write as F
@@ -41,7 +40,7 @@ spec =
     
     it "throws when string is invalid utf-8" $ do
       let text = F.vector [F.scalar F.word8 255]
-      let bs = F.root $ table [F.missing, F.missing, F.missing, text]
+      let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
       s <- decode bs
       myRootD s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
@@ -119,15 +118,14 @@ newtype MyRoot =
 encodeMyRoot ::
      Maybe Int32
   -> Maybe Int64
-  -> Maybe (Tagged Nested Field)
+  -> Maybe (WriteTable Nested)
   -> Maybe Text
-  -> Maybe (Tagged SWS Field)
+  -> Maybe (WriteStruct SWS)
   -> Maybe [Text]
-  -> Maybe [Tagged DeepNested Field]
-  -> Tagged MyRoot Field
+  -> Maybe [WriteTable DeepNested]
+  -> WriteTable MyRoot
 encodeMyRoot a b c d e f g =
-  Tagged $
-  table [w a, w b, w c, w d, w e, w f, w g]
+  writeTable [w a, w b, w c, w d, w e, w f, w g]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
 myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
@@ -154,9 +152,9 @@ newtype Nested =
   Nested Table
   deriving (HasPosition)
 
-encodeNested :: Maybe Int32 -> Maybe (Tagged DeepNested Field) -> Tagged Nested Field
+encodeNested :: Maybe Int32 -> Maybe (WriteTable DeepNested) -> WriteTable Nested
 encodeNested a b =
-  Tagged $ table
+  writeTable
     [ w a, w b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
@@ -168,9 +166,9 @@ nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> De
 newtype DeepNested = DeepNested Table
   deriving (HasPosition)
 
-encodeDeepNested :: Maybe Int32 -> Tagged DeepNested Field
+encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
 encodeDeepNested a =
-  Tagged $ table
+  writeTable
     [ w a ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
@@ -180,9 +178,9 @@ newtype MyStruct =
   MyStruct Struct
   deriving HasPosition
 
-encodeMyStruct :: Int32 -> Word8 -> Int64 -> Tagged MyStruct Field
+encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
-  Tagged $ struct
+  writeStruct
     ( ws a )
     [ padded 3 $ ws b
     , ws c
@@ -200,9 +198,9 @@ myStructC x = readPrim $ move x 8
 newtype ThreeBytes = ThreeBytes Struct
   deriving HasPosition
 
-encodeThreeBytes :: Word8 -> Word8 -> Word8 -> Tagged ThreeBytes Field
+encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
-  Tagged $ struct
+  writeStruct
     ( ws a )
     [ ws b
     , ws c
@@ -221,9 +219,9 @@ threeBytesC x = readPrim $ move x 2
 newtype SWS = SWS Struct
   deriving HasPosition
 
-encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> Tagged SWS Field
+encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
-  Tagged $ struct
+  writeStruct
     ( ws myStructA )
     [ padded 3 $ ws myStructB
     , ws myStructC

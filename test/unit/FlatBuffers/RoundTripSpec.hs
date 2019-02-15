@@ -9,7 +9,6 @@ import           Control.Exception.Safe (throwM)
 import           Control.Monad.IO.Class
 import           Data.Coerce
 import           Data.Int
-import           Data.Tagged            (Tagged (..), untag)
 import           Data.Text
 import           Data.Word
 import           FlatBuffers.Read
@@ -127,9 +126,9 @@ primitives ::
   -> Maybe Float
   -> Maybe Double
   -> Maybe Bool
-  -> Tagged Primitives Field
+  -> WriteTable Primitives
 primitives a b c d e f g h i j k =
-  Tagged $ table [w a, w b, w c, w d, w e, w f, w g, w h, w i, w j, w k]
+  writeTable [w a, w b, w c, w d, w e, w f, w g, w h, w i, w j, w k]
 
 getPrimitives'a :: ReadCtx m => Primitives -> m Word8
 getPrimitives'b :: ReadCtx m => Primitives -> m Word16
@@ -196,8 +195,8 @@ newtype Enums =
   Enums Table
   deriving (HasPosition)
 
-enums :: Maybe Color -> Tagged Enums Field
-enums x1 = Tagged $ table [w x1]
+enums :: Maybe Color -> WriteTable Enums
+enums x1 = writeTable [w x1]
 
 getEnums'x :: ReadCtx m => Enums -> m Color
 getEnums'x x = tableIndexToVOffset x 0 >>= required "x" (readColor . move x)
@@ -209,8 +208,8 @@ newtype UnionA =
   UnionA Table
   deriving (HasPosition)
 
-unionA :: Maybe Text -> Tagged UnionA Field
-unionA x1 = Tagged $ table [w x1]
+unionA :: Maybe Text -> WriteTable UnionA
+unionA x1 = writeTable [w x1]
 
 getUnionA'x :: ReadCtx m => UnionA -> m Text
 getUnionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
@@ -222,8 +221,8 @@ newtype UnionB =
   UnionB Table
   deriving (HasPosition)
 
-unionB :: Maybe Int32 -> Tagged UnionB Field
-unionB x1 = Tagged $ table [w x1]
+unionB :: Maybe Int32 -> WriteTable UnionB
+unionB x1 = writeTable [w x1]
 
 getUnionB'y :: ReadCtx m => UnionB -> m Int32
 getUnionB'y x = tableIndexToVOffset x 0 >>= required "y" (readPrim . move x)
@@ -236,11 +235,11 @@ data Union
   | Union'UnionA !UnionA
   | Union'UnionB !UnionB
 
-union'unionA :: Tagged UnionA Field -> Tagged Union UnionField
-union'unionA x = Tagged (Some (1, untag x))
+union'unionA :: WriteTable UnionA -> WriteUnion Union
+union'unionA = writeUnion 1
 
-union'unionB :: Tagged UnionB Field -> Tagged Union UnionField
-union'unionB x = Tagged (Some (2, untag x))
+union'unionB :: WriteTable UnionB -> WriteUnion Union
+union'unionB = writeUnion 2
 
 readUnion :: ReadCtx m => Word8 -> Position -> m Union
 readUnion n pos =
@@ -257,9 +256,9 @@ newtype TableWithUnion =
   TableWithUnion Table
   deriving (HasPosition)
 
-tableWithUnion :: Maybe (Tagged Union UnionField) -> Tagged TableWithUnion Field
+tableWithUnion :: Maybe (WriteUnion Union) -> WriteTable TableWithUnion
 tableWithUnion x1 =
-  Tagged $ table [wType x1, wValue x1]
+  writeTable [wType x1, wValue x1]
 
 
 getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
@@ -276,9 +275,9 @@ newtype VectorOfUnions =
   VectorOfUnions Table
   deriving (HasPosition)
 
-vectorOfUnions :: Maybe [Tagged Union UnionField] -> Tagged VectorOfUnions Field
+vectorOfUnions :: Maybe [WriteUnion Union] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
-  Tagged $ table [wType x1, wValue x1]
+  writeTable [wType x1, wValue x1]
 
 getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
 getVectorOfUnions'xs x =
