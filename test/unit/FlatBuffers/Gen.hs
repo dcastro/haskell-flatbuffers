@@ -30,24 +30,11 @@ float = WS <$> label "float " <*> F.float <$> G.float (R.linearFrac (-10000000) 
 
 bool = WS <$> label "bool " <*> F.bool <$> G.bool
 
-string = WS <$> label "string " <*> F.string <$> G.string textRange char
+text :: Gen (WithShow Field)
 text = WS <$> label "text " <*> F.text <$> G.text textRange char
-lazyText = WS <$> label "lazyText " <*> F.lazyText . TL.fromStrict <$> G.text textRange char
-byteString = WS <$> label "byteString " <*> F.byteString <$> G.utf8 textRange char
-lazyByteString = WS <$> label "lazyByteString " <*> F.lazyByteString . BSL.fromStrict <$> G.utf8 textRange char
 
 scalar :: Gen (WithShow InlineField) -> Gen (WithShow Field)
 scalar field = wsmap (T.append "scalar ") (F.scalar id) <$> field
-
-textualField :: Gen (WithShow Field)
-textualField =
-  G.choice
-    [ string
-    , text
-    , lazyText
-    , byteString
-    , lazyByteString
-    ]
 
 numericField :: Gen (WithShow InlineField)
 numericField =
@@ -58,7 +45,7 @@ field :: Gen (WithShow Field)
 field =
   G.recursive G.choice
     [ pure $ WS "missing" missing
-    , textualField
+    , text
     , scalar numericField
     , scalar bool
     ]
@@ -74,7 +61,7 @@ vector :: Gen (WithShow Field)
 vector = do
   gen <- G.element $
     fmap scalar [word8, word16, word32, word64, int8, int16, int32, int64, double, float, bool]
-    ++ [textualField, table]
+    ++ [text, table]
 
   elems <- G.list (R.linear 0 10) gen
   pure $ wsmap (labelT "vector ") F.vector $ wssequence elems

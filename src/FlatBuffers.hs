@@ -2,7 +2,30 @@
 {-# LANGUAGE TemplateHaskell  #-}
 {-# LANGUAGE TypeApplications #-}
 
-module FlatBuffers where
+module FlatBuffers
+  ( Field
+  , InlineField
+  , InlineSize
+  , missing
+  , table
+  , vector
+  , struct
+  , padded
+  , scalar
+  , root
+  , word8
+  , word16
+  , word32
+  , word64
+  , int8
+  , int16
+  , int32
+  , int64
+  , float
+  , double
+  , bool
+  , text
+  ) where
 
 import           Control.Lens
 import           Control.Monad.State
@@ -10,8 +33,6 @@ import qualified Data.ByteString           as BS
 import           Data.ByteString.Builder   (Builder)
 import qualified Data.ByteString.Builder   as B
 import qualified Data.ByteString.Lazy      as BSL
-import qualified Data.ByteString.Lazy.UTF8 as BSLU
-import qualified Data.ByteString.UTF8      as BSU
 import           Data.Coerce               (coerce)
 import           Data.Foldable
 import qualified Data.Foldable             as Foldable
@@ -21,10 +42,8 @@ import qualified Data.List                 as L
 import qualified Data.Map.Strict           as M
 import           Data.Monoid
 import           Data.Semigroup            (Max (..))
-import qualified Data.Text                 as T
+import           Data.Text                 (Text)
 import qualified Data.Text.Encoding        as T
-import qualified Data.Text.Lazy            as TL
-import qualified Data.Text.Lazy.Encoding   as TL
 import           Data.Word
 
 type InlineSize = Word16
@@ -101,17 +120,8 @@ bool = primitive 1 $ \case
 missing :: Field  
 missing = Field . pure . InlineField 0 0 $ pure ()
 
-lazyText :: TL.Text -> Field
-lazyText = lazyByteString . TL.encodeUtf8
-
-text :: T.Text -> Field
+text :: Text -> Field
 text = byteString . T.encodeUtf8
-
-string :: String -> Field
-string = lazyByteString . BSLU.fromString
-
-string' :: String -> State FBState InlineField
-string' = dump . string
 
 -- | Encodes a bytestring as text.
 byteString :: BS.ByteString -> Field
@@ -121,17 +131,6 @@ byteString bs = Field $ do
 
   prep referenceSize (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
-  bw <- bytesWritten <+= referenceSize + fromIntegral length
-  pure $ uoffsetFrom bw
-
--- | Encodes a lazy bytestring as text.
-lazyByteString :: BSL.ByteString -> Field
-lazyByteString bs = Field $ do
-  write $ word8 0 -- trailing zero
-  let length = BSL.length bs
-
-  prep referenceSize (fromIntegral length)
-  builder %= mappend (B.int32LE (fromIntegral length) <> B.lazyByteString bs)
   bw <- bytesWritten <+= referenceSize + fromIntegral length
   pure $ uoffsetFrom bw
 

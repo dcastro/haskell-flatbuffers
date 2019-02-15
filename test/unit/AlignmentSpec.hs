@@ -30,8 +30,8 @@ spec =
         8
     it "strings are properly aligned" $ require $
       alignedProp
-        (WS "string \"hellohellohello\"" (string "hellohellohello"))
-        FG.string
+        (WS "string \"hellohellohello\"" (text "hellohellohello"))
+        FG.text
         (B.int32LE 15 <> B.stringUtf8 "hellohellohello")
         4
 

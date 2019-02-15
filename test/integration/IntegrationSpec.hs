@@ -52,7 +52,7 @@ cases =
   [ Case
       "Simple"
       "Simple"
-      (root $ table [scalar int32 12, string "hi"])
+      (root $ table [scalar int32 12, text "hi"])
       (object ["n" .= Number 12, "s" .= String "hi"])
   , Case
       "Primitives - maxBound"
@@ -150,9 +150,9 @@ cases =
       (root $
        table
          [ scalar int32 12
-         , table [scalar int32 23, string "hi"]
+         , table [scalar int32 23, text "hi"]
          , missing
-         , table [scalar int32 34, string "bye"]
+         , table [scalar int32 34, text "bye"]
          ])
       (object
          [ "n" .= Number 12
@@ -173,7 +173,7 @@ cases =
   , Case
       "TableWithUnion with UnionA"
       "TableWithUnion"
-      (root $ table [scalar word8 1, table [string "hi"]])
+      (root $ table [scalar word8 1, table [text "hi"]])
       (object ["uni" .= object ["x" .= String "hi"]])
   , Case
       "TableWithUnion with UnionB"
@@ -197,27 +197,13 @@ cases =
        table
          [ missing
          , vector [scalar int32 1, scalar int32 2]
-         , vector
-             [ text ""
-             , text "hi 👬"
-             , lazyText "hi 👬"
-             , string "hi 👬"
-             , byteString "hi"
-             , lazyByteString "hi"
-             ]
+         , vector [text "", text "hi", text "hi 👬"]
          , vector [scalar int64 3, scalar int64 4]
          ])
       (object
          [ "w" .= [] @Value
          , "x" .= [Number 1, Number 2]
-         , "y" .=
-           [ String ""
-           , String "hi 👬"
-           , String "hi 👬"
-           , String "hi 👬"
-           , String "hi"
-           , String "hi"
-           ]
+         , "y" .= [String "", String "hi", String "hi 👬"]
          , "z" .= [Number 3, Number 4]
          ])
   , Case
@@ -267,9 +253,9 @@ cases =
       (root $
        table
          [ vector
-             [ table [scalar int32 1, string "a"]
-             , table [scalar int32 2, string "b"]
-             , table [scalar int32 minBound, string "c"]
+             [ table [scalar int32 1, text "a"]
+             , table [scalar int32 2, text "b"]
+             , table [scalar int32 minBound, text "c"]
              ]
          ])
       (object
