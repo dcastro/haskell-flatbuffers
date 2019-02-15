@@ -3,17 +3,17 @@
 {-# LANGUAGE TypeApplications  #-}
 
 module IntegrationSpec where
-
+  
 import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Encode.Pretty
-import qualified Data.ByteString.Lazy      as BSL
-import qualified Data.ByteString.Lazy.UTF8 as BSLU
+import qualified Data.ByteString.Lazy       as BSL
+import qualified Data.ByteString.Lazy.UTF8  as BSLU
 import           Data.Int
 import           Data.Word
-import           FlatBuffers
+import           FlatBuffers.Internal.Write
 import           Network.HTTP.Client
-import           Network.HTTP.Types.Status (statusCode)
+import           Network.HTTP.Types.Status  (statusCode)
 import           Test.Hspec
 
 newtype Pretty =

@@ -1,19 +1,18 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 module FlatBuffers.Gen where
 
-import qualified Data.ByteString.Lazy as BSL
-import           Data.Text            (Text)
-import qualified Data.Text            as T
-import qualified Data.Text.Lazy       as TL
-import           Data.WithShow        (WithShow (WS), label, labelT, tshow,
-                                       wsmap, wssequence)
-import           FlatBuffers          (Field, InlineField, missing)
-import qualified FlatBuffers          as F
+import qualified Data.ByteString.Lazy       as BSL
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import qualified Data.Text.Lazy             as TL
+import           Data.WithShow              (WithShow (WS), label, labelT,
+                                             tshow, wsmap, wssequence)
+import           FlatBuffers.Internal.Write (Field, InlineField, missing)
+import qualified FlatBuffers.Internal.Write as F
 import           Hedgehog
-import qualified Hedgehog.Gen         as G
-import qualified Hedgehog.Range       as R
+import qualified Hedgehog.Gen               as G
+import qualified Hedgehog.Range             as R
 
 word8 = WS <$> label "word8 " <*> F.word8 <$> G.word8 R.constantBounded
 word16 = WS <$> label "word16 " <*> F.word16 <$> G.word16 R.constantBounded

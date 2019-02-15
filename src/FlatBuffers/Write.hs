@@ -14,14 +14,14 @@ module FlatBuffers.Write
   , F.scalar
   ) where
 
-import           Data.Bifunctor       (bimap)
-import qualified Data.ByteString.Lazy as BSL
+import           Data.Bifunctor             (bimap)
+import qualified Data.ByteString.Lazy       as BSL
 import           Data.Int
-import           Data.Tagged          (Tagged (..), untag)
-import           Data.Text            (Text)
+import           Data.Tagged                (Tagged (..), untag)
+import           Data.Text                  (Text)
 import           Data.Word
-import           FlatBuffers
-import qualified FlatBuffers          as F
+import           FlatBuffers.Internal.Write
+import qualified FlatBuffers.Internal.Write as F
 
 newtype UnionField =
   UnionField (Maybe (Word8, Field))

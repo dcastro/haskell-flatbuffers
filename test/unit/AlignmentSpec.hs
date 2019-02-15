@@ -11,8 +11,8 @@ import           Data.Int
 import           Data.Semigroup              (Max (..))
 import           Data.WithShow               (WithShow (WS))
 import qualified Data.WithShow               as WS
-import           FlatBuffers                 as F
 import qualified FlatBuffers.Gen             as FG
+import           FlatBuffers.Internal.Write  as F
 import           HaskellWorks.Hspec.Hedgehog
 import           Hedgehog
 import qualified Hedgehog.Gen                as G

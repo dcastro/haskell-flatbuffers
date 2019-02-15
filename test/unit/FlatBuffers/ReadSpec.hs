@@ -4,12 +4,12 @@
 
 module FlatBuffers.ReadSpec where
 
-import           Data.Functor      ((<&>))
+import           Data.Functor               ((<&>))
 import           Data.Int
-import           Data.Tagged       (Tagged (..))
-import           Data.Text         (Text)
+import           Data.Tagged                (Tagged (..))
+import           Data.Text                  (Text)
 import           Data.Word
-import qualified FlatBuffers       as F
+import qualified FlatBuffers.Internal.Write as F
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 import           Test.Hspec

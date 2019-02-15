@@ -26,8 +26,8 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
-import           FlatBuffers                   (InlineSize)
 import           FlatBuffers.Classes           (PrimField (..))
+import           FlatBuffers.Internal.Write    (InlineSize)
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 

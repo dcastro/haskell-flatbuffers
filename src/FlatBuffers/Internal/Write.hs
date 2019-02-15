@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell  #-}
 {-# LANGUAGE TypeApplications #-}
 
-module FlatBuffers
+module FlatBuffers.Internal.Write
   ( Field
   , InlineField
   , InlineSize
