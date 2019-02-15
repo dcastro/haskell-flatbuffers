@@ -16,6 +16,7 @@ language: generic
 
 # Caching so the next build will be fast too.
 cache:
+  timeout: 1000
   directories:
   - $HOME/.stack
   - $HOME/.ivy2/cache
