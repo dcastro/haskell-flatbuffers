@@ -23,14 +23,15 @@ import           Data.Word
 import           FlatBuffers.Internal.Write
 import qualified FlatBuffers.Internal.Write as F
 
-newtype UnionField =
-  UnionField (Maybe (Word8, Field))
+data UnionField
+  = None
+  | Some !(Word8, Field)
 
 encode :: Tagged t Field -> BSL.ByteString
 encode = root . untag
 
 none :: Tagged a UnionField
-none = Tagged (UnionField Nothing)
+none = Tagged None
 
 -- | Writes a 'union-like' value to a table.
 -- | Unions are a special-case in that they generate two table fields, instead of just one.
@@ -39,16 +40,16 @@ class AsUnion a where
   wValue :: a -> Field
 
 instance AsUnion UnionField where
-  wType (UnionField (Just (t, _))) = scalar word8 t
-  wType (UnionField Nothing)       = scalar word8 0
-  wValue (UnionField (Just (_, v))) = v
-  wValue (UnionField Nothing)       = missing
+  wType (Some (t, _)) = scalar word8 t
+  wType None          = scalar word8 0
+  wValue (Some (_, v)) = v
+  wValue None          = missing
 
 instance AsUnion a => AsUnion (Maybe a) where
   wType (Just a) = wType a
-  wType Nothing = missing
+  wType Nothing  = missing
   wValue (Just a) = wValue a
-  wValue Nothing = missing
+  wValue Nothing  = missing
 
 instance AsUnion b => AsUnion (Tagged a b) where
   wType = wType . untag
@@ -60,8 +61,8 @@ instance a ~ Tagged b UnionField => AsUnion [a] where
   wValue = vector . fmap f
     where
       -- in a vector of unions, a `none` value is encoded as the circular reference 0.
-      f (Tagged (UnionField Nothing)) = scalar int32 0
-      f x                             = wValue x
+      f (Tagged None) = scalar int32 0
+      f x             = wValue x
 
 
 

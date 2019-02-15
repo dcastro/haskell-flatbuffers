@@ -237,10 +237,10 @@ data Union
   | Union'UnionB !UnionB
 
 union'unionA :: Tagged UnionA Field -> Tagged Union UnionField
-union'unionA x = Tagged (UnionField (Just (1, untag x)))
+union'unionA x = Tagged (Some (1, untag x))
 
 union'unionB :: Tagged UnionB Field -> Tagged Union UnionField
-union'unionB x = Tagged (UnionField (Just (2, untag x)))
+union'unionB x = Tagged (Some (2, untag x))
 
 readUnion :: ReadCtx m => Word8 -> Position -> m Union
 readUnion n pos =
