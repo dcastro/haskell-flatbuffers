@@ -6,6 +6,7 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module FlatBuffers.Read where
   
@@ -36,7 +37,7 @@ type ReadCtx m = MonadThrow m
 newtype FieldName = FieldName Text
   deriving (Show, Eq, IsString)
 
-newtype Index = Index { unIndex :: Word16 }
+newtype TableIndex = TableIndex { unTableIndex :: Word16 }
   deriving (Show, Num)
 
 newtype VectorLength = VectorLength { unVectorLength :: Word32 }
@@ -103,13 +104,12 @@ move hs offset =
   moveInt64 hs (fromIntegral @VOffset @Int64 offset)
 
 moveInt64 :: HasPosition p => p -> Int64 -> Position
-moveInt64 hs offset =
+moveInt64 (getPos -> Position{..}) offset =
   Position
   { posRoot = posRoot
   , posCurrent = BSL.drop offset posCurrent
   , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Int64 @OffsetFromRoot offset
   }
-  where Position{..} = getPos hs
 
 readElem :: forall a m. ReadCtx m => VectorIndex -> Vector a -> m a
 readElem n v =
@@ -221,11 +221,11 @@ optional :: ReadCtx m => a -> (VOffset -> m a) -> Maybe VOffset -> m a
 optional _ f (Just vo) = f vo
 optional dflt _ _ = pure dflt
 
-tableIndexToVOffset :: (ReadCtx m, Coercible t Table) => t -> Index -> m (Maybe VOffset)
-tableIndexToVOffset a ix =
+tableIndexToVOffset :: (ReadCtx m, Coercible t Table) => t -> TableIndex -> m (Maybe VOffset)
+tableIndexToVOffset (coerce -> Table{..}) ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
-    let vtableIndex = 4 + (unIndex ix * 2)
+    let vtableIndex = 4 + (unTableIndex ix * 2)
     if vtableIndex >= vtableSize
       then pure Nothing
       else do
@@ -233,7 +233,6 @@ tableIndexToVOffset a ix =
         G.getWord16le <&> \case
           0 -> Nothing
           word16 -> Just (VOffset word16)
-  where Table{..} = coerce a
 
 moveUOffset :: Get Word32
 moveUOffset = do
