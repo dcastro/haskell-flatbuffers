@@ -66,7 +66,7 @@ spec =
       it "present" $ do
         x <- decode $ encode $ tableWithUnion (Just (union'unionA (unionA (Just "hi"))))
         getTableWithUnion'uni x >>= \case
-          Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
+          Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just (union'unionB (unionB (Just maxBound))))
@@ -93,7 +93,7 @@ spec =
         xs <- getVectorOfUnions'xs x
         vectorLength xs `shouldBe` 3
         readElem 0 xs >>= \case
-          Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
+          Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
         readElem 1 xs >>= \case
           Union'None -> pure ()
@@ -211,8 +211,8 @@ newtype UnionA =
 unionA :: Maybe Text -> WriteTable UnionA
 unionA x1 = writeTable [w x1]
 
-getUnionA'x :: ReadCtx m => UnionA -> m Text
-getUnionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
+getUnionA'x :: ReadCtx m => SReadMode mode -> UnionA -> m (ReadResult mode Text)
+getUnionA'x = readField' @Text "x" 0
 
 ----------------------------------
 ------------- UnionB -------------

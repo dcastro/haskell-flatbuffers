@@ -1,11 +1,15 @@
+{-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 module FlatBuffers.Read where
@@ -111,6 +115,54 @@ moveInt64 (getPos -> Position{..}) offset =
   , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Int64 @OffsetFromRoot offset
   }
 
+data ReadMode = Required | Optional
+
+data SReadMode (a :: ReadMode) where
+  SRequired :: SReadMode Required
+  SOptional :: SReadMode Optional
+
+req :: SReadMode Required
+req = SRequired
+
+opt :: SReadMode Optional
+opt = SOptional
+
+type family ReadResult (mode :: ReadMode) (a :: *) :: * where
+  ReadResult Required a = a
+  ReadResult Optional a = Maybe a
+
+class ReadField a where
+  readField ::
+       forall mode m. ReadCtx m
+    => FieldName
+    -> TableIndex
+    -> SReadMode (mode :: ReadMode)
+    -> Table
+    -> m (ReadResult mode a)
+
+readField' ::
+    forall a t mode m. (ReadCtx m, Coercible t Table, ReadField a)
+ => FieldName
+ -> TableIndex
+ -> SReadMode (mode :: ReadMode)
+ -> t
+ -> m (ReadResult mode a)
+readField' fn ix mode t = readField @a fn ix mode (coerce t)
+
+instance ReadField Text where
+  readField fn ix mode t =
+    case mode of 
+      SRequired -> do
+        mo <- tableIndexToVOffset t ix
+        case mo of
+          Just offset -> readText (move t offset)
+          Nothing     -> throwM $ MissingField fn
+      SOptional -> do
+        mo <- tableIndexToVOffset t ix
+        case mo of
+          Just offset -> Just <$> readText (move t offset)
+          Nothing     -> pure Nothing
+          
 readElem :: forall a m. ReadCtx m => VectorIndex -> Vector a -> m a
 readElem n v =
   case v of
