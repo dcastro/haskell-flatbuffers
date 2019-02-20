@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeApplications           #-}
 
@@ -112,7 +111,6 @@ spec =
 
 newtype MyRoot =
   MyRoot Table
-  deriving (HasPosition)
 
 encodeMyRoot ::
      Maybe Int32
@@ -127,29 +125,28 @@ encodeMyRoot a b c d e f g =
   writeTable [w a, w b, w c, w d, w e, w f, w g]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
-myRootA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
+myRootA = readTableFieldWithDef readInt32 0 0
 
 myRootB :: ReadCtx m => MyRoot -> m Int64
-myRootB x = tableIndexToVOffset x 1 >>= optional 0 (readPrim . move x)
+myRootB = readTableFieldWithDef readInt64 1 0
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC x = tableIndexToVOffset x 2 >>= required "c" (readTable . move x)
+myRootC = readTableField readTable 2 "c" req
 
 myRootD :: ReadCtx m => MyRoot -> m Text
-myRootD x = tableIndexToVOffset x 3 >>= required "d" (readText . move x)
+myRootD = readTableField readText 3 "d" req
 
 myRootE :: ReadCtx m => MyRoot -> m SWS
-myRootE x = tableIndexToVOffset x 4 >>= required "e" (pure . readStruct . move x)
+myRootE = readTableField (pure . readStruct) 4 "e" req
 
 myRootF :: ReadCtx m => MyRoot -> m (Vector Text)
-myRootF x = tableIndexToVOffset x 5 >>= required "f" (readVector readText 4 . move x)
+myRootF = readTableField (readVector readText textSize) 5 "f" req
 
 myRootG :: ReadCtx m => MyRoot -> m (Vector DeepNested)
-myRootG x = tableIndexToVOffset x 6 >>= required "g" (readVector readTable 4 . move x)
+myRootG = readTableField (readVector readTable tableSize) 6 "g" req
 
 newtype Nested =
   Nested Table
-  deriving (HasPosition)
 
 encodeNested :: Maybe Int32 -> Maybe (WriteTable DeepNested) -> WriteTable Nested
 encodeNested a b =
@@ -157,13 +154,12 @@ encodeNested a b =
     [ w a, w b ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
-nestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
+nestedA = readTableFieldWithDef readInt32 0 0
 
 nestedB :: ReadCtx m => Nested -> m DeepNested
-nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x)
+nestedB = readTableField readTable 1 "b" req
     
 newtype DeepNested = DeepNested Table
-  deriving (HasPosition)
 
 encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
 encodeDeepNested a =
@@ -171,11 +167,10 @@ encodeDeepNested a =
     [ w a ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
-deepNestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
+deepNestedA = readTableFieldWithDef readInt32 0 0
 
 newtype MyStruct =
   MyStruct Struct
-  deriving HasPosition
 
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
@@ -186,16 +181,15 @@ encodeMyStruct a b c =
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
-myStructA x = readPrim $ move x 0
+myStructA = readStructField readInt32 0
 
 myStructB :: ReadCtx m => MyStruct -> m Word8
-myStructB x = readPrim $ move x 4
+myStructB = readStructField readWord8 4
 
 myStructC :: ReadCtx m => MyStruct -> m Int64
-myStructC x = readPrim $ move x 8
+myStructC = readStructField readInt64 8
 
 newtype ThreeBytes = ThreeBytes Struct
-  deriving HasPosition
 
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
@@ -206,17 +200,16 @@ encodeThreeBytes a b c =
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesA x = readPrim $ move x 0
+threeBytesA = readStructField readWord8 0
 
 threeBytesB :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesB x = readPrim $ move x 1
+threeBytesB = readStructField readWord8 1
 
 threeBytesC :: ReadCtx m => ThreeBytes -> m Word8
-threeBytesC x = readPrim $ move x 2
+threeBytesC = readStructField readWord8 2
 
 -- struct with structs
 newtype SWS = SWS Struct
-  deriving HasPosition
 
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
@@ -230,7 +223,7 @@ encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
     ]
 
 swsA :: SWS -> MyStruct
-swsA x = readStruct $ move x 0
+swsA = readStructField readStruct 0
 
 swsB :: SWS -> ThreeBytes
-swsB x = readStruct $ move x 16
+swsB = readStructField readStruct 16

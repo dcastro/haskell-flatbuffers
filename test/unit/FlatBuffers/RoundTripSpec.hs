@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeApplications           #-}
@@ -42,25 +41,25 @@ spec =
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing
-        getPrimitives'a x `shouldThrow` \x -> x == MissingField "a"
-        getPrimitives'b x `shouldThrow` \x -> x == MissingField "b"
-        getPrimitives'c x `shouldThrow` \x -> x == MissingField "c"
-        getPrimitives'd x `shouldThrow` \x -> x == MissingField "d"
-        getPrimitives'e x `shouldThrow` \x -> x == MissingField "e"
-        getPrimitives'f x `shouldThrow` \x -> x == MissingField "f"
-        getPrimitives'g x `shouldThrow` \x -> x == MissingField "g"
-        getPrimitives'h x `shouldThrow` \x -> x == MissingField "h"
-        getPrimitives'i x `shouldThrow` \x -> x == MissingField "i"
-        getPrimitives'j x `shouldThrow` \x -> x == MissingField "j"
-        getPrimitives'k x `shouldThrow` \x -> x == MissingField "k"
+        getPrimitives'a x `shouldBe` Just 1
+        getPrimitives'b x `shouldBe` Just 1
+        getPrimitives'c x `shouldBe` Just 1
+        getPrimitives'd x `shouldBe` Just 1
+        getPrimitives'e x `shouldBe` Just 1
+        getPrimitives'f x `shouldBe` Just 1
+        getPrimitives'g x `shouldBe` Just 1
+        getPrimitives'h x `shouldBe` Just 1
+        getPrimitives'i x `shouldBe` Just 1
+        getPrimitives'j x `shouldBe` Just 1
+        getPrimitives'k x `shouldBe` Just False
 
     describe "Enums" $ do
       it "present" $ do
-        x <- decode $ encode $ enums (Just Red)
-        getEnums'x x `shouldBe` Just Red
+        x <- decode $ encode $ enums (Just Gray)
+        getEnums'x x `shouldBe` Just Gray
       it "missing" $ do
         x <- decode @Enums $ encode $ enums Nothing
-        getEnums'x x `shouldThrow` \x -> x == MissingField "x"
+        getEnums'x x `shouldBe` Just Blue
 
     describe "Union" $ do
       it "present" $ do
@@ -81,7 +80,9 @@ spec =
 
       it "missing" $ do
         x <- decode $ encode $ tableWithUnion Nothing
-        getTableWithUnion'uni x `shouldThrow` \x -> x == MissingField "uni"
+        getTableWithUnion'uni x >>= \case
+          Union'None -> pure ()
+          _          -> unexpectedUnionType
 
     describe "VectorOfUnions" $ do
       it "present" $ do
@@ -112,7 +113,6 @@ spec =
 ----------------------------------
 newtype Primitives =
   Primitives Table
-  deriving (HasPosition)
 
 primitives ::
      Maybe Word8
@@ -141,17 +141,17 @@ getPrimitives'h :: ReadCtx m => Primitives -> m Int64
 getPrimitives'i :: ReadCtx m => Primitives -> m Float
 getPrimitives'j :: ReadCtx m => Primitives -> m Double
 getPrimitives'k :: ReadCtx m => Primitives -> m Bool
-getPrimitives'a x = tableIndexToVOffset x 0 >>= required "a" (readPrim . move x)
-getPrimitives'b x = tableIndexToVOffset x 1 >>= required "b" (readPrim . move x)
-getPrimitives'c x = tableIndexToVOffset x 2 >>= required "c" (readPrim . move x)
-getPrimitives'd x = tableIndexToVOffset x 3 >>= required "d" (readPrim . move x)
-getPrimitives'e x = tableIndexToVOffset x 4 >>= required "e" (readPrim . move x)
-getPrimitives'f x = tableIndexToVOffset x 5 >>= required "f" (readPrim . move x)
-getPrimitives'g x = tableIndexToVOffset x 6 >>= required "g" (readPrim . move x)
-getPrimitives'h x = tableIndexToVOffset x 7 >>= required "h" (readPrim . move x)
-getPrimitives'i x = tableIndexToVOffset x 8 >>= required "i" (readPrim . move x)
-getPrimitives'j x = tableIndexToVOffset x 9 >>= required "j" (readPrim . move x)
-getPrimitives'k x = tableIndexToVOffset x 10 >>= required "k" (readPrim . move x)
+getPrimitives'a = readTableFieldWithDef readWord8   0 1
+getPrimitives'b = readTableFieldWithDef readWord16  1 1
+getPrimitives'c = readTableFieldWithDef readWord32  2 1
+getPrimitives'd = readTableFieldWithDef readWord64  3 1
+getPrimitives'e = readTableFieldWithDef readInt8    4 1
+getPrimitives'f = readTableFieldWithDef readInt16   5 1
+getPrimitives'g = readTableFieldWithDef readInt32   6 1
+getPrimitives'h = readTableFieldWithDef readInt64   7 1
+getPrimitives'i = readTableFieldWithDef readFloat   8 1
+getPrimitives'j = readTableFieldWithDef readDouble  9 1
+getPrimitives'k = readTableFieldWithDef readBool    10 False
 
 ----------------------------------
 ------------- Color --------------
@@ -178,8 +178,8 @@ instance AsStructField Color where
 
 readColor :: ReadCtx m => Position -> m Color
 readColor p =
-  readPrim p >>= \n ->
-    case (n :: Word8) of
+  readWord8 p >>= \n ->
+    case n of
       0 -> pure Red
       1 -> pure Green
       2 -> pure Blue
@@ -187,45 +187,41 @@ readColor p =
       8 -> pure Black
       _ -> throwM $ EnumUnknown "Color" (fromIntegral @Word8 @Word64 n)
 
-
 ----------------------------------
 ------------- Enums --------------
 ----------------------------------
 newtype Enums =
   Enums Table
-  deriving (HasPosition)
 
 enums :: Maybe Color -> WriteTable Enums
 enums x1 = writeTable [w x1]
 
 getEnums'x :: ReadCtx m => Enums -> m Color
-getEnums'x x = tableIndexToVOffset x 0 >>= required "x" (readColor . move x)
+getEnums'x = readTableFieldWithDef readColor 0 Blue
 
 ----------------------------------
 ------------- UnionA -------------
 ----------------------------------
 newtype UnionA =
   UnionA Table
-  deriving (HasPosition)
 
 unionA :: Maybe Text -> WriteTable UnionA
 unionA x1 = writeTable [w x1]
 
 getUnionA'x :: ReadCtx m => UnionA -> m Text
-getUnionA'x x = tableIndexToVOffset x 0 >>= required "x" (readText . move x)
+getUnionA'x = readTableField readText 0 "x" req
 
 ----------------------------------
 ------------- UnionB -------------
 ----------------------------------
 newtype UnionB =
   UnionB Table
-  deriving (HasPosition)
 
 unionB :: Maybe Int32 -> WriteTable UnionB
 unionB x1 = writeTable [w x1]
 
 getUnionB'y :: ReadCtx m => UnionB -> m Int32
-getUnionB'y x = tableIndexToVOffset x 0 >>= required "y" (readPrim . move x)
+getUnionB'y = readTableFieldWithDef readInt32 0 0
 
 ----------------------------------
 ------------- Union --------------
@@ -245,8 +241,8 @@ readUnion :: ReadCtx m => Word8 -> Position -> m Union
 readUnion n pos =
   case n of
     0 -> pure Union'None
-    1 -> fmap (Union'UnionA . UnionA) (readTable pos)
-    2 -> fmap (Union'UnionB . UnionB) (readTable pos)
+    1 -> fmap Union'UnionA (readTable pos)
+    2 -> fmap Union'UnionB (readTable pos)
     _ -> throwM $ UnionUnknown "Union" n
 
 ----------------------------------
@@ -254,7 +250,6 @@ readUnion n pos =
 ----------------------------------
 newtype TableWithUnion =
   TableWithUnion Table
-  deriving (HasPosition)
 
 tableWithUnion :: Maybe (WriteUnion Union) -> WriteTable TableWithUnion
 tableWithUnion x1 =
@@ -262,26 +257,17 @@ tableWithUnion x1 =
 
 
 getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
-getTableWithUnion'uni x = do
-  n <- tableIndexToVOffset x 0 >>= required "uni" (readPrim . move x)
-  if n == 0
-    then pure Union'None
-    else tableIndexToVOffset x 1 >>= required "uni" (readUnion n . move x)
+getTableWithUnion'uni = readTableFieldUnion readUnion 0 Union'None
 
 ----------------------------------
 ------- VectorOfUnions -----------
 ----------------------------------
 newtype VectorOfUnions =
   VectorOfUnions Table
-  deriving (HasPosition)
 
 vectorOfUnions :: Maybe [WriteUnion Union] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
   writeTable [wType x1, wValue x1]
 
 getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
-getVectorOfUnions'xs x =
-  do
-    i <- tableIndexToVOffset x 0 >>= required "xs" (pure . move x)
-    j <- tableIndexToVOffset x 1 >>= required "xs" (pure . move x)
-    readUnionVector Union'None readUnion i j
+getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs" Union'None req
