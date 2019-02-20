@@ -8,7 +8,7 @@ import           Control.Exception.Safe (throwM)
 import           Control.Monad.IO.Class
 import           Data.Coerce
 import           Data.Int
-import           Data.Text
+import           Data.Text              (Text)
 import           Data.Word
 import           FlatBuffers.Read
 import           FlatBuffers.Write
@@ -93,16 +93,16 @@ spec =
           ])
         xs <- getVectorOfUnions'xs x
         vectorLength xs `shouldBe` 3
-        readElem 0 xs >>= \case
+        xs `index` 0 >>= \case
           Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
-        readElem 1 xs >>= \case
+        xs `index` 1 >>= \case
           Union'None -> pure ()
           _          -> unexpectedUnionType
-        readElem 2 xs >>= \case
+        xs `index` 2 >>= \case
           Union'UnionB x -> getUnionB'y x `shouldBe` Just 98
           _              -> unexpectedUnionType
-        readElem 3 xs `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
+        xs `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing

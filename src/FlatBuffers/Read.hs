@@ -32,7 +32,7 @@ module FlatBuffers.Read
   , readTableFieldWithDef
   , readTableFieldUnion
   , readTableFieldUnionVector
-  , vectorLength, readElem, toList
+  , vectorLength, index, toList
   , req, opt
   ) where
   
@@ -203,8 +203,8 @@ boolSize, floatSize, doubleSize :: InlineSize
 ----------------------------------
 ------- Vector functions ---------
 ----------------------------------
-readElem :: forall a m. ReadCtx m => VectorIndex -> Vector a -> m a
-readElem n v =
+index :: forall a m. ReadCtx m => Vector a -> VectorIndex -> m a
+index v n =
   case v of
     Vector vec readElem' ->
       readElemRaw readElem' n vec
@@ -225,7 +225,7 @@ readElem n v =
         elemPos = moveInt64 vec elemOffset
 
 toList :: forall a m. ReadCtx m => Vector a -> m [a]
-toList vec = traverse (\i -> readElem i vec) [0 .. coerce (vectorLength vec) - 1]
+toList vec = traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
 
 vectorLength :: Vector a -> VectorLength
 vectorLength (Vector v _         ) = rawVectorLength v
