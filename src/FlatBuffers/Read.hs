@@ -72,7 +72,7 @@ newtype VOffset = VOffset { unVOffset :: Word16 }
   deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 newtype UOffset = UOffset { unUOffset :: Word32 }
-  deriving (Show, Num, Eq)
+  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
   deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
@@ -306,8 +306,8 @@ readRawVector elemSize Position{..} =
       , rawVectorPos =
           Position
           { posRoot = posRoot
-          , posCurrent = BSL.drop (fromIntegral @Word32 @Int64 uoffset) posCurrent
-          , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Word32 @OffsetFromRoot uoffset
+          , posCurrent = BSL.drop (fromIntegral @UOffset @Int64 uoffset) posCurrent
+          , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @UOffset @OffsetFromRoot uoffset
           }
       , rawVectorElemSize = elemSize
       }
@@ -334,11 +334,11 @@ readTable Position{..} =
     tableOffset <- moveUOffset
     soffset <- G.getInt32le
 
-    let tableOffset64 = fromIntegral @Word32 @Int64 tableOffset
+    let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
     let tableOffsetFromRoot = tableOffset64 + fromIntegral @_ @Int64 posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
     let table = BSL.drop tableOffsetFromRoot posRoot
-    pure . coerce $ Table vtable (Position posRoot table (posOffsetFromRoot + OffsetFromRoot (widen64 tableOffset)))
+    pure . coerce $ Table vtable (Position posRoot table (posOffsetFromRoot + fromIntegral @UOffset @OffsetFromRoot tableOffset))
 
 
 ----------------------------------
@@ -361,11 +361,11 @@ move :: HasPosition p => p -> VOffset -> Position
 move hs offset =
   moveInt64 hs (fromIntegral @VOffset @Int64 offset)
   
-moveUOffset :: Get Word32
+moveUOffset :: Get UOffset
 moveUOffset = do
   uoffset <- G.getWord32le
   G.skip (fromIntegral @Word32 @Int uoffset - 4)
-  pure uoffset
+  pure (UOffset uoffset)
 
 moveInt64 :: HasPosition p => p -> Int64 -> Position
 moveInt64 (getPos -> Position{..}) offset =
