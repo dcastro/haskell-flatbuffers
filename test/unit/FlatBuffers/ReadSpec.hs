@@ -4,7 +4,6 @@
 
 module FlatBuffers.ReadSpec where
 
-import           Data.Functor               ((<&>))
 import           Data.Int
 import           Data.Text                  (Text)
 import           Data.Word
@@ -134,13 +133,13 @@ myRootB :: ReadCtx m => MyRoot -> m Int64
 myRootB x = tableIndexToVOffset x 1 >>= optional 0 (readPrim . move x)
 
 myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC x = tableIndexToVOffset x 2 >>= required "c" (readTable . move x) <&> Nested
+myRootC x = tableIndexToVOffset x 2 >>= required "c" (readTable . move x)
 
 myRootD :: ReadCtx m => MyRoot -> m Text
 myRootD x = tableIndexToVOffset x 3 >>= required "d" (readText . move x)
 
 myRootE :: ReadCtx m => MyRoot -> m SWS
-myRootE x = tableIndexToVOffset x 4 >>= required "e" (pure . readStruct . move x) <&> SWS
+myRootE x = tableIndexToVOffset x 4 >>= required "e" (pure . readStruct . move x)
 
 myRootF :: ReadCtx m => MyRoot -> m (Vector Text)
 myRootF x = tableIndexToVOffset x 5 >>= required "f" (readVector readText 4 . move x)
@@ -161,7 +160,7 @@ nestedA :: ReadCtx m => Nested -> m Int32
 nestedA x = tableIndexToVOffset x 0 >>= optional 0 (readPrim . move x)
 
 nestedB :: ReadCtx m => Nested -> m DeepNested
-nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x) <&> DeepNested
+nestedB x = tableIndexToVOffset x 1 >>= required "b" (readTable . move x)
     
 newtype DeepNested = DeepNested Table
   deriving (HasPosition)
@@ -231,7 +230,7 @@ encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
     ]
 
 swsA :: SWS -> MyStruct
-swsA x = MyStruct . readStruct $ move x 0
+swsA x = readStruct $ move x 0
 
 swsB :: SWS -> ThreeBytes
-swsB x = ThreeBytes . readStruct $ move x 16
+swsB x = readStruct $ move x 16

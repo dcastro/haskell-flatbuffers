@@ -198,8 +198,8 @@ readText Position{..} = do
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
 
-readStruct :: Position -> Struct
-readStruct = Struct
+readStruct :: Coercible Struct t => Position -> t
+readStruct = coerce . Struct
 
 readTable :: forall t m. (ReadCtx m, Coercible Table t) => Position -> m t
 readTable Position{..} =
