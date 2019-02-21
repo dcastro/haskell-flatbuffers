@@ -11,7 +11,7 @@
 module FlatBuffers.Read
   ( ReadCtx
   , ReadMode
-  , Error(..)
+  , ReadError(..)
   , Struct
   , Table
   , Position
@@ -378,7 +378,7 @@ moveInt64 (getPos -> Position{..}) offset =
   }
 
 
-data Error
+data ReadError
   = ParsingError { position :: !G.ByteOffset
                  , msg      :: !Text }
   | MissingField { fieldName :: !FieldName }
@@ -389,7 +389,7 @@ data Error
   | UnionUnknown { unionName :: !Text, unionValue :: !Word8 }
   deriving (Show, Eq)
 
-instance Exception Error
+instance Exception ReadError
 
 runGetM :: ReadCtx m => Get a -> ByteString -> m a
 runGetM get =
