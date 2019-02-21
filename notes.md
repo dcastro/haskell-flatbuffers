@@ -60,6 +60,8 @@
 
 ## TODO
 
+* Guard against writing buffers longer than 2^31-1 bytes 
+    * this should (implicitly) also protect against strings/vectors with a length that wouldn't fit in a uoffset (word32) field.
 * Add support for:
   * unions of structs / unions of strings: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions>
   * `file_identifier` and `root_type`

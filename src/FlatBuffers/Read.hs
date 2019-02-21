@@ -21,10 +21,6 @@ module FlatBuffers.Read
   , Position(..)
   , Vector(..)
   , decode
-  , word8Size, word16Size, word32Size, word64Size
-  , int8Size, int16Size, int32Size, int64Size
-  , boolSize, floatSize, doubleSize
-  , textSize, tableSize
   , readWord8, readWord16, readWord32, readWord64
   , readInt8, readInt16, readInt32, readInt64
   , readBool, readFloat, readDouble
@@ -57,7 +53,7 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
-import           FlatBuffers.Internal.Write    (InlineSize)
+import           FlatBuffers.Constants
 import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
 
 type ReadCtx m = MonadThrow m
@@ -191,26 +187,6 @@ readTableFieldUnionVector read ix name none (ReadMode mode) (coerce -> t :: Tabl
           vec <- readUnionVector none read (move t typesOffset) (move t valuesOffset)
           mode name (Just vec)
 
-
-----------------------------------
--------------- Sizes -------------
-----------------------------------
-referenceSize :: InlineSize
-referenceSize = 4
-
-textSize, tableSize :: InlineSize
-textSize = referenceSize
-tableSize = referenceSize
-
-word8Size, word16Size, word32Size, word64Size :: InlineSize
-(word8Size, word16Size, word32Size, word64Size) = (1, 2, 4, 8)
-
-int8Size, int16Size, int32Size, int64Size :: InlineSize
-(int8Size, int16Size, int32Size, int64Size) = (1, 2, 4, 8)
-
-boolSize, floatSize, doubleSize :: InlineSize
-(boolSize, floatSize, doubleSize) = (1, 4, 8)
-
 ----------------------------------
 ------- Vector functions ---------
 ----------------------------------
@@ -231,7 +207,7 @@ index v n =
         then throwM $ VectorIndexOutOfBounds (rawVectorLength vec) n
         else readElem elemPos
       where
-        elemSize = fromIntegral @Word16 @Int64 (rawVectorElemSize vec)
+        elemSize = fromIntegral @InlineSize @Int64 (rawVectorElemSize vec)
         elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
         elemPos = moveInt64 vec elemOffset
 

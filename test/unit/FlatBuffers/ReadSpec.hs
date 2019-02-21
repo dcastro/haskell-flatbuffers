@@ -7,6 +7,7 @@ import           Data.Int
 import           Data.Maybe                 (isNothing)
 import           Data.Text                  (Text)
 import           Data.Word
+import           FlatBuffers.Constants
 import qualified FlatBuffers.Internal.Write as F
 import           FlatBuffers.Read
 import           FlatBuffers.Write

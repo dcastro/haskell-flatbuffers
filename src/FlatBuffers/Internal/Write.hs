@@ -29,24 +29,24 @@ module FlatBuffers.Internal.Write
 
 import           Control.Lens
 import           Control.Monad.State
-import qualified Data.ByteString           as BS
-import           Data.ByteString.Builder   (Builder)
-import qualified Data.ByteString.Builder   as B
-import qualified Data.ByteString.Lazy      as BSL
-import           Data.Coerce               (coerce)
+import qualified Data.ByteString         as BS
+import           Data.ByteString.Builder (Builder)
+import qualified Data.ByteString.Builder as B
+import qualified Data.ByteString.Lazy    as BSL
+import           Data.Coerce             (coerce)
 import           Data.Foldable
-import qualified Data.Foldable             as Foldable
-import           Data.Functor.Reverse      (Reverse (..))
+import qualified Data.Foldable           as Foldable
+import           Data.Functor.Reverse    (Reverse (..))
 import           Data.Int
-import qualified Data.List                 as L
-import qualified Data.Map.Strict           as M
+import qualified Data.List               as L
+import qualified Data.Map.Strict         as M
 import           Data.Monoid
-import           Data.Semigroup            (Max (..))
-import           Data.Text                 (Text)
-import qualified Data.Text.Encoding        as T
+import           Data.Semigroup          (Max (..))
+import           Data.Text               (Text)
+import qualified Data.Text.Encoding      as T
 import           Data.Word
+import           FlatBuffers.Constants
 
-type InlineSize = Word16
 type Offset = BytesWritten
 type BytesWritten = Int
 
@@ -67,9 +67,6 @@ data InlineField = InlineField
   , write :: !(State FBState ())
   }
 
-referenceSize :: Num a => a
-referenceSize = 4
-
 inline :: (a -> InlineField) -> (a -> Field)
 inline f = Field . pure . f
 
@@ -80,38 +77,38 @@ primitive size f a =
     bytesWritten += fromIntegral size
 
 int8 :: Int8 -> InlineField
-int8 = primitive 1 B.int8
+int8 = primitive int8Size B.int8
 
 int16 :: Int16 -> InlineField
-int16 = primitive 2 B.int16LE
+int16 = primitive int16Size B.int16LE
 
 int32 :: Int32 -> InlineField
-int32 = primitive 4 B.int32LE
+int32 = primitive int32Size B.int32LE
 
 int64 :: Int64 -> InlineField
-int64 = primitive 8 B.int64LE
+int64 = primitive int64Size B.int64LE
 
 word8 :: Word8 -> InlineField
-word8 = primitive 1 B.word8
+word8 = primitive word8Size B.word8
 
 word16 :: Word16 -> InlineField
-word16 = primitive 2 B.word16LE
+word16 = primitive word16Size B.word16LE
 
 word32 :: Word32 -> InlineField
-word32 = primitive 4 B.word32LE
+word32 = primitive word32Size B.word32LE
 
 word64 :: Word64 -> InlineField
-word64 = primitive 8 B.word64LE
+word64 = primitive word64Size B.word64LE
 
 
 float :: Float -> InlineField
-float = primitive 4 B.floatLE
+float = primitive floatSize B.floatLE
 
 double :: Double -> InlineField
-double = primitive 8 B.doubleLE
+double = primitive doubleSize B.doubleLE
 
 bool :: Bool -> InlineField
-bool = primitive 1 $ \case
+bool = primitive boolSize $ \case
   True  -> B.word8 1
   False -> B.word8 0
 
@@ -129,9 +126,9 @@ byteString bs = Field $ do
   write $ word8 0 -- trailing zero
   let length = BS.length bs
 
-  prep referenceSize (fromIntegral length)
+  prep (coerce uoffsetSize) (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
-  bw <- bytesWritten <+= referenceSize + fromIntegral length
+  bw <- bytesWritten <+= fromIntegral @InlineSize @Int uoffsetSize + fromIntegral length
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
@@ -165,7 +162,7 @@ runRoot state =
 root' :: InlineField -> State FBState ()
 root' ref = do
   align <- uses maxAlign getMax
-  prep align referenceSize
+  prep align (coerce uoffsetSize)
   write ref
 
 struct :: InlineField -> [InlineField] -> Field
@@ -186,11 +183,11 @@ table fields = Field $
 vtable :: [InlineSize] -> InlineSize -> BSL.ByteString
 vtable fieldOffsets tableSize = bytestring
   where
-    vtableSize = 2 + 2 + 2 * L.genericLength fieldOffsets
+    vtableSize = voffsetSize + voffsetSize + voffsetSize * L.genericLength fieldOffsets
     bytestring = B.toLazyByteString
-      (  B.word16LE vtableSize
-      <> B.word16LE tableSize
-      <> foldMap B.word16LE fieldOffsets
+      (  B.word16LE (coerce vtableSize)
+      <> B.word16LE (coerce tableSize)
+      <> foldMap (B.word16LE . coerce) fieldOffsets
       )
       
 table' :: [InlineField] -> State FBState InlineField
@@ -201,11 +198,11 @@ table' fields = do
     coerce $ forM (Reverse fields) $ \f ->
       if size f == 0
         then pure 0
-        else prep (align f) 0 >> write f >> gets _bytesWritten
-  prep referenceSize 0
+        else prep (coerce (align f)) 0 >> write f >> gets _bytesWritten
+  prep (coerce soffsetSize) 0
   tableStart <- gets _bytesWritten
 
-  let tableLocation = tableStart + referenceSize
+  let tableLocation = tableStart + fromIntegral @InlineSize @Int soffsetSize
   let tableSize = tableLocation - tableEnd
   let fieldOffsets = flip fmap locations $ \case
                   0 -> 0
@@ -242,8 +239,8 @@ vector fields = Field $ do
   let elemAlign = getMax $ foldMap (Max . align) inlineFields
   let elemCount = Foldable.length inlineFields
 
-  prep 4 (elemSize * fromIntegral @Int @Word16 elemCount)
-  prep elemAlign (elemSize * fromIntegral @Int @Word16 elemCount)
+  prep (coerce uoffsetSize)   (coerce elemSize * fromIntegral @Int @Word16 elemCount)
+  prep (coerce elemAlign)     (coerce elemSize * fromIntegral @Int @Word16 elemCount)
   
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
@@ -251,6 +248,6 @@ vector fields = Field $ do
   pure $ uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
-uoffsetFrom bw = InlineField referenceSize referenceSize $ do
+uoffsetFrom bw = InlineField uoffsetSize uoffsetSize $ do
   bw2 <- gets _bytesWritten
-  write (int32 (fromIntegral (bw2 - bw) + referenceSize))
+  write (int32 (fromIntegral @Int @Int32 (bw2 - bw) + fromIntegral @InlineSize @Int32 uoffsetSize))
