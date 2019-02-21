@@ -4,6 +4,7 @@
 module FlatBuffers.ReadSpec where
 
 import           Data.Int
+import           Data.Maybe                 (isNothing)
 import           Data.Text                  (Text)
 import           Data.Word
 import qualified FlatBuffers.Internal.Write as F
@@ -22,25 +23,29 @@ spec =
     
     it "throws when string is missing" $ do
       s <- decode missingFields
-      myRootD s `shouldThrow` \x -> x == MissingField "d"
+      myRootD req s `shouldThrow` \x -> x == MissingField "d"
+      myRootD opt s >>= \mb -> isNothing mb `shouldBe` True
 
     it "throws when table is missing" $ do
       s <- decode missingFields
-      myRootC s `shouldThrow` \x -> x == MissingField "c"
+      myRootC req s `shouldThrow` \x -> x == MissingField "c"
+      myRootC opt s >>= \mb -> isNothing mb `shouldBe` True
 
     it "throws when struct is missing" $ do
       s <- decode missingFields
-      myRootE s `shouldThrow` \x -> x == MissingField "e"
+      myRootE req s `shouldThrow` \x -> x == MissingField "e"
+      myRootE opt s >>= \mb -> isNothing mb `shouldBe` True
 
     it "throws when vector is missing" $ do
       s <- decode missingFields
-      myRootF s `shouldThrow` \x -> x == MissingField "f"
+      myRootF req s `shouldThrow` \x -> x == MissingField "f"
+      myRootF opt s >>= \mb -> isNothing mb `shouldBe` True
     
     it "throws when string is invalid utf-8" $ do
       let text = F.vector [F.inline F.word8 255]
       let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
       s <- decode bs
-      myRootD s `shouldThrow` \x ->
+      myRootD req s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
@@ -49,7 +54,7 @@ spec =
 
       myRootA s `shouldBe` Just minBound
       myRootB s `shouldBe` Just maxBound
-      myRootD s `shouldBe` Just "hello"
+      myRootD req s `shouldBe` Just "hello"
       
     it "decodes missing fields" $ do
       let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just []) Nothing
@@ -58,24 +63,24 @@ spec =
       myRootA s `shouldBe` Just 0
       myRootB s `shouldBe` Just 0
 
-      nested <- myRootC s
+      nested <- myRootC req s
       nestedA nested `shouldBe` Just 0
 
     it "decodes nested tables" $ do
       let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just []) Nothing
       s <- decode bs
 
-      nested <- myRootC s
+      nested <- myRootC req s
       nestedA nested `shouldBe` Just 123
 
-      deepNested <- nestedB nested
+      deepNested <- nestedB req nested
       deepNestedA deepNested `shouldBe` Just 234
 
     it "decodes composite structs" $ do
       let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just []) Nothing
       s <- decode bs
 
-      sws <- myRootE s
+      sws <- myRootE req s
       let ms = swsA sws
       myStructA ms `shouldBe` Just 1
       myStructB ms `shouldBe` Just 2
@@ -90,7 +95,7 @@ spec =
       let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just ["hello", "world"]) Nothing
       s <- decode bs
 
-      vec <- myRootF s
+      vec <- myRootF req s
       vectorLength vec `shouldBe` 2
       vec `index` 0 `shouldBe` Just "hello"
       vec `index` 1 `shouldBe` Just "world"
@@ -103,7 +108,7 @@ spec =
             (Just [encodeDeepNested (Just 11), encodeDeepNested (Just 22)])
       s <- decode bs
 
-      vec <- myRootG s
+      vec <- myRootG req s
       vectorLength vec `shouldBe` 2
       list <- toList vec
       traverse deepNestedA list `shouldBe` Just [11, 22]
@@ -130,20 +135,20 @@ myRootA = readTableFieldWithDef readInt32 0 0
 myRootB :: ReadCtx m => MyRoot -> m Int64
 myRootB = readTableFieldWithDef readInt64 1 0
 
-myRootC :: ReadCtx m => MyRoot -> m Nested
-myRootC = readTableField readTable 2 "c" req
+myRootC :: ReadCtx m => ReadMode Nested a -> MyRoot -> m a
+myRootC = readTableField readTable 2 "c"
 
-myRootD :: ReadCtx m => MyRoot -> m Text
-myRootD = readTableField readText 3 "d" req
+myRootD :: ReadCtx m => ReadMode Text a -> MyRoot -> m a
+myRootD = readTableField readText 3 "d"
 
-myRootE :: ReadCtx m => MyRoot -> m SWS
-myRootE = readTableField (pure . readStruct) 4 "e" req
+myRootE :: ReadCtx m => ReadMode SWS a -> MyRoot -> m a
+myRootE = readTableField (pure . readStruct) 4 "e"
 
-myRootF :: ReadCtx m => MyRoot -> m (Vector Text)
-myRootF = readTableField (readVector readText textSize) 5 "f" req
+myRootF :: ReadCtx m => ReadMode (Vector Text) a -> MyRoot -> m a
+myRootF = readTableField (readVector readText textSize) 5 "f"
 
-myRootG :: ReadCtx m => MyRoot -> m (Vector DeepNested)
-myRootG = readTableField (readVector readTable tableSize) 6 "g" req
+myRootG :: ReadCtx m => ReadMode (Vector DeepNested) a -> MyRoot -> m a
+myRootG = readTableField (readVector readTable tableSize) 6 "g"
 
 newtype Nested =
   Nested Table
@@ -156,8 +161,8 @@ encodeNested a b =
 nestedA :: ReadCtx m => Nested -> m Int32
 nestedA = readTableFieldWithDef readInt32 0 0
 
-nestedB :: ReadCtx m => Nested -> m DeepNested
-nestedB = readTableField readTable 1 "b" req
+nestedB :: ReadCtx m => ReadMode DeepNested a -> Nested -> m a
+nestedB = readTableField readTable 1 "b"
     
 newtype DeepNested = DeepNested Table
 

@@ -9,12 +9,12 @@ import           Control.Exception.Safe (throwM)
 import           Control.Monad.IO.Class
 import           Data.Coerce
 import           Data.Int
+import           Data.Maybe             (isNothing)
 import           Data.Text              (Text)
 import           Data.Word
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 import           Test.Hspec
-
 
 spec :: Spec
 spec =
@@ -65,7 +65,7 @@ spec =
       it "present" $ do
         x <- decode $ encode $ tableWithUnion (Just (union'unionA (unionA (Just "hi"))))
         getTableWithUnion'uni x >>= \case
-          Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
+          Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just (union'unionB (unionB (Just maxBound))))
@@ -91,10 +91,10 @@ spec =
           , none
           , union'unionB (unionB (Just 98))
           ])
-        xs <- getVectorOfUnions'xs x
+        xs <- getVectorOfUnions'xs req x
         vectorLength xs `shouldBe` 3
         xs `index` 0 >>= \case
-          Union'UnionA x -> getUnionA'x x `shouldBe` Just "hi"
+          Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
         xs `index` 1 >>= \case
           Union'None -> pure ()
@@ -106,7 +106,8 @@ spec =
 
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing
-        getVectorOfUnions'xs x `shouldThrow` \err -> err == MissingField "xs"
+        getVectorOfUnions'xs req x `shouldThrow` \err -> err == MissingField "xs"
+        getVectorOfUnions'xs opt x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
@@ -120,16 +121,10 @@ spec =
       it "missing" $ do
         x <- decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
         getVectorOfStructs'xs req x `shouldThrow` \err -> err == MissingField "xs"
-        isNothing (getVectorOfStructs'xs opt x) `shouldBe` Just True
+        getVectorOfStructs'xs opt x >>= \mb -> isNothing mb `shouldBe` True
 
 unexpectedUnionType = expectationFailure "Unexpected union type"
 
-isNothing :: ReadCtx m => m (Maybe a) -> m Bool
-isNothing ma =
-  flip fmap ma $ \case
-    Nothing -> True
-    Just _  -> False
-  
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
@@ -230,8 +225,8 @@ newtype UnionA =
 unionA :: Maybe Text -> WriteTable UnionA
 unionA x1 = writeTable [w x1]
 
-getUnionA'x :: ReadCtx m => UnionA -> m Text
-getUnionA'x = readTableField readText 0 "x" req
+getUnionA'x :: ReadCtx m => ReadMode Text a -> UnionA -> m a
+getUnionA'x = readTableField readText 0 "x"
 
 ----------------------------------
 ------------- UnionB -------------
@@ -291,8 +286,8 @@ vectorOfUnions :: Maybe [WriteUnion Union] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
   writeTable [wType x1, wValue x1]
 
-getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
-getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs" Union'None req
+getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector Union) a -> VectorOfUnions -> m a
+getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs" Union'None
 
 
 ----------------------------------
