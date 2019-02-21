@@ -49,6 +49,7 @@ import           Data.Functor                  ((<&>))
 import           Data.Int
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
+import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
@@ -321,7 +322,7 @@ readText Position{..} = do
     G.getByteString $ fromIntegral @Word32 @Int strLength
   case T.decodeUtf8' bs of
     Right t -> pure t
-    Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError msg b
+    Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError (T.pack msg) b
     -- The `EncodeError` constructor is deprecated and not used
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
@@ -378,14 +379,14 @@ moveInt64 (getPos -> Position{..}) offset =
 
 
 data Error
-  = ParsingError { position :: G.ByteOffset
-                 , msg      :: String }
-  | MissingField { fieldName :: FieldName }
-  | Utf8DecodingError { msg  :: String
-                      , byte :: Maybe Word8 }
-  | VectorIndexOutOfBounds VectorLength VectorIndex
-  | EnumUnknown { enumName :: String, enumValue :: Word64 }
-  | UnionUnknown { unionName :: String, unionValue :: Word8 }
+  = ParsingError { position :: !G.ByteOffset
+                 , msg      :: !Text }
+  | MissingField { fieldName :: !FieldName }
+  | Utf8DecodingError { msg  :: !Text
+                      , byte :: !(Maybe Word8) }
+  | VectorIndexOutOfBounds !VectorLength !VectorIndex
+  | EnumUnknown { enumName :: !Text, enumValue :: !Word64 }
+  | UnionUnknown { unionName :: !Text, unionValue :: !Word8 }
   deriving (Show, Eq)
 
 instance Exception Error
@@ -396,7 +397,7 @@ runGetM get =
   where
     feedAll (G.Done _ _ x) _ = pure x
     feedAll (G.Partial k) lbs = feedAll (k (takeHeadChunk lbs)) (dropHeadChunk lbs)
-    feedAll (G.Fail _ pos msg) _ = throwM $ ParsingError pos msg
+    feedAll (G.Fail _ pos msg) _ = throwM $ ParsingError pos (T.pack msg)
 
     takeHeadChunk :: BSL.ByteString -> Maybe BS.ByteString
     takeHeadChunk lbs =
