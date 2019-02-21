@@ -84,6 +84,11 @@ spec =
           Union'None -> pure ()
           _          -> unexpectedUnionType
 
+      it "throws when union type is present, but union value is missing" $ do
+        let union = writeUnion 1 (writeTable [w @Text "hello"])
+        x <- decode @TableWithUnion $ encode $ writeTable [wType union]
+        getTableWithUnion'uni x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+
     describe "VectorOfUnions" $ do
       it "present" $ do
         x <- decode $ encode $ vectorOfUnions (Just
@@ -108,6 +113,10 @@ spec =
         x <- decode $ encode $ vectorOfUnions Nothing
         getVectorOfUnions'xs req x `shouldThrow` \err -> err == MissingField "xs"
         getVectorOfUnions'xs opt x >>= \mb -> isNothing mb `shouldBe` True
+
+      it "throws when union type vector is present, but union value vector is missing" $ do
+          x <- decode @VectorOfUnions $ encode $ writeTable [w @[Word8] []]
+          getVectorOfUnions'xs opt x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c

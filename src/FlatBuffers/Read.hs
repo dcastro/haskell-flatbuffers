@@ -7,15 +7,19 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 module FlatBuffers.Read
   ( ReadCtx
-  , ReadMode
+  , ReadMode(..)
+  , TableIndex(..), VectorIndex(..)
+  , FieldName(..), VectorLength(..)
+  , VOffset(..)
   , ReadError(..)
-  , Struct
-  , Table
-  , Position
-  , Vector
+  , Struct(..)
+  , Table(..)
+  , Position(..)
+  , Vector(..)
   , decode
   , word8Size, word16Size, word32Size, word64Size
   , int8Size, int16Size, int32Size, int64Size
@@ -162,7 +166,12 @@ readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Word8 -> Position -> m
 readTableFieldUnion read ix none t =
   readTableFieldWithDef readWord8 ix 0 t >>= \case
     0          -> pure none
-    uniontType -> readTableFieldWithDef (read uniontType) (ix + 1) none t 
+    uniontType -> readTableField (read uniontType) (ix + 1) "" mode t 
+    where
+      mode :: ReadMode a a
+      mode = ReadMode $ \_ -> \case
+        Just a  -> pure a
+        Nothing -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
 readTableFieldUnionVector :: (Coercible t Table, ReadCtx m)
   => (forall m. ReadCtx m => Word8 -> Position -> m a)
@@ -177,7 +186,7 @@ readTableFieldUnionVector read ix name none (ReadMode mode) (coerce -> t :: Tabl
     Nothing -> mode name Nothing
     Just typesOffset ->
       tableIndexToVOffset t (ix + 1) >>= \case
-        Nothing -> mode name Nothing
+        Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset -> do
           vec <- readUnionVector none read (move t typesOffset) (move t valuesOffset)
           mode name (Just vec)
@@ -387,6 +396,7 @@ data ReadError
   | VectorIndexOutOfBounds !VectorLength !VectorIndex
   | EnumUnknown { enumName :: !Text, enumValue :: !Word64 }
   | UnionUnknown { unionName :: !Text, unionValue :: !Word8 }
+  | MalformedBuffer !Text
   deriving (Show, Eq)
 
 instance Exception ReadError
