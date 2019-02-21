@@ -52,7 +52,7 @@ type BytesWritten = Int
 
 data FBState = FBState
   { _builder      :: !Builder
-  , _bytesWritten :: !BytesWritten
+  , _bytesWritten :: !(Sum BytesWritten)
   , _maxAlign     :: !(Max Word16)
   , _cache        :: !(M.Map BSL.ByteString Offset)
   }
@@ -128,7 +128,7 @@ byteString bs = Field $ do
 
   prep (coerce uoffsetSize) (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
-  bw <- bytesWritten <+= fromIntegral @InlineSize @Int uoffsetSize + fromIntegral length
+  Sum bw <- bytesWritten <<>= Sum (fromIntegral @InlineSize @Int uoffsetSize + fromIntegral length)
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
@@ -138,7 +138,7 @@ prep n additionalBytes =
     then pure ()
     else do
       maxAlign <>= Max n
-      bw <- gets _bytesWritten
+      bw <- uses bytesWritten getSum
       let remainder = (fromIntegral bw + additionalBytes) `rem` n
       let needed = if remainder == 0 then 0 else n - remainder
       sequence_ $ L.genericReplicate needed (write $ word8 0)
@@ -193,14 +193,14 @@ vtable fieldOffsets tableSize = bytestring
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
   -- table
-  tableEnd <- gets _bytesWritten
+  tableEnd <- uses bytesWritten getSum
   locations <-
     coerce $ forM (Reverse fields) $ \f ->
       if size f == 0
         then pure 0
-        else prep (coerce (align f)) 0 >> write f >> gets _bytesWritten
+        else prep (coerce (align f)) 0 >> write f >> use bytesWritten
   prep (coerce soffsetSize) 0
-  tableStart <- gets _bytesWritten
+  tableStart <- uses bytesWritten getSum
 
   let tableLocation = tableStart + fromIntegral @InlineSize @Int soffsetSize
   let tableSize = tableLocation - tableEnd
@@ -223,7 +223,7 @@ table' fields = do
       
       -- vtable
       builder %= mappend (B.lazyByteString newVtable)
-      bytesWritten += newVtableSize
+      bytesWritten <>= Sum newVtableSize
     (Just oldVtableLocation, _) ->
       -- pointer to vtable
       write $ int32 $ negate $ fromIntegral (tableLocation - oldVtableLocation)
@@ -244,10 +244,10 @@ vector fields = Field $ do
   
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
-  bw <- gets _bytesWritten
+  bw <- uses bytesWritten getSum
   pure $ uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
 uoffsetFrom bw = InlineField uoffsetSize uoffsetSize $ do
-  bw2 <- gets _bytesWritten
+  bw2 <- uses bytesWritten getSum
   write (int32 (fromIntegral @Int @Int32 (bw2 - bw) + fromIntegral @InlineSize @Int32 uoffsetSize))
