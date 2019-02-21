@@ -4,6 +4,7 @@
 
 module FlatBuffers.RoundTripSpec where
 
+import           Control.Applicative    (liftA3)
 import           Control.Exception.Safe (throwM)
 import           Control.Monad.IO.Class
 import           Data.Coerce
@@ -14,7 +15,6 @@ import           FlatBuffers.Read
 import           FlatBuffers.Write
 import           Test.Hspec
 
-unexpectedUnionType = expectationFailure "Unexpected union type"
 
 spec :: Spec
 spec =
@@ -107,7 +107,29 @@ spec =
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing
         getVectorOfUnions'xs x `shouldThrow` \err -> err == MissingField "xs"
-        
+
+    describe "VectorOfStructs" $ do
+      let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
+      it "present" $ do
+        x <- decode @VectorOfStructs $ encode $ vectorOfStructs (Just
+          [ threeBytes 1 2 3
+          , threeBytes 4 5 6
+          ])
+        xs <- getVectorOfStructs'xs req x
+        (toList xs >>= traverse getBytes) `shouldBe` Just [(1,2,3), (4,5,6)]
+      it "missing" $ do
+        x <- decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
+        getVectorOfStructs'xs req x `shouldThrow` \err -> err == MissingField "xs"
+        isNothing (getVectorOfStructs'xs opt x) `shouldBe` Just True
+
+unexpectedUnionType = expectationFailure "Unexpected union type"
+
+isNothing :: ReadCtx m => m (Maybe a) -> m Bool
+isNothing ma =
+  flip fmap ma $ \case
+    Nothing -> True
+    Just _  -> False
+  
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
@@ -271,3 +293,38 @@ vectorOfUnions x1 =
 
 getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Vector Union)
 getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs" Union'None req
+
+
+----------------------------------
+----------- ThreeBytes -----------
+----------------------------------
+newtype ThreeBytes = ThreeBytes Struct
+
+threeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
+threeBytes a b c =
+  writeStruct
+    ( ws a )
+    [ ws b
+    , ws c
+    ]
+
+getThreeBytes'a :: ReadCtx m => ThreeBytes -> m Word8
+getThreeBytes'a = readStructField readWord8 0
+
+getThreeBytes'b :: ReadCtx m => ThreeBytes -> m Word8
+getThreeBytes'b = readStructField readWord8 1
+
+getThreeBytes'c :: ReadCtx m => ThreeBytes -> m Word8
+getThreeBytes'c = readStructField readWord8 2
+
+----------------------------------
+------- VectorOfStructs ----------
+----------------------------------
+
+newtype VectorOfStructs = VectorOfStructs Table
+
+vectorOfStructs :: Maybe [WriteStruct ThreeBytes] -> WriteTable VectorOfStructs
+vectorOfStructs x1 = writeTable [w x1]
+
+getVectorOfStructs'xs :: ReadCtx m => ReadMode (Vector ThreeBytes) a -> VectorOfStructs -> m a
+getVectorOfStructs'xs = readTableField (readVector (pure . readStruct) 3) 0 "xs"

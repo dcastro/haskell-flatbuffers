@@ -10,6 +10,7 @@
 
 module FlatBuffers.Read
   ( ReadCtx
+  , ReadMode
   , Error(..)
   , Struct
   , Table
