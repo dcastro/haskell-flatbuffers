@@ -22,20 +22,20 @@ spec =
   it "VectorOfUnions" $ do
     test
       "VectorOfUnions"
-      (vectorOfUnions (Just [union'unionA (unionA (Just "hi"))]))
+      (vectorOfUnions (Just [union (unionA (Just "hi"))]))
       (object ["xs" .= [object ["x" .= String "hi"]]])
     test
       "VectorOfUnions"
-      (vectorOfUnions (Just [union'unionA (unionA Nothing)]))
+      (vectorOfUnions (Just [union (unionA Nothing)]))
       (object ["xs" .= [object ["x" .= Null]]])
     test
       "VectorOfUnions"
       (vectorOfUnions
          (Just
-            [ union'unionA (unionA (Just "hi"))
+            [ union (unionA (Just "hi"))
             , none
-            , union'unionB (unionB (Just maxBound))
-            , union'unionA (unionA (Just "oi"))
+            , union (unionB (Just maxBound))
+            , union (unionA (Just "oi"))
             ]))
       (object
          [ "xs" .=

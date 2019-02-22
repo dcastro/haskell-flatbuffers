@@ -60,12 +60,12 @@ spec =
 
     describe "Union" $ do
       it "present" $ do
-        x <- decode $ encode $ tableWithUnion (Just (union'unionA (unionA (Just "hi"))))
+        x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
         getTableWithUnion'uni x >>= \case
           Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
           _              -> unexpectedUnionType
 
-        x <- decode $ encode $ tableWithUnion (Just (union'unionB (unionB (Just maxBound))))
+        x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
         getTableWithUnion'uni x >>= \case
           Union'UnionB x -> getUnionB'y x `shouldBe` Just maxBound
           _              -> unexpectedUnionType
@@ -89,9 +89,9 @@ spec =
     describe "VectorOfUnions" $ do
       it "present" $ do
         x <- decode $ encode $ vectorOfUnions (Just
-          [ union'unionA (unionA (Just "hi"))
+          [ union (unionA (Just "hi"))
           , none
-          , union'unionB (unionB (Just 98))
+          , union (unionB (Just 98))
           ])
         xs <- getVectorOfUnions'xs req x
         vectorLength xs `shouldBe` 3

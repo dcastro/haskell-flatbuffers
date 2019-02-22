@@ -133,11 +133,14 @@ data Union
   | Union'UnionA !UnionA
   | Union'UnionB !UnionB
 
-union'unionA :: WriteTable UnionA -> WriteUnion Union
-union'unionA = writeUnion 1
+class EncodeUnion a where
+  union :: WriteTable a -> WriteUnion Union
 
-union'unionB :: WriteTable UnionB -> WriteUnion Union
-union'unionB = writeUnion 2
+instance EncodeUnion UnionA where
+  union = writeUnion 1
+
+instance EncodeUnion UnionB where
+  union = writeUnion 2
 
 readUnion :: ReadCtx m => Word8 -> Position -> m Union
 readUnion n pos =
