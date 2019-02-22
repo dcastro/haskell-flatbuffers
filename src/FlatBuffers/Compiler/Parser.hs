@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module FlatBuffers.Parser where
+module FlatBuffers.Compiler.Parser where
 
 import qualified Control.Monad.Combinators.NonEmpty as NE
 import           Data.Functor

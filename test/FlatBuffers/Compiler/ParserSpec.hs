@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module FlatBuffers.ParserSpec where
+module FlatBuffers.Compiler.ParserSpec where
 
 import           Data.List.NonEmpty
 import           Data.Void             (Void)
-import           FlatBuffers.Parser
+import           FlatBuffers.Compiler.Parser
 import           Test.Hspec
 import           Test.Hspec.Megaparsec
 import           Text.Megaparsec
