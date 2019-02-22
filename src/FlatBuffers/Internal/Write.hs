@@ -48,7 +48,7 @@ import           Data.Word
 import           FlatBuffers.Constants
 
 type Offset = BytesWritten
-type BytesWritten = Int
+type BytesWritten = Int32
 
 data FBState = FBState
   { _builder      :: !Builder
@@ -128,7 +128,7 @@ byteString bs = Field $ do
 
   prep (coerce uoffsetSize) (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
-  Sum bw <- bytesWritten <<>= Sum (fromIntegral @InlineSize @Int uoffsetSize + fromIntegral length)
+  Sum bw <- bytesWritten <<>= Sum (fromIntegral @InlineSize @Int32 uoffsetSize + fromIntegral length)
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
@@ -202,7 +202,7 @@ table' fields = do
   prep (coerce soffsetSize) 0
   tableStart <- uses bytesWritten getSum
 
-  let tableLocation = tableStart + fromIntegral @InlineSize @Int soffsetSize
+  let tableLocation = tableStart + fromIntegral @InlineSize @Int32 4
   let tableSize = tableLocation - tableEnd
   let fieldOffsets = flip fmap locations $ \case
                   0 -> 0
@@ -250,4 +250,4 @@ vector fields = Field $ do
 uoffsetFrom :: BytesWritten -> InlineField
 uoffsetFrom bw = InlineField uoffsetSize uoffsetSize $ do
   bw2 <- uses bytesWritten getSum
-  write (int32 (fromIntegral @Int @Int32 (bw2 - bw) + fromIntegral @InlineSize @Int32 uoffsetSize))
+  write (int32 (bw2 - bw + fromIntegral @InlineSize @Int32 uoffsetSize))
