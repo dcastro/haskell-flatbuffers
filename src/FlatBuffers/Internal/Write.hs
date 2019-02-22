@@ -3,9 +3,9 @@
 {-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.Internal.Write
-  ( Field
-  , InlineField
-  , InlineSize
+  ( FBState(..)
+  , Field(..)
+  , InlineField(..)
   , missing
   , table
   , vector
@@ -25,6 +25,7 @@ module FlatBuffers.Internal.Write
   , double
   , bool
   , text
+  , byteString
   ) where
 
 import           Control.Lens

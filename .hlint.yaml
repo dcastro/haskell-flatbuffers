@@ -10,7 +10,7 @@
 
 - ignore: {
     name: Use camelCase,
-    within: [FlatBuffers.RoundTripSpec]
+    within: [FlatBuffers.RoundTripSpec, Examples.HandWritten]
   }
 
 # Specify additional command line arguments
