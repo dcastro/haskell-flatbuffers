@@ -18,17 +18,16 @@ type Parser = Parsec Void String
 -- | https://google.github.io/flatbuffers/flatbuffers_grammar.html
 data Schema = Schema
   { includes :: [Include]
-  , namespaces :: [Namespace]
   , typeDecls  :: [TypeDecl]
   }
-  deriving Show
+  deriving (Show, Eq)
 
 instance Semigroup Schema where
   (<>) = mappend
 
 instance Monoid Schema where
-  mempty = Schema [] [] []
-  Schema i n t `mappend` Schema i2 n2 t2 = Schema (i <> i2) (n <> n2) (t <> t2)
+  mempty = Schema [] []
+  Schema i t `mappend` Schema i2 t2 = Schema (i <> i2) (t <> t2)
 
 newtype Ident = Ident { unIdent :: Text }
   deriving (Show, Eq, IsString)
@@ -40,16 +39,16 @@ newtype StringConst = StringConst { unStringConst :: Text }
   deriving (Show, Eq, IsString)
 
 newtype Namespace = Namespace { unNamespace :: NonEmpty Ident }
-  deriving Show
+  deriving (Show, Eq)
 
 data TypeDecl = TypeDecl { typeDeclType :: TypeDeclType, typeIdent :: Ident, typeFields :: NonEmpty Field }
-  deriving Show
+  deriving (Show, Eq)
 
 data TypeDeclType = Table | Struct
-  deriving Show
+  deriving (Show, Eq)
 
 data Field = Field { fieldIdent :: Ident, fieldType :: Type }
-  deriving Show
+  deriving (Show, Eq)
 
 data Type
   -- numeric
@@ -69,7 +68,7 @@ data Type
   | Tstring
   | Vector Type
   | Tident Ident
-  deriving (Show)
+  deriving (Show, Eq)
 
 sc :: Parser ()
 sc = L.space space1 lineCmnt blockCmnt
@@ -113,8 +112,8 @@ typ =
 
   Tbool <$ symbol "bool" <|>
   Tstring <$ symbol "string" <|>
-  Vector <$> vector typ <|>
-  Tident <$> ident
+  Vector <$> label "array type" (vector typ) <|>
+  Tident <$> label "type identifier" ident
   where
     vector = between (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" )) (symbol "]")
 
@@ -145,8 +144,8 @@ schema = do
   includes <- many include
   schemas <-
     many
-      ((\x -> Schema [] [x] []) <$> namespace <|>
-       (\x -> Schema [] [] [x]) <$> typeDecl <|>
+      ((\x -> Schema [] []) <$> namespace <|>
+       (\x -> Schema [] [x]) <$> typeDecl <|>
        include *> fail "\"include\" statements must be at the beginning of the file."
        )
   eof

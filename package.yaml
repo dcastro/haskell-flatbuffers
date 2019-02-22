@@ -51,3 +51,4 @@ tests:
     - http-types
     - aeson
     - aeson-pretty
+    - raw-strings-qq
