@@ -157,6 +157,15 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     })
                   ).some
 
+                case "VectorOfUnions" =>
+                  val obj = VectorOfUnions.getRootAsVectorOfUnions(bb)
+                  Json.obj(
+                    "xs" =>>
+                      (0 until obj.xsLength()).map { i =>
+                        readUnion(obj)(_.xsType(i), root => union => root.xs(union, i))
+                      }
+                  ).some
+
                 case _ => none
               }
             }

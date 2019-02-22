@@ -86,7 +86,6 @@ table VectorOfStructs {
   xs: [ThreeBytes];
 }
 
-// There's a bug in the java implementation for now: https://github.com/google/flatbuffers/issues/5165
 table VectorOfUnions {
   xs: [Union];
 }
