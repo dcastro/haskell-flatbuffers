@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module AlignmentSpec where
+module FlatBuffers.AlignmentSpec where
 
 import           Control.Monad.IO.Class
 import           Control.Monad.State

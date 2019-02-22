@@ -12,38 +12,46 @@ ghcid:  ## Launch ghcid
 			--restart package.yaml
 .PHONY: ghcid
 
+ghcid-test:  ## Launch ghcid and automatically run all tests
+	ghcid \
+		--command "stack ghci --test" \
+		--test main \
+		--restart package.yaml
+.PHONY: ghcid-test
+
 ghcid-unit:  ## Launch ghcid and automatically run unit tests
 	ghcid \
-		--command "stack ghci \
-			--test \
-			--main-is :unit" \
-		--test main \
+		--command "stack ghci --test" \
+		--test ":main --skip=/FlatBuffers.Integration" \
 		--restart package.yaml
+.PHONY: ghcid-unit
 
-ghcid-int:  ## Launch ghcid and automatically run integration tests
+ghcid-integration:  ## Launch ghcid and automatically run integration tests
 	ghcid \
-		--command "stack ghci \
-			--test \
-			--main-is :integration" \
-		--test main \
+		--command "stack ghci --test" \
+		--test ":main --match=/FlatBuffers.Integration" \
 		--restart package.yaml
+.PHONY: ghcid-integration
 
 flatb: ## Generate java flatbuffers
-	cd ./test/integration/ && \
-	flatc -o ./test-api/src/main/java/ --java schema.fbs
+	flatc -o ./test-api/src/main/java/ --java ./test/Examples/schema.fbs
+.PHONY: flatb
 
 test-api: ## Generate java flatbuffers and launch test-api
 	make flatb
-	cd ./test/integration/test-api/ && \
+	cd ./test-api/ && \
 		sbt "~reStart"
+.PHONY: test-api
 
 test-api-detached: ## Generate java flatbuffers and launch test-api in detached mode
 	make flatb
-	cd ./test/integration/test-api/ && \
+	cd ./test-api/ && \
 		sbt -Djline.terminal=jline.UnsupportedTerminal run &
+.PHONY: test-api-detached
 
 hlint: ## Runs hlint on the project
 	hlint .
+.PHONY: hlint
 
 docs:  ## Builds haddock documentation and watch files for changes
 	$(STACK) haddock --no-haddock-deps --file-watch

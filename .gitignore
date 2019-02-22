@@ -26,3 +26,5 @@ cabal.project.local
 flatbuffers.cabal
 
 # End of https://www.gitignore.io/api/haskell
+
+.metals

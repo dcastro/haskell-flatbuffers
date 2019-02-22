@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TypeApplications  #-}
 
-module IntegrationSpec where
+module FlatBuffers.Integration.IntegrationSpec where
   
 import           Control.Monad
 import           Data.Aeson
