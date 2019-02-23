@@ -31,28 +31,58 @@ spec =
           parseEof include "include \"abc\"" `shouldFailWithError` "unexpected end of input\nexpecting ';'\n"
     describe "schema" $ do
       it "empty schema" $
-        [r||] `parses` Schema [] []
-      it "with includes" $
+        [r||] `parses` Schema [] [] []
+
+      it "includes" $
         [r|
           include "somefile";
           include "otherFile";
-        |] `parses` Schema ["somefile", "otherFile"] []
-      it "with namespaces" $
+        |] `parses` Schema ["somefile", "otherFile"] [] []
+
+      it "namespaces" $
         [r|
           include "somefile";
           namespace My.Api.Domain;
           namespace My.Api.Domain2;
         |] `parses`
-          Schema ["somefile"] []
+          Schema ["somefile"] [] []
+
       it "table declarations" $
         [r|
           table ATable {
-            aField : bool;
+            abc : bool;
+            d : Ref;
+            e : [uint];
+            f : [abc_];
           }
         |] `parses`
           Schema
             []
-            [TypeDecl Table "ATable" (Field "aField" Tbool :| [])]
+            [TypeDecl Table "ATable"
+              ( Field "abc" Tbool :|
+              [ Field "d" (Tident "Ref")
+              , Field "e" (Tvector Tword32)
+              , Field "f" (Tvector (Tident "abc_"))
+              ])]
+            []
+      it "enum declarations" $
+        [r|
+          enum Color : short {
+            Red,
+            Blue = 18446744073709551615,
+            Gray = -18446744073709551615,
+            Black
+          }
+        |] `parses`
+          Schema
+            []
+            []
+            [EnumDecl "Color" Tint16
+              ( EnumValDecl "Red" Nothing :|
+              [ EnumValDecl "Blue" (Just 18446744073709551615)
+              , EnumValDecl "Gray" (Just (-18446744073709551615))
+              , EnumValDecl "Black" Nothing
+              ])]
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =

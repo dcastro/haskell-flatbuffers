@@ -9,16 +9,21 @@ import           Data.String                        (IsString)
 import           Data.Text                          (Text)
 import qualified Data.Text                          as T
 import           Data.Void                          (Void)
+import           Data.Word
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer         as L
 
 type Parser = Parsec Void String
 
--- | https://google.github.io/flatbuffers/flatbuffers_grammar.html
+-- | Roughly based on: https://google.github.io/flatbuffers/flatbuffers_grammar.html
+-- Differences between this parser and the above grammar:
+-- * Unions members now support aliases.
+-- * Enums used to be have a default underlying type (short), but now it must be specified by the user.
 data Schema = Schema
   { includes :: [Include]
   , typeDecls  :: [TypeDecl]
+  , enumDecls :: [EnumDecl]
   }
   deriving (Show, Eq)
 
@@ -26,8 +31,9 @@ instance Semigroup Schema where
   (<>) = mappend
 
 instance Monoid Schema where
-  mempty = Schema [] []
-  Schema i t `mappend` Schema i2 t2 = Schema (i <> i2) (t <> t2)
+  mempty = Schema [] [] []
+  Schema i1 t1 e1 `mappend` Schema i2 t2 e2 =
+    Schema (i1 <> i2) (t1 <> t2) (e1 <> e2)
 
 newtype Ident = Ident { unIdent :: Text }
   deriving (Show, Eq, IsString)
@@ -38,16 +44,35 @@ newtype Include = Include { unInclude :: StringConst }
 newtype StringConst = StringConst { unStringConst :: Text }
   deriving (Show, Eq, IsString)
 
+newtype IntConst = IntConst { unIntConst :: Integer }
+  deriving (Show, Eq, Num, Enum, Ord, Real, Integral)
+
 newtype Namespace = Namespace { unNamespace :: NonEmpty Ident }
   deriving (Show, Eq)
 
-data TypeDecl = TypeDecl { typeDeclType :: TypeDeclType, typeIdent :: Ident, typeFields :: NonEmpty Field }
-  deriving (Show, Eq)
+data TypeDecl = TypeDecl
+  { typeDeclType :: TypeDeclType
+  , typeIdent    :: Ident
+  , typeFields   :: NonEmpty Field
+  } deriving (Show, Eq)
 
 data TypeDeclType = Table | Struct
   deriving (Show, Eq)
 
 data Field = Field { fieldIdent :: Ident, fieldType :: Type }
+  deriving (Show, Eq)
+
+data EnumDecl = EnumDecl
+  { enumDeclIdent :: Ident
+  , enumDeclType  :: Type
+  , enumDeclVals  :: NonEmpty EnumValDecl
+  }
+  deriving (Show, Eq)
+
+data EnumValDecl = EnumValDecl
+  { enumValDeclIdent :: Ident
+  , enumValDeclConst :: Maybe IntConst
+  }
   deriving (Show, Eq)
 
 data Type
@@ -66,7 +91,7 @@ data Type
   -- others
   | Tbool
   | Tstring
-  | Vector Type
+  | Tvector Type
   | Tident Ident
   deriving (Show, Eq)
 
@@ -88,11 +113,12 @@ rword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 curly :: Parser a -> Parser a
 curly = between (symbol "{") (symbol "}")
 
-semi :: Parser String
+semi, colon :: Parser String
 semi = symbol ";"
+colon = symbol ":"
 
 ident :: Parser Ident
-ident = (lexeme . try) identifier
+ident = label "identifier" $ (lexeme . try) identifier
   where
     identifier = fmap (Ident . T.pack) $ (:) <$> letterChar <*> many (alphaNumChar <|> char '_')
 
@@ -112,7 +138,7 @@ typ =
 
   Tbool <$ symbol "bool" <|>
   Tstring <$ symbol "string" <|>
-  Vector <$> label "array type" (vector typ) <|>
+  Tvector <$> label "array type" (vector typ) <|>
   Tident <$> label "type identifier" ident
   where
     vector = between (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" )) (symbol "]")
@@ -127,13 +153,32 @@ typeDecl = do
   fs <- curly (NE.some field)
   pure $ TypeDecl tt i fs
 
+enumDecl :: Parser EnumDecl
+enumDecl = do
+  rword "enum"
+  i <- ident
+  colon
+  t <- typ
+  v <- curly (NE.sepBy1 enumValDecl (symbol ","))
+  pure $ EnumDecl i t v
+
+enumValDecl :: Parser EnumValDecl
+enumValDecl = EnumValDecl <$> ident <*> optional (symbol "=" *> intConst)
+
 namespace :: Parser Namespace
 namespace = Namespace <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
 
 stringConst :: Parser StringConst
 stringConst =
-  fmap (StringConst . T.pack) . lexeme $
-    char '"' >> manyTill L.charLiteral (char '"')
+  label "string constant" $
+    fmap (StringConst . T.pack) . lexeme $
+      char '"' >> manyTill L.charLiteral (char '"')
+
+intConst :: Parser IntConst
+intConst =
+  label "integer constant" $
+    L.signed sc (lexeme L.decimal)
+
 
 include :: Parser Include
 include = Include <$> (rword "include" *> stringConst <* semi)
@@ -144,8 +189,9 @@ schema = do
   includes <- many include
   schemas <-
     many
-      ((\x -> Schema [] []) <$> namespace <|>
-       (\x -> Schema [] [x]) <$> typeDecl <|>
+      ((\x -> Schema [] [] []) <$> namespace <|>
+       (\x -> Schema [] [x] []) <$> typeDecl <|>
+       (\x -> Schema [] [] [x]) <$> enumDecl <|>
        include *> fail "\"include\" statements must be at the beginning of the file."
        )
   eof
