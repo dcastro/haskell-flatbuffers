@@ -1,5 +1,5 @@
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 
 module FlatBuffers.Compiler.ParserSpec where
 
@@ -58,13 +58,34 @@ spec =
         |] `parses`
           Schema
             []
-            [TypeDecl Table "ATable"
+            [TypeDecl Table "ATable" Nothing
               ( Field "abc" Tbool :|
               [ Field "d" (Tident "Ref")
               , Field "e" (Tvector Tword32)
               , Field "f" (Tvector (Tident "abc_"))
               ])]
             []
+
+      it "table declarations with metadata" $
+        [r|
+          table ATable ( a , b : 99992873786287637862.298736756627897654e999999 , c : 3 , d : "attr" ) {
+            abc : bool ;
+          }
+        |] `parses`
+          Schema
+            []
+            [ TypeDecl Table "ATable"
+              (Just (Metadata
+                ( ("a", Nothing) :|
+                [ ("b", Just (ConstN "99992873786287637862.298736756627897654e999999"))
+                , ("c", Just (ConstN "3"))
+                , ("d", Just (ConstS "attr"))
+                ])
+              ))
+              (Field "abc" Tbool :| [])
+            ]
+            []
+
       it "enum declarations" $
         [r|
           enum Color : short {

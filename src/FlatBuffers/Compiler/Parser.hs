@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 module FlatBuffers.Compiler.Parser where
 
@@ -47,12 +48,22 @@ newtype StringConst = StringConst { unStringConst :: Text }
 newtype IntConst = IntConst { unIntConst :: Integer }
   deriving (Show, Eq, Num, Enum, Ord, Real, Integral)
 
+newtype NumberConst = NumberConst { unNumberConst :: String }
+  deriving (Show, Eq, IsString)
+
+data Const = ConstN NumberConst | ConstS StringConst
+  deriving (Show, Eq)
+
+newtype Metadata = Metadata { unMetadata :: NonEmpty (Ident, Maybe Const)}
+  deriving (Show, Eq)
+
 newtype Namespace = Namespace { unNamespace :: NonEmpty Ident }
   deriving (Show, Eq)
 
 data TypeDecl = TypeDecl
   { typeDeclType :: TypeDeclType
   , typeIdent    :: Ident
+  , typeMetadata :: Maybe Metadata
   , typeFields   :: NonEmpty Field
   } deriving (Show, Eq)
 
@@ -110,8 +121,12 @@ symbol = L.symbol sc
 rword :: String -> Parser ()
 rword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 
-curly :: Parser a -> Parser a
+curly, parens :: Parser a -> Parser a
 curly = between (symbol "{") (symbol "}")
+parens = between (symbol "(") (symbol ")")
+
+commaSep :: Parser a -> Parser (NonEmpty a)
+commaSep p = NE.sepBy1 p (symbol ",")
 
 semi, colon :: Parser String
 semi = symbol ";"
@@ -150,8 +165,9 @@ typeDecl :: Parser TypeDecl
 typeDecl = do
   tt <- rword "table" $> Table <|> rword "struct" $> Struct
   i <- ident
+  md <- metadata
   fs <- curly (NE.some field)
-  pure $ TypeDecl tt i fs
+  pure $ TypeDecl tt i md fs
 
 enumDecl :: Parser EnumDecl
 enumDecl = do
@@ -159,7 +175,7 @@ enumDecl = do
   i <- ident
   colon
   t <- typ
-  v <- curly (NE.sepBy1 enumValDecl (symbol ","))
+  v <- curly (commaSep enumValDecl)
   pure $ EnumDecl i t v
 
 enumValDecl :: Parser EnumValDecl
@@ -176,9 +192,21 @@ stringConst =
 
 intConst :: Parser IntConst
 intConst =
-  label "integer constant" $
-    L.signed sc (lexeme L.decimal)
+  label "integer constant" . lexeme $
+    L.signed sc L.decimal
 
+numberConst :: Parser NumberConst
+numberConst = 
+  label "number constant" . lexeme $ do
+    (consumed, _n) <- match (L.signed sc L.scientific)
+    pure (NumberConst consumed)
+
+const' :: Parser Const
+const' = ConstN <$> numberConst <|> ConstS <$> stringConst
+
+metadata :: Parser (Maybe Metadata)
+metadata = label "metadata" . optional . parens . fmap Metadata . commaSep $
+  (,) <$> ident <*> optional (colon *> const')
 
 include :: Parser Include
 include = Include <$> (rword "include" *> stringConst <* semi)
