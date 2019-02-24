@@ -38,22 +38,22 @@ instance Monoid Schema where
 newtype Ident = Ident { unIdent :: Text }
   deriving (Show, Eq, IsString)
 
-newtype Include = Include { unInclude :: StringConst }
+newtype Include = Include { unInclude :: StringLiteral }
   deriving (Show, Eq, IsString)
 
-newtype StringConst = StringConst { unStringConst :: Text }
+newtype StringLiteral = StringLiteral { unStringLiteral :: Text }
   deriving (Show, Eq, IsString)
 
-newtype IntConst = IntConst { unIntConst :: Integer }
+newtype IntLiteral = IntLiteral { unIntLiteral :: Integer }
   deriving (Show, Eq, Num, Enum, Ord, Real, Integral)
 
-newtype NumberConst = NumberConst { unNumberConst :: String }
+newtype NumberLiteral = NumberLiteral { unNumberLiteral :: String }
   deriving (Show, Eq, IsString)
 
-data Const = ConstN NumberConst | ConstS StringConst
+data Literal = LiteralN NumberLiteral | LiteralS StringLiteral
   deriving (Show, Eq)
 
-newtype Metadata = Metadata { unMetadata :: NonEmpty (Ident, Maybe Const)}
+newtype Metadata = Metadata { unMetadata :: NonEmpty (Ident, Maybe Literal)}
   deriving (Show, Eq)
 
 newtype Namespace = Namespace { unNamespace :: NonEmpty Ident }
@@ -72,7 +72,7 @@ data TypeDeclType = Table | Struct
 data Field = Field
   { fieldIdent    :: Ident
   , fieldType     :: Type
-  , fieldDefault  :: Maybe NumberConst
+  , fieldDefault  :: Maybe NumberLiteral
   , fieldMetadata :: Maybe Metadata
   } deriving (Show, Eq)
 
@@ -85,10 +85,9 @@ data EnumDecl = EnumDecl
   deriving (Show, Eq)
 
 data EnumValDecl = EnumValDecl
-  { enumValDeclIdent :: Ident
-  , enumValDeclConst :: Maybe IntConst
-  }
-  deriving (Show, Eq)
+  { enumValDeclIdent   :: Ident
+  , enumValDeclLiteral :: Maybe IntLiteral
+  } deriving (Show, Eq)
 
 data Type
   -- numeric
@@ -167,7 +166,7 @@ field = do
   i <- ident
   colon
   t <- typ
-  def <- optional (symbol "=" *> numberConst)
+  def <- optional (symbol "=" *> numberLiteral)
   md <- metadata
   semi
   pure $ Field i t def md
@@ -191,37 +190,37 @@ enumDecl = do
   pure $ EnumDecl i t md v
 
 enumValDecl :: Parser EnumValDecl
-enumValDecl = EnumValDecl <$> ident <*> optional (symbol "=" *> intConst)
+enumValDecl = EnumValDecl <$> ident <*> optional (symbol "=" *> intLiteral)
 
 namespace :: Parser Namespace
 namespace = Namespace <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
 
-stringConst :: Parser StringConst
-stringConst =
-  label "string constant" $
-    fmap (StringConst . T.pack) . lexeme $
+stringLiteral :: Parser StringLiteral
+stringLiteral =
+  label "string literal" $
+    fmap (StringLiteral . T.pack) . lexeme $
       char '"' >> manyTill L.charLiteral (char '"')
 
-intConst :: Parser IntConst
-intConst =
-  label "integer constant" . lexeme $
+intLiteral :: Parser IntLiteral
+intLiteral =
+  label "integer literal" . lexeme $
     L.signed sc L.decimal
 
-numberConst :: Parser NumberConst
-numberConst = 
-  label "number constant" . lexeme $ do
+numberLiteral :: Parser NumberLiteral
+numberLiteral = 
+  label "number literal" . lexeme $ do
     (consumed, _n) <- match (L.signed sc L.scientific)
-    pure (NumberConst consumed)
+    pure (NumberLiteral consumed)
 
-const' :: Parser Const
-const' = ConstN <$> numberConst <|> ConstS <$> stringConst
+literal :: Parser Literal
+literal = LiteralN <$> numberLiteral <|> LiteralS <$> stringLiteral
 
 metadata :: Parser (Maybe Metadata)
 metadata = label "metadata" . optional . parens . fmap Metadata . commaSep $
-  (,) <$> ident <*> optional (colon *> const')
+  (,) <$> ident <*> optional (colon *> literal)
 
 include :: Parser Include
-include = Include <$> (rword "include" *> stringConst <* semi)
+include = Include <$> (rword "include" *> stringLiteral <* semi)
 
 schema :: Parser Schema
 schema = do

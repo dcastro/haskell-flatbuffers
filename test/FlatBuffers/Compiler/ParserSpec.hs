@@ -78,9 +78,9 @@ spec =
             [ TypeDecl Table "ATable"
               (Just (Metadata $ fromList
                 [ ("a", Nothing)
-                , ("b", Just (ConstN "99992873786287637862.298736756627897654e999999"))
-                , ("c", Just (ConstN "3"))
-                , ("d", Just (ConstS "attr"))
+                , ("b", Just (LiteralN "99992873786287637862.298736756627897654e999999"))
+                , ("c", Just (LiteralN "3"))
+                , ("d", Just (LiteralS "attr"))
                 ]
               ))
               (pure (Field "abc" Tbool (Just "99") (Just (Metadata (pure ("def", Nothing))))))
