@@ -29,12 +29,11 @@ data Schema = Schema
   deriving (Show, Eq)
 
 instance Semigroup Schema where
-  (<>) = mappend
+  Schema i1 t1 e1 <> Schema i2 t2 e2 =
+    Schema (i1 <> i2) (t1 <> t2) (e1 <> e2)
 
 instance Monoid Schema where
   mempty = Schema [] [] []
-  Schema i1 t1 e1 `mappend` Schema i2 t2 e2 =
-    Schema (i1 <> i2) (t1 <> t2) (e1 <> e2)
 
 newtype Ident = Ident { unIdent :: Text }
   deriving (Show, Eq, IsString)
@@ -70,8 +69,12 @@ data TypeDecl = TypeDecl
 data TypeDeclType = Table | Struct
   deriving (Show, Eq)
 
-data Field = Field { fieldIdent :: Ident, fieldType :: Type }
-  deriving (Show, Eq)
+data Field = Field
+  { fieldIdent    :: Ident
+  , fieldType     :: Type
+  , fieldDefault  :: Maybe NumberConst
+  , fieldMetadata :: Maybe Metadata
+  } deriving (Show, Eq)
 
 data EnumDecl = EnumDecl
   { enumDeclIdent :: Ident
@@ -159,7 +162,14 @@ typ =
     vector = between (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" )) (symbol "]")
 
 field :: Parser Field
-field = (Field <$> ident <*> (symbol ":" >> typ)) <* semi
+field = do
+  i <- ident
+  colon
+  t <- typ
+  def <- optional (symbol "=" *> numberConst)
+  md <- metadata
+  semi
+  pure $ Field i t def md
 
 typeDecl :: Parser TypeDecl
 typeDecl = do

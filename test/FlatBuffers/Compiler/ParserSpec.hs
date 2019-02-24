@@ -51,38 +51,39 @@ spec =
         [r|
           table ATable {
             abc : bool;
-            d : Ref;
-            e : [uint];
+            d : Ref = 123;
+            e : [uint] = 99.2e9;
             f : [abc_];
           }
         |] `parses`
           Schema
             []
-            [TypeDecl Table "ATable" Nothing
-              ( Field "abc" Tbool :|
-              [ Field "d" (Tident "Ref")
-              , Field "e" (Tvector Tword32)
-              , Field "f" (Tvector (Tident "abc_"))
-              ])]
+            [TypeDecl Table "ATable" Nothing $ fromList
+              [ Field "abc" Tbool Nothing Nothing
+              , Field "d" (Tident "Ref") (Just "123") Nothing
+              , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
+              , Field "f" (Tvector (Tident "abc_")) Nothing Nothing
+              ]
+            ]
             []
 
       it "table declarations with metadata" $
         [r|
           table ATable ( a , b : 99992873786287637862.298736756627897654e999999 , c : 3 , d : "attr" ) {
-            abc : bool ;
+            abc : bool = 99 ( def ) ;
           }
         |] `parses`
           Schema
             []
             [ TypeDecl Table "ATable"
-              (Just (Metadata
-                ( ("a", Nothing) :|
-                [ ("b", Just (ConstN "99992873786287637862.298736756627897654e999999"))
+              (Just (Metadata $ fromList
+                [ ("a", Nothing)
+                , ("b", Just (ConstN "99992873786287637862.298736756627897654e999999"))
                 , ("c", Just (ConstN "3"))
                 , ("d", Just (ConstS "attr"))
-                ])
+                ]
               ))
-              (Field "abc" Tbool :| [])
+              (pure (Field "abc" Tbool (Just "99") (Just (Metadata (pure ("def", Nothing))))))
             ]
             []
 
@@ -98,12 +99,13 @@ spec =
           Schema
             []
             []
-            [EnumDecl "Color" Tint16
-              ( EnumValDecl "Red" Nothing :|
-              [ EnumValDecl "Blue" (Just 18446744073709551615)
+            [EnumDecl "Color" Tint16 $ fromList
+              [ EnumValDecl "Red" Nothing
+              , EnumValDecl "Blue" (Just 18446744073709551615)
               , EnumValDecl "Gray" (Just (-18446744073709551615))
               , EnumValDecl "Black" Nothing
-              ])]
+              ]
+            ]
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =
