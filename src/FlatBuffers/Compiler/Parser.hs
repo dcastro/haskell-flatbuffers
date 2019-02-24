@@ -77,9 +77,10 @@ data Field = Field
   } deriving (Show, Eq)
 
 data EnumDecl = EnumDecl
-  { enumDeclIdent :: Ident
-  , enumDeclType  :: Type
-  , enumDeclVals  :: NonEmpty EnumValDecl
+  { enumDeclIdent    :: Ident
+  , enumDeclType     :: Type
+  , enumDeclMetadata :: Maybe Metadata
+  , enumDeclVals     :: NonEmpty EnumValDecl
   }
   deriving (Show, Eq)
 
@@ -185,8 +186,9 @@ enumDecl = do
   i <- ident
   colon
   t <- typ
+  md <- metadata
   v <- curly (commaSep enumValDecl)
-  pure $ EnumDecl i t v
+  pure $ EnumDecl i t md v
 
 enumValDecl :: Parser EnumValDecl
 enumValDecl = EnumValDecl <$> ident <*> optional (symbol "=" *> intConst)

@@ -13,7 +13,7 @@ import           Text.RawString.QQ           (r)
 
 spec :: Spec
 spec =
-  fdescribe "Parser" $ do
+  describe "Parser" $ do
     describe "include" $ do
       it "parses correctly" $
         parseEof include [r|include "abc";|] `shouldParse` "abc"
@@ -89,7 +89,7 @@ spec =
 
       it "enum declarations" $
         [r|
-          enum Color : short {
+          enum Color : short (attr) {
             Red,
             Blue = 18446744073709551615,
             Gray = -18446744073709551615,
@@ -99,7 +99,7 @@ spec =
           Schema
             []
             []
-            [EnumDecl "Color" Tint16 $ fromList
+            [EnumDecl "Color" Tint16 (Just (Metadata (pure ("attr", Nothing)))) $ fromList
               [ EnumValDecl "Red" Nothing
               , EnumValDecl "Blue" (Just 18446744073709551615)
               , EnumValDecl "Gray" (Just (-18446744073709551615))
