@@ -32,13 +32,13 @@ spec =
           parseEof include "include \"abc\"" `shouldFailWithError` "unexpected end of input\nexpecting ';'\n"
     describe "schema" $ do
       it "empty schema" $
-        [r||] `parses` Schema [] [] []
+        [r||] `parses` Schema [] [] [] []
 
       it "includes" $
         [r|
           include "somefile";
           include "otherFile";
-        |] `parses` Schema ["somefile", "otherFile"] [] []
+        |] `parses` Schema ["somefile", "otherFile"] [] [] []
 
       it "namespaces" $
         [r|
@@ -46,7 +46,7 @@ spec =
           namespace My.Api.Domain;
           namespace My.Api.Domain2;
         |] `parses`
-          Schema ["somefile"] [] []
+          Schema ["somefile"] [] [] []
 
       it "table declarations" $
         [r|
@@ -66,7 +66,7 @@ spec =
               , Field "f" (Tvector (Tident "abc_")) Nothing Nothing
               ]
             ]
-            []
+            [] []
 
       it "table declarations with metadata" $
         [r|
@@ -86,7 +86,7 @@ spec =
               ))
               (pure (Field "abc" Tbool (Just "99") (Just (Metadata (pure ("def", Nothing))))))
             ]
-            []
+            [] []
 
       it "enum declarations" $
         [r|
@@ -106,6 +106,28 @@ spec =
               , EnumValDecl "Gray" (Just (-18446744073709551615))
               , EnumValDecl "Black" Nothing
               ]
+            ]
+            []
+
+      it "union declarations" $
+        [r|
+          union Weapon ( attr ) {
+            Sword,
+            mace: Stick,
+            Axe
+          }
+        |] `parses`
+          Schema
+            [] [] []
+            [ UnionDecl
+                "Weapon"
+                (Just (Metadata (pure ("attr", Nothing))))
+                (fromList
+                  [ UnionValDecl Nothing "Sword"
+                  , UnionValDecl (Just "mace") "Stick"
+                  , UnionValDecl Nothing "Axe"
+                  ]
+                )
             ]
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation

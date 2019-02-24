@@ -24,9 +24,10 @@ schema = do
   includes <- many include
   schemas <-
     many
-      ((\x -> Schema [] [] []) <$> namespace <|>
-       (\x -> Schema [] [x] []) <$> typeDecl <|>
-       (\x -> Schema [] [] [x]) <$> enumDecl <|>
+      ((\x -> Schema [] [] [] []) <$> namespace <|>
+       (\x -> Schema [] [x] [] []) <$> typeDecl <|>
+       (\x -> Schema [] [] [x] []) <$> enumDecl <|>
+       (\x -> Schema [] [] [] [x]) <$> unionDecl <|>
        include *> fail "\"include\" statements must be at the beginning of the file."
        )
   eof
@@ -114,6 +115,17 @@ enumDecl = do
 
 enumValDecl :: Parser EnumValDecl
 enumValDecl = EnumValDecl <$> ident <*> optional (symbol "=" *> intLiteral)
+
+unionDecl :: Parser UnionDecl
+unionDecl = do
+  rword "union"
+  i <- ident
+  md <- metadata
+  v <- curly (commaSep unionValDecl)
+  pure $ UnionDecl i md v
+
+unionValDecl :: Parser UnionValDecl
+unionValDecl = UnionValDecl <$> optional (try (ident <* colon)) <*> ident
 
 namespace :: Parser Namespace
 namespace = Namespace <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)

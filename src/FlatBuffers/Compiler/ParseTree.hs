@@ -7,16 +7,18 @@ import           Data.String        (IsString)
 import           Data.Text          (Text)
 
 data Schema = Schema
-  { includes  :: [Include]
-  , typeDecls :: [TypeDecl]
-  , enumDecls :: [EnumDecl]
+  { includes   :: [Include]
+  , typeDecls  :: [TypeDecl]
+  , enumDecls  :: [EnumDecl]
+  , unionDecls :: [UnionDecl]
   } deriving (Show, Eq)
 
 instance Semigroup Schema where
-  Schema i1 t1 e1 <> Schema i2 t2 e2 = Schema (i1 <> i2) (t1 <> t2) (e1 <> e2)
+  Schema i1 t1 e1 u1 <> Schema i2 t2 e2 u2 =
+    Schema (i1 <> i2) (t1 <> t2) (e1 <> e2) (u1 <> u2)
 
 instance Monoid Schema where
-  mempty = Schema [] [] []
+  mempty = Schema [] [] [] []
 
 newtype Ident = Ident
   { unIdent :: Text
@@ -80,6 +82,17 @@ data EnumDecl = EnumDecl
 data EnumValDecl = EnumValDecl
   { enumValDeclIdent   :: Ident
   , enumValDeclLiteral :: Maybe IntLiteral
+  } deriving (Show, Eq)
+
+data UnionDecl = UnionDecl
+  { unionDeclIdent    :: Ident
+  , unionDeclMetadata :: Maybe Metadata
+  , unionDeclVals     :: NonEmpty UnionValDecl
+  } deriving (Show, Eq)
+
+data UnionValDecl = UnionValDecl
+  { unionValDeclAlias :: Maybe Ident
+  , unionValDeclType  :: Ident
   } deriving (Show, Eq)
 
 data Type
