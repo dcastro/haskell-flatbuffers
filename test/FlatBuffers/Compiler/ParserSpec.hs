@@ -32,13 +32,13 @@ spec =
           parseEof include "include \"abc\"" `shouldFailWithError` "unexpected end of input\nexpecting ';'\n"
     describe "schema" $ do
       it "empty schema" $
-        [r||] `parses` Schema [] [] [] []
+        [r||] `parses` Schema [] [] [] [] [] [] [] []
 
       it "includes" $
         [r|
           include "somefile";
           include "otherFile";
-        |] `parses` Schema ["somefile", "otherFile"] [] [] []
+        |] `parses` Schema ["somefile", "otherFile"] [] [] [] [] [] [] []
 
       it "namespaces" $
         [r|
@@ -46,7 +46,7 @@ spec =
           namespace My.Api.Domain;
           namespace My.Api.Domain2;
         |] `parses`
-          Schema ["somefile"] [] [] []
+          Schema ["somefile"] [] [] [] [] [] [] []
 
       it "table declarations" $
         [r|
@@ -66,11 +66,11 @@ spec =
               , Field "f" (Tvector (Tident "abc_")) Nothing Nothing
               ]
             ]
-            [] []
+            [] [] [] [] [] []
 
       it "table declarations with metadata" $
         [r|
-          table ATable ( a , b : 99992873786287637862.298736756627897654e999999 , c : 3 , d : "attr" ) {
+          table ATable ( a , "b" : 99992873786287637862.298736756627897654e999999 , c : 3 , d : "attr" ) {
             abc : bool = 99 ( def ) ;
           }
         |] `parses`
@@ -86,7 +86,7 @@ spec =
               ))
               (pure (Field "abc" Tbool (Just "99") (Just (Metadata (pure ("def", Nothing))))))
             ]
-            [] []
+            [] [] [] [] [] []
 
       it "enum declarations" $
         [r|
@@ -107,7 +107,7 @@ spec =
               , EnumValDecl "Black" Nothing
               ]
             ]
-            []
+            [] [] [] [] []
 
       it "union declarations" $
         [r|
@@ -129,6 +129,25 @@ spec =
                   ]
                 )
             ]
+            [] [] [] []
+
+      it "root types, file extensions / identifiers, attribute declarations" $
+        [r|
+          attribute a;
+          file_extension "b";
+          root_type c;
+
+          file_identifier "d";
+          attribute e;
+          file_extension "f";
+        |] `parses`
+          Schema
+            [] [] [] []
+            [ RootDecl "c" ]
+            [ FileExtensionDecl "b", FileExtensionDecl "f" ]
+            [ FileIdentifierDecl "d" ]
+            [ AttributeDecl "a", AttributeDecl "e" ]
+
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =

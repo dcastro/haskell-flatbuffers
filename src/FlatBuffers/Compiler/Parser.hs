@@ -3,6 +3,7 @@
 module FlatBuffers.Compiler.Parser where
 
 import qualified Control.Monad.Combinators.NonEmpty as NE
+import           Data.Coerce                        (coerce)
 import           Data.Functor
 import           Data.List.NonEmpty
 import qualified Data.Text                          as T
@@ -14,20 +15,26 @@ import qualified Text.Megaparsec.Char.Lexer         as L
 
 type Parser = Parsec Void String
 
--- | Roughly based on: https://google.github.io/flatbuffers/flatbuffers_grammar.html
+-- | Roughly based on: https://google.github.io/flatbuffers/flatbuffers_grammar.html.
 -- Differences between this parser and the above grammar:
--- * Unions members now support aliases.
--- * Enums used to be have a default underlying type (short), but now it must be specified by the user.
+-- 
+--   * Unions members now support aliases.
+--   * An enum's underlying type used to be optional (defaulting to @short@), but now it's mandatory.
+--   * Attributes can be reffered to either as an identifier or as a string literal (e.g. @attr@ or @"attr"@)
 schema :: Parser Schema
 schema = do
   sc
   includes <- many include
   schemas <-
     many
-      ((\x -> Schema [] [] [] []) <$> namespace <|>
-       (\x -> Schema [] [x] [] []) <$> typeDecl <|>
-       (\x -> Schema [] [] [x] []) <$> enumDecl <|>
-       (\x -> Schema [] [] [] [x]) <$> unionDecl <|>
+      ((\x -> Schema [] [] [] [] [] [] [] []) <$> namespace <|>
+       (\x -> Schema [] [x] [] [] [] [] [] []) <$> typeDecl <|>
+       (\x -> Schema [] [] [x] [] [] [] [] []) <$> enumDecl <|>
+       (\x -> Schema [] [] [] [x] [] [] [] []) <$> unionDecl <|>
+       (\x -> Schema [] [] [] [] [x] [] [] []) <$> rootDecl <|>
+       (\x -> Schema [] [] [] [] [] [x] [] []) <$> fileExtensionDecl <|>
+       (\x -> Schema [] [] [] [] [] [] [x] []) <$> fileIdentifierDecl <|>
+       (\x -> Schema [] [] [] [] [] [] [] [x]) <$> attributeDecl <|>
        include *> fail "\"include\" statements must be at the beginning of the file."
        )
   eof
@@ -152,7 +159,22 @@ literal = LiteralN <$> numberLiteral <|> LiteralS <$> stringLiteral
 
 metadata :: Parser (Maybe Metadata)
 metadata = label "metadata" . optional . parens . fmap Metadata . commaSep $
-  (,) <$> ident <*> optional (colon *> literal)
+  (,) <$> attributeName <*> optional (colon *> literal)
 
 include :: Parser Include
 include = Include <$> (rword "include" *> stringLiteral <* semi)
+
+rootDecl :: Parser RootDecl
+rootDecl = RootDecl <$> (rword "root_type" *> ident <* semi)
+
+fileExtensionDecl :: Parser FileExtensionDecl
+fileExtensionDecl = FileExtensionDecl <$> (rword "file_extension" *> stringLiteral <* semi)
+
+fileIdentifierDecl :: Parser FileIdentifierDecl
+fileIdentifierDecl = FileIdentifierDecl <$> (rword "file_identifier" *> stringLiteral <* semi)
+
+attributeDecl :: Parser AttributeDecl
+attributeDecl = AttributeDecl <$> (rword "attribute" *> attributeName <* semi)
+
+attributeName :: Parser Ident
+attributeName = coerce stringLiteral <|> ident
