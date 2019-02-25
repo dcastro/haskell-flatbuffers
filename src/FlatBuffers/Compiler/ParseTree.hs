@@ -12,7 +12,8 @@ data Schema = Schema
   } deriving (Show, Eq)
 
 data Decl
-  = DeclT TypeDecl
+  = DeclN NamespaceDecl
+  | DeclT TypeDecl
   | DeclE EnumDecl
   | DeclU UnionDecl
   | DeclR RootDecl
@@ -50,7 +51,7 @@ newtype Metadata = Metadata
   { unMetadata :: NonEmpty (Ident, Maybe Literal)
   } deriving (Show, Eq)
 
-newtype Namespace = Namespace
+newtype NamespaceDecl = NamespaceDecl
   { unNamespace :: NonEmpty Ident
   } deriving (Show, Eq)
 

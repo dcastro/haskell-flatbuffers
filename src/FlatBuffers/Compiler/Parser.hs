@@ -36,14 +36,14 @@ schema = do
 decl :: Parser (Maybe Decl)
 decl =
   choice
-    [ Just . DeclT <$> typeDecl
+    [ Just . DeclN <$> namespaceDecl
+    , Just . DeclT <$> typeDecl
     , Just . DeclE <$> enumDecl
     , Just . DeclU <$> unionDecl
     , Just . DeclR <$> rootDecl
     , Just . DeclFE <$> fileExtensionDecl
     , Just . DeclFI <$> fileIdentifierDecl
     , Just . DeclA <$> attributeDecl
-    , Nothing <$ namespace
     , Nothing <$ jsonObj
     , Nothing <$ rpcDecl
     ]
@@ -147,8 +147,8 @@ unionDecl = do
 unionValDecl :: Parser UnionValDecl
 unionValDecl = UnionValDecl <$> optional (try (ident <* colon)) <*> ident
 
-namespace :: Parser Namespace
-namespace = Namespace <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
+namespaceDecl :: Parser NamespaceDecl
+namespaceDecl = NamespaceDecl <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
 
 stringLiteral :: Parser StringLiteral
 stringLiteral =
