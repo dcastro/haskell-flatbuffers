@@ -7,30 +7,19 @@ import           Data.String        (IsString)
 import           Data.Text          (Text)
 
 data Schema = Schema
-  { includes            :: [Include]
-  , typeDecls           :: [TypeDecl]
-  , enumDecls           :: [EnumDecl]
-  , unionDecls          :: [UnionDecl]
-  , rootDecls           :: [RootDecl]
-  , fileExtensionDecls  :: [FileExtensionDecl]
-  , fileIdentifierDecls :: [FileIdentifierDecl]
-  , attributeDecls      :: [AttributeDecl]
+  { includes :: [Include]
+  , decls    :: [Decl]
   } deriving (Show, Eq)
 
-instance Semigroup Schema where
-  Schema i1 t1 e1 u1 r1 fe1 fi1 a1 <> Schema i2 t2 e2 u2 r2 fe2 fi2 a2 =
-    Schema
-      (i1 <> i2)
-      (t1 <> t2)
-      (e1 <> e2)
-      (u1 <> u2)
-      (r1 <> r2)
-      (fe1 <> fe2)
-      (fi1 <> fi2)
-      (a1 <> a2)
-
-instance Monoid Schema where
-  mempty = Schema [] [] [] [] [] [] [] []
+data Decl
+  = DeclT TypeDecl
+  | DeclE EnumDecl
+  | DeclU UnionDecl
+  | DeclR RootDecl
+  | DeclFE FileExtensionDecl
+  | DeclFI FileIdentifierDecl
+  | DeclA AttributeDecl
+  deriving (Show, Eq)
 
 newtype Ident = Ident
   { unIdent :: Text

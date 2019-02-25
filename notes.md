@@ -60,6 +60,9 @@
 
 ## TODO
 
+* Code generation:
+  - give the user the option to generate code for imported types
+
 * Guard against writing buffers longer than 2^31-1 bytes 
     * this should (implicitly) also protect against strings/vectors with a length that wouldn't fit in a uoffset (word32) field.
 * Add support for:

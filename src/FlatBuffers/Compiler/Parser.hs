@@ -6,6 +6,7 @@ import qualified Control.Monad.Combinators.NonEmpty as NE
 import           Data.Coerce                        (coerce)
 import           Data.Functor
 import           Data.List.NonEmpty
+import           Data.Maybe                         (catMaybes)
 import qualified Data.Text                          as T
 import           Data.Void                          (Void)
 import           FlatBuffers.Compiler.ParseTree
@@ -25,22 +26,27 @@ schema :: Parser Schema
 schema = do
   sc
   includes <- many include
-  schemas <-
-    many $ choice
-      [ namespace $> mempty
-      , jsonObj $> mempty
-      , rpcDecl $> mempty
-      , (\x -> Schema [] [x] [] [] [] [] [] []) <$> typeDecl
-      , (\x -> Schema [] [] [x] [] [] [] [] []) <$> enumDecl
-      , (\x -> Schema [] [] [] [x] [] [] [] []) <$> unionDecl
-      , (\x -> Schema [] [] [] [] [x] [] [] []) <$> rootDecl
-      , (\x -> Schema [] [] [] [] [] [x] [] []) <$> fileExtensionDecl
-      , (\x -> Schema [] [] [] [] [] [] [x] []) <$> fileIdentifierDecl
-      , (\x -> Schema [] [] [] [] [] [] [] [x]) <$> attributeDecl
-      , include *> fail "\"include\" statements must be at the beginning of the file."
-      ]
+  decls <- many (decl <|> failOnInclude)
   eof
-  pure $ (mconcat schemas) { includes = includes }
+  pure $ Schema includes (catMaybes decls)
+  where
+    failOnInclude = include *> fail "\"include\" statements must be at the beginning of the file."
+
+
+decl :: Parser (Maybe Decl)
+decl =
+  choice
+    [ Just . DeclT <$> typeDecl
+    , Just . DeclE <$> enumDecl
+    , Just . DeclU <$> unionDecl
+    , Just . DeclR <$> rootDecl
+    , Just . DeclFE <$> fileExtensionDecl
+    , Just . DeclFI <$> fileIdentifierDecl
+    , Just . DeclA <$> attributeDecl
+    , Nothing <$ namespace
+    , Nothing <$ jsonObj
+    , Nothing <$ rpcDecl
+    ]
 
 sc :: Parser ()
 sc = L.space space1 lineCmnt blockCmnt

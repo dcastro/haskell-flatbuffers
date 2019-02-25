@@ -32,13 +32,13 @@ spec =
           parseEof include "include \"abc\"" `shouldFailWithError` "unexpected end of input\nexpecting ';'\n"
     describe "schema" $ do
       it "empty schema" $
-        [r||] `parses` Schema [] [] [] [] [] [] [] []
+        [r||] `parses` Schema [] []
 
       it "includes" $
         [r|
           include "somefile";
           include "otherFile";
-        |] `parses` Schema ["somefile", "otherFile"] [] [] [] [] [] [] []
+        |] `parses` Schema ["somefile", "otherFile"] []
 
       it "namespaces" $
         [r|
@@ -46,7 +46,7 @@ spec =
           namespace My.Api.Domain;
           namespace My.Api.Domain2;
         |] `parses`
-          Schema ["somefile"] [] [] [] [] [] [] []
+          Schema ["somefile"] []
 
       it "table declarations" $
         [r|
@@ -59,14 +59,13 @@ spec =
         |] `parses`
           Schema
             []
-            [TypeDecl Table "ATable" Nothing $ fromList
+            [ DeclT $ TypeDecl Table "ATable" Nothing $ fromList
               [ Field "abc" Tbool Nothing Nothing
               , Field "d" (Tident "Ref") (Just "123") Nothing
               , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
               , Field "f" (Tvector (Tident "abc_")) Nothing Nothing
               ]
             ]
-            [] [] [] [] [] []
 
       it "table declarations with metadata" $
         [r|
@@ -76,7 +75,7 @@ spec =
         |] `parses`
           Schema
             []
-            [ TypeDecl Table "ATable"
+            [ DeclT $  TypeDecl Table "ATable"
               (Just (Metadata $ fromList
                 [ ("a", Nothing)
                 , ("b", Just (LiteralN "99992873786287637862.298736756627897654e999999"))
@@ -86,7 +85,6 @@ spec =
               ))
               (pure (Field "abc" Tbool (Just "99") (Just (Metadata (pure ("def", Nothing))))))
             ]
-            [] [] [] [] [] []
 
       it "enum declarations" $
         [r|
@@ -99,15 +97,13 @@ spec =
         |] `parses`
           Schema
             []
-            []
-            [EnumDecl "Color" Tint16 (Just (Metadata (pure ("attr", Nothing)))) $ fromList
+            [DeclE $ EnumDecl "Color" Tint16 (Just (Metadata (pure ("attr", Nothing)))) $ fromList
               [ EnumValDecl "Red" Nothing
               , EnumValDecl "Blue" (Just 18446744073709551615)
               , EnumValDecl "Gray" (Just (-18446744073709551615))
               , EnumValDecl "Black" Nothing
               ]
             ]
-            [] [] [] [] []
 
       it "union declarations" $
         [r|
@@ -118,8 +114,8 @@ spec =
           }
         |] `parses`
           Schema
-            [] [] []
-            [ UnionDecl
+            []
+            [ DeclU $ UnionDecl
                 "Weapon"
                 (Just (Metadata (pure ("attr", Nothing))))
                 (fromList
@@ -129,24 +125,23 @@ spec =
                   ]
                 )
             ]
-            [] [] [] []
 
       it "root types, file extensions / identifiers, attribute declarations" $
         [r|
           attribute a;
-          file_extension "b";
+          attribute "b";
           root_type c;
-
-          file_identifier "d";
-          attribute e;
-          file_extension "f";
+          file_extension "d";
+          file_identifier "e";
         |] `parses`
           Schema
-            [] [] [] []
-            [ RootDecl "c" ]
-            [ FileExtensionDecl "b", FileExtensionDecl "f" ]
-            [ FileIdentifierDecl "d" ]
-            [ AttributeDecl "a", AttributeDecl "e" ]
+            []
+            [ DeclA $ AttributeDecl "a"
+            , DeclA $ AttributeDecl "b"
+            , DeclR $ RootDecl "c"
+            , DeclFE $ FileExtensionDecl "d"
+            , DeclFI $ FileIdentifierDecl "e"
+            ]
 
       it "json objects" $
         [r|
@@ -162,8 +157,7 @@ spec =
         |] `parses`
           Schema
             [ Include "a" ]
-            [] [] [] [] [] []
-            [ AttributeDecl "b" ]
+            [ DeclA $ AttributeDecl "b" ]
 
       it "RPC services" $
         [r|
@@ -176,8 +170,7 @@ spec =
 
         |] `parses`
           Schema
-            [ Include "a" ]
-            [] [] [] [] [] [] []
+            [ Include "a" ] []
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =
