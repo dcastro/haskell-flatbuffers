@@ -29,6 +29,7 @@ schema = do
     many $ choice
       [ namespace $> mempty
       , jsonObj $> mempty
+      , rpcDecl $> mempty
       , (\x -> Schema [] [x] [] [] [] [] [] []) <$> typeDecl
       , (\x -> Schema [] [] [x] [] [] [] [] []) <$> enumDecl
       , (\x -> Schema [] [] [] [x] [] [] [] []) <$> unionDecl
@@ -201,3 +202,9 @@ jsonObj =
       void stringLiteral <|> void ident
       colon
       json
+
+rpcDecl :: Parser ()
+rpcDecl = void $ rword "rpc_service" >> ident >> curly (NE.some rpcMethod)
+
+rpcMethod :: Parser ()
+rpcMethod = ident >> parens ident >> colon >> ident >> metadata >> void semi

@@ -165,6 +165,19 @@ spec =
             [] [] [] [] [] []
             [ AttributeDecl "b" ]
 
+      it "RPC services" $
+        [r|
+          include "a";
+
+          rpc_service MonsterStorage {
+            Store(Monster) : Stat ;
+            Retrieve(Stat) : Monster ( streaming : "server" , idempotent ) ;
+          }
+
+        |] `parses`
+          Schema
+            [ Include "a" ]
+            [] [] [] [] [] [] []
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =
