@@ -148,6 +148,23 @@ spec =
             [ FileIdentifierDecl "d" ]
             [ AttributeDecl "a", AttributeDecl "e" ]
 
+      it "json objects" $
+        [r|
+          include "a";
+
+          {
+            "a" : 3 ,
+            b : "e" ,
+            c : [ { d: [ [ ] , [ "a" , null , true , false , -3 , -239.223e3 ] ] } ]
+          }
+
+          attribute b;
+        |] `parses`
+          Schema
+            [ Include "a" ]
+            [] [] [] [] [] []
+            [ AttributeDecl "b" ]
+
 
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =

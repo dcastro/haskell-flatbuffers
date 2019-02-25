@@ -26,17 +26,18 @@ schema = do
   sc
   includes <- many include
   schemas <-
-    many
-      ((\x -> Schema [] [] [] [] [] [] [] []) <$> namespace <|>
-       (\x -> Schema [] [x] [] [] [] [] [] []) <$> typeDecl <|>
-       (\x -> Schema [] [] [x] [] [] [] [] []) <$> enumDecl <|>
-       (\x -> Schema [] [] [] [x] [] [] [] []) <$> unionDecl <|>
-       (\x -> Schema [] [] [] [] [x] [] [] []) <$> rootDecl <|>
-       (\x -> Schema [] [] [] [] [] [x] [] []) <$> fileExtensionDecl <|>
-       (\x -> Schema [] [] [] [] [] [] [x] []) <$> fileIdentifierDecl <|>
-       (\x -> Schema [] [] [] [] [] [] [] [x]) <$> attributeDecl <|>
-       include *> fail "\"include\" statements must be at the beginning of the file."
-       )
+    many $ choice
+      [ namespace $> mempty
+      , jsonObj $> mempty
+      , (\x -> Schema [] [x] [] [] [] [] [] []) <$> typeDecl
+      , (\x -> Schema [] [] [x] [] [] [] [] []) <$> enumDecl
+      , (\x -> Schema [] [] [] [x] [] [] [] []) <$> unionDecl
+      , (\x -> Schema [] [] [] [] [x] [] [] []) <$> rootDecl
+      , (\x -> Schema [] [] [] [] [] [x] [] []) <$> fileExtensionDecl
+      , (\x -> Schema [] [] [] [] [] [] [x] []) <$> fileIdentifierDecl
+      , (\x -> Schema [] [] [] [] [] [] [] [x]) <$> attributeDecl
+      , include *> fail "\"include\" statements must be at the beginning of the file."
+      ]
   eof
   pure $ (mconcat schemas) { includes = includes }
 
@@ -55,12 +56,17 @@ symbol = L.symbol sc
 rword :: String -> Parser ()
 rword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 
-curly, parens :: Parser a -> Parser a
+curly, square, parens :: Parser a -> Parser a
 curly = between (symbol "{") (symbol "}")
+square = between (symbol "[") (symbol "]")
 parens = between (symbol "(") (symbol ")")
 
-commaSep :: Parser a -> Parser (NonEmpty a)
-commaSep p = NE.sepBy1 p (symbol ",")
+
+commaSep :: Parser a -> Parser [a]
+commaSep p = sepBy p (symbol ",")
+
+commaSep1 :: Parser a -> Parser (NonEmpty a)
+commaSep1 p = NE.sepBy1 p (symbol ",")
 
 semi, colon :: Parser String
 semi = symbol ";"
@@ -117,7 +123,7 @@ enumDecl = do
   colon
   t <- typ
   md <- metadata
-  v <- curly (commaSep enumValDecl)
+  v <- curly (commaSep1 enumValDecl)
   pure $ EnumDecl i t md v
 
 enumValDecl :: Parser EnumValDecl
@@ -128,7 +134,7 @@ unionDecl = do
   rword "union"
   i <- ident
   md <- metadata
-  v <- curly (commaSep unionValDecl)
+  v <- curly (commaSep1 unionValDecl)
   pure $ UnionDecl i md v
 
 unionValDecl :: Parser UnionValDecl
@@ -158,7 +164,7 @@ literal :: Parser Literal
 literal = LiteralN <$> numberLiteral <|> LiteralS <$> stringLiteral
 
 metadata :: Parser (Maybe Metadata)
-metadata = label "metadata" . optional . parens . fmap Metadata . commaSep $
+metadata = label "metadata" . optional . parens . fmap Metadata . commaSep1 $
   (,) <$> attributeName <*> optional (colon *> literal)
 
 include :: Parser Include
@@ -178,3 +184,20 @@ attributeDecl = AttributeDecl <$> (rword "attribute" *> attributeName <* semi)
 
 attributeName :: Parser Ident
 attributeName = coerce stringLiteral <|> ident
+
+jsonObj :: Parser ()
+jsonObj =
+  label "JSON object" (void jobject)
+  where
+    json = choice [void jstring, void jnumber, jbool, jnull, void jarray, void jobject]
+    jnull = rword "null"
+    jbool = rword "true" <|> rword "false"
+    jstring = stringLiteral
+    jnumber = numberLiteral
+    jarray  = square (commaSep json)
+    jobject = curly (commaSep keyValuePair)
+
+    keyValuePair = do
+      void stringLiteral <|> void ident
+      colon
+      json
