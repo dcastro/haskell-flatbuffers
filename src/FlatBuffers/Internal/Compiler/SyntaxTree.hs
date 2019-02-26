@@ -13,7 +13,8 @@ data Schema = Schema
 
 data Decl
   = DeclN NamespaceDecl
-  | DeclT TypeDecl
+  | DeclT TableDecl
+  | DeclS StructDecl
   | DeclE EnumDecl
   | DeclU UnionDecl
   | DeclR RootDecl
@@ -54,17 +55,17 @@ newtype NamespaceDecl = NamespaceDecl
   { unNamespace :: NonEmpty Ident
   } deriving (Show, Eq)
 
-data TypeDecl = TypeDecl
-  { typeDeclType :: TypeDeclType
-  , typeIdent    :: Ident
-  , typeMetadata :: Maybe Metadata
-  , typeFields   :: NonEmpty Field
+data TableDecl = TableDecl
+  { tableDeclIdent    :: Ident
+  , tableDeclMetadata :: Maybe Metadata
+  , tableDeclFields   :: NonEmpty Field
   } deriving (Show, Eq)
 
-data TypeDeclType
-  = Table
-  | Struct
-  deriving (Show, Eq)
+data StructDecl = StructDecl
+  { structDeclIdent    :: Ident
+  , structDeclMetadata :: Maybe Metadata
+  , structDeclFields   :: NonEmpty Field
+  } deriving (Show, Eq)
 
 data Field = Field
   { fieldIdent    :: Ident

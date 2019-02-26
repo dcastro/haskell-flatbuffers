@@ -42,12 +42,12 @@ schema = do
   where
     failOnInclude = include *> fail "\"include\" statements must be at the beginning of the file."
 
-
 decl :: Parser (Maybe Decl)
 decl =
   choice
     [ Just . DeclN <$> namespaceDecl
-    , Just . DeclT <$> typeDecl
+    , Just . DeclT <$> tableDecl
+    , Just . DeclS <$> structDecl
     , Just . DeclE <$> enumDecl
     , Just . DeclU <$> unionDecl
     , Just . DeclR <$> rootDecl
@@ -132,13 +132,21 @@ field = do
   semi
   pure $ Field i t def md
 
-typeDecl :: Parser TypeDecl
-typeDecl = do
-  tt <- rword "table" $> Table <|> rword "struct" $> Struct
+tableDecl :: Parser TableDecl
+tableDecl = do
+  rword "table"
   i <- ident
   md <- metadata
   fs <- curly (NE.some field)
-  pure $ TypeDecl tt i md fs
+  pure $ TableDecl i md fs
+
+structDecl :: Parser StructDecl
+structDecl = do
+  rword "struct"
+  i <- ident
+  md <- metadata
+  fs <- curly (NE.some field)
+  pure $ StructDecl i md fs
 
 enumDecl :: Parser EnumDecl
 enumDecl = do

@@ -67,7 +67,30 @@ spec =
         |] `parses`
           Schema
             []
-            [ DeclT $ TypeDecl Table "ATable" Nothing $ fromList
+            [ DeclT $ TableDecl "ATable" Nothing $ fromList
+              [ Field "abc" Tbool Nothing Nothing
+              , Field "d" (Tref (Namespace []) "Ref") (Just "123") Nothing
+              , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
+              , Field "f" (Tvector (Tref (Namespace []) "abc_")) Nothing Nothing
+              , Field "g" (Tref (Namespace ["My", "Api"]) "Ref") (Just "123") Nothing
+              , Field "h" (Tvector (Tref (Namespace ["MyApi"]) "abc_")) Nothing Nothing
+              ]
+            ]
+
+      it "struct declarations" $
+        [r|
+          struct AStruct {
+            abc : bool;
+            d : Ref = 123;
+            e : [uint] = 99.2e9;
+            f : [abc_];
+            g : My . Api . Ref = 123;
+            h : [ MyApi.abc_ ] ;
+          }
+        |] `parses`
+          Schema
+            []
+            [ DeclS $ StructDecl "AStruct" Nothing $ fromList
               [ Field "abc" Tbool Nothing Nothing
               , Field "d" (Tref (Namespace []) "Ref") (Just "123") Nothing
               , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
@@ -85,7 +108,7 @@ spec =
         |] `parses`
           Schema
             []
-            [ DeclT $  TypeDecl Table "ATable"
+            [ DeclT $  TableDecl "ATable"
               (Just (Metadata $ fromList
                 [ ("a", Nothing)
                 , ("b", Just (LiteralN "99992873786287637862.298736756627897654e999999"))
