@@ -14,7 +14,7 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
-      "com.google.flatbuffers" % "flatbuffers-java" % "1.9.0",
+      "com.google.flatbuffers" % "flatbuffers-java" % "1.10.0",
       "io.circe" %% "circe-core" % CirceVersion
     ),
     addCompilerPlugin("org.spire-math" %% "kind-projector"     % "0.9.6"),
