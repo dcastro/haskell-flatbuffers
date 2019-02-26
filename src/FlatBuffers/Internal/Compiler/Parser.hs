@@ -1,19 +1,19 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module FlatBuffers.Compiler.Parser where
+module FlatBuffers.Internal.Compiler.Parser where
 
-import qualified Control.Monad.Combinators.NonEmpty as NE
-import           Data.Coerce                        (coerce)
+import qualified Control.Monad.Combinators.NonEmpty       as NE
+import           Data.Coerce                              (coerce)
 import           Data.Functor
 import           Data.List.NonEmpty
-import           Data.Maybe                         (catMaybes)
-import qualified Data.Text                          as T
-import           Data.Tree                          (Tree (..))
-import           Data.Void                          (Void)
-import           FlatBuffers.Compiler.SyntaxTree
+import           Data.Maybe                               (catMaybes)
+import qualified Data.Text                                as T
+import           Data.Tree                                (Tree (..))
+import           Data.Void                                (Void)
+import           FlatBuffers.Internal.Compiler.SyntaxTree
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer         as L
+import qualified Text.Megaparsec.Char.Lexer               as L
 
 type Parser = Parsec Void String
 

@@ -1,16 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 
-module FlatBuffers.Compiler.ParserSpec where
+module FlatBuffers.Internal.Compiler.ParserSpec where
 
 import           Data.List.NonEmpty
-import           Data.Void                       (Void)
-import           FlatBuffers.Compiler.Parser
-import           FlatBuffers.Compiler.SyntaxTree
+import           Data.Void                                (Void)
+import           FlatBuffers.Internal.Compiler.Parser
+import           FlatBuffers.Internal.Compiler.SyntaxTree
 import           Test.Hspec
 import           Test.Hspec.Megaparsec
 import           Text.Megaparsec
-import           Text.RawString.QQ               (r)
+import           Text.RawString.QQ                        (r)
 
 spec :: Spec
 spec =
