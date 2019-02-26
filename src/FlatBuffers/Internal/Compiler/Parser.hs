@@ -111,16 +111,19 @@ typ =
   Tbool <$ rword "bool" <|>
   Tstring <$ rword "string" <|>
   label "vector type" vector <|>
-  label "type identifier" tref
+  label "type identifier" (Tref <$> typeRef)
   where
     vector = Tvector <$> between
               (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" ))
               (symbol "]")
               typ
-    tref = do
-      ns <- many (try (ident <* symbol "."))
-      i <- ident
-      pure $ Tref (Namespace ns) i
+
+typeRef :: Parser TypeRef
+typeRef = do
+  ns <- many (try (ident <* symbol "."))
+  i <- ident
+  pure $ TypeRef (Namespace ns) i
+
 
 field :: Parser Field
 field = do
@@ -170,7 +173,7 @@ unionDecl = do
   pure $ UnionDecl i md v
 
 unionValDecl :: Parser UnionValDecl
-unionValDecl = UnionValDecl <$> optional (try (ident <* colon)) <*> ident
+unionValDecl = UnionValDecl <$> optional (try (ident <* colon)) <*> typeRef
 
 namespaceDecl :: Parser NamespaceDecl
 namespaceDecl = NamespaceDecl <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
@@ -203,7 +206,7 @@ include :: Parser Include
 include = Include <$> (rword "include" *> stringLiteral <* semi)
 
 rootDecl :: Parser RootDecl
-rootDecl = RootDecl <$> (rword "root_type" *> ident <* semi)
+rootDecl = RootDecl <$> (rword "root_type" *> typeRef <* semi)
 
 fileExtensionDecl :: Parser ()
 fileExtensionDecl = void (rword "file_extension" *> stringLiteral <* semi)

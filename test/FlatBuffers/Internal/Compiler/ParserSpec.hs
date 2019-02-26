@@ -37,8 +37,8 @@ spec =
       it "includes" $
         [r|
           include "somefile";
-          include "otherFile";
-        |] `parses` Schema ["somefile", "otherFile"] []
+          include "other \"escaped\" File";
+        |] `parses` Schema ["somefile", "other \"escaped\" File"] []
 
       it "namespaces" $
         [r|
@@ -69,11 +69,11 @@ spec =
             []
             [ DeclT $ TableDecl "ATable" Nothing $ fromList
               [ Field "abc" Tbool Nothing Nothing
-              , Field "d" (Tref (Namespace []) "Ref") (Just "123") Nothing
+              , Field "d" (Tref (TypeRef (Namespace []) "Ref")) (Just "123") Nothing
               , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
-              , Field "f" (Tvector (Tref (Namespace []) "abc_")) Nothing Nothing
-              , Field "g" (Tref (Namespace ["My", "Api"]) "Ref") (Just "123") Nothing
-              , Field "h" (Tvector (Tref (Namespace ["MyApi"]) "abc_")) Nothing Nothing
+              , Field "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
+              , Field "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just "123") Nothing
+              , Field "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
               ]
             ]
 
@@ -92,11 +92,11 @@ spec =
             []
             [ DeclS $ StructDecl "AStruct" Nothing $ fromList
               [ Field "abc" Tbool Nothing Nothing
-              , Field "d" (Tref (Namespace []) "Ref") (Just "123") Nothing
+              , Field "d" (Tref (TypeRef (Namespace []) "Ref")) (Just "123") Nothing
               , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
-              , Field "f" (Tvector (Tref (Namespace []) "abc_")) Nothing Nothing
-              , Field "g" (Tref (Namespace ["My", "Api"]) "Ref") (Just "123") Nothing
-              , Field "h" (Tvector (Tref (Namespace ["MyApi"]) "abc_")) Nothing Nothing
+              , Field "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
+              , Field "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just "123") Nothing
+              , Field "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
               ]
             ]
 
@@ -143,6 +143,7 @@ spec =
           union Weapon ( attr ) {
             Sword,
             mace: Stick,
+            mace2: My.Api.Stick,
             Axe
           }
         |] `parses`
@@ -152,9 +153,10 @@ spec =
                 "Weapon"
                 (Just (Metadata (pure ("attr", Nothing))))
                 (fromList
-                  [ UnionValDecl Nothing "Sword"
-                  , UnionValDecl (Just "mace") "Stick"
-                  , UnionValDecl Nothing "Axe"
+                  [ UnionValDecl Nothing (TypeRef (Namespace []) "Sword")
+                  , UnionValDecl (Just "mace") (TypeRef (Namespace []) "Stick")
+                  , UnionValDecl (Just "mace2") (TypeRef (Namespace ["My", "Api"]) "Stick")
+                  , UnionValDecl Nothing (TypeRef (Namespace []) "Axe")
                   ]
                 )
             ]
@@ -164,6 +166,7 @@ spec =
           attribute a;
           attribute "b";
           root_type c;
+          root_type My.Api.C ;
           file_extension "d";
           file_identifier "e";
         |] `parses`
@@ -171,7 +174,8 @@ spec =
             []
             [ DeclA $ AttributeDecl "a"
             , DeclA $ AttributeDecl "b"
-            , DeclR $ RootDecl "c"
+            , DeclR $ RootDecl (TypeRef (Namespace []) "c")
+            , DeclR $ RootDecl (TypeRef (Namespace ["My", "Api"]) "C")
             , DeclFI $ FileIdentifierDecl "e"
             ]
 

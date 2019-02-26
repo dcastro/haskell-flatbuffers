@@ -94,7 +94,7 @@ data UnionDecl = UnionDecl
 
 data UnionValDecl = UnionValDecl
   { unionValDeclAlias :: Maybe Ident
-  , unionValDeclType  :: Ident
+  , unionValDeclType  :: TypeRef
   } deriving (Show, Eq)
 
 data Type
@@ -114,14 +114,19 @@ data Type
   | Tbool
   | Tstring
   | Tvector Type
-  | Tref Namespace Ident
+  | Tref TypeRef
   deriving (Show, Eq)
+
+data TypeRef = TypeRef
+  { typeRefNamespace :: Namespace
+  , typeRefIdent     :: Ident
+  } deriving (Show, Eq)
 
 newtype Namespace = Namespace [Ident]
   deriving (Show, Eq)
   
-newtype RootDecl = RootDecl Ident
-  deriving (Show, Eq, IsString)
+newtype RootDecl = RootDecl TypeRef
+  deriving (Show, Eq)
 
 newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
   deriving (Show, Eq, IsString)
