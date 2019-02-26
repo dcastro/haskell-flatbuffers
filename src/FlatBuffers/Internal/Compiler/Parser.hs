@@ -51,9 +51,9 @@ decl =
     , Just . DeclE <$> enumDecl
     , Just . DeclU <$> unionDecl
     , Just . DeclR <$> rootDecl
-    , Just . DeclFE <$> fileExtensionDecl
     , Just . DeclFI <$> fileIdentifierDecl
     , Just . DeclA <$> attributeDecl
+    , Nothing <$ fileExtensionDecl
     , Nothing <$ jsonObj
     , Nothing <$ rpcDecl
     ]
@@ -197,8 +197,8 @@ include = Include <$> (rword "include" *> stringLiteral <* semi)
 rootDecl :: Parser RootDecl
 rootDecl = RootDecl <$> (rword "root_type" *> ident <* semi)
 
-fileExtensionDecl :: Parser FileExtensionDecl
-fileExtensionDecl = FileExtensionDecl <$> (rword "file_extension" *> stringLiteral <* semi)
+fileExtensionDecl :: Parser ()
+fileExtensionDecl = void (rword "file_extension" *> stringLiteral <* semi)
 
 fileIdentifierDecl :: Parser FileIdentifierDecl
 fileIdentifierDecl = FileIdentifierDecl <$> (rword "file_identifier" *> stringLiteral <* semi)

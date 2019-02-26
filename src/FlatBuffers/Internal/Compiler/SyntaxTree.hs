@@ -17,7 +17,6 @@ data Decl
   | DeclE EnumDecl
   | DeclU UnionDecl
   | DeclR RootDecl
-  | DeclFE FileExtensionDecl
   | DeclFI FileIdentifierDecl
   | DeclA AttributeDecl
   deriving (Show, Eq)
@@ -121,9 +120,6 @@ newtype Namespace = Namespace [Ident]
   deriving (Show, Eq)
   
 newtype RootDecl = RootDecl Ident
-  deriving (Show, Eq, IsString)
-
-newtype FileExtensionDecl = FileExtensionDecl StringLiteral
   deriving (Show, Eq, IsString)
 
 newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral

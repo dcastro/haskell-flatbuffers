@@ -149,7 +149,6 @@ spec =
             [ DeclA $ AttributeDecl "a"
             , DeclA $ AttributeDecl "b"
             , DeclR $ RootDecl "c"
-            , DeclFE $ FileExtensionDecl "d"
             , DeclFI $ FileIdentifierDecl "e"
             ]
 
