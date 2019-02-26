@@ -8,6 +8,7 @@ import           Data.Functor
 import           Data.List.NonEmpty
 import           Data.Maybe                         (catMaybes)
 import qualified Data.Text                          as T
+import           Data.Tree                          (Tree (..))
 import           Data.Void                          (Void)
 import           FlatBuffers.Compiler.SyntaxTree
 import           Text.Megaparsec
@@ -15,6 +16,15 @@ import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer         as L
 
 type Parser = Parsec Void String
+
+parseSchemas :: FilePath -> IO (Either String (Tree Schema))
+parseSchemas filePath = do
+  input <- readFile filePath
+  case parse schema filePath input of
+    Left err -> pure $ Left (errorBundlePretty err)
+    Right rootSchema -> do
+      forestSchema <- traverse (parseSchemas . T.unpack . coerce) (includes rootSchema)
+      pure $ Node rootSchema <$> sequence forestSchema
 
 -- | Roughly based on: https://google.github.io/flatbuffers/flatbuffers_grammar.html.
 -- Differences between this parser and the above grammar:
