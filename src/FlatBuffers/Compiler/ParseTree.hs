@@ -114,9 +114,12 @@ data Type
   | Tbool
   | Tstring
   | Tvector Type
-  | Tident Ident
+  | Tref Namespace Ident
   deriving (Show, Eq)
 
+newtype Namespace = Namespace [Ident]
+  deriving (Show, Eq)
+  
 newtype RootDecl = RootDecl Ident
   deriving (Show, Eq, IsString)
 

@@ -43,12 +43,14 @@ spec =
       it "namespaces" $
         [r|
           include "somefile";
-          namespace My.Api.Domain;
+          namespace Ns;
+          namespace My . Api . Domain;
           namespace My.Api.Domain2;
         |] `parses`
           Schema
             ["somefile"]
-            [ DeclN $ NamespaceDecl $ fromList ["My", "Api", "Domain"]
+            [ DeclN $ NamespaceDecl $ fromList ["Ns"]
+            , DeclN $ NamespaceDecl $ fromList ["My", "Api", "Domain"]
             , DeclN $ NamespaceDecl $ fromList ["My", "Api", "Domain2"]
             ]
 
@@ -59,15 +61,19 @@ spec =
             d : Ref = 123;
             e : [uint] = 99.2e9;
             f : [abc_];
+            g : My . Api . Ref = 123;
+            h : [ MyApi.abc_ ] ;
           }
         |] `parses`
           Schema
             []
             [ DeclT $ TypeDecl Table "ATable" Nothing $ fromList
               [ Field "abc" Tbool Nothing Nothing
-              , Field "d" (Tident "Ref") (Just "123") Nothing
+              , Field "d" (Tref (Namespace []) "Ref") (Just "123") Nothing
               , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
-              , Field "f" (Tvector (Tident "abc_")) Nothing Nothing
+              , Field "f" (Tvector (Tref (Namespace []) "abc_")) Nothing Nothing
+              , Field "g" (Tref (Namespace ["My", "Api"]) "Ref") (Just "123") Nothing
+              , Field "h" (Tvector (Tref (Namespace ["MyApi"]) "abc_")) Nothing Nothing
               ]
             ]
 

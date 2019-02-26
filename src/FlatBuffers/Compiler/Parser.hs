@@ -86,24 +86,31 @@ ident = label "identifier" $ (lexeme . try) identifier
 
 typ :: Parser Type
 typ =
-  Tint8 <$ (symbol "int8" <|> symbol "byte") <|>
-  Tint16 <$ (symbol "int16" <|> symbol "short") <|>
-  Tint32 <$ (symbol "int32" <|> symbol "int") <|>
-  Tint64 <$ (symbol "int64" <|> symbol "long") <|>
-  Tword8 <$ (symbol "uint8" <|> symbol "ubyte") <|>
-  Tword16 <$ (symbol "uint16" <|> symbol "ushort") <|>
-  Tword32 <$ (symbol "uint32" <|> symbol "uint") <|>
-  Tword64 <$ (symbol "uint64" <|> symbol "ulong") <|>
+  Tint8 <$ (rword "int8" <|> rword "byte") <|>
+  Tint16 <$ (rword "int16" <|> rword "short") <|>
+  Tint32 <$ (rword "int32" <|> rword "int") <|>
+  Tint64 <$ (rword "int64" <|> rword "long") <|>
+  Tword8 <$ (rword "uint8" <|> rword "ubyte") <|>
+  Tword16 <$ (rword "uint16" <|> rword "ushort") <|>
+  Tword32 <$ (rword "uint32" <|> rword "uint") <|>
+  Tword64 <$ (rword "uint64" <|> rword "ulong") <|>
 
-  Tfloat <$ (symbol "float32" <|> symbol "float") <|>
-  Tdouble <$ (symbol "float64" <|> symbol "double") <|>
+  Tfloat <$ (rword "float32" <|> rword "float") <|>
+  Tdouble <$ (rword "float64" <|> rword "double") <|>
 
-  Tbool <$ symbol "bool" <|>
-  Tstring <$ symbol "string" <|>
-  Tvector <$> label "array type" (vector typ) <|>
-  Tident <$> label "type identifier" ident
+  Tbool <$ rword "bool" <|>
+  Tstring <$ rword "string" <|>
+  label "vector type" vector <|>
+  label "type identifier" tref
   where
-    vector = between (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" )) (symbol "]")
+    vector = Tvector <$> between
+              (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" ))
+              (symbol "]")
+              typ
+    tref = do
+      ns <- many (try (ident <* symbol "."))
+      i <- ident
+      pure $ Tref (Namespace ns) i
 
 field :: Parser Field
 field = do
