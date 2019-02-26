@@ -4,13 +4,13 @@
 module FlatBuffers.Compiler.ParserSpec where
 
 import           Data.List.NonEmpty
-import           Data.Void                   (Void)
+import           Data.Void                       (Void)
 import           FlatBuffers.Compiler.Parser
-import           FlatBuffers.Compiler.ParseTree
+import           FlatBuffers.Compiler.SyntaxTree
 import           Test.Hspec
 import           Test.Hspec.Megaparsec
 import           Text.Megaparsec
-import           Text.RawString.QQ           (r)
+import           Text.RawString.QQ               (r)
 
 spec :: Spec
 spec =

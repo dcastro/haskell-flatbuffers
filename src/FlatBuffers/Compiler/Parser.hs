@@ -9,7 +9,7 @@ import           Data.List.NonEmpty
 import           Data.Maybe                         (catMaybes)
 import qualified Data.Text                          as T
 import           Data.Void                          (Void)
-import           FlatBuffers.Compiler.ParseTree
+import           FlatBuffers.Compiler.SyntaxTree
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer         as L

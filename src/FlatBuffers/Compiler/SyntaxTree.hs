@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module FlatBuffers.Compiler.ParseTree where
+module FlatBuffers.Compiler.SyntaxTree where
 
 import           Data.List.NonEmpty (NonEmpty)
 import           Data.String        (IsString)
