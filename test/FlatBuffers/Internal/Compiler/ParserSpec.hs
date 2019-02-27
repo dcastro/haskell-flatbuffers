@@ -56,6 +56,8 @@ spec =
 
       it "table declarations" $
         [r|
+          table T {}
+          
           table ATable {
             abc : bool;
             d : Ref = 123;
@@ -67,7 +69,8 @@ spec =
         |] `parses`
           Schema
             []
-            [ DeclT $ TableDecl "ATable" Nothing $ fromList
+            [ DeclT $ TableDecl "T" Nothing []
+            , DeclT $ TableDecl "ATable" Nothing
               [ Field "abc" Tbool Nothing Nothing
               , Field "d" (Tref (TypeRef (Namespace []) "Ref")) (Just "123") Nothing
               , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing

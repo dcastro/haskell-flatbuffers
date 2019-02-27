@@ -58,7 +58,7 @@ newtype NamespaceDecl = NamespaceDecl
 data TableDecl = TableDecl
   { tableDeclIdent    :: Ident
   , tableDeclMetadata :: Maybe Metadata
-  , tableDeclFields   :: NonEmpty Field
+  , tableDeclFields   :: [Field]
   } deriving (Show, Eq)
 
 data StructDecl = StructDecl

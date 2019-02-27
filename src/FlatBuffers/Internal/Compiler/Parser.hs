@@ -140,7 +140,7 @@ tableDecl = do
   rword "table"
   i <- ident
   md <- metadata
-  fs <- curly (NE.some field)
+  fs <- curly (many field)
   pure $ TableDecl i md fs
 
 structDecl :: Parser StructDecl
