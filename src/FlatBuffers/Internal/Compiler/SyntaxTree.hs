@@ -47,6 +47,11 @@ data Literal
   | LiteralS StringLiteral
   deriving (Show, Eq)
 
+data DefaultVal
+  = DefaultN NumberLiteral
+  | DefaultB Bool
+  deriving (Show, Eq)
+
 newtype Metadata = Metadata
   { unMetadata :: NonEmpty (Ident, Maybe Literal)
   } deriving (Show, Eq)
@@ -58,20 +63,26 @@ newtype NamespaceDecl = NamespaceDecl
 data TableDecl = TableDecl
   { tableDeclIdent    :: Ident
   , tableDeclMetadata :: Maybe Metadata
-  , tableDeclFields   :: [Field]
+  , tableDeclFields   :: [TableField]
+  } deriving (Show, Eq)
+
+data TableField = TableField
+  { tableFieldIdent    :: Ident
+  , tableFieldType     :: Type
+  , tableFieldDefault  :: Maybe DefaultVal
+  , tableFieldMetadata :: Maybe Metadata
   } deriving (Show, Eq)
 
 data StructDecl = StructDecl
   { structDeclIdent    :: Ident
   , structDeclMetadata :: Maybe Metadata
-  , structDeclFields   :: NonEmpty Field
+  , structDeclFields   :: NonEmpty StructField
   } deriving (Show, Eq)
 
-data Field = Field
-  { fieldIdent    :: Ident
-  , fieldType     :: Type
-  , fieldDefault  :: Maybe NumberLiteral
-  , fieldMetadata :: Maybe Metadata
+data StructField = StructField
+  { structFieldIdent    :: Ident
+  , structFieldType     :: Type
+  , structFieldMetadata :: Maybe Metadata
   } deriving (Show, Eq)
 
 data EnumDecl = EnumDecl

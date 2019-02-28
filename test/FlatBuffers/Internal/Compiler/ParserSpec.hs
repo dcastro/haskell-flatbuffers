@@ -60,6 +60,8 @@ spec =
           
           table ATable {
             abc : bool;
+            b1 : bool = true;
+            b2 : bool = false;
             d : Ref = 123;
             e : [uint] = 99.2e9;
             f : [abc_];
@@ -71,12 +73,14 @@ spec =
             []
             [ DeclT $ TableDecl "T" Nothing []
             , DeclT $ TableDecl "ATable" Nothing
-              [ Field "abc" Tbool Nothing Nothing
-              , Field "d" (Tref (TypeRef (Namespace []) "Ref")) (Just "123") Nothing
-              , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
-              , Field "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
-              , Field "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just "123") Nothing
-              , Field "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
+              [ TableField "abc" Tbool Nothing Nothing
+              , TableField "b1" Tbool (Just (DefaultB True)) Nothing
+              , TableField "b2" Tbool (Just (DefaultB False)) Nothing
+              , TableField "d" (Tref (TypeRef (Namespace []) "Ref")) (Just (DefaultN "123")) Nothing
+              , TableField "e" (Tvector Tword32) (Just (DefaultN "99.2e9")) Nothing
+              , TableField "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
+              , TableField "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just (DefaultN "123")) Nothing
+              , TableField "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
               ]
             ]
 
@@ -84,22 +88,22 @@ spec =
         [r|
           struct AStruct {
             abc : bool;
-            d : Ref = 123;
-            e : [uint] = 99.2e9;
+            d : Ref ;
+            e : [uint] ;
             f : [abc_];
-            g : My . Api . Ref = 123;
+            g : My . Api . Ref ;
             h : [ MyApi.abc_ ] ;
           }
         |] `parses`
           Schema
             []
             [ DeclS $ StructDecl "AStruct" Nothing $ fromList
-              [ Field "abc" Tbool Nothing Nothing
-              , Field "d" (Tref (TypeRef (Namespace []) "Ref")) (Just "123") Nothing
-              , Field "e" (Tvector Tword32) (Just "99.2e9") Nothing
-              , Field "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
-              , Field "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just "123") Nothing
-              , Field "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
+              [ StructField "abc" Tbool Nothing
+              , StructField "d" (Tref (TypeRef (Namespace []) "Ref")) Nothing
+              , StructField "e" (Tvector Tword32) Nothing
+              , StructField "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing
+              , StructField "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) Nothing
+              , StructField "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing
               ]
             ]
 
@@ -119,7 +123,7 @@ spec =
                 , ("d", Just (LiteralS "attr"))
                 ]
               ))
-              (pure (Field "abc" Tbool (Just "99") (Just (Metadata (pure ("def", Nothing))))))
+              (pure (TableField "abc" Tbool (Just (DefaultN "99")) (Just (Metadata (pure ("def", Nothing))))))
             ]
 
       it "enum declarations" $

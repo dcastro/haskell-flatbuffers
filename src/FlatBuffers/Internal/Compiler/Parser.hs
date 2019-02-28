@@ -31,7 +31,8 @@ parseSchemas filePath = do
 -- 
 --   * Unions members now support aliases.
 --   * An enum's underlying type used to be optional (defaulting to @short@), but now it's mandatory.
---   * Attributes can be reffered to either as an identifier or as a string literal (e.g. @attr@ or @"attr"@)
+--   * Attributes can be reffered to either as an identifier or as a string literal (e.g. @attr@ or @"attr"@).
+--   * Struct fields can't have default values.
 schema :: Parser Schema
 schema = do
   sc
@@ -124,23 +125,31 @@ typeRef = do
   i <- ident
   pure $ TypeRef (Namespace ns) i
 
-
-field :: Parser Field
-field = do
+tableField :: Parser TableField
+tableField = do
   i <- ident
   colon
   t <- typ
-  def <- optional (symbol "=" *> numberLiteral)
+  def <- optional (symbol "=" *> defaultVal)
   md <- metadata
   semi
-  pure $ Field i t def md
+  pure $ TableField i t def md
+
+structField :: Parser StructField
+structField = do
+  i <- ident
+  colon
+  t <- typ
+  md <- metadata
+  semi
+  pure $ StructField i t md
 
 tableDecl :: Parser TableDecl
 tableDecl = do
   rword "table"
   i <- ident
   md <- metadata
-  fs <- curly (many field)
+  fs <- curly (many tableField)
   pure $ TableDecl i md fs
 
 structDecl :: Parser StructDecl
@@ -148,7 +157,7 @@ structDecl = do
   rword "struct"
   i <- ident
   md <- metadata
-  fs <- curly (NE.some field)
+  fs <- curly (NE.some structField)
   pure $ StructDecl i md fs
 
 enumDecl :: Parser EnumDecl
@@ -197,6 +206,14 @@ numberLiteral =
 
 literal :: Parser Literal
 literal = LiteralN <$> numberLiteral <|> LiteralS <$> stringLiteral
+
+defaultVal :: Parser DefaultVal
+defaultVal =
+  choice
+    [ DefaultB True <$ rword "true"
+    , DefaultB False <$ rword "false"
+    , DefaultN <$> numberLiteral
+    ]
 
 metadata :: Parser (Maybe Metadata)
 metadata = label "metadata" . optional . parens . fmap Metadata . commaSep1 $
