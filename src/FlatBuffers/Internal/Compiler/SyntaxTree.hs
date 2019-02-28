@@ -111,22 +111,22 @@ data UnionValDecl = UnionValDecl
 
 data Type
   -- numeric
-  = Tint8
-  | Tint16
-  | Tint32
-  | Tint64
-  | Tword8
-  | Tword16
-  | Tword32
-  | Tword64
+  = TInt8
+  | TInt16
+  | TInt32
+  | TInt64
+  | TWord8
+  | TWord16
+  | TWord32
+  | TWord64
   -- floating point
-  | Tfloat
-  | Tdouble
+  | TFloat
+  | TDouble
   -- others
-  | Tbool
-  | Tstring
-  | Tvector Type
-  | Tref TypeRef
+  | TBool
+  | TString
+  | TVector Type
+  | TRef TypeRef
   deriving (Show, Eq)
 
 data TypeRef = TypeRef

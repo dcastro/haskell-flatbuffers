@@ -98,24 +98,24 @@ ident = label "identifier" $ (lexeme . try) identifier
 
 typ :: Parser Type
 typ =
-  Tint8 <$ (rword "int8" <|> rword "byte") <|>
-  Tint16 <$ (rword "int16" <|> rword "short") <|>
-  Tint32 <$ (rword "int32" <|> rword "int") <|>
-  Tint64 <$ (rword "int64" <|> rword "long") <|>
-  Tword8 <$ (rword "uint8" <|> rword "ubyte") <|>
-  Tword16 <$ (rword "uint16" <|> rword "ushort") <|>
-  Tword32 <$ (rword "uint32" <|> rword "uint") <|>
-  Tword64 <$ (rword "uint64" <|> rword "ulong") <|>
+  TInt8 <$ (rword "int8" <|> rword "byte") <|>
+  TInt16 <$ (rword "int16" <|> rword "short") <|>
+  TInt32 <$ (rword "int32" <|> rword "int") <|>
+  TInt64 <$ (rword "int64" <|> rword "long") <|>
+  TWord8 <$ (rword "uint8" <|> rword "ubyte") <|>
+  TWord16 <$ (rword "uint16" <|> rword "ushort") <|>
+  TWord32 <$ (rword "uint32" <|> rword "uint") <|>
+  TWord64 <$ (rword "uint64" <|> rword "ulong") <|>
 
-  Tfloat <$ (rword "float32" <|> rword "float") <|>
-  Tdouble <$ (rword "float64" <|> rword "double") <|>
+  TFloat <$ (rword "float32" <|> rword "float") <|>
+  TDouble <$ (rword "float64" <|> rword "double") <|>
 
-  Tbool <$ rword "bool" <|>
-  Tstring <$ rword "string" <|>
+  TBool <$ rword "bool" <|>
+  TString <$ rword "string" <|>
   label "vector type" vector <|>
-  label "type identifier" (Tref <$> typeRef)
+  label "type identifier" (TRef <$> typeRef)
   where
-    vector = Tvector <$> between
+    vector = TVector <$> between
               (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" ))
               (symbol "]")
               typ

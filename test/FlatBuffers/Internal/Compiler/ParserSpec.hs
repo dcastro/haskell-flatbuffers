@@ -74,15 +74,15 @@ spec =
             []
             [ DeclT $ TableDecl "T" Nothing []
             , DeclT $ TableDecl "ATable" Nothing
-              [ TableField "abc" Tbool Nothing Nothing
-              , TableField "b1" Tbool (Just (DefaultB True)) Nothing
-              , TableField "b2" Tbool (Just (DefaultB False)) Nothing
-              , TableField "d" (Tref (TypeRef "" "Ref")) (Just (DefaultN "123")) Nothing
-              , TableField "e" (Tvector Tword32) (Just (DefaultN "99.2e9")) Nothing
-              , TableField "f" (Tvector (Tref (TypeRef "" "abc_"))) Nothing Nothing
-              , TableField "g" (Tref (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) Nothing
-              , TableField "h" (Tvector (Tref (TypeRef "MyApi" "abc_"))) Nothing Nothing
-              , TableField "i" (Tref (TypeRef "" "Color")) (Just (DefaultI "Blue")) Nothing
+              [ TableField "abc" TBool Nothing Nothing
+              , TableField "b1" TBool (Just (DefaultB True)) Nothing
+              , TableField "b2" TBool (Just (DefaultB False)) Nothing
+              , TableField "d" (TRef (TypeRef "" "Ref")) (Just (DefaultN "123")) Nothing
+              , TableField "e" (TVector TWord32) (Just (DefaultN "99.2e9")) Nothing
+              , TableField "f" (TVector (TRef (TypeRef "" "abc_"))) Nothing Nothing
+              , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) Nothing
+              , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing Nothing
+              , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultI "Blue")) Nothing
               ]
             ]
 
@@ -100,12 +100,12 @@ spec =
           Schema
             []
             [ DeclS $ StructDecl "AStruct" Nothing $ fromList
-              [ StructField "abc" Tbool Nothing
-              , StructField "d" (Tref (TypeRef "" "Ref")) Nothing
-              , StructField "e" (Tvector Tword32) Nothing
-              , StructField "f" (Tvector (Tref (TypeRef "" "abc_"))) Nothing
-              , StructField "g" (Tref (TypeRef "My.Api" "Ref")) Nothing
-              , StructField "h" (Tvector (Tref (TypeRef "MyApi" "abc_"))) Nothing
+              [ StructField "abc" TBool Nothing
+              , StructField "d" (TRef (TypeRef "" "Ref")) Nothing
+              , StructField "e" (TVector TWord32) Nothing
+              , StructField "f" (TVector (TRef (TypeRef "" "abc_"))) Nothing
+              , StructField "g" (TRef (TypeRef "My.Api" "Ref")) Nothing
+              , StructField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing
               ]
             ]
 
@@ -125,7 +125,7 @@ spec =
                 , ("d", Just (LiteralS "attr"))
                 ]
               ))
-              (pure (TableField "abc" Tbool (Just (DefaultN "99")) (Just (Metadata (pure ("def", Nothing))))))
+              (pure (TableField "abc" TBool (Just (DefaultN "99")) (Just (Metadata (pure ("def", Nothing))))))
             ]
 
       it "enum declarations" $
@@ -139,7 +139,7 @@ spec =
         |] `parses`
           Schema
             []
-            [DeclE $ EnumDecl "Color" Tint16 (Just (Metadata (pure ("attr", Nothing)))) $ fromList
+            [DeclE $ EnumDecl "Color" TInt16 (Just (Metadata (pure ("attr", Nothing)))) $ fromList
               [ EnumValDecl "Red" Nothing
               , EnumValDecl "Blue" (Just 18446744073709551615)
               , EnumValDecl "Gray" (Just (-18446744073709551615))
