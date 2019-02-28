@@ -50,6 +50,7 @@ data Literal
 data DefaultVal
   = DefaultN NumberLiteral
   | DefaultB Bool
+  | DefaultI Ident
   deriving (Show, Eq)
 
 newtype Metadata = Metadata

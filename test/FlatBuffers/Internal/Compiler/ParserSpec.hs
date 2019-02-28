@@ -67,6 +67,7 @@ spec =
             f : [abc_];
             g : My . Api . Ref = 123;
             h : [ MyApi.abc_ ] ;
+            i: Color = Blue ;
           }
         |] `parses`
           Schema
@@ -81,6 +82,7 @@ spec =
               , TableField "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
               , TableField "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just (DefaultN "123")) Nothing
               , TableField "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
+              , TableField "i" (Tref (TypeRef (Namespace []) "Color")) (Just (DefaultI "Blue")) Nothing
               ]
             ]
 

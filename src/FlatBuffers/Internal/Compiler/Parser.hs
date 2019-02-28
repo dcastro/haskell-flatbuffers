@@ -213,6 +213,7 @@ defaultVal =
     [ DefaultB True <$ rword "true"
     , DefaultB False <$ rword "false"
     , DefaultN <$> numberLiteral
+    , DefaultI <$> ident
     ]
 
 metadata :: Parser (Maybe Metadata)
