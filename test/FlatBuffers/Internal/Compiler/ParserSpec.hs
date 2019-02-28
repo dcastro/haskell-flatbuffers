@@ -77,12 +77,12 @@ spec =
               [ TableField "abc" Tbool Nothing Nothing
               , TableField "b1" Tbool (Just (DefaultB True)) Nothing
               , TableField "b2" Tbool (Just (DefaultB False)) Nothing
-              , TableField "d" (Tref (TypeRef (Namespace []) "Ref")) (Just (DefaultN "123")) Nothing
+              , TableField "d" (Tref (TypeRef "" "Ref")) (Just (DefaultN "123")) Nothing
               , TableField "e" (Tvector Tword32) (Just (DefaultN "99.2e9")) Nothing
-              , TableField "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing Nothing
-              , TableField "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) (Just (DefaultN "123")) Nothing
-              , TableField "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing Nothing
-              , TableField "i" (Tref (TypeRef (Namespace []) "Color")) (Just (DefaultI "Blue")) Nothing
+              , TableField "f" (Tvector (Tref (TypeRef "" "abc_"))) Nothing Nothing
+              , TableField "g" (Tref (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) Nothing
+              , TableField "h" (Tvector (Tref (TypeRef "MyApi" "abc_"))) Nothing Nothing
+              , TableField "i" (Tref (TypeRef "" "Color")) (Just (DefaultI "Blue")) Nothing
               ]
             ]
 
@@ -101,11 +101,11 @@ spec =
             []
             [ DeclS $ StructDecl "AStruct" Nothing $ fromList
               [ StructField "abc" Tbool Nothing
-              , StructField "d" (Tref (TypeRef (Namespace []) "Ref")) Nothing
+              , StructField "d" (Tref (TypeRef "" "Ref")) Nothing
               , StructField "e" (Tvector Tword32) Nothing
-              , StructField "f" (Tvector (Tref (TypeRef (Namespace []) "abc_"))) Nothing
-              , StructField "g" (Tref (TypeRef (Namespace ["My", "Api"]) "Ref")) Nothing
-              , StructField "h" (Tvector (Tref (TypeRef (Namespace ["MyApi"]) "abc_"))) Nothing
+              , StructField "f" (Tvector (Tref (TypeRef "" "abc_"))) Nothing
+              , StructField "g" (Tref (TypeRef "My.Api" "Ref")) Nothing
+              , StructField "h" (Tvector (Tref (TypeRef "MyApi" "abc_"))) Nothing
               ]
             ]
 
@@ -162,10 +162,10 @@ spec =
                 "Weapon"
                 (Just (Metadata (pure ("attr", Nothing))))
                 (fromList
-                  [ UnionValDecl Nothing (TypeRef (Namespace []) "Sword")
-                  , UnionValDecl (Just "mace") (TypeRef (Namespace []) "Stick")
-                  , UnionValDecl (Just "mace2") (TypeRef (Namespace ["My", "Api"]) "Stick")
-                  , UnionValDecl Nothing (TypeRef (Namespace []) "Axe")
+                  [ UnionValDecl Nothing (TypeRef "" "Sword")
+                  , UnionValDecl (Just "mace") (TypeRef "" "Stick")
+                  , UnionValDecl (Just "mace2") (TypeRef "My.Api" "Stick")
+                  , UnionValDecl Nothing (TypeRef "" "Axe")
                   ]
                 )
             ]
@@ -183,8 +183,8 @@ spec =
             []
             [ DeclA $ AttributeDecl "a"
             , DeclA $ AttributeDecl "b"
-            , DeclR $ RootDecl (TypeRef (Namespace []) "c")
-            , DeclR $ RootDecl (TypeRef (Namespace ["My", "Api"]) "C")
+            , DeclR $ RootDecl (TypeRef "" "c")
+            , DeclR $ RootDecl (TypeRef "My.Api" "C")
             , DeclFI $ FileIdentifierDecl "e"
             ]
 

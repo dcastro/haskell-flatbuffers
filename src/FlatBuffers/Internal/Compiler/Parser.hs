@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module FlatBuffers.Internal.Compiler.Parser where
@@ -123,7 +124,7 @@ typeRef :: Parser TypeRef
 typeRef = do
   ns <- many (try (ident <* symbol "."))
   i <- ident
-  pure $ TypeRef (Namespace ns) i
+  pure $ TypeRef (Namespace (T.intercalate "." (coerce ns))) i
 
 tableField :: Parser TableField
 tableField = do

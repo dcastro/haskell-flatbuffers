@@ -134,9 +134,6 @@ data TypeRef = TypeRef
   , typeRefIdent     :: Ident
   } deriving (Show, Eq)
 
-newtype Namespace = Namespace [Ident]
-  deriving (Show, Eq)
-  
 newtype RootDecl = RootDecl TypeRef
   deriving (Show, Eq)
 
@@ -144,4 +141,7 @@ newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
   deriving (Show, Eq, IsString)
 
 newtype AttributeDecl = AttributeDecl Ident
+  deriving (Show, Eq, IsString)
+
+newtype Namespace = Namespace Text
   deriving (Show, Eq, IsString)
