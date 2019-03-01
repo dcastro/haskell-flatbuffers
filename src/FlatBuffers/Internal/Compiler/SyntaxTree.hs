@@ -54,7 +54,7 @@ data DefaultVal
   deriving (Show, Eq)
 
 newtype Metadata = Metadata
-  { unMetadata :: NonEmpty (Ident, Maybe Literal)
+  { unMetadata :: [(Ident, Maybe Literal)]
   } deriving (Show, Eq)
 
 newtype NamespaceDecl = NamespaceDecl
@@ -63,7 +63,7 @@ newtype NamespaceDecl = NamespaceDecl
 
 data TableDecl = TableDecl
   { tableIdent    :: Ident
-  , tableMetadata :: Maybe Metadata
+  , tableMetadata :: Metadata
   , tableFields   :: [TableField]
   } deriving (Show, Eq)
 
@@ -71,25 +71,25 @@ data TableField = TableField
   { tableFieldIdent    :: Ident
   , tableFieldType     :: Type
   , tableFieldDefault  :: Maybe DefaultVal
-  , tableFieldMetadata :: Maybe Metadata
+  , tableFieldMetadata :: Metadata
   } deriving (Show, Eq)
 
 data StructDecl = StructDecl
   { structIdent    :: Ident
-  , structMetadata :: Maybe Metadata
+  , structMetadata :: Metadata
   , structFields   :: NonEmpty StructField
   } deriving (Show, Eq)
 
 data StructField = StructField
   { structFieldIdent    :: Ident
   , structFieldType     :: Type
-  , structFieldMetadata :: Maybe Metadata
+  , structFieldMetadata :: Metadata
   } deriving (Show, Eq)
 
 data EnumDecl = EnumDecl
   { enumIdent    :: Ident
   , enumType     :: Type
-  , enumMetadata :: Maybe Metadata
+  , enumMetadata :: Metadata
   , enumVals     :: NonEmpty EnumVal
   } deriving (Show, Eq)
 
@@ -100,7 +100,7 @@ data EnumVal = EnumVal
 
 data UnionDecl = UnionDecl
   { unionIdent    :: Ident
-  , unionMetadata :: Maybe Metadata
+  , unionMetadata :: Metadata
   , unionVals     :: NonEmpty UnionVal
   } deriving (Show, Eq)
 

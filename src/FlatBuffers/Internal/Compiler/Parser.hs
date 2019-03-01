@@ -6,7 +6,8 @@ module FlatBuffers.Internal.Compiler.Parser where
 import qualified Control.Monad.Combinators.NonEmpty       as NE
 import           Data.Coerce                              (coerce)
 import           Data.Functor
-import           Data.List.NonEmpty
+import           Data.List.NonEmpty                       (NonEmpty)
+import qualified Data.List.NonEmpty                       as NE
 import           Data.Maybe                               (catMaybes)
 import qualified Data.Text                                as T
 import           Data.Tree                                (Tree (..))
@@ -217,8 +218,8 @@ defaultVal =
     , DefaultI <$> ident
     ]
 
-metadata :: Parser (Maybe Metadata)
-metadata = label "metadata" . optional . parens . fmap Metadata . commaSep1 $
+metadata :: Parser Metadata
+metadata = label "metadata" . fmap Metadata . fmap (maybe [] NE.toList) . optional . parens . commaSep1 $
   (,) <$> attributeName <*> optional (colon *> literal)
 
 include :: Parser Include
