@@ -168,22 +168,22 @@ enumDecl = do
   colon
   t <- typ
   md <- metadata
-  v <- curly (commaSep1 enumValDecl)
+  v <- curly (commaSep1 enumVal)
   pure $ EnumDecl i t md v
 
-enumValDecl :: Parser EnumValDecl
-enumValDecl = EnumValDecl <$> ident <*> optional (symbol "=" *> intLiteral)
+enumVal :: Parser EnumVal
+enumVal = EnumVal <$> ident <*> optional (symbol "=" *> intLiteral)
 
 unionDecl :: Parser UnionDecl
 unionDecl = do
   rword "union"
   i <- ident
   md <- metadata
-  v <- curly (commaSep1 unionValDecl)
+  v <- curly (commaSep1 unionVal)
   pure $ UnionDecl i md v
 
-unionValDecl :: Parser UnionValDecl
-unionValDecl = UnionValDecl <$> optional (try (ident <* colon)) <*> typeRef
+unionVal :: Parser UnionVal
+unionVal = UnionVal <$> optional (try (ident <* colon)) <*> typeRef
 
 namespaceDecl :: Parser NamespaceDecl
 namespaceDecl = NamespaceDecl <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)

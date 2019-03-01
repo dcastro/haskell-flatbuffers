@@ -140,10 +140,10 @@ spec =
           Schema
             []
             [DeclE $ EnumDecl "Color" TInt16 (Just (Metadata (pure ("attr", Nothing)))) $ fromList
-              [ EnumValDecl "Red" Nothing
-              , EnumValDecl "Blue" (Just 18446744073709551615)
-              , EnumValDecl "Gray" (Just (-18446744073709551615))
-              , EnumValDecl "Black" Nothing
+              [ EnumVal "Red" Nothing
+              , EnumVal "Blue" (Just 18446744073709551615)
+              , EnumVal "Gray" (Just (-18446744073709551615))
+              , EnumVal "Black" Nothing
               ]
             ]
 
@@ -162,10 +162,10 @@ spec =
                 "Weapon"
                 (Just (Metadata (pure ("attr", Nothing))))
                 (fromList
-                  [ UnionValDecl Nothing (TypeRef "" "Sword")
-                  , UnionValDecl (Just "mace") (TypeRef "" "Stick")
-                  , UnionValDecl (Just "mace2") (TypeRef "My.Api" "Stick")
-                  , UnionValDecl Nothing (TypeRef "" "Axe")
+                  [ UnionVal Nothing (TypeRef "" "Sword")
+                  , UnionVal (Just "mace") (TypeRef "" "Stick")
+                  , UnionVal (Just "mace2") (TypeRef "My.Api" "Stick")
+                  , UnionVal Nothing (TypeRef "" "Axe")
                   ]
                 )
             ]

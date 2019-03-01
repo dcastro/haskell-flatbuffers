@@ -62,9 +62,9 @@ newtype NamespaceDecl = NamespaceDecl
   } deriving (Show, Eq)
 
 data TableDecl = TableDecl
-  { tableDeclIdent    :: Ident
-  , tableDeclMetadata :: Maybe Metadata
-  , tableDeclFields   :: [TableField]
+  { tableIdent    :: Ident
+  , tableMetadata :: Maybe Metadata
+  , tableFields   :: [TableField]
   } deriving (Show, Eq)
 
 data TableField = TableField
@@ -75,9 +75,9 @@ data TableField = TableField
   } deriving (Show, Eq)
 
 data StructDecl = StructDecl
-  { structDeclIdent    :: Ident
-  , structDeclMetadata :: Maybe Metadata
-  , structDeclFields   :: NonEmpty StructField
+  { structIdent    :: Ident
+  , structMetadata :: Maybe Metadata
+  , structFields   :: NonEmpty StructField
   } deriving (Show, Eq)
 
 data StructField = StructField
@@ -87,26 +87,26 @@ data StructField = StructField
   } deriving (Show, Eq)
 
 data EnumDecl = EnumDecl
-  { enumDeclIdent    :: Ident
-  , enumDeclType     :: Type
-  , enumDeclMetadata :: Maybe Metadata
-  , enumDeclVals     :: NonEmpty EnumValDecl
+  { enumIdent    :: Ident
+  , enumType     :: Type
+  , enumMetadata :: Maybe Metadata
+  , enumVals     :: NonEmpty EnumVal
   } deriving (Show, Eq)
 
-data EnumValDecl = EnumValDecl
-  { enumValDeclIdent   :: Ident
-  , enumValDeclLiteral :: Maybe IntLiteral
+data EnumVal = EnumVal
+  { enumValIdent   :: Ident
+  , enumValLiteral :: Maybe IntLiteral
   } deriving (Show, Eq)
 
 data UnionDecl = UnionDecl
-  { unionDeclIdent    :: Ident
-  , unionDeclMetadata :: Maybe Metadata
-  , unionDeclVals     :: NonEmpty UnionValDecl
+  { unionIdent    :: Ident
+  , unionMetadata :: Maybe Metadata
+  , unionVals     :: NonEmpty UnionVal
   } deriving (Show, Eq)
 
-data UnionValDecl = UnionValDecl
-  { unionValDeclAlias :: Maybe Ident
-  , unionValDeclType  :: TypeRef
+data UnionVal = UnionVal
+  { unionValAlias :: Maybe Ident
+  , unionValType  :: TypeRef
   } deriving (Show, Eq)
 
 data Type
