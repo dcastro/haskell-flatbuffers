@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
@@ -24,7 +25,7 @@ data Decl
 
 newtype Ident = Ident
   { unIdent :: Text
-  } deriving (Show, Eq, IsString)
+  } deriving (Show, Eq, IsString, Ord)
 
 newtype Include = Include
   { unInclude :: StringLiteral
@@ -145,3 +146,7 @@ newtype AttributeDecl = AttributeDecl Ident
 
 newtype Namespace = Namespace Text
   deriving (Show, Eq, IsString)
+
+qualify :: Namespace -> Ident -> Ident
+qualify "" i = i
+qualify (Namespace ns) (Ident i) = Ident (ns <> "." <> i)
