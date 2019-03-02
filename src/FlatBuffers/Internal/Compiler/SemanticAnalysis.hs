@@ -35,7 +35,7 @@ type ParseCtx = MonadError Text
 
 type Required = Bool
 
-newtype VDefaultVal a = VDefaultVal (Maybe a)
+newtype DefaultVal a = DefaultVal (Maybe a)
 
 data EnumDecl = EnumDecl
   { enumIdent :: Ident
@@ -164,18 +164,18 @@ data TableField = TableField
   }
 
 data TableFieldType
-  = TInt8 (VDefaultVal Int8)
-  | TInt16 (VDefaultVal Int16)
-  | TInt32 (VDefaultVal Int32)
-  | TInt64 (VDefaultVal Int64)
-  | TWord8 (VDefaultVal Word8)
-  | TWord16 (VDefaultVal Word16)
-  | TWord32 (VDefaultVal Word32)
-  | TWord64 (VDefaultVal Word64)
-  | TFloat (VDefaultVal Float)
-  | TDouble (VDefaultVal Double)
-  | TBool (VDefaultVal Bool)
-  | TEnum (VDefaultVal Ident) Ident
+  = TInt8 (DefaultVal Int8)
+  | TInt16 (DefaultVal Int16)
+  | TInt32 (DefaultVal Int32)
+  | TInt64 (DefaultVal Int64)
+  | TWord8 (DefaultVal Word8)
+  | TWord16 (DefaultVal Word16)
+  | TWord32 (DefaultVal Word32)
+  | TWord64 (DefaultVal Word64)
+  | TFloat (DefaultVal Float)
+  | TDouble (DefaultVal Double)
+  | TBool (DefaultVal Bool)
+  | TEnum (DefaultVal Ident) Ident
   | TStruct Required Ident
   | TTable Required Ident
   | TUnion Required Ident

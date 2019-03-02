@@ -16,7 +16,7 @@ import           Text.RawString.QQ                              (r)
 
 spec :: Spec
 spec =
-  fdescribe "SemanticAnalysis" $
+  describe "SemanticAnalysis" $
     describe "enums" $ do
       it "simple" $
         [r| enum Color : uint32 { Red, Green, Blue } |] `validatesEnum`
