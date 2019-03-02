@@ -63,8 +63,12 @@ spec =
             b1 : bool = true;
             b2 : bool = false;
             d : Ref = 123;
+            d : uint;
+            d : uint_;
+            d : X.uint;
+            d : X.uint_;
             e : [uint] = 99.2e9;
-            f : [abc_];
+            f : [uint_];
             g : My . Api . Ref = 123;
             h : [ MyApi.abc_ ] ;
             i: Color = Blue ;
@@ -78,8 +82,12 @@ spec =
               , TableField "b1" TBool (Just (DefaultB True)) (Metadata [])
               , TableField "b2" TBool (Just (DefaultB False)) (Metadata [])
               , TableField "d" (TRef (TypeRef "" "Ref")) (Just (DefaultN "123")) (Metadata [])
+              , TableField "d" TWord32 Nothing (Metadata [])
+              , TableField "d" (TRef (TypeRef "" "uint_")) Nothing (Metadata [])
+              , TableField "d" (TRef (TypeRef "X" "uint")) Nothing (Metadata [])
+              , TableField "d" (TRef (TypeRef "X" "uint_")) Nothing (Metadata [])
               , TableField "e" (TVector TWord32) (Just (DefaultN "99.2e9")) (Metadata [])
-              , TableField "f" (TVector (TRef (TypeRef "" "abc_"))) Nothing (Metadata [])
+              , TableField "f" (TVector (TRef (TypeRef "" "uint_"))) Nothing (Metadata [])
               , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) (Metadata [])
               , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing (Metadata [])
               , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultI "Blue")) (Metadata [])
@@ -92,7 +100,7 @@ spec =
             abc : bool;
             d : Ref ;
             e : [uint] ;
-            f : [abc_];
+            f : [uint_];
             g : My . Api . Ref ;
             h : [ MyApi.abc_ ] ;
           }
@@ -103,7 +111,7 @@ spec =
               [ StructField "abc" TBool (Metadata [])
               , StructField "d" (TRef (TypeRef "" "Ref")) (Metadata [])
               , StructField "e" (TVector TWord32) (Metadata [])
-              , StructField "f" (TVector (TRef (TypeRef "" "abc_"))) (Metadata [])
+              , StructField "f" (TVector (TRef (TypeRef "" "uint_"))) (Metadata [])
               , StructField "g" (TRef (TypeRef "My.Api" "Ref")) (Metadata [])
               , StructField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) (Metadata [])
               ]

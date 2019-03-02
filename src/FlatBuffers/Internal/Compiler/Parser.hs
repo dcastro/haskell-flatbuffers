@@ -74,7 +74,7 @@ symbol :: String -> Parser String
 symbol = L.symbol sc
 
 rword :: String -> Parser ()
-rword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
+rword w = (lexeme . try) (string w *> notFollowedBy (alphaNumChar <|> char '_'))
 
 curly, square, parens :: Parser a -> Parser a
 curly = between (symbol "{") (symbol "}")
