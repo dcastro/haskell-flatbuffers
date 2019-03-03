@@ -38,9 +38,10 @@ type Required = Bool
 newtype DefaultVal a = DefaultVal (Maybe a)
 
 data EnumDecl = EnumDecl
-  { enumIdent :: Ident
-  , enumType  :: EnumType
-  , enumVals  :: NonEmpty EnumVal
+  { enumNamespace :: Namespace
+  , enumIdent     :: Ident
+  , enumType      :: EnumType
+  , enumVals      :: NonEmpty EnumVal
   } deriving (Show, Eq)
 
 data EnumVal = EnumVal
@@ -71,7 +72,8 @@ validateEnum ns enum = checkBitFlags >> checkDups >> validEnum
       validateOrder enumVals
       traverse_ (validateBounds enumType) enumVals
       pure EnumDecl
-        { enumIdent = ST.enumIdent enum
+        { enumNamespace = ns
+        , enumIdent = ST.enumIdent enum
         , enumType = enumType
         , enumVals = enumVals
         }

@@ -20,21 +20,21 @@ spec =
     describe "enums" $ do
       it "simple" $
         [r| enum Color : uint32 { Red, Green, Blue } |] `validatesEnum`
-          Right (EnumDecl "Color" EWord32 $ fromList
+          Right (EnumDecl "Ns" "Color" EWord32 $ fromList
             [ EnumVal "Red" 0
             , EnumVal "Green" 1
             , EnumVal "Blue" 2
             ])
       it "with explicit values" $
         [r| enum Color : int32 { Red = -2, Green, Blue = 2 } |] `validatesEnum`
-          Right (EnumDecl "Color" EInt32 $ fromList
+          Right (EnumDecl "Ns" "Color" EInt32 $ fromList
             [ EnumVal "Red" (-2)
             , EnumVal "Green" (-1)
             , EnumVal "Blue" 2
             ])
       it "with explicit values (min/maxBound)" $
         [r| enum Color : int8 { Red = -128, Green, Blue = 127 } |] `validatesEnum`
-          Right (EnumDecl "Color" EInt8 $ fromList
+          Right (EnumDecl "Ns" "Color" EInt8 $ fromList
           [ EnumVal "Red" (toInteger (minBound :: Int8))
           , EnumVal "Green" (-127) 
           , EnumVal "Blue" (toInteger (maxBound :: Int8))
