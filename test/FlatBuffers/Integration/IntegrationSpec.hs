@@ -211,12 +211,12 @@ cases =
       "Structs"
       (root $
        table
-         [ struct (int32 maxBound) [word32 maxBound]
+         [ struct Nothing (int32 maxBound) [word32 maxBound]
          , missing
-         , struct
+         , struct Nothing
              (int32 maxBound)
              [padded 3 $ word8 maxBound, int64 maxBound, padded 7 $ bool True]
-         , struct
+         , struct Nothing
              (int32 maxBound)
              [ word32 maxBound
              , int32 maxBound
@@ -271,9 +271,9 @@ cases =
       (root $
        table
          [ vector
-             [ struct (word8 1) [word8 2, word8 3]
-             , struct (word8 4) [word8 5, word8 6]
-             , struct (word8 7) [word8 8, word8 9]
+             [ struct Nothing (word8 1) [word8 2, word8 3]
+             , struct Nothing (word8 4) [word8 5, word8 6]
+             , struct Nothing (word8 7) [word8 8, word8 9]
              ]
          ])
       (object

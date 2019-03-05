@@ -202,11 +202,11 @@ data VectorElementType
   | VUnion Ident
   | VString
 
-data Struct = Struct
-  { structIdent      :: Ident
-  , structNamespace  :: Text
+data StructDecl = StructDecl
+  { structNamespace  :: Namespace
+  , structIdent      :: Ident
   , structFields     :: NonEmpty StructField
-  , structForceAlign :: Word64 -- TODO: what should the size of this actually be?
+  , structForceAlign :: Maybe Word64 -- TODO: what should the size of this actually be?
   }
 
 newtype StructField = StructField
@@ -226,4 +226,4 @@ data StructFieldType
   | SDouble
   | SBool
   | SEnum Ident Word8 -- The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
-  | SStruct Struct
+  | SStruct StructDecl

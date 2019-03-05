@@ -26,6 +26,7 @@ module FlatBuffers.Internal.Write
   , bool
   , text
   , byteString
+  , prep
   ) where
 
 import           Control.Lens
@@ -41,6 +42,7 @@ import           Data.Functor.Reverse    (Reverse (..))
 import           Data.Int
 import qualified Data.List               as L
 import qualified Data.Map.Strict         as M
+import           Data.Maybe              (fromMaybe)
 import           Data.Monoid
 import           Data.Semigroup          (Max (..))
 import           Data.Text               (Text)
@@ -152,13 +154,7 @@ root table =
   execState
     (do ref <- dump table
         root' ref)
-    (FBState mempty 0 (Max 1) mempty)
-
-runRoot :: State FBState () -> Builder
-runRoot state =
-  _builder $ execState
-    state
-    (FBState mempty 0 (Max 1) mempty)
+    (FBState mempty 0 1 mempty)
 
 root' :: InlineField -> State FBState ()
 root' ref = do
@@ -166,10 +162,12 @@ root' ref = do
   prep align (coerce uoffsetSize)
   write ref
 
-struct :: InlineField -> [InlineField] -> Field
-struct head tail =
+struct :: Maybe InlineSize -> InlineField -> [InlineField] -> Field
+struct forceAlign head tail =
   let fields = head : tail
-  in Field . pure . InlineField (getSum $ foldMap (Sum . size) fields) (getMax $ foldMap (Max . align) fields) $
+      structSize = getSum $ foldMap (Sum . size) fields
+      structAlign = fromMaybe (getMax $ foldMap (Max . align) fields) forceAlign 
+  in Field . pure . InlineField structSize structAlign $
       traverse_ write (Reverse fields)
 
 padded :: Word8 -> InlineField -> InlineField

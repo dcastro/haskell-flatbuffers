@@ -21,6 +21,7 @@ import qualified Data.ByteString.Lazy       as BSL
 import           Data.Int
 import           Data.Text                  (Text)
 import           Data.Word
+import           FlatBuffers.Constants      (InlineSize)
 import           FlatBuffers.Internal.Write
 import qualified FlatBuffers.Internal.Write as F
 
@@ -38,8 +39,8 @@ data WriteUnion a
 writeTable :: [Field] -> WriteTable a
 writeTable = WriteTable . F.table
 
-writeStruct :: InlineField -> [InlineField] -> WriteStruct a
-writeStruct x xs = WriteStruct (F.struct x xs)
+writeStruct :: Maybe InlineSize -> InlineField -> [InlineField] -> WriteStruct a
+writeStruct forceAlign x xs = WriteStruct (F.struct forceAlign x xs)
 
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b
 writeUnion n (WriteTable t) = Some (n, t)
