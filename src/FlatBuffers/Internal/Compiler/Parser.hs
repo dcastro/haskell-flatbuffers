@@ -35,6 +35,11 @@ parseSchemas filePath = do
 --   * An enum's underlying type used to be optional (defaulting to @short@), but now it's mandatory.
 --   * Attributes can be reffered to either as an identifier or as a string literal (e.g. @attr@ or @"attr"@).
 --   * Struct fields can't have default values.
+--   * The grammar states that table/struct field defaults can only be scalars (integer/floating-point constants),
+--     when in reality, it could be also be a boolean or an enum identifier.
+--   * The grammar says attribute values can be integers, floats or string literals.
+--     Flatc only allows integers and string literals. To make things simpler, we decided to go with flatc's
+--     approach and disallow floats.
 schema :: Parser Schema
 schema = do
   sc
@@ -206,8 +211,12 @@ numberLiteral =
     (consumed, _n) <- match (L.signed sc L.scientific)
     pure (NumberLiteral consumed)
 
-literal :: Parser Literal
-literal = LiteralN <$> numberLiteral <|> LiteralS <$> stringLiteral
+attributeVal :: Parser AttributeVal
+attributeVal = 
+  choice
+    [ AttrI . unIntLiteral <$> intLiteral
+    , AttrS . unStringLiteral <$> stringLiteral
+    ]
 
 defaultVal :: Parser DefaultVal
 defaultVal =
@@ -220,7 +229,7 @@ defaultVal =
 
 metadata :: Parser Metadata
 metadata = label "metadata" . fmap Metadata . fmap (maybe [] NE.toList) . optional . parens . commaSep1 $
-  (,) <$> attributeName <*> optional (colon *> literal)
+  (,) <$> attributeName <*> optional (colon *> attributeVal)
 
 include :: Parser Include
 include = Include <$> (rword "include" *> stringLiteral <* semi)

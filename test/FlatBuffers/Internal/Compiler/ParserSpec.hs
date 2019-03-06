@@ -68,6 +68,7 @@ spec =
             d : X.uint;
             d : X.uint_;
             e : [uint] = 99.2e9;
+            e : [uint] = 99992873786287637862.298736756627897654e999999;
             f : [uint_];
             g : My . Api . Ref = 123;
             h : [ MyApi.abc_ ] ;
@@ -87,6 +88,7 @@ spec =
               , TableField "d" (TRef (TypeRef "X" "uint")) Nothing (Metadata [])
               , TableField "d" (TRef (TypeRef "X" "uint_")) Nothing (Metadata [])
               , TableField "e" (TVector TWord32) (Just (DefaultN "99.2e9")) (Metadata [])
+              , TableField "e" (TVector TWord32) (Just (DefaultN "99992873786287637862.298736756627897654e999999")) (Metadata [])
               , TableField "f" (TVector (TRef (TypeRef "" "uint_"))) Nothing (Metadata [])
               , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) (Metadata [])
               , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing (Metadata [])
@@ -119,7 +121,7 @@ spec =
 
       it "table declarations with metadata" $
         [r|
-          table ATable ( a , "b" : 99992873786287637862.298736756627897654e999999 , c : 3 , d : "attr" ) {
+          table ATable ( a , "b" : 9283 , c : "attr" ) {
             abc : bool = 99 ( def ) ;
           }
         |] `parses`
@@ -128,9 +130,8 @@ spec =
             [ DeclT $ TableDecl "ATable"
               (Metadata
                 [ ("a", Nothing)
-                , ("b", Just (LiteralN "99992873786287637862.298736756627897654e999999"))
-                , ("c", Just (LiteralN "3"))
-                , ("d", Just (LiteralS "attr"))
+                , ("b", Just (AttrI 9283))
+                , ("c", Just (AttrS "attr"))
                 ]
               )
               (pure (TableField "abc" TBool (Just (DefaultN "99")) (Metadata [("def", Nothing)])))

@@ -43,9 +43,9 @@ newtype NumberLiteral = NumberLiteral
   { unNumberLiteral :: String
   } deriving (Show, Eq, IsString)
 
-data Literal
-  = LiteralN NumberLiteral
-  | LiteralS StringLiteral
+data AttributeVal
+  = AttrI Integer
+  | AttrS Text
   deriving (Show, Eq)
 
 data DefaultVal
@@ -55,7 +55,7 @@ data DefaultVal
   deriving (Show, Eq)
 
 newtype Metadata = Metadata
-  { unMetadata :: [(Ident, Maybe Literal)]
+  { unMetadata :: [(Ident, Maybe AttributeVal)]
   } deriving (Show, Eq)
 
 newtype NamespaceDecl = NamespaceDecl
