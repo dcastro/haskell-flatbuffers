@@ -155,6 +155,22 @@ occurrences xs =
 hasAttribute :: Text -> ST.Metadata -> Bool
 hasAttribute name (ST.Metadata attrs) = M.member name attrs
 
+findIntAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Integer)
+findIntAttr context name (ST.Metadata attrs) =
+  case M.lookup name attrs of
+    Nothing                  -> pure Nothing
+    Just (Just (ST.AttrI i)) -> pure (Just i)
+    Just _ ->
+      throwError $ context <> ": expected attribute '" <> name <> "' to have an integer value, e.g. '(" <> name <> ": 123)'"
+
+findStringAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Text)
+findStringAttr context name (ST.Metadata attrs) =
+  case M.lookup name attrs of
+    Nothing                  -> pure Nothing
+    Just (Just (ST.AttrS s)) -> pure (Just s)
+    Just _ ->
+      throwError $ context <> ": expected attribute '" <> name <> "' to have a string value, e.g. '(" <> name <> ": \"abc\")'"
+
 data Table = Table
   { tableIdent     :: Ident
   , tableNamespace :: Ident
