@@ -8,7 +8,9 @@ import           Data.Coerce                              (coerce)
 import           Data.Functor
 import           Data.List.NonEmpty                       (NonEmpty)
 import qualified Data.List.NonEmpty                       as NE
+import qualified Data.Map.Strict                          as M
 import           Data.Maybe                               (catMaybes)
+import           Data.Text                                (Text)
 import qualified Data.Text                                as T
 import           Data.Tree                                (Tree (..))
 import           Data.Void                                (Void)
@@ -228,7 +230,12 @@ defaultVal =
     ]
 
 metadata :: Parser Metadata
-metadata = label "metadata" . fmap Metadata . fmap (maybe [] NE.toList) . optional . parens . commaSep1 $
+metadata =
+  label "metadata"
+    . fmap (Metadata . M.fromList . maybe [] NE.toList)
+    . optional
+    . parens
+    . commaSep1 $
   (,) <$> attributeName <*> optional (colon *> attributeVal)
 
 include :: Parser Include
@@ -246,8 +253,8 @@ fileIdentifierDecl = FileIdentifierDecl <$> (rword "file_identifier" *> stringLi
 attributeDecl :: Parser AttributeDecl
 attributeDecl = AttributeDecl <$> (rword "attribute" *> attributeName <* semi)
 
-attributeName :: Parser Ident
-attributeName = coerce stringLiteral <|> ident
+attributeName :: Parser Text
+attributeName = coerce stringLiteral <|> coerce ident
 
 jsonObj :: Parser ()
 jsonObj =

@@ -4,6 +4,7 @@
 module FlatBuffers.Internal.Compiler.ParserSpec where
 
 import           Data.List.NonEmpty
+import qualified Data.Map.Strict                          as M
 import           Data.Void                                (Void)
 import           FlatBuffers.Internal.Compiler.Parser
 import           FlatBuffers.Internal.Compiler.SyntaxTree
@@ -77,22 +78,22 @@ spec =
         |] `parses`
           Schema
             []
-            [ DeclT $ TableDecl "T" (Metadata []) []
-            , DeclT $ TableDecl "ATable" (Metadata [])
-              [ TableField "abc" TBool Nothing (Metadata [])
-              , TableField "b1" TBool (Just (DefaultB True)) (Metadata [])
-              , TableField "b2" TBool (Just (DefaultB False)) (Metadata [])
-              , TableField "d" (TRef (TypeRef "" "Ref")) (Just (DefaultN "123")) (Metadata [])
-              , TableField "d" TWord32 Nothing (Metadata [])
-              , TableField "d" (TRef (TypeRef "" "uint_")) Nothing (Metadata [])
-              , TableField "d" (TRef (TypeRef "X" "uint")) Nothing (Metadata [])
-              , TableField "d" (TRef (TypeRef "X" "uint_")) Nothing (Metadata [])
-              , TableField "e" (TVector TWord32) (Just (DefaultN "99.2e9")) (Metadata [])
-              , TableField "e" (TVector TWord32) (Just (DefaultN "99992873786287637862.298736756627897654e999999")) (Metadata [])
-              , TableField "f" (TVector (TRef (TypeRef "" "uint_"))) Nothing (Metadata [])
-              , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) (Metadata [])
-              , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing (Metadata [])
-              , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultI "Blue")) (Metadata [])
+            [ DeclT $ TableDecl "T" (Metadata mempty) []
+            , DeclT $ TableDecl "ATable" (Metadata mempty)
+              [ TableField "abc" TBool Nothing (Metadata mempty)
+              , TableField "b1" TBool (Just (DefaultB True)) (Metadata mempty)
+              , TableField "b2" TBool (Just (DefaultB False)) (Metadata mempty)
+              , TableField "d" (TRef (TypeRef "" "Ref")) (Just (DefaultN "123")) (Metadata mempty)
+              , TableField "d" TWord32 Nothing (Metadata mempty)
+              , TableField "d" (TRef (TypeRef "" "uint_")) Nothing (Metadata mempty)
+              , TableField "d" (TRef (TypeRef "X" "uint")) Nothing (Metadata mempty)
+              , TableField "d" (TRef (TypeRef "X" "uint_")) Nothing (Metadata mempty)
+              , TableField "e" (TVector TWord32) (Just (DefaultN "99.2e9")) (Metadata mempty)
+              , TableField "e" (TVector TWord32) (Just (DefaultN "99992873786287637862.298736756627897654e999999")) (Metadata mempty)
+              , TableField "f" (TVector (TRef (TypeRef "" "uint_"))) Nothing (Metadata mempty)
+              , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) (Metadata mempty)
+              , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing (Metadata mempty)
+              , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultI "Blue")) (Metadata mempty)
               ]
             ]
 
@@ -109,13 +110,13 @@ spec =
         |] `parses`
           Schema
             []
-            [ DeclS $ StructDecl "AStruct" (Metadata []) $ fromList
-              [ StructField "abc" TBool (Metadata [])
-              , StructField "d" (TRef (TypeRef "" "Ref")) (Metadata [])
-              , StructField "e" (TVector TWord32) (Metadata [])
-              , StructField "f" (TVector (TRef (TypeRef "" "uint_"))) (Metadata [])
-              , StructField "g" (TRef (TypeRef "My.Api" "Ref")) (Metadata [])
-              , StructField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) (Metadata [])
+            [ DeclS $ StructDecl "AStruct" (Metadata mempty) $ fromList
+              [ StructField "abc" TBool (Metadata mempty)
+              , StructField "d" (TRef (TypeRef "" "Ref")) (Metadata mempty)
+              , StructField "e" (TVector TWord32) (Metadata mempty)
+              , StructField "f" (TVector (TRef (TypeRef "" "uint_"))) (Metadata mempty)
+              , StructField "g" (TRef (TypeRef "My.Api" "Ref")) (Metadata mempty)
+              , StructField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) (Metadata mempty)
               ]
             ]
 
@@ -128,13 +129,13 @@ spec =
           Schema
             []
             [ DeclT $ TableDecl "ATable"
-              (Metadata
+              (Metadata $ M.fromList
                 [ ("a", Nothing)
                 , ("b", Just (AttrI 9283))
                 , ("c", Just (AttrS "attr"))
                 ]
               )
-              (pure (TableField "abc" TBool (Just (DefaultN "99")) (Metadata [("def", Nothing)])))
+              (pure (TableField "abc" TBool (Just (DefaultN "99")) (Metadata $ M.fromList [("def", Nothing)])))
             ]
 
       it "enum declarations" $
@@ -148,7 +149,7 @@ spec =
         |] `parses`
           Schema
             []
-            [DeclE $ EnumDecl "Color" TInt16 (Metadata [("attr", Nothing)]) $ fromList
+            [DeclE $ EnumDecl "Color" TInt16 (Metadata $ M.fromList [("attr", Nothing)]) $ fromList
               [ EnumVal "Red" Nothing
               , EnumVal "Blue" (Just 18446744073709551615)
               , EnumVal "Gray" (Just (-18446744073709551615))
@@ -169,7 +170,7 @@ spec =
             []
             [ DeclU $ UnionDecl
                 "Weapon"
-                (Metadata [("attr", Nothing)])
+                (Metadata $ M.fromList [("attr", Nothing)])
                 (fromList
                   [ UnionVal Nothing (TypeRef "" "Sword")
                   , UnionVal (Just "mace") (TypeRef "" "Stick")

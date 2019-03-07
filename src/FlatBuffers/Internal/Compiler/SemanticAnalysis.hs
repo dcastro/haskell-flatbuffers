@@ -62,7 +62,7 @@ data EnumType
 
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ParseCtx m => Namespace -> ST.EnumDecl -> m EnumDecl
-validateEnum ns enum = checkBitFlags >> checkDups >> validEnum
+validateEnum ns enum = checkBitFlags >> checkDuplicateFields >> validEnum
   where
     qualifiedName = "[" <> ST.unIdent (ST.qualify ns (ST.enumIdent enum)) <> "]"
 
@@ -128,8 +128,8 @@ validateEnum ns enum = checkBitFlags >> checkDups >> validEnum
         ST.TWord64 -> pure EWord64
         _          -> throwError $ qualifiedName <> ": underlying enum type must be integral"
 
-    checkDups :: m ()
-    checkDups =
+    checkDuplicateFields :: m ()
+    checkDuplicateFields =
       case findDupsBy ST.enumValIdent (ST.enumVals enum) of
         [] -> pure ()
         dups ->
@@ -140,7 +140,7 @@ validateEnum ns enum = checkBitFlags >> checkDups >> validEnum
 
     checkBitFlags :: m ()
     checkBitFlags =
-      if any (\(x, _) -> x == "bit_flags") (ST.unMetadata (ST.enumMetadata enum))
+      if hasAttribute "bit_flags" (ST.enumMetadata enum)
         then throwError $ qualifiedName <> ": `bit_flags` are not supported yet"
         else pure ()
 
@@ -152,6 +152,8 @@ occurrences :: (Foldable f, Functor f, Ord a) => f a -> Map a (Sum Int)
 occurrences xs =
   M.unionsWith (<>) $ fmap (\x -> M.singleton x (Sum 1)) xs
 
+hasAttribute :: Text -> ST.Metadata -> Bool
+hasAttribute name (ST.Metadata attrs) = M.member name attrs
 
 data Table = Table
   { tableIdent     :: Ident

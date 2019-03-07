@@ -4,6 +4,7 @@
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
 import           Data.List.NonEmpty (NonEmpty)
+import qualified Data.Map.Strict    as M
 import           Data.String        (IsString)
 import           Data.Text          (Text)
 
@@ -55,7 +56,7 @@ data DefaultVal
   deriving (Show, Eq)
 
 newtype Metadata = Metadata
-  { unMetadata :: [(Ident, Maybe AttributeVal)]
+  { unMetadata :: M.Map Text (Maybe AttributeVal)
   } deriving (Show, Eq)
 
 newtype NamespaceDecl = NamespaceDecl
@@ -141,11 +142,11 @@ newtype RootDecl = RootDecl TypeRef
 newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
   deriving (Show, Eq, IsString)
 
-newtype AttributeDecl = AttributeDecl Ident
+newtype AttributeDecl = AttributeDecl Text
   deriving (Show, Eq, IsString)
 
 newtype Namespace = Namespace Text
-  deriving (Show, Eq, IsString)
+  deriving (Show, Eq, IsString, Ord)
 
 qualify :: Namespace -> Ident -> Ident
 qualify "" i = i
