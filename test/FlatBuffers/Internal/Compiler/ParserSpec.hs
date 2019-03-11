@@ -47,12 +47,14 @@ spec =
           namespace Ns;
           namespace My . Api . Domain;
           namespace My.Api.Domain2;
+          namespace ;
         |] `parses`
           Schema
             ["somefile"]
-            [ DeclN $ NamespaceDecl $ fromList ["Ns"]
-            , DeclN $ NamespaceDecl $ fromList ["My", "Api", "Domain"]
-            , DeclN $ NamespaceDecl $ fromList ["My", "Api", "Domain2"]
+            [ DeclN "Ns"
+            , DeclN "My.Api.Domain"
+            , DeclN "My.Api.Domain2"
+            , DeclN ""
             ]
 
       it "table declarations" $

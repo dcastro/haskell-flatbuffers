@@ -8,7 +8,7 @@ import           Data.Coerce                              (coerce)
 import           Data.Functor
 import           Data.List.NonEmpty                       (NonEmpty)
 import qualified Data.List.NonEmpty                       as NE
-import qualified Data.Map.Strict                          as M
+import qualified Data.Map.Strict                          as Map
 import           Data.Maybe                               (catMaybes)
 import           Data.Text                                (Text)
 import qualified Data.Text                                as T
@@ -37,11 +37,13 @@ parseSchemas filePath = do
 --   * An enum's underlying type used to be optional (defaulting to @short@), but now it's mandatory.
 --   * Attributes can be reffered to either as an identifier or as a string literal (e.g. @attr@ or @"attr"@).
 --   * Struct fields can't have default values.
---   * The grammar states that table/struct field defaults can only be scalars (integer/floating-point constants),
+--   * The grammar states that table/struct field defaults can only be scalars (integer/floating point constants),
 --     when in reality, it could be also be a boolean or an enum identifier.
 --   * The grammar says attribute values can be integers, floats or string literals.
 --     Flatc only allows integers and string literals. To make things simpler, we decided to go with flatc's
 --     approach and disallow floats.
+--   * The grammar says namespaces must include at least one fragment, but an empty namespace
+--     (i.e. @namespace ;@) is perfectly valid.
 schema :: Parser Schema
 schema = do
   sc
@@ -194,7 +196,9 @@ unionVal :: Parser UnionVal
 unionVal = UnionVal <$> optional (try (ident <* colon)) <*> typeRef
 
 namespaceDecl :: Parser NamespaceDecl
-namespaceDecl = NamespaceDecl <$> (rword "namespace" *> NE.sepBy1 ident (symbol ".") <* semi)
+namespaceDecl =
+  NamespaceDecl . Namespace . T.intercalate "." . coerce <$>
+    (rword "namespace" *> sepBy ident (symbol ".") <* semi)
 
 stringLiteral :: Parser StringLiteral
 stringLiteral =
@@ -232,7 +236,7 @@ defaultVal =
 metadata :: Parser Metadata
 metadata =
   label "metadata"
-    . fmap (Metadata . M.fromList . maybe [] NE.toList)
+    . fmap (Metadata . Map.fromList . maybe [] NE.toList)
     . optional
     . parens
     . commaSep1 $
