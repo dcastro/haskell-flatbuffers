@@ -129,7 +129,7 @@ validateEnums = traverse validateEnum
 validateEnum :: forall m. ParseCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
 validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validEnum
   where
-    qualifiedName = "[" <> qualify namespace (ST.enumIdent enum) <> "]"
+    qualifiedName = qualify namespace (ST.enumIdent enum)
 
     validEnum = do
       enumType <- validateEnumType (ST.enumType enum)
@@ -160,7 +160,7 @@ validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validE
     validateOrder xs =
       if all (\(x, y) -> enumValInt x < enumValInt y) (NE.toList xs `zip` NE.tail xs)
         then pure ()
-        else throwError $ qualifiedName <> ": enum values must be specified in ascending order"
+        else throwErrorMsg qualifiedName "enum values must be specified in ascending order"
 
     validateBounds :: EnumType -> EnumVal -> m ()
     validateBounds enumType enumVal =
@@ -178,7 +178,12 @@ validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validE
     validateBounds' e =
       if inRange (toInteger (minBound @a), toInteger (maxBound @a)) (enumValInt e)
         then pure ()
-        else throwError $ qualifiedName <> ": enum value does not fit [" <> T.pack (show (minBound @a)) <> "; " <> T.pack (show (maxBound @a)) <> "]"
+        else throwErrorMsg qualifiedName $
+              "enum value does not fit ["
+              <> T.pack (show (minBound @a))
+              <> "; "
+              <> T.pack (show (maxBound @a))
+              <> "]"
 
     validateEnumType :: ST.Type -> m EnumType
     validateEnumType t =
@@ -191,7 +196,7 @@ validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validE
         ST.TWord16 -> pure EWord16
         ST.TWord32 -> pure EWord32
         ST.TWord64 -> pure EWord64
-        _          -> throwError $ qualifiedName <> ": underlying enum type must be integral"
+        _          -> throwErrorMsg qualifiedName "underlying enum type must be integral"
 
     checkDuplicateFields :: m ()
     checkDuplicateFields =
@@ -201,7 +206,7 @@ validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validE
     checkBitFlags :: m ()
     checkBitFlags =
       if hasAttribute "bit_flags" (ST.enumMetadata enum)
-        then throwError $ qualifiedName <> ": `bit_flags` are not supported yet"
+        then throwErrorMsg qualifiedName "`bit_flags` are not supported yet"
         else pure ()
 
 checkDuplicateIdentifiers :: (ParseCtx m, Foldable f, Functor f) => Text -> f Text -> m ()
@@ -209,9 +214,8 @@ checkDuplicateIdentifiers context idents =
   case findDups idents of
     [] -> pure ()
     dups ->
-      throwError $
-      context
-      <> ": ["
+      throwErrorMsg context $
+      "["
       <> T.intercalate ", " dups
       <> "] declared more than once"
 
@@ -231,7 +235,12 @@ findIntAttr context name (ST.Metadata attrs) =
     Nothing                  -> pure Nothing
     Just (Just (ST.AttrI i)) -> pure (Just i)
     Just _ ->
-      throwError $ context <> ": expected attribute '" <> name <> "' to have an integer value, e.g. '(" <> name <> ": 123)'"
+      throwErrorMsg context $
+        "expected attribute '"
+        <> name
+        <> "' to have an integer value, e.g. '("
+        <> name
+        <> ": 123)'"
 
 findStringAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Text)
 findStringAttr context name (ST.Metadata attrs) =
@@ -239,7 +248,12 @@ findStringAttr context name (ST.Metadata attrs) =
     Nothing                  -> pure Nothing
     Just (Just (ST.AttrS s)) -> pure (Just s)
     Just _ ->
-      throwError $ context <> ": expected attribute '" <> name <> "' to have a string value, e.g. '(" <> name <> ": \"abc\")'"
+      throwErrorMsg context $
+        "expected attribute '"
+        <> name
+        <> "' to have a string value, e.g. '("
+        <> name
+        <> ": \"abc\")'"
 
 data Table = Table
   { tableIdent     :: Ident
@@ -353,7 +367,7 @@ validateStruct validatedEnums structs (namespace, struct) = do
       pure validatedStruct
 
   where
-    structQualifiedName = "[" <> qualify namespace (ST.structIdent struct) <> "]"
+    qualifiedName = qualify namespace (ST.structIdent struct)
 
     validateStructField :: ST.StructField -> m StructField
     validateStructField sf = do
@@ -377,8 +391,8 @@ validateStruct validatedEnums structs (namespace, struct) = do
         ST.TFloat -> pure SFloat
         ST.TDouble -> pure SDouble
         ST.TBool -> pure SBool
-        ST.TString -> throwError invalidStructFieldType
-        ST.TVector _ -> throwError invalidStructFieldType
+        ST.TString -> throwErrorMsg qualifiedName invalidStructFieldType
+        ST.TVector _ -> throwErrorMsg qualifiedName invalidStructFieldType
         ST.TRef (ST.TypeRef refNamespace refIdent) ->
           let refQualifiedName = qualify refNamespace refIdent
           in 
@@ -391,11 +405,10 @@ validateStruct validatedEnums structs (namespace, struct) = do
                 validatedNestedStruct <- validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
                 pure (SStruct validatedNestedStruct)
       where
-        structFieldQualifiedName = structQualifiedName <> "." <> ST.unIdent structFieldIdent
+        structFieldQualifiedName = qualifiedName <> "." <> ST.unIdent structFieldIdent
 
         invalidStructFieldType =
-          structFieldQualifiedName
-          <> ": structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+          "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
 
         findStruct :: Namespace -> Ident -> m (Namespace, ST.StructDecl)
         findStruct needleNamespace needleIdent =
@@ -407,9 +420,8 @@ validateStruct validatedEnums structs (namespace, struct) = do
               case find (\(ns, s) -> ns == needleNamespace && ST.structIdent s == needleIdent) structs of
                 Just result -> pure result
                 Nothing ->
-                  throwError $
-                    structFieldQualifiedName
-                    <> ": type '"
+                  throwErrorMsg structFieldQualifiedName $
+                    "type '"
                     <> ST.unIdent needleIdent
                     <> "' in namespace '"
                     <> ST.unNamespace needleNamespace
@@ -417,22 +429,21 @@ validateStruct validatedEnums structs (namespace, struct) = do
                     <> "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
 
     getForceAlignAttr :: m (Maybe Integer)
-    getForceAlignAttr = findIntAttr structQualifiedName "force_align" (ST.structMetadata struct)
+    getForceAlignAttr = findIntAttr qualifiedName "force_align" (ST.structMetadata struct)
 
     validateForceAlign :: Word8 -> Integer -> m Word8
     validateForceAlign naturalAlignment forceAlign =
       if isPowerOfTwo forceAlign
         && inRange (fromIntegral @Word8 @Integer naturalAlignment, 16) forceAlign
         then pure (fromIntegral @Integer @Word8 forceAlign)
-        else throwError $
-        structQualifiedName
-        <> ": force_align must be a power of two integer ranging from the struct's natural alignment (in this case, "
-        <> T.pack (show naturalAlignment)
-        <> ") to 16"
+        else throwErrorMsg qualifiedName $
+              "force_align must be a power of two integer ranging from the struct's natural alignment (in this case, "
+              <> T.pack (show naturalAlignment)
+              <> ") to 16"
 
     checkDuplicateFields :: m ()
     checkDuplicateFields =
-      checkDuplicateIdentifiers structQualifiedName
+      checkDuplicateIdentifiers qualifiedName
         (coerce . ST.structFieldIdent <$> ST.structFields struct)
 
 structFieldAlignment :: StructField -> Word8
@@ -477,3 +488,8 @@ enumQualifiedName e = qualify (enumNamespace e) (enumIdent e)
 
 structQualifiedName :: StructDecl -> Text
 structQualifiedName s = qualify (structNamespace s) (structIdent s)
+
+
+throwErrorMsg :: ParseCtx m => Text -> Text -> m a
+throwErrorMsg context msg =
+  throwError $ "[" <> context <> "]: " <> msg
