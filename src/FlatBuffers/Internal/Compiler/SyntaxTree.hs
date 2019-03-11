@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
@@ -26,23 +27,23 @@ data Decl
 
 newtype Ident = Ident
   { unIdent :: Text
-  } deriving (Show, Eq, IsString, Ord)
+  } deriving newtype (Show, Eq, IsString, Ord)
 
 newtype Include = Include
   { unInclude :: StringLiteral
-  } deriving (Show, Eq, IsString)
+  } deriving newtype (Show, Eq, IsString)
 
 newtype StringLiteral = StringLiteral
   { unStringLiteral :: Text
-  } deriving (Show, Eq, IsString)
+  } deriving newtype (Show, Eq, IsString)
 
 newtype IntLiteral = IntLiteral
   { unIntLiteral :: Integer
-  } deriving (Show, Eq, Num, Enum, Ord, Real, Integral)
+  } deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral)
 
 newtype NumberLiteral = NumberLiteral
   { unNumberLiteral :: String
-  } deriving (Show, Eq, IsString)
+  } deriving newtype (Show, Eq, IsString)
 
 data AttributeVal
   = AttrI Integer
@@ -57,11 +58,11 @@ data DefaultVal
 
 newtype Metadata = Metadata
   { unMetadata :: Map Text (Maybe AttributeVal)
-  } deriving (Show, Eq)
+  } deriving newtype (Show, Eq)
 
 newtype NamespaceDecl = NamespaceDecl
-  { unNamespace :: Namespace
-  } deriving (Show, Eq, IsString)
+  { unNamespaceDecl :: Namespace
+  } deriving newtype (Show, Eq, IsString)
 
 data TableDecl = TableDecl
   { tableIdent    :: Ident
@@ -137,17 +138,18 @@ data TypeRef = TypeRef
   } deriving (Show, Eq)
 
 newtype RootDecl = RootDecl TypeRef
-  deriving (Show, Eq)
+  deriving newtype (Show, Eq)
 
 newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
-  deriving (Show, Eq, IsString)
+  deriving newtype (Show, Eq, IsString)
 
 newtype AttributeDecl = AttributeDecl Text
-  deriving (Show, Eq, IsString)
+  deriving newtype (Show, Eq, IsString)
 
-newtype Namespace = Namespace Text
-  deriving (Show, Eq, IsString, Ord)
+newtype Namespace = Namespace {unNamespace :: Text }
+  deriving newtype (Show, Eq, IsString, Ord)
 
-qualify :: Namespace -> Ident -> Ident
-qualify "" i = i
-qualify (Namespace ns) (Ident i) = Ident (ns <> "." <> i)
+instance Semigroup Namespace where
+  "" <> y = y
+  x <> "" = x
+  Namespace x <> Namespace y = Namespace (x <> "." <> y)

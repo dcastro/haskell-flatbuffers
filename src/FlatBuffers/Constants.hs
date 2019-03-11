@@ -5,7 +5,7 @@ module FlatBuffers.Constants where
 import Data.Word (Word16)
 
 newtype InlineSize = InlineSize { unInlineSize :: Word16 }
-  deriving (Eq, Num, Enum, Ord, Real, Integral, Bounded)
+  deriving (Show, Eq, Num, Enum, Ord, Real, Integral, Bounded)
 
 voffsetSize, uoffsetSize, soffsetSize :: InlineSize
 voffsetSize = word16Size

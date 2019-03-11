@@ -8,34 +8,96 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad.Except
+import           Control.Monad.Except                     (MonadError,
+                                                           throwError)
 import           Control.Monad.State                      (State, evalState,
-                                                           get, put)
+                                                           execStateT, get,
+                                                           modify, put)
+import           Control.Monad.State.Class                (MonadState)
 import           Data.Coerce                              (coerce)
-import           Data.Foldable
-import           Data.Functor                             (($>), (<&>))
+import           Data.Foldable                            (find, maximum,
+                                                           traverse_)
+import           Data.Functor                             ((<&>))
 import           Data.Int
 import           Data.Ix                                  (inRange)
 import           Data.List.NonEmpty                       (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                       as NE
 import           Data.Map.Strict                          (Map)
-import qualified Data.Map.Strict                          as M
+import qualified Data.Map.Strict                          as Map
+import           Data.Maybe                               (fromMaybe)
 import           Data.Monoid                              (Sum (..))
 import           Data.Text                                (Text)
 import qualified Data.Text                                as T
-import           Data.Tree                                (Tree (..))
 import qualified Data.Tree                                as Tree
 import           Data.Word
 import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
                                                            Schema)
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
+import           FlatBuffers.Internal.Util                (isPowerOfTwo, roundUpToNearestMultipleOf)
 
 type ParseCtx = MonadError Text
 
 type Required = Bool
 
 newtype DefaultVal a = DefaultVal (Maybe a)
+
+-- | Unvalidated type declarations, paired with their respective namespaces
+data DeclsWithNamespace = DeclsWithNamespace
+  { tables  :: [(Namespace, ST.TableDecl)]
+  , structs :: [(Namespace, ST.StructDecl)]
+  , enums   :: [(Namespace, ST.EnumDecl)]
+  , unions  :: [(Namespace, ST.UnionDecl)]
+  }
+
+instance Semigroup DeclsWithNamespace where
+  DeclsWithNamespace t1 s1 e1 u1 <> DeclsWithNamespace t2 s2 e2 u2 =
+    DeclsWithNamespace (t1 <> t2) (s1 <> s2) (e1 <> e2) (u1 <> u2)
+
+instance Monoid DeclsWithNamespace where
+  mempty = DeclsWithNamespace [] [] [] []
+
+-- | Semantically valid type declarations
+data ValidatedDecls = ValidatedDecls
+  { validatedEnums   :: [EnumDecl]
+  , validatedStructs :: [StructDecl]
+  } deriving (Show, Eq)
+
+instance Semigroup ValidatedDecls where
+  ValidatedDecls e1 s1 <> ValidatedDecls e2 s2 =
+    ValidatedDecls (e1 <> e2) (s1 <> s2)
+
+instance Monoid ValidatedDecls where
+  mempty = ValidatedDecls [] []
+
+-- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
+pairDeclsWithNamespaces :: Tree.Tree Schema -> DeclsWithNamespace
+pairDeclsWithNamespaces = foldMap (pairDeclsWithNamespaces' . ST.decls)
+  where
+    pairDeclsWithNamespaces' :: [ST.Decl] -> DeclsWithNamespace
+    pairDeclsWithNamespaces' = snd . foldl go ("", mempty)
+
+    go :: (Namespace, DeclsWithNamespace) -> ST.Decl -> (Namespace, DeclsWithNamespace)
+    go (currentNamespace, decls) decl =
+      case decl of
+        ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
+        ST.DeclT table  -> (currentNamespace, decls <> DeclsWithNamespace [(currentNamespace, table)] [] [] [])
+        ST.DeclS struct -> (currentNamespace, decls <> DeclsWithNamespace [] [(currentNamespace, struct)] [] [])
+        ST.DeclE enum   -> (currentNamespace, decls <> DeclsWithNamespace [] [] [(currentNamespace, enum)] [])
+        ST.DeclU union  -> (currentNamespace, decls <> DeclsWithNamespace [] [] [] [(currentNamespace, union)])
+        _               -> (currentNamespace, decls)
+
+
+validateDecls :: ParseCtx m => DeclsWithNamespace -> m ValidatedDecls
+validateDecls decls = do
+  validatedEnums <- validateEnums (enums decls)
+  validatedStructs <- validateStructs validatedEnums (structs decls)
+
+  pure $ ValidatedDecls
+    { validatedEnums = validatedEnums
+    , validatedStructs = validatedStructs
+    }
+
 
 data EnumDecl = EnumDecl
   { enumNamespace :: Namespace
@@ -60,11 +122,14 @@ data EnumType
   | EWord64
   deriving (Show, Eq)
 
+validateEnums :: forall m. ParseCtx m => [(Namespace, ST.EnumDecl)] -> m [EnumDecl]
+validateEnums = traverse validateEnum
+
 -- TODO: add support for `bit_flags` attribute
-validateEnum :: forall m. ParseCtx m => Namespace -> ST.EnumDecl -> m EnumDecl
-validateEnum ns enum = checkBitFlags >> checkDuplicateFields >> validEnum
+validateEnum :: forall m. ParseCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
+validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validEnum
   where
-    qualifiedName = "[" <> ST.unIdent (ST.qualify ns (ST.enumIdent enum)) <> "]"
+    qualifiedName = "[" <> qualify namespace (ST.enumIdent enum) <> "]"
 
     validEnum = do
       enumType <- validateEnumType (ST.enumType enum)
@@ -72,7 +137,7 @@ validateEnum ns enum = checkBitFlags >> checkDuplicateFields >> validEnum
       validateOrder enumVals
       traverse_ (validateBounds enumType) enumVals
       pure EnumDecl
-        { enumNamespace = ns
+        { enumNamespace = namespace
         , enumIdent = ST.enumIdent enum
         , enumType = enumType
         , enumVals = enumVals
@@ -130,13 +195,8 @@ validateEnum ns enum = checkBitFlags >> checkDuplicateFields >> validEnum
 
     checkDuplicateFields :: m ()
     checkDuplicateFields =
-      case findDupsBy ST.enumValIdent (ST.enumVals enum) of
-        [] -> pure ()
-        dups ->
-          throwError $
-          qualifiedName <>
-          ": fields [" <> T.intercalate ", " (coerce dups) <>
-          "] declared more than once"
+      checkDuplicateIdentifiers qualifiedName
+        (coerce . ST.enumValIdent <$> ST.enumVals enum)
 
     checkBitFlags :: m ()
     checkBitFlags =
@@ -144,20 +204,30 @@ validateEnum ns enum = checkBitFlags >> checkDuplicateFields >> validEnum
         then throwError $ qualifiedName <> ": `bit_flags` are not supported yet"
         else pure ()
 
+checkDuplicateIdentifiers :: (ParseCtx m, Foldable f, Functor f) => Text -> f Text -> m ()
+checkDuplicateIdentifiers context idents =
+  case findDups idents of
+    [] -> pure ()
+    dups ->
+      throwError $
+      context
+      <> ": ["
+      <> T.intercalate ", " dups
+      <> "] declared more than once"
 
-findDupsBy :: (Foldable f, Functor f, Ord b) => (a -> b) -> f a -> [b]
-findDupsBy f xs = M.keys $ M.filter (>1) $ occurrences $ fmap f xs
+findDups :: (Foldable f, Functor f, Ord a) => f a -> [a]
+findDups xs = Map.keys $ Map.filter (>1) $ occurrences xs
 
 occurrences :: (Foldable f, Functor f, Ord a) => f a -> Map a (Sum Int)
 occurrences xs =
-  M.unionsWith (<>) $ fmap (\x -> M.singleton x (Sum 1)) xs
+  Map.unionsWith (<>) $ fmap (\x -> Map.singleton x (Sum 1)) xs
 
 hasAttribute :: Text -> ST.Metadata -> Bool
-hasAttribute name (ST.Metadata attrs) = M.member name attrs
+hasAttribute name (ST.Metadata attrs) = Map.member name attrs
 
 findIntAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Integer)
 findIntAttr context name (ST.Metadata attrs) =
-  case M.lookup name attrs of
+  case Map.lookup name attrs of
     Nothing                  -> pure Nothing
     Just (Just (ST.AttrI i)) -> pure (Just i)
     Just _ ->
@@ -165,7 +235,7 @@ findIntAttr context name (ST.Metadata attrs) =
 
 findStringAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Text)
 findStringAttr context name (ST.Metadata attrs) =
-  case M.lookup name attrs of
+  case Map.lookup name attrs of
     Nothing                  -> pure Nothing
     Just (Just (ST.AttrS s)) -> pure (Just s)
     Just _ ->
@@ -223,13 +293,15 @@ data VectorElementType
 data StructDecl = StructDecl
   { structNamespace  :: Namespace
   , structIdent      :: Ident
+  , structAlignment  :: Word8 -- [1, 16]
+  , structSize       :: InlineSize
   , structFields     :: NonEmpty StructField
-  , structForceAlign :: Maybe Word64 -- TODO: what should the size of this actually be?
-  }
+  } deriving (Show, Eq)
 
-newtype StructField = StructField
-  { structFieldType :: StructFieldType
-  }
+data StructField = StructField
+  { structFieldIdent :: Ident
+  , structFieldType  :: StructFieldType
+  } deriving (Show, Eq)
 
 data StructFieldType
   = SInt8
@@ -243,5 +315,187 @@ data StructFieldType
   | SFloat
   | SDouble
   | SBool
-  | SEnum Ident Word8 -- The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
+  | SEnum EnumDecl
   | SStruct StructDecl
+  deriving (Show, Eq)
+
+
+validateStructs :: ParseCtx m => [EnumDecl] -> [(Namespace, ST.StructDecl)] -> m [StructDecl]
+validateStructs validatedEnums structs =
+  flip execStateT [] $ traverse (validateStruct validatedEnums structs) structs
+
+validateStruct ::
+     forall m. (MonadState [StructDecl] m, ParseCtx m)
+  => [EnumDecl]
+  -> [(Namespace, ST.StructDecl)]
+  -> (Namespace, ST.StructDecl)
+  -> m StructDecl
+validateStruct validatedEnums structs (namespace, struct) = do
+  validatedStructs <- get
+  -- Check if this struct has already been validated in a previous iteration
+  case find (\s -> structNamespace s == namespace && structIdent s == ST.structIdent struct) validatedStructs of
+    Just match -> pure match
+    Nothing -> do
+      checkDuplicateFields
+
+      fields <- traverse validateStructField (ST.structFields struct)
+      let naturalAlignment = maximum (structFieldAlignment <$> fields)
+      forceAlignAttr <- getForceAlignAttr
+      forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
+      let alignment = fromMaybe naturalAlignment forceAlign
+
+      let fieldsSize = sum (structFieldSize <$> fields)
+      let size = fieldsSize `roundUpToNearestMultipleOf` fromIntegral @Word8 @InlineSize alignment
+
+      let validatedStruct = StructDecl
+            { structNamespace  = namespace
+            , structIdent      = ST.structIdent struct
+            , structAlignment  = alignment
+            , structSize       = size
+            , structFields     = fields
+            }
+      modify (validatedStruct :)
+      pure validatedStruct
+
+  where
+    structQualifiedName = "[" <> qualify namespace (ST.structIdent struct) <> "]"
+
+    validateStructField :: ST.StructField -> m StructField
+    validateStructField sf = do
+      structFieldType <- validateStructFieldType (ST.structFieldIdent sf) (ST.structFieldType sf)
+      pure $ StructField
+        { structFieldIdent = ST.structFieldIdent sf
+        , structFieldType = structFieldType
+        }
+
+    validateStructFieldType :: Ident -> ST.Type -> m StructFieldType
+    validateStructFieldType structFieldIdent structFieldType =
+      case structFieldType of
+        ST.TInt8 -> pure SInt8
+        ST.TInt16 -> pure SInt16
+        ST.TInt32 -> pure SInt32
+        ST.TInt64 -> pure SInt64
+        ST.TWord8 -> pure SWord8
+        ST.TWord16 -> pure SWord16
+        ST.TWord32 -> pure SWord32
+        ST.TWord64 -> pure SWord64
+        ST.TFloat -> pure SFloat
+        ST.TDouble -> pure SDouble
+        ST.TBool -> pure SBool
+        ST.TString -> throwError invalidStructFieldType
+        ST.TVector _ -> throwError invalidStructFieldType
+        ST.TRef (ST.TypeRef refNamespace refIdent) ->
+          let refQualifiedName = qualify refNamespace refIdent
+          in 
+            -- check if this is a reference to an enum
+            case find (\e -> enumQualifiedName e == refQualifiedName) validatedEnums of
+              Just enum -> pure (SEnum enum)
+              Nothing -> do
+                -- check if this is a reference to a struct, and validate it
+                (nestedNamespace, nestedStruct) <- findStruct refNamespace refIdent
+                validatedNestedStruct <- validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
+                pure (SStruct validatedNestedStruct)
+      where
+        structFieldQualifiedName = structQualifiedName <> "." <> ST.unIdent structFieldIdent
+
+        invalidStructFieldType =
+          structFieldQualifiedName
+          <> ": structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+
+        findStruct :: Namespace -> Ident -> m (Namespace, ST.StructDecl)
+        findStruct needleNamespace needleIdent =
+          -- search in the current namespace
+          case find (\(ns, s) -> ns == namespace <> needleNamespace && ST.structIdent s == needleIdent) structs of
+            Just result -> pure result
+            Nothing ->
+              -- search in the root namespace
+              case find (\(ns, s) -> ns == needleNamespace && ST.structIdent s == needleIdent) structs of
+                Just result -> pure result
+                Nothing ->
+                  throwError $
+                    structFieldQualifiedName
+                    <> ": type '"
+                    <> ST.unIdent needleIdent
+                    <> "' in namespace '"
+                    <> ST.unNamespace needleNamespace
+                    <> "' does not exist or is of the wrong type; "
+                    <> "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+
+    getForceAlignAttr :: m (Maybe Integer)
+    getForceAlignAttr = findIntAttr structQualifiedName "force_align" (ST.structMetadata struct)
+
+    validateForceAlign :: Word8 -> Integer -> m Word8
+    validateForceAlign naturalAlignment forceAlign =
+      if isPowerOfTwo forceAlign
+        && inRange (fromIntegral @Word8 @Integer naturalAlignment, 16) forceAlign
+        then pure (fromIntegral @Integer @Word8 forceAlign)
+        else throwError $
+        structQualifiedName
+        <> ": force_align must be a power of two integer ranging from the struct's natural alignment (in this case, "
+        <> T.pack (show naturalAlignment)
+        <> ") to 16"
+
+    checkDuplicateFields :: m ()
+    checkDuplicateFields =
+      checkDuplicateIdentifiers structQualifiedName
+        (coerce . ST.structFieldIdent <$> ST.structFields struct)
+
+structFieldAlignment :: StructField -> Word8
+structFieldAlignment sf =
+  case structFieldType sf of
+    SInt8 -> 1
+    SInt16 -> 2
+    SInt32 -> 4
+    SInt64 -> 8
+    SWord8 -> 1
+    SWord16 -> 2
+    SWord32 -> 4
+    SWord64 -> 8
+    SFloat -> 4
+    SDouble -> 8
+    SBool -> 1
+    SEnum enum -> enumAlignment enum
+    SStruct nestedStruct -> structAlignment nestedStruct
+
+structFieldSize :: StructField -> InlineSize
+structFieldSize sf =
+  case structFieldType sf of
+    SInt8 -> 1
+    SInt16 -> 2
+    SInt32 -> 4
+    SInt64 -> 8
+    SWord8 -> 1
+    SWord16 -> 2
+    SWord32 -> 4
+    SWord64 -> 8
+    SFloat -> 4
+    SDouble -> 8
+    SBool -> 1
+    SEnum enum -> fromIntegral @Word8 @InlineSize (enumSize enum)
+    SStruct nestedStruct -> structSize nestedStruct
+
+-- | The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
+enumSize :: EnumDecl -> Word8
+enumSize e =
+  case enumType e of
+    EInt8 -> 1
+    EInt16 -> 2
+    EInt32 -> 3
+    EInt64 -> 4
+    EWord8 -> 1
+    EWord16 -> 2
+    EWord32 -> 3
+    EWord64 -> 4
+
+enumAlignment :: EnumDecl -> Word8
+enumAlignment = enumSize
+
+qualify :: ST.Namespace -> ST.Ident -> Text
+qualify "" (ST.Ident i) = i
+qualify (ST.Namespace ns) (ST.Ident i) = ns <> "." <> i
+
+enumQualifiedName :: EnumDecl -> Text
+enumQualifiedName e = qualify (enumNamespace e) (enumIdent e)
+
+structQualifiedName :: StructDecl -> Text
+structQualifiedName s = qualify (structNamespace s) (structIdent s)
