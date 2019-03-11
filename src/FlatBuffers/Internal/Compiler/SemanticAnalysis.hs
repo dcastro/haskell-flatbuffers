@@ -328,7 +328,10 @@ data StructFieldType
   | SFloat
   | SDouble
   | SBool
-  | SEnum EnumDecl
+  | SEnum
+      Namespace -- ^ The namespace of the enum that this field refers to
+      Ident     -- ^ The name of the enum that this field refers to
+      EnumType
   | SStruct StructDecl
   deriving (Show, Eq)
 
@@ -398,7 +401,7 @@ validateStruct validatedEnums structs (namespace, struct) = do
           in 
             -- check if this is a reference to an enum
             case find (\e -> enumQualifiedName e == refQualifiedName) validatedEnums of
-              Just enum -> pure (SEnum enum)
+              Just enum -> pure (SEnum refNamespace refIdent (enumType enum))
               Nothing -> do
                 -- check if this is a reference to a struct, and validate it
                 (nestedNamespace, nestedStruct) <- findStruct refNamespace refIdent
@@ -460,13 +463,13 @@ structFieldAlignment sf =
     SFloat -> 4
     SDouble -> 8
     SBool -> 1
-    SEnum enum -> enumAlignment enum
+    SEnum _ _ enumType -> enumAlignment enumType
     SStruct nestedStruct -> structAlignment nestedStruct
 
 -- | The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
-enumSize :: EnumDecl -> Word8
+enumSize :: EnumType -> Word8
 enumSize e =
-  case enumType e of
+  case e of
     EInt8 -> 1
     EInt16 -> 2
     EInt32 -> 3
@@ -476,7 +479,7 @@ enumSize e =
     EWord32 -> 3
     EWord64 -> 4
 
-enumAlignment :: EnumDecl -> Word8
+enumAlignment :: EnumType -> Word8
 enumAlignment = enumSize
 
 qualify :: ST.Namespace -> ST.Ident -> Text
