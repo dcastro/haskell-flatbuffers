@@ -294,7 +294,6 @@ data StructDecl = StructDecl
   { structNamespace  :: Namespace
   , structIdent      :: Ident
   , structAlignment  :: Word8 -- [1, 16]
-  , structSize       :: InlineSize
   , structFields     :: NonEmpty StructField
   } deriving (Show, Eq)
 
@@ -344,14 +343,10 @@ validateStruct validatedEnums structs (namespace, struct) = do
       forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
       let alignment = fromMaybe naturalAlignment forceAlign
 
-      let fieldsSize = sum (structFieldSize <$> fields)
-      let size = fieldsSize `roundUpToNearestMultipleOf` fromIntegral @Word8 @InlineSize alignment
-
       let validatedStruct = StructDecl
             { structNamespace  = namespace
             , structIdent      = ST.structIdent struct
             , structAlignment  = alignment
-            , structSize       = size
             , structFields     = fields
             }
       modify (validatedStruct :)
@@ -456,23 +451,6 @@ structFieldAlignment sf =
     SBool -> 1
     SEnum enum -> enumAlignment enum
     SStruct nestedStruct -> structAlignment nestedStruct
-
-structFieldSize :: StructField -> InlineSize
-structFieldSize sf =
-  case structFieldType sf of
-    SInt8 -> 1
-    SInt16 -> 2
-    SInt32 -> 4
-    SInt64 -> 8
-    SWord8 -> 1
-    SWord16 -> 2
-    SWord32 -> 4
-    SWord64 -> 8
-    SFloat -> 4
-    SDouble -> 8
-    SBool -> 1
-    SEnum enum -> fromIntegral @Word8 @InlineSize (enumSize enum)
-    SStruct nestedStruct -> structSize nestedStruct
 
 -- | The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
 enumSize :: EnumDecl -> Word8
