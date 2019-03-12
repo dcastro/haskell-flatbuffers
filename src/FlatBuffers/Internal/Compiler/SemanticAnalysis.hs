@@ -34,7 +34,7 @@ import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
                                                            Schema)
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
-import           FlatBuffers.Internal.Util                (isPowerOfTwo, roundUpToNearestMultipleOf)
+import           FlatBuffers.Internal.Util                (isPowerOfTwo, roundUpToNearestMultipleOf, Display(..))
 
 type ParseCtx = MonadError Text
 
@@ -209,7 +209,7 @@ validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validE
         then throwErrorMsg qualifiedName "`bit_flags` are not supported yet"
         else pure ()
 
-checkDuplicateIdentifiers :: (ParseCtx m, Foldable f, Functor f) => Text -> f Text -> m ()
+checkDuplicateIdentifiers :: (ParseCtx m, Foldable f, Functor f) => Ident -> f Text -> m ()
 checkDuplicateIdentifiers context idents =
   case findDups idents of
     [] -> pure ()
@@ -229,7 +229,7 @@ occurrences xs =
 hasAttribute :: Text -> ST.Metadata -> Bool
 hasAttribute name (ST.Metadata attrs) = Map.member name attrs
 
-findIntAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Integer)
+findIntAttr :: ParseCtx m => Ident -> Text -> ST.Metadata -> m (Maybe Integer)
 findIntAttr context name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
@@ -242,7 +242,7 @@ findIntAttr context name (ST.Metadata attrs) =
         <> name
         <> ": 123)'"
 
-findStringAttr :: ParseCtx m => Text -> Text -> ST.Metadata -> m (Maybe Text)
+findStringAttr :: ParseCtx m => Ident -> Text -> ST.Metadata -> m (Maybe Text)
 findStringAttr context name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
@@ -408,7 +408,7 @@ validateStruct validatedEnums structs (namespace, struct) = do
                 validatedNestedStruct <- validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
                 pure (SStruct validatedNestedStruct)
       where
-        structFieldQualifiedName = qualifiedName <> "." <> ST.unIdent structFieldIdent
+        structFieldQualifiedName = qualifiedName <> "." <> structFieldIdent
 
         invalidStructFieldType =
           "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
@@ -425,9 +425,9 @@ validateStruct validatedEnums structs (namespace, struct) = do
                 Nothing ->
                   throwErrorMsg structFieldQualifiedName $
                     "type '"
-                    <> ST.unIdent needleIdent
+                    <> display needleIdent
                     <> "' in namespace '"
-                    <> ST.unNamespace needleNamespace
+                    <> display needleNamespace
                     <> "' does not exist or is of the wrong type; "
                     <> "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
 
@@ -482,17 +482,17 @@ enumSize e =
 enumAlignment :: EnumType -> Word8
 enumAlignment = enumSize
 
-qualify :: ST.Namespace -> ST.Ident -> Text
-qualify "" (ST.Ident i) = i
-qualify (ST.Namespace ns) (ST.Ident i) = ns <> "." <> i
+qualify :: ST.Namespace -> ST.Ident -> ST.Ident
+qualify "" i = i
+qualify ns (ST.Ident i) = ST.Ident (display ns <> "." <> i)
 
-enumQualifiedName :: EnumDecl -> Text
+enumQualifiedName :: EnumDecl -> Ident
 enumQualifiedName e = qualify (enumNamespace e) (enumIdent e)
 
-structQualifiedName :: StructDecl -> Text
+structQualifiedName :: StructDecl -> Ident
 structQualifiedName s = qualify (structNamespace s) (structIdent s)
 
 
-throwErrorMsg :: ParseCtx m => Text -> Text -> m a
+throwErrorMsg :: ParseCtx m => Ident -> Text -> m a
 throwErrorMsg context msg =
-  throwError $ "[" <> context <> "]: " <> msg
+  throwError $ "[" <> display context <> "]: " <> msg

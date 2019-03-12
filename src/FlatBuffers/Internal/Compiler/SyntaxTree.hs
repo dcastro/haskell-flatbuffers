@@ -4,10 +4,12 @@
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
-import           Data.List.NonEmpty (NonEmpty)
-import           Data.Map.Strict    (Map)
-import           Data.String        (IsString)
-import           Data.Text          (Text)
+import           Data.List.NonEmpty        (NonEmpty)
+import           Data.Map.Strict           (Map)
+import           Data.String               (IsString (..))
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import           FlatBuffers.Internal.Util (Display (..))
 
 data Schema = Schema
   { includes :: [Include]
@@ -27,7 +29,7 @@ data Decl
 
 newtype Ident = Ident
   { unIdent :: Text
-  } deriving newtype (Show, Eq, IsString, Ord)
+  } deriving newtype (Show, Eq, IsString, Ord, Semigroup, Display)
 
 newtype Include = Include
   { unInclude :: StringLiteral
@@ -146,10 +148,15 @@ newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
 newtype AttributeDecl = AttributeDecl Text
   deriving newtype (Show, Eq, IsString)
 
-newtype Namespace = Namespace {unNamespace :: Text }
-  deriving newtype (Show, Eq, IsString, Ord)
+newtype Namespace = Namespace {unNamespace :: [Text] }
+  deriving newtype (Eq, Ord, Semigroup)
 
-instance Semigroup Namespace where
-  "" <> y = y
-  x <> "" = x
-  Namespace x <> Namespace y = Namespace (x <> "." <> y)
+instance Display Namespace where
+  display (Namespace ns) = T.intercalate "." ns
+
+instance Show Namespace where
+  show = show . T.unpack . display
+
+instance IsString Namespace where
+  fromString "" = Namespace []
+  fromString s = Namespace $ filter (/= "") $ T.splitOn "." $ T.pack s

@@ -1,6 +1,7 @@
 module FlatBuffers.Internal.Util where
 
 import           Data.Bits (Bits, (.&.))
+import           Data.Text (Text)
 
 isPowerOfTwo :: (Num a, Bits a) => a -> Bool
 isPowerOfTwo 0 = False
@@ -11,3 +12,10 @@ roundUpToNearestMultipleOf x y =
   case x `rem` y of
     0 -> x
     remainder -> (y - remainder) + x
+
+-- | Maps a value of type @a@ into a string that can be displayed to the user.
+class Display a where
+  display :: a -> Text
+
+instance Display Text where
+  display = id

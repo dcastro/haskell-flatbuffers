@@ -132,9 +132,9 @@ typ =
 
 typeRef :: Parser TypeRef
 typeRef = do
-  ns <- many (try (ident <* symbol "."))
+  idents <- many (try (ident <* symbol "."))
   i <- ident
-  pure $ TypeRef (Namespace (T.intercalate "." (coerce ns))) i
+  pure $ TypeRef (Namespace (coerce idents)) i
 
 tableField :: Parser TableField
 tableField = do
@@ -197,7 +197,7 @@ unionVal = UnionVal <$> optional (try (ident <* colon)) <*> typeRef
 
 namespaceDecl :: Parser NamespaceDecl
 namespaceDecl =
-  NamespaceDecl . Namespace . T.intercalate "." . coerce <$>
+  NamespaceDecl . Namespace . coerce <$>
     (rword "namespace" *> sepBy ident (symbol ".") <* semi)
 
 stringLiteral :: Parser StringLiteral
