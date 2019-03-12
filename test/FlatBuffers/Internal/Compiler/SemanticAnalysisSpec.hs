@@ -18,7 +18,7 @@ import           Text.RawString.QQ                              (r)
 
 spec :: Spec
 spec =
-  describe "SemanticAnalysis" $
+  describe "SemanticAnalysis" $ do
     describe "enums" $ do
       it "simple" $
         [r|
@@ -97,6 +97,103 @@ spec =
           "[Color]: underlying enum type must be integral"
         [r| enum Color : [int] { Red, Green, Blue } |] `shouldFail`
           "[Color]: underlying enum type must be integral"
+
+    describe "structs" $ do
+      it "simple" $
+        [r|
+          namespace Ns;
+          struct S {
+            x: int;
+          }
+        |] `shouldValidate`
+          struct (StructDecl "Ns" "S" 4 $ fromList
+            [ StructField "x" SInt32
+            ])
+
+      it "multiple fields" $
+        [r|
+          struct S {
+            x: ubyte;
+            y: double;
+            z: bool;
+          }
+        |] `shouldValidate`
+          struct (StructDecl "" "S" 8 $ fromList
+            [ StructField "x" SWord8
+            , StructField "y" SDouble
+            , StructField "z" SBool
+            ])
+
+      it "with field referencing an enum" $
+        [r|
+          namespace A;
+          enum Color : ushort { Blue }
+
+          namespace B;
+          struct S {
+            x: A.Color;
+          }
+        |] `shouldValidate` fold
+          [ enum (EnumDecl "A" "Color" EWord16 $ fromList [EnumVal "Blue" 0])
+          , struct (StructDecl "B" "S" 2 $ fromList
+              [ StructField "x" (SEnum "A" "Color" EWord16)
+              ])
+          ]
+
+      it "with nested strucst (backwards/forwards references)" $ do
+        let backwards = StructDecl "A.B" "Backwards" 4 $ fromList [ StructField "x" SFloat ]
+        let forwards = StructDecl "A.B" "Forwards" 4 $ fromList [ StructField "y" (SStruct backwards) ]
+        [r|
+          namespace A.B;
+          struct Backwards {
+            x: float;
+          }
+
+          struct S {
+            x1: Backwards;
+            x2: A.B.Forwards;
+          }
+
+          struct Forwards {
+            y: Backwards;
+          }
+        |] `shouldValidate` fold
+          [ struct (StructDecl "A.B" "S" 4 $ fromList
+              [ StructField "x1" (SStruct backwards)
+              , StructField "x2" (SStruct forwards)
+              ])
+          , struct forwards
+          , struct backwards
+          ]
+
+      it "with reference to a table" $
+        [r|
+          namespace A;
+          table T {}
+          
+          struct S {
+            x: T;
+          }
+        |] `shouldFail`
+          ( "[A.S.x]: type 'T' in namespace '' does not exist or is of the wrong type;"
+          <> " structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+          )
+      it "with reference to a union" $
+        [r|
+          namespace A;
+          union U { X }
+          
+          struct S {
+            x: U;
+          }
+        |] `shouldFail`
+          ( "[A.S.x]: type 'U' in namespace '' does not exist or is of the wrong type;"
+          <> " structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+          )
+
+
+
+
 
 enum :: EnumDecl -> ValidatedDecls
 enum e = ValidatedDecls [e] []
