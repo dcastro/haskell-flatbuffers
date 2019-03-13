@@ -149,7 +149,7 @@ spec =
           }
 
           struct S {
-            x1: Backwards;
+            x1: B.Backwards;
             x2: A.B.Forwards;
           }
 
@@ -174,21 +174,22 @@ spec =
             x: A.T;
           }
         |] `shouldFail`
-          ( "[A.S.x]: type 'A.T' does not exist or is of the wrong type;"
-          <> " structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+          ( "[A.S.x]: type 'A.T' does not exist (checked in these namespaces: ['A', ''])"
+          <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or structs)"
           )
       it "with reference to a union" $
         [r|
-          namespace A;
+          namespace A.B;
           union U { X }
           
           struct S {
             x: U;
           }
         |] `shouldFail`
-          ( "[A.S.x]: type 'U' does not exist or is of the wrong type;"
-          <> " structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
-          )
+         ( "[A.B.S.x]: type 'U' does not exist (checked in these namespaces: ['A.B', 'A', ''])"
+         <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or structs)"
+         )
+
 
 
 

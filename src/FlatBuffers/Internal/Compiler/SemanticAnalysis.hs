@@ -405,18 +405,20 @@ validateStruct validatedEnums structs (currentNamespace, struct) = do
           ST.TRef typeRef ->
             -- check if this is a reference to an enum
             case findDecl currentNamespace validatedEnums enumNamespace enumIdent typeRef of
-              Just enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
-              Nothing ->
+              Right enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
+              Left _ ->
                 -- check if this is a reference to a struct, and validate it
                 case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
-                  Just (nestedNamespace, nestedStruct) ->
+                  Right (nestedNamespace, nestedStruct) ->
                     SStruct <$> validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
-                  Nothing ->
+                  Left checkedNamespaces ->
                     throwErrorMsg structFieldQualifiedName $
                       "type '"
                       <> display typeRef
-                      <> "' does not exist or is of the wrong type; "
-                      <> "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+                      <> "' does not exist (checked in these namespaces: "
+                      <> display checkedNamespaces
+                      <> ") or is not allowed in a struct field"
+                      <> " (struct fields may only be integers, floating point, bool, enums, or structs)"
 
     getForceAlignAttr :: m (Maybe Integer)
     getForceAlignAttr = findIntAttr qualifiedName "force_align" (ST.structMetadata struct)
@@ -478,19 +480,26 @@ parentNamespaces :: ST.Namespace -> NonEmpty ST.Namespace
 parentNamespaces (ST.Namespace ns) =
   coerce $ NE.reverse $ NE.inits ns
   
+
+-- | Looks for a type reference in a set of type declarations.
+-- If none is found, the list of namespaces in which the type reference was searched for is return.
 findDecl ::
      Namespace
   -> [decl]
   -> (decl -> Namespace)
   -> (decl -> Ident)
   -> ST.TypeRef
-  -> Maybe decl
+  -> Either (NonEmpty Namespace) decl
 findDecl currentNamespace decls getNamespace getIdent (ST.TypeRef refNamespace refIdent) =
-  let results = do
-        parentNamespace <- parentNamespaces currentNamespace
+  let parentNamespaces' = parentNamespaces currentNamespace
+      results = do
+        parentNamespace <- parentNamespaces'
         let candidateNamespace = parentNamespace <> refNamespace
         pure $ find (\decl -> getNamespace decl == candidateNamespace && getIdent decl == refIdent) decls
-  in  foldl1 (<|>) results
+  in  
+    case foldl1 (<|>) results of
+      Just match -> Right match
+      Nothing    -> Left parentNamespaces'
 
 enumQualifiedName :: EnumDecl -> Ident
 enumQualifiedName e = qualify (enumNamespace e) (enumIdent e)
