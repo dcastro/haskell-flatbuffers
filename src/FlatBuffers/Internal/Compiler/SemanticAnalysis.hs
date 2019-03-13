@@ -129,9 +129,9 @@ validateEnums = traverse validateEnum
 
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ParseCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
-validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validEnum
+validateEnum (currentNamespace, enum) = checkBitFlags >> checkDuplicateFields >> validEnum
   where
-    qualifiedName = qualify namespace (ST.enumIdent enum)
+    qualifiedName = qualify currentNamespace (ST.enumIdent enum)
 
     validEnum = do
       enumType <- validateEnumType (ST.enumType enum)
@@ -139,7 +139,7 @@ validateEnum (namespace, enum) = checkBitFlags >> checkDuplicateFields >> validE
       validateOrder enumVals
       traverse_ (validateBounds enumType) enumVals
       pure EnumDecl
-        { enumNamespace = namespace
+        { enumNamespace = currentNamespace
         , enumIdent = ST.enumIdent enum
         , enumType = enumType
         , enumVals = enumVals
@@ -348,10 +348,10 @@ validateStruct ::
   -> [(Namespace, ST.StructDecl)]
   -> (Namespace, ST.StructDecl)
   -> m StructDecl
-validateStruct validatedEnums structs (namespace, struct) = do
+validateStruct validatedEnums structs (currentNamespace, struct) = do
   validatedStructs <- get
   -- Check if this struct has already been validated in a previous iteration
-  case find (\s -> structNamespace s == namespace && structIdent s == ST.structIdent struct) validatedStructs of
+  case find (\s -> structNamespace s == currentNamespace && structIdent s == ST.structIdent struct) validatedStructs of
     Just match -> pure match
     Nothing -> do
       checkDuplicateFields
@@ -363,7 +363,7 @@ validateStruct validatedEnums structs (namespace, struct) = do
       let alignment = fromMaybe naturalAlignment forceAlign
 
       let validatedStruct = StructDecl
-            { structNamespace  = namespace
+            { structNamespace  = currentNamespace
             , structIdent      = ST.structIdent struct
             , structAlignment  = alignment
             , structFields     = fields
@@ -372,7 +372,7 @@ validateStruct validatedEnums structs (namespace, struct) = do
       pure validatedStruct
 
   where
-    qualifiedName = qualify namespace (ST.structIdent struct)
+    qualifiedName = qualify currentNamespace (ST.structIdent struct)
 
     validateStructField :: ST.StructField -> m StructField
     validateStructField sf = do
@@ -404,11 +404,11 @@ validateStruct validatedEnums structs (namespace, struct) = do
           ST.TVector _ -> throwErrorMsg structFieldQualifiedName invalidStructFieldType
           ST.TRef typeRef ->
             -- check if this is a reference to an enum
-            case findDecl namespace validatedEnums enumNamespace enumIdent typeRef of
+            case findDecl currentNamespace validatedEnums enumNamespace enumIdent typeRef of
               Just enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
               Nothing ->
                 -- check if this is a reference to a struct, and validate it
-                case findDecl namespace structs fst (ST.structIdent . snd) typeRef of
+                case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
                   Just (nestedNamespace, nestedStruct) ->
                     SStruct <$> validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
                   Nothing ->
