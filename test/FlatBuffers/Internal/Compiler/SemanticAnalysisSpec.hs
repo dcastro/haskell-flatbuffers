@@ -129,18 +129,17 @@ spec =
           namespace A;
           enum Color : ushort { Blue }
 
-          namespace B;
           struct S {
-            x: A.Color;
+            x: Color;
           }
         |] `shouldValidate` fold
           [ enum (EnumDecl "A" "Color" EWord16 $ fromList [EnumVal "Blue" 0])
-          , struct (StructDecl "B" "S" 2 $ fromList
+          , struct (StructDecl "A" "S" 2 $ fromList
               [ StructField "x" (SEnum "A" "Color" EWord16)
               ])
           ]
 
-      it "with nested strucst (backwards/forwards references)" $ do
+      it "with nested structs (backwards/forwards references)" $ do
         let backwards = StructDecl "A.B" "Backwards" 4 $ fromList [ StructField "x" SFloat ]
         let forwards = StructDecl "A.B" "Forwards" 4 $ fromList [ StructField "y" (SStruct backwards) ]
         [r|
@@ -172,10 +171,10 @@ spec =
           table T {}
           
           struct S {
-            x: T;
+            x: A.T;
           }
         |] `shouldFail`
-          ( "[A.S.x]: type 'T' in namespace '' does not exist or is of the wrong type;"
+          ( "[A.S.x]: type 'A.T' does not exist or is of the wrong type;"
           <> " structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
           )
       it "with reference to a union" $
@@ -187,7 +186,7 @@ spec =
             x: U;
           }
         |] `shouldFail`
-          ( "[A.S.x]: type 'U' in namespace '' does not exist or is of the wrong type;"
+          ( "[A.S.x]: type 'U' does not exist or is of the wrong type;"
           <> " structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
           )
 

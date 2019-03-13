@@ -8,6 +8,7 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
+import           Control.Applicative                      ((<|>))
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
 import           Control.Monad.State                      (State, evalState,
@@ -32,9 +33,10 @@ import qualified Data.Tree                                as Tree
 import           Data.Word
 import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
-                                                           Schema)
+                                                           Schema, qualify)
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
-import           FlatBuffers.Internal.Util                (isPowerOfTwo, roundUpToNearestMultipleOf, Display(..))
+import           FlatBuffers.Internal.Util                (Display (..),
+                                                           isPowerOfTwo)
 
 type ParseCtx = MonadError Text
 
@@ -382,54 +384,39 @@ validateStruct validatedEnums structs (namespace, struct) = do
 
     validateStructFieldType :: Ident -> ST.Type -> m StructFieldType
     validateStructFieldType structFieldIdent structFieldType =
-      case structFieldType of
-        ST.TInt8 -> pure SInt8
-        ST.TInt16 -> pure SInt16
-        ST.TInt32 -> pure SInt32
-        ST.TInt64 -> pure SInt64
-        ST.TWord8 -> pure SWord8
-        ST.TWord16 -> pure SWord16
-        ST.TWord32 -> pure SWord32
-        ST.TWord64 -> pure SWord64
-        ST.TFloat -> pure SFloat
-        ST.TDouble -> pure SDouble
-        ST.TBool -> pure SBool
-        ST.TString -> throwErrorMsg qualifiedName invalidStructFieldType
-        ST.TVector _ -> throwErrorMsg qualifiedName invalidStructFieldType
-        ST.TRef (ST.TypeRef refNamespace refIdent) ->
-          let refQualifiedName = qualify refNamespace refIdent
-          in 
-            -- check if this is a reference to an enum
-            case find (\e -> enumQualifiedName e == refQualifiedName) validatedEnums of
-              Just enum -> pure (SEnum refNamespace refIdent (enumType enum))
-              Nothing -> do
-                -- check if this is a reference to a struct, and validate it
-                (nestedNamespace, nestedStruct) <- findStruct refNamespace refIdent
-                validatedNestedStruct <- validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
-                pure (SStruct validatedNestedStruct)
-      where
+      let 
         structFieldQualifiedName = qualifiedName <> "." <> structFieldIdent
-
-        invalidStructFieldType =
-          "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
-
-        findStruct :: Namespace -> Ident -> m (Namespace, ST.StructDecl)
-        findStruct needleNamespace needleIdent =
-          -- search in the current namespace
-          case find (\(ns, s) -> ns == namespace <> needleNamespace && ST.structIdent s == needleIdent) structs of
-            Just result -> pure result
-            Nothing ->
-              -- search in the root namespace
-              case find (\(ns, s) -> ns == needleNamespace && ST.structIdent s == needleIdent) structs of
-                Just result -> pure result
-                Nothing ->
-                  throwErrorMsg structFieldQualifiedName $
-                    "type '"
-                    <> display needleIdent
-                    <> "' in namespace '"
-                    <> display needleNamespace
-                    <> "' does not exist or is of the wrong type; "
-                    <> "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+        invalidStructFieldType = "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+      in
+        case structFieldType of
+          ST.TInt8 -> pure SInt8
+          ST.TInt16 -> pure SInt16
+          ST.TInt32 -> pure SInt32
+          ST.TInt64 -> pure SInt64
+          ST.TWord8 -> pure SWord8
+          ST.TWord16 -> pure SWord16
+          ST.TWord32 -> pure SWord32
+          ST.TWord64 -> pure SWord64
+          ST.TFloat -> pure SFloat
+          ST.TDouble -> pure SDouble
+          ST.TBool -> pure SBool
+          ST.TString -> throwErrorMsg structFieldQualifiedName invalidStructFieldType
+          ST.TVector _ -> throwErrorMsg structFieldQualifiedName invalidStructFieldType
+          ST.TRef typeRef ->
+            -- check if this is a reference to an enum
+            case findDecl namespace validatedEnums enumNamespace enumIdent typeRef of
+              Just enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
+              Nothing ->
+                -- check if this is a reference to a struct, and validate it
+                case findDecl namespace structs fst (ST.structIdent . snd) typeRef of
+                  Just (nestedNamespace, nestedStruct) ->
+                    SStruct <$> validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
+                  Nothing ->
+                    throwErrorMsg structFieldQualifiedName $
+                      "type '"
+                      <> display typeRef
+                      <> "' does not exist or is of the wrong type; "
+                      <> "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
 
     getForceAlignAttr :: m (Maybe Integer)
     getForceAlignAttr = findIntAttr qualifiedName "force_align" (ST.structMetadata struct)
@@ -482,9 +469,28 @@ enumSize e =
 enumAlignment :: EnumType -> Word8
 enumAlignment = enumSize
 
-qualify :: ST.Namespace -> ST.Ident -> ST.Ident
-qualify "" i = i
-qualify ns (ST.Ident i) = ST.Ident (display ns <> "." <> i)
+-- | Returns a list of all the namespaces "between" the current namespace
+-- and the root namespace, in that order.
+-- See: https://github.com/google/flatbuffers/issues/5234#issuecomment-471680403
+-- 
+-- > parentNamespaces "A.B.C" == ["A.B.C", "A.B", "A", ""]
+parentNamespaces :: ST.Namespace -> NonEmpty ST.Namespace
+parentNamespaces (ST.Namespace ns) =
+  coerce $ NE.reverse $ NE.inits ns
+  
+findDecl ::
+     Namespace
+  -> [decl]
+  -> (decl -> Namespace)
+  -> (decl -> Ident)
+  -> ST.TypeRef
+  -> Maybe decl
+findDecl currentNamespace decls getNamespace getIdent (ST.TypeRef refNamespace refIdent) =
+  let results = do
+        parentNamespace <- parentNamespaces currentNamespace
+        let candidateNamespace = parentNamespace <> refNamespace
+        pure $ find (\decl -> getNamespace decl == candidateNamespace && getIdent decl == refIdent) decls
+  in  foldl1 (<|>) results
 
 enumQualifiedName :: EnumDecl -> Ident
 enumQualifiedName e = qualify (enumNamespace e) (enumIdent e)

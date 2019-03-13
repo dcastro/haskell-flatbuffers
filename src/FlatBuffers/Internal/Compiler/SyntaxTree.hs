@@ -139,6 +139,9 @@ data TypeRef = TypeRef
   , typeRefIdent     :: Ident
   } deriving (Show, Eq)
 
+instance Display TypeRef where
+  display (TypeRef ns id) = display (qualify ns id)
+
 newtype RootDecl = RootDecl TypeRef
   deriving newtype (Show, Eq)
 
@@ -160,3 +163,7 @@ instance Show Namespace where
 instance IsString Namespace where
   fromString "" = Namespace []
   fromString s = Namespace $ filter (/= "") $ T.splitOn "." $ T.pack s
+
+qualify :: Namespace -> Ident -> Ident
+qualify "" i = i
+qualify ns (Ident i) = Ident (display ns <> "." <> i)
