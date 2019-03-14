@@ -299,6 +299,9 @@ spec =
         [r| struct S (force_align: "2") { x: byte; } |] `shouldFail`
           "[S]: expected attribute 'force_align' to have an integer value, e.g. 'force_align: 123'"
 
+      it "with deprecated field" $ 
+        [r| struct S { x: byte (deprecated); } |] `shouldFail`
+          "[S.x]: can't deprecate fields in a struct"
 
 enum :: EnumDecl -> ValidatedDecls
 enum e = ValidatedDecls [e] []

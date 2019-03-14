@@ -9,6 +9,7 @@
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
 import           Control.Applicative                      ((<|>))
+import           Control.Monad                            (when)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
 import           Control.Monad.State                      (State, evalState,
@@ -207,9 +208,8 @@ validateEnum (currentNamespace, enum) = checkBitFlags >> checkDuplicateFields >>
 
     checkBitFlags :: m ()
     checkBitFlags =
-      if hasAttribute "bit_flags" (ST.enumMetadata enum)
-        then throwErrorMsg qualifiedName "`bit_flags` are not supported yet"
-        else pure ()
+      when (hasAttribute "bit_flags" (ST.enumMetadata enum)) $
+        throwErrorMsg qualifiedName "`bit_flags` are not supported yet"
 
 checkDuplicateIdentifiers :: (ParseCtx m, Foldable f, Functor f) => Ident -> f Text -> m ()
 checkDuplicateIdentifiers context idents =
@@ -376,6 +376,7 @@ validateStruct validatedEnums structs (currentNamespace, struct) = do
 
     validateStructField :: ST.StructField -> m StructField
     validateStructField sf = do
+      checkDeprecated (ST.structFieldIdent sf) sf
       structFieldType <- validateStructFieldType (ST.structFieldIdent sf) (ST.structFieldType sf)
       pure $ StructField
         { structFieldIdent = ST.structFieldIdent sf
@@ -419,6 +420,12 @@ validateStruct validatedEnums structs (currentNamespace, struct) = do
                       <> display checkedNamespaces
                       <> ") or is not allowed in a struct field"
                       <> " (struct fields may only be integers, floating point, bool, enums, or structs)"
+
+    checkDeprecated :: Ident -> ST.StructField -> m ()
+    checkDeprecated structFieldIdent structField =
+      let structFieldQualifiedName = qualifiedName <> "." <> structFieldIdent
+      in  when (hasAttribute "deprecated" (ST.structFieldMetadata structField)) $
+            throwErrorMsg structFieldQualifiedName "can't deprecate fields in a struct"
 
     getForceAlignAttr :: m (Maybe Integer)
     getForceAlignAttr = findIntAttr qualifiedName "force_align" (ST.structMetadata struct)
