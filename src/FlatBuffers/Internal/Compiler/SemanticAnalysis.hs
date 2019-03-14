@@ -240,9 +240,9 @@ findIntAttr context name (ST.Metadata attrs) =
       throwErrorMsg context $
         "expected attribute '"
         <> name
-        <> "' to have an integer value, e.g. '("
+        <> "' to have an integer value, e.g. '"
         <> name
-        <> ": 123)'"
+        <> ": 123'"
 
 findStringAttr :: ParseCtx m => Ident -> Text -> ST.Metadata -> m (Maybe Text)
 findStringAttr context name (ST.Metadata attrs) =
@@ -253,9 +253,9 @@ findStringAttr context name (ST.Metadata attrs) =
       throwErrorMsg context $
         "expected attribute '"
         <> name
-        <> "' to have a string value, e.g. '("
+        <> "' to have a string value, e.g. '"
         <> name
-        <> ": \"abc\")'"
+        <> ": \"abc\"'"
 
 data Table = Table
   { tableIdent     :: Ident
@@ -386,7 +386,7 @@ validateStruct validatedEnums structs (currentNamespace, struct) = do
     validateStructFieldType structFieldIdent structFieldType =
       let 
         structFieldQualifiedName = qualifiedName <> "." <> structFieldIdent
-        invalidStructFieldType = "structs may contain only scalar (integer, floating point, bool, enums) or struct fields."
+        invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
       in
         case structFieldType of
           ST.TInt8 -> pure SInt8

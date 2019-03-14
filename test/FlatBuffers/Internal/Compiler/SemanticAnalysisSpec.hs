@@ -235,6 +235,7 @@ spec =
           ( "[A.S.x]: type 'A.T' does not exist (checked in these namespaces: ['A', ''])"
           <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or structs)"
           )
+
       it "with reference to a union" $
         [r|
           namespace A.B;
@@ -248,9 +249,55 @@ spec =
          <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or structs)"
          )
 
+      it "with reference to a vector" $
+        [r| struct S { x: [byte]; } |] `shouldFail`
+         "[S.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
 
+      it "with reference to a string" $
+        [r| struct S { x: string; } |] `shouldFail`
+          "[S.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
 
+      it "with duplicate fields" $
+        [r| struct S { x: byte; x: int; } |] `shouldFail`
+          "[S]: [x] declared more than once"
 
+      it "with `force_align` attribute" $ do
+        -- just 1 field
+        [r| struct S (force_align: 4) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 4 $ fromList [StructField "x" SInt32])
+        [r| struct S (force_align: 8) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 8 $ fromList [StructField "x" SInt32])
+        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 16 $ fromList [StructField "x" SInt32])
+        -- multiple fields
+        [r| struct S (force_align: 2) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 2 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 4) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 4 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 8) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 8 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 16 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
+        -- nested structs
+        let s1 = StructDecl "" "S1" 2 $ fromList [StructField "x" SInt8]
+        let s2 = StructDecl "" "S2" 4 $ fromList [StructField "x" SInt32]
+        [r|
+          struct S (force_align: 4) { x: S1; y: S2; z: bool; }
+          struct S1 (force_align: 2) { x: byte; }
+          struct S2 { x: int; }
+        |] `shouldValidate` fold
+          [ struct (StructDecl "" "S" 4 $ fromList [StructField "x" (SStruct s1), StructField "y" (SStruct s2), StructField "z" SBool])
+          , struct s2, struct s1
+          ]
+
+      it "with `force_align` attribute less than the struct's natural alignment" $
+        [r| struct S (force_align: 2) { x: byte; y: int; } |] `shouldFail`
+          "[S]: force_align must be a power of two integer ranging from the struct's natural alignment (in this case, 4) to 16"
+
+      it "with `force_align` attribute greater than 16" $
+        [r| struct S (force_align: 32) { x: int; } |] `shouldFail`
+          "[S]: force_align must be a power of two integer ranging from the struct's natural alignment (in this case, 4) to 16"
+
+      it "with `force_align` not a power of 2" $
+        [r| struct S (force_align: 9) { x: int; } |] `shouldFail`
+          "[S]: force_align must be a power of two integer ranging from the struct's natural alignment (in this case, 4) to 16"
+
+      it "with `force_align` given as a string" $
+        [r| struct S (force_align: "2") { x: byte; } |] `shouldFail`
+          "[S]: expected attribute 'force_align' to have an integer value, e.g. 'force_align: 123'"
 
 
 enum :: EnumDecl -> ValidatedDecls
