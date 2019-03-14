@@ -124,6 +124,64 @@ spec =
             , StructField "z" SBool
             ])
 
+      it "when unqualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
+        let enumVal = EnumVal "x" 0
+            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 (fromList [enumVal]))
+        [r|
+          namespace ;       enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
+          namespace A;      enum E1 : short{x}   enum E2 : short{x}
+          namespace A.B;    enum E1 : short{x}
+          namespace A.B.C;  enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
+
+          namespace A.B;
+          struct S {
+            x: E1; // should be A.B.E1
+            y: E2; // should be A.E2
+            z: E3; // should be E3
+          }
+        |] `shouldValidate` fold
+          [ mkEnum ""       "E1", mkEnum ""       "E2", mkEnum ""       "E3"
+          , mkEnum "A"      "E1", mkEnum "A"      "E2"
+          , mkEnum "A.B"    "E1"
+          , mkEnum "A.B.C"  "E1", mkEnum "A.B.C"  "E2", mkEnum "A.B.C"  "E3"
+          , struct (StructDecl "A.B" "S" 2 $ fromList
+              [ StructField "x" (SEnum "A.B"  "E1" EInt16)
+              , StructField "y" (SEnum "A"    "E2" EInt16)
+              , StructField "z" (SEnum ""     "E3" EInt16)
+              ])
+          ]
+
+      it "when qualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
+        let enumVal = EnumVal "x" 0
+            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 (fromList [enumVal]))
+        [r|
+          namespace ;         enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
+          namespace A;        enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
+          namespace A.B;      enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
+          namespace A.A;      enum E1 : short{x}   enum E2 : short{x}
+          namespace A.B.A;    enum E1 : short{x}
+          namespace A.B.C.A;  enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
+
+          namespace A.B;
+          struct S {
+            x: A.E1; // should be A.B.A.E1
+            y: A.E2; // should be A.A.E2
+            z: A.E3; // should be A.E3
+          }
+        |] `shouldValidate` fold
+          [ mkEnum ""         "E1", mkEnum ""         "E2", mkEnum ""         "E3"
+          , mkEnum "A"        "E1", mkEnum "A"        "E2", mkEnum "A"        "E3"
+          , mkEnum "A.B"      "E1", mkEnum "A.B"      "E2", mkEnum "A.B"      "E3"
+          , mkEnum "A.A"      "E1", mkEnum "A.A"      "E2"
+          , mkEnum "A.B.A"    "E1"
+          , mkEnum "A.B.C.A"  "E1", mkEnum "A.B.C.A"  "E2", mkEnum "A.B.C.A"  "E3"
+          , struct (StructDecl "A.B" "S" 2 $ fromList
+              [ StructField "x" (SEnum "A.B.A" "E1" EInt16)
+              , StructField "y" (SEnum "A.A"   "E2" EInt16)
+              , StructField "z" (SEnum "A"     "E3" EInt16)
+              ])
+          ]
+
       it "with field referencing an enum" $
         [r|
           namespace A;
