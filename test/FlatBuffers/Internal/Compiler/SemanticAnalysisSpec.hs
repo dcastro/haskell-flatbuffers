@@ -313,13 +313,13 @@ spec =
         |] `shouldFail`
           "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
 
-enum :: EnumDecl -> ValidatedDecls
-enum e = ValidatedDecls [e] []
+enum :: EnumDecl -> ValidDecls
+enum e = ValidDecls [e] []
 
-struct :: StructDecl -> ValidatedDecls
-struct s = ValidatedDecls [] [s]
+struct :: StructDecl -> ValidDecls
+struct s = ValidDecls [] [s]
 
-shouldValidate :: String -> ValidatedDecls -> Expectation
+shouldValidate :: String -> ValidDecls -> Expectation
 shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e

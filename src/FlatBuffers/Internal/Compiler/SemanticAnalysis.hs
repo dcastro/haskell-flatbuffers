@@ -62,17 +62,17 @@ instance Monoid DeclsWithNamespace where
   mempty = DeclsWithNamespace [] [] [] []
 
 -- | Semantically valid type declarations
-data ValidatedDecls = ValidatedDecls
-  { validatedEnums   :: [EnumDecl]
-  , validatedStructs :: [StructDecl]
+data ValidDecls = ValidDecls
+  { validEnums   :: [EnumDecl]
+  , validStructs :: [StructDecl]
   } deriving (Show, Eq)
 
-instance Semigroup ValidatedDecls where
-  ValidatedDecls e1 s1 <> ValidatedDecls e2 s2 =
-    ValidatedDecls (e1 <> e2) (s1 <> s2)
+instance Semigroup ValidDecls where
+  ValidDecls e1 s1 <> ValidDecls e2 s2 =
+    ValidDecls (e1 <> e2) (s1 <> s2)
 
-instance Monoid ValidatedDecls where
-  mempty = ValidatedDecls [] []
+instance Monoid ValidDecls where
+  mempty = ValidDecls [] []
 
 -- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
 pairDeclsWithNamespaces :: Tree.Tree Schema -> DeclsWithNamespace
@@ -92,14 +92,14 @@ pairDeclsWithNamespaces = foldMap (pairDeclsWithNamespaces' . ST.decls)
         _               -> (currentNamespace, decls)
 
 
-validateDecls :: ParseCtx m => DeclsWithNamespace -> m ValidatedDecls
+validateDecls :: ParseCtx m => DeclsWithNamespace -> m ValidDecls
 validateDecls decls = do
-  validatedEnums <- validateEnums (enums decls)
-  validatedStructs <- validateStructs validatedEnums (structs decls)
+  validEnums <- validateEnums (enums decls)
+  validStructs <- validateStructs validEnums (structs decls)
 
-  pure $ ValidatedDecls
-    { validatedEnums = validatedEnums
-    , validatedStructs = validatedStructs
+  pure $ ValidDecls
+    { validEnums = validEnums
+    , validStructs = validStructs
     }
 
 
@@ -258,7 +258,7 @@ findStringAttr context name (ST.Metadata attrs) =
         <> name
         <> ": \"abc\"'"
 
-data Table = Table
+data TableDecl = TableDecl
   { tableIdent     :: Ident
   , tableNamespace :: Ident
   , tableFields    :: NonEmpty TableField
@@ -339,9 +339,9 @@ data StructFieldType
   deriving (Show, Eq)
 
 validateStructs :: ParseCtx m => [EnumDecl] -> [(Namespace, ST.StructDecl)] -> m [StructDecl]
-validateStructs validatedEnums structs = do
+validateStructs validEnums structs = do
   traverse_ (checkStructCycles structs) structs
-  flip execStateT [] $ traverse (validateStruct validatedEnums structs) structs
+  flip execStateT [] $ traverse (validateStruct validEnums structs) structs
 
 checkStructCycles :: forall m. ParseCtx m => [(Namespace, ST.StructDecl)] -> (Namespace, ST.StructDecl) -> m ()
 checkStructCycles structs = go []
@@ -372,10 +372,10 @@ validateStruct ::
   -> [(Namespace, ST.StructDecl)]
   -> (Namespace, ST.StructDecl)
   -> m StructDecl
-validateStruct validatedEnums structs (currentNamespace, struct) = do
-  validatedStructs <- get
+validateStruct validEnums structs (currentNamespace, struct) = do
+  validStructs <- get
   -- Check if this struct has already been validated in a previous iteration
-  case find (\s -> structNamespace s == currentNamespace && structIdent s == ST.structIdent struct) validatedStructs of
+  case find (\s -> structNamespace s == currentNamespace && structIdent s == ST.structIdent struct) validStructs of
     Just match -> pure match
     Nothing -> do
       checkDuplicateFields
@@ -386,14 +386,14 @@ validateStruct validatedEnums structs (currentNamespace, struct) = do
       forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
       let alignment = fromMaybe naturalAlignment forceAlign
 
-      let validatedStruct = StructDecl
+      let validStruct = StructDecl
             { structNamespace  = currentNamespace
             , structIdent      = ST.structIdent struct
             , structAlignment  = alignment
             , structFields     = fields
             }
-      modify (validatedStruct :)
-      pure validatedStruct
+      modify (validStruct :)
+      pure validStruct
 
   where
     qualifiedName = qualify currentNamespace (ST.structIdent struct)
@@ -429,13 +429,13 @@ validateStruct validatedEnums structs (currentNamespace, struct) = do
           ST.TVector _ -> throwErrorMsg structFieldQualifiedName invalidStructFieldType
           ST.TRef typeRef ->
             -- check if this is a reference to an enum
-            case findDecl currentNamespace validatedEnums enumNamespace enumIdent typeRef of
+            case findDecl currentNamespace validEnums enumNamespace enumIdent typeRef of
               Right enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
               Left _ ->
                 -- check if this is a reference to a struct, and validate it
                 case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
                   Right (nestedNamespace, nestedStruct) ->
-                    SStruct <$> validateStruct validatedEnums structs (nestedNamespace, nestedStruct)
+                    SStruct <$> validateStruct validEnums structs (nestedNamespace, nestedStruct)
                   Left checkedNamespaces ->
                     throwErrorMsg structFieldQualifiedName $
                       "type '"
