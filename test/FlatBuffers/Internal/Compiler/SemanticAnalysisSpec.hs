@@ -233,7 +233,7 @@ spec =
           }
         |] `shouldFail`
           ( "[A.S.x]: type 'A.T' does not exist (checked in these namespaces: ['A', ''])"
-          <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or structs)"
+          <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or other structs)"
           )
 
       it "with reference to a union" $
@@ -246,7 +246,7 @@ spec =
           }
         |] `shouldFail`
          ( "[A.B.S.x]: type 'U' does not exist (checked in these namespaces: ['A.B', 'A', ''])"
-         <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or structs)"
+         <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or other structs)"
          )
 
       it "with reference to a vector" $

@@ -12,6 +12,8 @@ import           Control.Applicative                      ((<|>))
 import           Control.Monad                            (forM_, when)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
+import           Control.Monad.Reader                     (runReaderT)
+import           Control.Monad.Reader.Class               (MonadReader (..))
 import           Control.Monad.State                      (State, evalState,
                                                            execStateT, get,
                                                            modify, put)
@@ -40,7 +42,9 @@ import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
 import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo)
 
-type ParseCtx = MonadError Text
+-- |  The identifier in the reader environment represents the validation context,
+-- the thing being validated (e.g. a struct name, or a table field).
+type ValidationCtx m = (MonadError Text m, MonadReader Ident m)
 
 type Required = Bool
 
@@ -92,8 +96,8 @@ pairDeclsWithNamespaces = foldMap (pairDeclsWithNamespaces' . ST.decls)
         _               -> (currentNamespace, decls)
 
 
-validateDecls :: ParseCtx m => DeclsWithNamespace -> m ValidDecls
-validateDecls decls = do
+validateDecls :: MonadError Text m => DeclsWithNamespace -> m ValidDecls
+validateDecls decls = flip runReaderT "" $ do
   validEnums <- validateEnums (enums decls)
   validStructs <- validateStructs validEnums (structs decls)
 
@@ -126,15 +130,15 @@ data EnumType
   | EWord64
   deriving (Show, Eq)
 
-validateEnums :: forall m. ParseCtx m => [(Namespace, ST.EnumDecl)] -> m [EnumDecl]
+validateEnums :: forall m. ValidationCtx m => [(Namespace, ST.EnumDecl)] -> m [EnumDecl]
 validateEnums = traverse validateEnum
 
 -- TODO: add support for `bit_flags` attribute
-validateEnum :: forall m. ParseCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
-validateEnum (currentNamespace, enum) = checkBitFlags >> checkDuplicateFields >> validEnum
+validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
+validateEnum (currentNamespace, enum) =
+  local (\_ -> qualify currentNamespace (ST.enumIdent enum)) $
+    checkBitFlags >> checkDuplicateFields >> validEnum
   where
-    qualifiedName = qualify currentNamespace (ST.enumIdent enum)
-
     validEnum = do
       enumType <- validateEnumType (ST.enumType enum)
       let enumVals = flip evalState Nothing . traverse mapEnumVal $ ST.enumVals enum
@@ -164,7 +168,7 @@ validateEnum (currentNamespace, enum) = checkBitFlags >> checkDuplicateFields >>
     validateOrder xs =
       if all (\(x, y) -> enumValInt x < enumValInt y) (NE.toList xs `zip` NE.tail xs)
         then pure ()
-        else throwErrorMsg qualifiedName "enum values must be specified in ascending order"
+        else throwErrorMsg "enum values must be specified in ascending order"
 
     validateBounds :: EnumType -> EnumVal -> m ()
     validateBounds enumType enumVal =
@@ -182,7 +186,7 @@ validateEnum (currentNamespace, enum) = checkBitFlags >> checkDuplicateFields >>
     validateBounds' e =
       if inRange (toInteger (minBound @a), toInteger (maxBound @a)) (enumValInt e)
         then pure ()
-        else throwErrorMsg qualifiedName $
+        else throwErrorMsg $
               "enum value does not fit ["
               <> T.pack (show (minBound @a))
               <> "; "
@@ -200,24 +204,24 @@ validateEnum (currentNamespace, enum) = checkBitFlags >> checkDuplicateFields >>
         ST.TWord16 -> pure EWord16
         ST.TWord32 -> pure EWord32
         ST.TWord64 -> pure EWord64
-        _          -> throwErrorMsg qualifiedName "underlying enum type must be integral"
+        _          -> throwErrorMsg "underlying enum type must be integral"
 
     checkDuplicateFields :: m ()
     checkDuplicateFields =
-      checkDuplicateIdentifiers qualifiedName
+      checkDuplicateIdentifiers
         (coerce . ST.enumValIdent <$> ST.enumVals enum)
 
     checkBitFlags :: m ()
     checkBitFlags =
       when (hasAttribute "bit_flags" (ST.enumMetadata enum)) $
-        throwErrorMsg qualifiedName "`bit_flags` are not supported yet"
+        throwErrorMsg "`bit_flags` are not supported yet"
 
-checkDuplicateIdentifiers :: (ParseCtx m, Foldable f, Functor f) => Ident -> f Text -> m ()
-checkDuplicateIdentifiers context idents =
+checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f) => f Text -> m ()
+checkDuplicateIdentifiers idents =
   case findDups idents of
     [] -> pure ()
     dups ->
-      throwErrorMsg context $
+      throwErrorMsg $
       "["
       <> T.intercalate ", " dups
       <> "] declared more than once"
@@ -232,26 +236,26 @@ occurrences xs =
 hasAttribute :: Text -> ST.Metadata -> Bool
 hasAttribute name (ST.Metadata attrs) = Map.member name attrs
 
-findIntAttr :: ParseCtx m => Ident -> Text -> ST.Metadata -> m (Maybe Integer)
-findIntAttr context name (ST.Metadata attrs) =
+findIntAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Integer)
+findIntAttr name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
     Just (Just (ST.AttrI i)) -> pure (Just i)
     Just _ ->
-      throwErrorMsg context $
+      throwErrorMsg $
         "expected attribute '"
         <> name
         <> "' to have an integer value, e.g. '"
         <> name
         <> ": 123'"
 
-findStringAttr :: ParseCtx m => Ident -> Text -> ST.Metadata -> m (Maybe Text)
-findStringAttr context name (ST.Metadata attrs) =
+findStringAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Text)
+findStringAttr name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
     Just (Just (ST.AttrS s)) -> pure (Just s)
     Just _ ->
-      throwErrorMsg context $
+      throwErrorMsg $
         "expected attribute '"
         <> name
         <> "' to have a string value, e.g. '"
@@ -338,135 +342,135 @@ data StructFieldType
   | SStruct StructDecl
   deriving (Show, Eq)
 
-validateStructs :: ParseCtx m => [EnumDecl] -> [(Namespace, ST.StructDecl)] -> m [StructDecl]
+validateStructs :: ValidationCtx m => [EnumDecl] -> [(Namespace, ST.StructDecl)] -> m [StructDecl]
 validateStructs validEnums structs = do
   traverse_ (checkStructCycles structs) structs
   flip execStateT [] $ traverse (validateStruct validEnums structs) structs
 
-checkStructCycles :: forall m. ParseCtx m => [(Namespace, ST.StructDecl)] -> (Namespace, ST.StructDecl) -> m ()
+checkStructCycles :: forall m. ValidationCtx m => [(Namespace, ST.StructDecl)] -> (Namespace, ST.StructDecl) -> m ()
 checkStructCycles structs = go []
   where
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) =
       let qualifiedName = qualify currentNamespace (ST.structIdent struct)
-      in  if qualifiedName `elem` visited
-            then
-              throwErrorMsg qualifiedName $
-                "cyclic dependency detected ["
-                <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
-                <>"] - structs cannot contain themselves, directly or indirectly"
-            else
-              forM_ (ST.structFields struct) $ \field ->
-                case ST.structFieldType field of
-                  ST.TRef typeRef ->
-                    case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
-                      Right struct ->
-                        go (qualifiedName : visited) struct
-                      Left _ ->
-                        pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
-                  _ -> pure () -- Field is not a TypeRef, no validation needed
+      in  local (const qualifiedName) $
+            if qualifiedName `elem` visited
+              then
+                throwErrorMsg $
+                  "cyclic dependency detected ["
+                  <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
+                  <>"] - structs cannot contain themselves, directly or indirectly"
+              else
+                forM_ (ST.structFields struct) $ \field ->
+                  case ST.structFieldType field of
+                    ST.TRef typeRef ->
+                      case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
+                        Right struct ->
+                          go (qualifiedName : visited) struct
+                        Left _ ->
+                          pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                    _ -> pure () -- Field is not a TypeRef, no validation needed
 
 validateStruct ::
-     forall m. (MonadState [StructDecl] m, ParseCtx m)
+     forall m. (MonadState [StructDecl] m, ValidationCtx m)
   => [EnumDecl]
   -> [(Namespace, ST.StructDecl)]
   -> (Namespace, ST.StructDecl)
   -> m StructDecl
-validateStruct validEnums structs (currentNamespace, struct) = do
-  validStructs <- get
-  -- Check if this struct has already been validated in a previous iteration
-  case find (\s -> structNamespace s == currentNamespace && structIdent s == ST.structIdent struct) validStructs of
-    Just match -> pure match
-    Nothing -> do
-      checkDuplicateFields
+validateStruct validEnums structs (currentNamespace, struct) =
+  local (\_ -> qualify currentNamespace (ST.structIdent struct)) $ do
+    validStructs <- get
+    -- Check if this struct has already been validated in a previous iteration
+    case find (\s -> structNamespace s == currentNamespace && structIdent s == ST.structIdent struct) validStructs of
+      Just match -> pure match
+      Nothing -> do
+        checkDuplicateFields
 
-      fields <- traverse validateStructField (ST.structFields struct)
-      let naturalAlignment = maximum (structFieldAlignment <$> fields)
-      forceAlignAttr <- getForceAlignAttr
-      forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
-      let alignment = fromMaybe naturalAlignment forceAlign
+        fields <- traverse validateStructField (ST.structFields struct)
+        let naturalAlignment = maximum (structFieldAlignment <$> fields)
+        forceAlignAttr <- getForceAlignAttr
+        forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
+        let alignment = fromMaybe naturalAlignment forceAlign
 
-      let validStruct = StructDecl
-            { structNamespace  = currentNamespace
-            , structIdent      = ST.structIdent struct
-            , structAlignment  = alignment
-            , structFields     = fields
-            }
-      modify (validStruct :)
-      pure validStruct
+        let validStruct = StructDecl
+              { structNamespace  = currentNamespace
+              , structIdent      = ST.structIdent struct
+              , structAlignment  = alignment
+              , structFields     = fields
+              }
+        modify (validStruct :)
+        pure validStruct
 
   where
-    qualifiedName = qualify currentNamespace (ST.structIdent struct)
+    invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
 
     validateStructField :: ST.StructField -> m StructField
-    validateStructField sf = do
-      checkDeprecated (ST.structFieldIdent sf) sf
-      structFieldType <- validateStructFieldType (ST.structFieldIdent sf) (ST.structFieldType sf)
-      pure $ StructField
-        { structFieldIdent = ST.structFieldIdent sf
-        , structFieldType = structFieldType
-        }
+    validateStructField sf =
+      local (\context -> context <> "." <> ST.structFieldIdent sf) $ do
+        checkDeprecated sf
+        structFieldType <- validateStructFieldType (ST.structFieldType sf)
+        pure $ StructField
+          { structFieldIdent = ST.structFieldIdent sf
+          , structFieldType = structFieldType
+          }
 
-    validateStructFieldType :: Ident -> ST.Type -> m StructFieldType
-    validateStructFieldType structFieldIdent structFieldType =
-      let 
-        structFieldQualifiedName = qualifiedName <> "." <> structFieldIdent
-        invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
-      in
-        case structFieldType of
-          ST.TInt8 -> pure SInt8
-          ST.TInt16 -> pure SInt16
-          ST.TInt32 -> pure SInt32
-          ST.TInt64 -> pure SInt64
-          ST.TWord8 -> pure SWord8
-          ST.TWord16 -> pure SWord16
-          ST.TWord32 -> pure SWord32
-          ST.TWord64 -> pure SWord64
-          ST.TFloat -> pure SFloat
-          ST.TDouble -> pure SDouble
-          ST.TBool -> pure SBool
-          ST.TString -> throwErrorMsg structFieldQualifiedName invalidStructFieldType
-          ST.TVector _ -> throwErrorMsg structFieldQualifiedName invalidStructFieldType
-          ST.TRef typeRef ->
-            -- check if this is a reference to an enum
-            case findDecl currentNamespace validEnums enumNamespace enumIdent typeRef of
-              Right enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
-              Left _ ->
-                -- check if this is a reference to a struct, and validate it
-                case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
-                  Right (nestedNamespace, nestedStruct) ->
-                    SStruct <$> validateStruct validEnums structs (nestedNamespace, nestedStruct)
-                  Left checkedNamespaces ->
-                    throwErrorMsg structFieldQualifiedName $
-                      "type '"
-                      <> display typeRef
-                      <> "' does not exist (checked in these namespaces: "
-                      <> display checkedNamespaces
-                      <> ") or is not allowed in a struct field"
-                      <> " (struct fields may only be integers, floating point, bool, enums, or structs)"
+    validateStructFieldType :: ST.Type -> m StructFieldType
+    validateStructFieldType structFieldType =
+      case structFieldType of
+        ST.TInt8 -> pure SInt8
+        ST.TInt16 -> pure SInt16
+        ST.TInt32 -> pure SInt32
+        ST.TInt64 -> pure SInt64
+        ST.TWord8 -> pure SWord8
+        ST.TWord16 -> pure SWord16
+        ST.TWord32 -> pure SWord32
+        ST.TWord64 -> pure SWord64
+        ST.TFloat -> pure SFloat
+        ST.TDouble -> pure SDouble
+        ST.TBool -> pure SBool
+        ST.TString -> throwErrorMsg invalidStructFieldType
+        ST.TVector _ -> throwErrorMsg invalidStructFieldType
+        ST.TRef typeRef ->
+          -- check if this is a reference to an enum
+          case findDecl currentNamespace validEnums enumNamespace enumIdent typeRef of
+            Right enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
+            Left _ ->
+              -- check if this is a reference to a struct, and validate it
+              case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
+                Right (nestedNamespace, nestedStruct) ->
+                  SStruct <$> validateStruct validEnums structs (nestedNamespace, nestedStruct)
+                Left checkedNamespaces ->
+                  throwErrorMsg $
+                    "type '"
+                    <> display typeRef
+                    <> "' does not exist (checked in these namespaces: "
+                    <> display checkedNamespaces
+                    <> ") or is not allowed in a struct field"
+                    <> " ("
+                    <> invalidStructFieldType
+                    <> ")"
 
-    checkDeprecated :: Ident -> ST.StructField -> m ()
-    checkDeprecated structFieldIdent structField =
-      let structFieldQualifiedName = qualifiedName <> "." <> structFieldIdent
-      in  when (hasAttribute "deprecated" (ST.structFieldMetadata structField)) $
-            throwErrorMsg structFieldQualifiedName "can't deprecate fields in a struct"
+    checkDeprecated :: ST.StructField -> m ()
+    checkDeprecated structField =
+      when (hasAttribute "deprecated" (ST.structFieldMetadata structField)) $
+        throwErrorMsg "can't deprecate fields in a struct"
 
     getForceAlignAttr :: m (Maybe Integer)
-    getForceAlignAttr = findIntAttr qualifiedName "force_align" (ST.structMetadata struct)
+    getForceAlignAttr = findIntAttr "force_align" (ST.structMetadata struct)
 
     validateForceAlign :: Word8 -> Integer -> m Word8
     validateForceAlign naturalAlignment forceAlign =
       if isPowerOfTwo forceAlign
         && inRange (fromIntegral @Word8 @Integer naturalAlignment, 16) forceAlign
         then pure (fromIntegral @Integer @Word8 forceAlign)
-        else throwErrorMsg qualifiedName $
+        else throwErrorMsg $
               "force_align must be a power of two integer ranging from the struct's natural alignment (in this case, "
               <> T.pack (show naturalAlignment)
               <> ") to 16"
 
     checkDuplicateFields :: m ()
     checkDuplicateFields =
-      checkDuplicateIdentifiers qualifiedName
+      checkDuplicateIdentifiers
         (coerce . ST.structFieldIdent <$> ST.structFields struct)
 
 structFieldAlignment :: StructField -> Word8
@@ -539,6 +543,8 @@ structQualifiedName :: StructDecl -> Ident
 structQualifiedName s = qualify (structNamespace s) (structIdent s)
 
 
-throwErrorMsg :: ParseCtx m => Ident -> Text -> m a
-throwErrorMsg context msg =
+throwErrorMsg :: ValidationCtx m => Text -> m a
+throwErrorMsg msg = do
+  context <- ask
   throwError $ "[" <> display context <> "]: " <> msg
+
