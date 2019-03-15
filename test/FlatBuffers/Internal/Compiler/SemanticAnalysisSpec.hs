@@ -303,6 +303,16 @@ spec =
         [r| struct S { x: byte (deprecated); } |] `shouldFail`
           "[S.x]: can't deprecate fields in a struct"
 
+      it "with cyclic dependency" $
+        [r|
+          struct S {x: S1;}
+          struct S1 {x: S4;   y: S2;}
+          struct S2 {x: byte; y: S3;}
+          struct S3 {x: S4;   y: S1;}
+          struct S4 {x: byte;}
+        |] `shouldFail`
+          "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
+
 enum :: EnumDecl -> ValidatedDecls
 enum e = ValidatedDecls [e] []
 

@@ -9,7 +9,7 @@
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
 import           Control.Applicative                      ((<|>))
-import           Control.Monad                            (when)
+import           Control.Monad                            (forM_, when)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
 import           Control.Monad.State                      (State, evalState,
@@ -22,6 +22,7 @@ import           Data.Foldable                            (find, maximum,
 import           Data.Functor                             ((<&>))
 import           Data.Int
 import           Data.Ix                                  (inRange)
+import qualified Data.List                                as List
 import           Data.List.NonEmpty                       (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                       as NE
 import           Data.Map.Strict                          (Map)
@@ -337,10 +338,33 @@ data StructFieldType
   | SStruct StructDecl
   deriving (Show, Eq)
 
-
 validateStructs :: ParseCtx m => [EnumDecl] -> [(Namespace, ST.StructDecl)] -> m [StructDecl]
-validateStructs validatedEnums structs =
+validateStructs validatedEnums structs = do
+  traverse_ (checkStructCycles structs) structs
   flip execStateT [] $ traverse (validateStruct validatedEnums structs) structs
+
+checkStructCycles :: forall m. ParseCtx m => [(Namespace, ST.StructDecl)] -> (Namespace, ST.StructDecl) -> m ()
+checkStructCycles structs = go []
+  where
+    go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
+    go visited (currentNamespace, struct) =
+      let qualifiedName = qualify currentNamespace (ST.structIdent struct)
+      in  if qualifiedName `elem` visited
+            then
+              throwErrorMsg qualifiedName $
+                "cyclic dependency detected ["
+                <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
+                <>"] - structs cannot contain themselves, directly or indirectly"
+            else
+              forM_ (ST.structFields struct) $ \field ->
+                case ST.structFieldType field of
+                  ST.TRef typeRef ->
+                    case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
+                      Right struct ->
+                        go (qualifiedName : visited) struct
+                      Left _ ->
+                        pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                  _ -> pure () -- Field is not a TypeRef, no validation needed
 
 validateStruct ::
      forall m. (MonadState [StructDecl] m, ParseCtx m)
