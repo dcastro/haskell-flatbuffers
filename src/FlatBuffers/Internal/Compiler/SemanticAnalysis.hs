@@ -172,15 +172,16 @@ validateEnum (currentNamespace, enum) =
 
     validateBounds :: EnumType -> EnumVal -> m ()
     validateBounds enumType enumVal =
-      case enumType of
-        EInt8 -> validateBounds' @Int8 enumVal
-        EInt16 -> validateBounds' @Int16 enumVal
-        EInt32 -> validateBounds' @Int32 enumVal
-        EInt64 -> validateBounds' @Int64 enumVal
-        EWord8 -> validateBounds' @Word8 enumVal
-        EWord16 -> validateBounds' @Word16 enumVal
-        EWord32 -> validateBounds' @Word32 enumVal
-        EWord64 -> validateBounds' @Word64 enumVal
+      local (\context -> context <> "." <> enumValIdent enumVal) $
+        case enumType of
+          EInt8 -> validateBounds' @Int8 enumVal
+          EInt16 -> validateBounds' @Int16 enumVal
+          EInt32 -> validateBounds' @Int32 enumVal
+          EInt64 -> validateBounds' @Int64 enumVal
+          EWord8 -> validateBounds' @Word8 enumVal
+          EWord16 -> validateBounds' @Word16 enumVal
+          EWord32 -> validateBounds' @Word32 enumVal
+          EWord64 -> validateBounds' @Word64 enumVal
 
     validateBounds' :: forall a. (Integral a, Bounded a, Show a) => EnumVal -> m ()
     validateBounds' e =

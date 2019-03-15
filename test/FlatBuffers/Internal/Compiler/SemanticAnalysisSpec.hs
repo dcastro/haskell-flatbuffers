@@ -70,11 +70,11 @@ spec =
           namespace A.B;
           enum Color : int8 { Red = -129, Green, Blue }
         |] `shouldFail`
-          "[A.B.Color]: enum value does not fit [-128; 127]"
+          "[A.B.Color.Red]: enum value does not fit [-128; 127]"
         [r|
           enum Color : int8 { Red, Green, Blue = 128 }
         |] `shouldFail`
-          "[Color]: enum value does not fit [-128; 127]"
+          "[Color.Blue]: enum value does not fit [-128; 127]"
 
       it "with values out of order" $ do
         [r| enum Color : int8 { Red = 3, Green = 2, Blue } |] `shouldFail`
