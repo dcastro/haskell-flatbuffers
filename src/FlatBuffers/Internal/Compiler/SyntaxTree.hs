@@ -6,6 +6,7 @@ module FlatBuffers.Internal.Compiler.SyntaxTree where
 
 import           Data.List.NonEmpty        (NonEmpty)
 import           Data.Map.Strict           (Map)
+import           Data.Scientific           (Scientific)
 import           Data.String               (IsString (..))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -43,19 +44,15 @@ newtype IntLiteral = IntLiteral
   { unIntLiteral :: Integer
   } deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral)
 
-newtype NumberLiteral = NumberLiteral
-  { unNumberLiteral :: String
-  } deriving newtype (Show, Eq, IsString)
-
 data AttributeVal
   = AttrI Integer
   | AttrS Text
   deriving (Show, Eq)
 
 data DefaultVal
-  = DefaultN NumberLiteral
-  | DefaultB Bool
-  | DefaultI Ident
+  = DefaultNum Scientific
+  | DefaultBool Bool
+  | DefaultRef Ident
   deriving (Show, Eq)
 
 newtype Metadata = Metadata

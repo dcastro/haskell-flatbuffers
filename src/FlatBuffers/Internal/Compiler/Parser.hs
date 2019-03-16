@@ -211,12 +211,6 @@ intLiteral =
   label "integer literal" . lexeme $
     L.signed sc L.decimal
 
-numberLiteral :: Parser NumberLiteral
-numberLiteral = 
-  label "number literal" . lexeme $ do
-    (consumed, _n) <- match (L.signed sc L.scientific)
-    pure (NumberLiteral consumed)
-
 attributeVal :: Parser AttributeVal
 attributeVal = 
   choice
@@ -227,10 +221,10 @@ attributeVal =
 defaultVal :: Parser DefaultVal
 defaultVal =
   choice
-    [ DefaultB True <$ rword "true"
-    , DefaultB False <$ rword "false"
-    , DefaultN <$> numberLiteral
-    , DefaultI <$> ident
+    [ DefaultBool True <$ rword "true"
+    , DefaultBool False <$ rword "false"
+    , DefaultNum <$> label "number literal" (lexeme (L.signed sc L.scientific))
+    , DefaultRef <$> ident
     ]
 
 metadata :: Parser Metadata
@@ -268,7 +262,7 @@ jsonObj =
     jnull = rword "null"
     jbool = rword "true" <|> rword "false"
     jstring = stringLiteral
-    jnumber = numberLiteral
+    jnumber = lexeme $ L.signed sc L.scientific
     jarray  = square (commaSep json)
     jobject = curly (commaSep keyValuePair)
 

@@ -70,8 +70,8 @@ spec =
             d : uint_;
             d : X.uint;
             d : X.uint_;
-            e : [uint] = 99.2e9;
-            e : [uint] = 99992873786287637862.298736756627897654e999999;
+            e : [uint] = - 99.2e9 ;
+            e : [uint] = 99992873786287637862.298736756627897654e99 ;
             f : [uint_];
             g : My . Api . Ref = 123;
             h : [ MyApi.abc_ ] ;
@@ -83,19 +83,19 @@ spec =
             [ DeclT $ TableDecl "T" (Metadata mempty) []
             , DeclT $ TableDecl "ATable" (Metadata mempty)
               [ TableField "abc" TBool Nothing (Metadata mempty)
-              , TableField "b1" TBool (Just (DefaultB True)) (Metadata mempty)
-              , TableField "b2" TBool (Just (DefaultB False)) (Metadata mempty)
-              , TableField "d" (TRef (TypeRef "" "Ref")) (Just (DefaultN "123")) (Metadata mempty)
+              , TableField "b1" TBool (Just (DefaultBool True)) (Metadata mempty)
+              , TableField "b2" TBool (Just (DefaultBool False)) (Metadata mempty)
+              , TableField "d" (TRef (TypeRef "" "Ref")) (Just (DefaultNum 123)) (Metadata mempty)
               , TableField "d" TWord32 Nothing (Metadata mempty)
               , TableField "d" (TRef (TypeRef "" "uint_")) Nothing (Metadata mempty)
               , TableField "d" (TRef (TypeRef "X" "uint")) Nothing (Metadata mempty)
               , TableField "d" (TRef (TypeRef "X" "uint_")) Nothing (Metadata mempty)
-              , TableField "e" (TVector TWord32) (Just (DefaultN "99.2e9")) (Metadata mempty)
-              , TableField "e" (TVector TWord32) (Just (DefaultN "99992873786287637862.298736756627897654e999999")) (Metadata mempty)
+              , TableField "e" (TVector TWord32) (Just (DefaultNum (-99.2e9))) (Metadata mempty)
+              , TableField "e" (TVector TWord32) (Just (DefaultNum 99992873786287637862.298736756627897654e99)) (Metadata mempty)
               , TableField "f" (TVector (TRef (TypeRef "" "uint_"))) Nothing (Metadata mempty)
-              , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultN "123")) (Metadata mempty)
+              , TableField "g" (TRef (TypeRef "My.Api" "Ref")) (Just (DefaultNum 123)) (Metadata mempty)
               , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing (Metadata mempty)
-              , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultI "Blue")) (Metadata mempty)
+              , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultRef "Blue")) (Metadata mempty)
               ]
             ]
 
@@ -137,7 +137,7 @@ spec =
                 , ("c", Just (AttrS "attr"))
                 ]
               )
-              (pure (TableField "abc" TBool (Just (DefaultN "99")) (Metadata $ M.fromList [("def", Nothing)])))
+              (pure (TableField "abc" TBool (Just (DefaultNum 99)) (Metadata $ M.fromList [("def", Nothing)])))
             ]
 
       it "enum declarations" $
@@ -207,7 +207,7 @@ spec =
           {
             "a" : 3 ,
             b : "e" ,
-            c : [ { d: [ [ ] , [ "a" , null , true , false , -3 , -239.223e3 ] ] } ]
+            c : [ { d: [ [ ] , [ "a" , null , true , false , - 3 , -239.223e3 ] ] } ]
           }
 
           attribute b;
