@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE QuasiQuotes       #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
 import           Data.Foldable                                  (fold)
 import           Data.Int
-import           Data.List.NonEmpty                             (fromList)
 import           Data.Maybe                                     (mapMaybe)
 import           Data.Text                                      (Text)
 import qualified Data.Tree                                      as Tree
@@ -25,7 +25,7 @@ spec =
           namespace Ns;
           enum Color : uint32 { Red, Green, Blue }
         |] `shouldValidate`
-          enum (EnumDecl "Ns" "Color" EWord32 $ fromList
+          enum (EnumDecl "Ns" "Color" EWord32
             [ EnumVal "Red" 0
             , EnumVal "Green" 1
             , EnumVal "Blue" 2
@@ -43,15 +43,15 @@ spec =
           namespace A.B.C;
           enum Color3 : uint32 { Blue }
 
-        |] `shouldValidate` fold
-          [ enum (EnumDecl "A" "Color1" EWord32 $ fromList [EnumVal "Red" 0] )
-          , enum (EnumDecl "" "Color2" EWord32 $ fromList [EnumVal "Green" 0] )
-          , enum (EnumDecl "A.B.C" "Color3" EWord32 $ fromList [EnumVal "Blue" 0] )
+        |] `shouldValidate` foldDecls
+          [ enum (EnumDecl "A" "Color1" EWord32 [EnumVal "Red" 0] )
+          , enum (EnumDecl "" "Color2" EWord32 [EnumVal "Green" 0] )
+          , enum (EnumDecl "A.B.C" "Color3" EWord32 [EnumVal "Blue" 0] )
           ]
 
       it "with explicit values" $
         [r| enum Color : int32 { Red = -2, Green, Blue = 2 } |] `shouldValidate`
-          enum (EnumDecl "" "Color" EInt32 $ fromList
+          enum (EnumDecl "" "Color" EInt32
             [ EnumVal "Red" (-2)
             , EnumVal "Green" (-1)
             , EnumVal "Blue" 2
@@ -59,7 +59,7 @@ spec =
 
       it "with explicit values (min/maxBound)" $
         [r| enum Color : int8 { Red = -128, Green, Blue = 127 } |] `shouldValidate`
-          enum (EnumDecl "" "Color" EInt8 $ fromList
+          enum (EnumDecl "" "Color" EInt8
           [ EnumVal "Red" (toInteger (minBound :: Int8))
           , EnumVal "Green" (-127) 
           , EnumVal "Blue" (toInteger (maxBound :: Int8))
@@ -106,7 +106,7 @@ spec =
             x: int;
           }
         |] `shouldValidate`
-          struct (StructDecl "Ns" "S" 4 $ fromList
+          struct (StructDecl "Ns" "S" 4
             [ StructField "x" SInt32
             ])
 
@@ -118,7 +118,7 @@ spec =
             z: bool;
           }
         |] `shouldValidate`
-          struct (StructDecl "" "S" 8 $ fromList
+          struct (StructDecl "" "S" 8
             [ StructField "x" SWord8
             , StructField "y" SDouble
             , StructField "z" SBool
@@ -126,7 +126,7 @@ spec =
 
       it "when unqualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
         let enumVal = EnumVal "x" 0
-            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 (fromList [enumVal]))
+            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 [enumVal])
         [r|
           namespace ;       enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
           namespace A;      enum E1 : short{x}   enum E2 : short{x}
@@ -139,12 +139,12 @@ spec =
             y: E2; // should be A.E2
             z: E3; // should be E3
           }
-        |] `shouldValidate` fold
+        |] `shouldValidate` foldDecls
           [ mkEnum ""       "E1", mkEnum ""       "E2", mkEnum ""       "E3"
           , mkEnum "A"      "E1", mkEnum "A"      "E2"
           , mkEnum "A.B"    "E1"
           , mkEnum "A.B.C"  "E1", mkEnum "A.B.C"  "E2", mkEnum "A.B.C"  "E3"
-          , struct (StructDecl "A.B" "S" 2 $ fromList
+          , struct (StructDecl "A.B" "S" 2
               [ StructField "x" (SEnum "A.B"  "E1" EInt16)
               , StructField "y" (SEnum "A"    "E2" EInt16)
               , StructField "z" (SEnum ""     "E3" EInt16)
@@ -153,7 +153,7 @@ spec =
 
       it "when qualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
         let enumVal = EnumVal "x" 0
-            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 (fromList [enumVal]))
+            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 [enumVal])
         [r|
           namespace ;         enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
           namespace A;        enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
@@ -168,14 +168,14 @@ spec =
             y: A.E2; // should be A.A.E2
             z: A.E3; // should be A.E3
           }
-        |] `shouldValidate` fold
+        |] `shouldValidate` foldDecls
           [ mkEnum ""         "E1", mkEnum ""         "E2", mkEnum ""         "E3"
           , mkEnum "A"        "E1", mkEnum "A"        "E2", mkEnum "A"        "E3"
           , mkEnum "A.B"      "E1", mkEnum "A.B"      "E2", mkEnum "A.B"      "E3"
           , mkEnum "A.A"      "E1", mkEnum "A.A"      "E2"
           , mkEnum "A.B.A"    "E1"
           , mkEnum "A.B.C.A"  "E1", mkEnum "A.B.C.A"  "E2", mkEnum "A.B.C.A"  "E3"
-          , struct (StructDecl "A.B" "S" 2 $ fromList
+          , struct (StructDecl "A.B" "S" 2
               [ StructField "x" (SEnum "A.B.A" "E1" EInt16)
               , StructField "y" (SEnum "A.A"   "E2" EInt16)
               , StructField "z" (SEnum "A"     "E3" EInt16)
@@ -190,16 +190,16 @@ spec =
           struct S {
             x: Color;
           }
-        |] `shouldValidate` fold
-          [ enum (EnumDecl "A" "Color" EWord16 $ fromList [EnumVal "Blue" 0])
-          , struct (StructDecl "A" "S" 2 $ fromList
+        |] `shouldValidate` foldDecls
+          [ enum (EnumDecl "A" "Color" EWord16 [EnumVal "Blue" 0])
+          , struct (StructDecl "A" "S" 2
               [ StructField "x" (SEnum "A" "Color" EWord16)
               ])
           ]
 
       it "with nested structs (backwards/forwards references)" $ do
-        let backwards = StructDecl "A.B" "Backwards" 4 $ fromList [ StructField "x" SFloat ]
-        let forwards = StructDecl "A.B" "Forwards" 4 $ fromList [ StructField "y" (SStruct backwards) ]
+        let backwards = StructDecl "A.B" "Backwards" 4 [ StructField "x" SFloat ]
+        let forwards = StructDecl "A.B" "Forwards" 4 [ StructField "y" (SStruct backwards) ]
         [r|
           namespace A.B;
           struct Backwards {
@@ -214,8 +214,8 @@ spec =
           struct Forwards {
             y: Backwards;
           }
-        |] `shouldValidate` fold
-          [ struct (StructDecl "A.B" "S" 4 $ fromList
+        |] `shouldValidate` foldDecls
+          [ struct (StructDecl "A.B" "S" 4
               [ StructField "x1" (SStruct backwards)
               , StructField "x2" (SStruct forwards)
               ])
@@ -263,23 +263,23 @@ spec =
 
       it "with `force_align` attribute" $ do
         -- just 1 field
-        [r| struct S (force_align: 4) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 4 $ fromList [StructField "x" SInt32])
-        [r| struct S (force_align: 8) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 8 $ fromList [StructField "x" SInt32])
-        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 16 $ fromList [StructField "x" SInt32])
+        [r| struct S (force_align: 4) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 4 [StructField "x" SInt32])
+        [r| struct S (force_align: 8) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 8 [StructField "x" SInt32])
+        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 16 [StructField "x" SInt32])
         -- multiple fields
-        [r| struct S (force_align: 2) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 2 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 4) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 4 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 8) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 8 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 16 $ fromList [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 2) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 2 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 4) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 4 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 8) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 8 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 16 [StructField "x" SInt8, StructField "y" SWord16])
         -- nested structs
-        let s1 = StructDecl "" "S1" 2 $ fromList [StructField "x" SInt8]
-        let s2 = StructDecl "" "S2" 4 $ fromList [StructField "x" SInt32]
+        let s1 = StructDecl "" "S1" 2 [StructField "x" SInt8]
+        let s2 = StructDecl "" "S2" 4 [StructField "x" SInt32]
         [r|
           struct S (force_align: 4) { x: S1; y: S2; z: bool; }
           struct S1 (force_align: 2) { x: byte; }
           struct S2 { x: int; }
-        |] `shouldValidate` fold
-          [ struct (StructDecl "" "S" 4 $ fromList [StructField "x" (SStruct s1), StructField "y" (SStruct s2), StructField "z" SBool])
+        |] `shouldValidate` foldDecls
+          [ struct (StructDecl "" "S" 4 [StructField "x" (SStruct s1), StructField "y" (SStruct s2), StructField "z" SBool])
           , struct s2, struct s1
           ]
 
@@ -312,6 +312,9 @@ spec =
           struct S4 {x: byte;}
         |] `shouldFail`
           "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
+
+foldDecls :: [ValidDecls] -> ValidDecls
+foldDecls = fold
 
 enum :: EnumDecl -> ValidDecls
 enum e = ValidDecls [e] []

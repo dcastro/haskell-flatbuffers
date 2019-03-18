@@ -1,10 +1,9 @@
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 
 module FlatBuffers.Internal.Compiler.ParserSpec where
 
-import           Data.List.NonEmpty
-import qualified Data.Map.Strict                          as M
 import           Data.Void                                (Void)
 import           FlatBuffers.Internal.Compiler.Parser
 import           FlatBuffers.Internal.Compiler.SyntaxTree
@@ -112,7 +111,7 @@ spec =
         |] `parses`
           Schema
             []
-            [ DeclS $ StructDecl "AStruct" (Metadata mempty) $ fromList
+            [ DeclS $ StructDecl "AStruct" (Metadata mempty)
               [ StructField "abc" TBool (Metadata mempty)
               , StructField "d" (TRef (TypeRef "" "Ref")) (Metadata mempty)
               , StructField "e" (TVector TWord32) (Metadata mempty)
@@ -131,13 +130,13 @@ spec =
           Schema
             []
             [ DeclT $ TableDecl "ATable"
-              (Metadata $ M.fromList
+              (Metadata
                 [ ("a", Nothing)
                 , ("b", Just (AttrI 9283))
                 , ("c", Just (AttrS "attr"))
                 ]
               )
-              (pure (TableField "abc" TBool (Just (DefaultNum 99)) (Metadata $ M.fromList [("def", Nothing)])))
+              (pure (TableField "abc" TBool (Just (DefaultNum 99)) (Metadata [("def", Nothing)])))
             ]
 
       it "enum declarations" $
@@ -151,7 +150,7 @@ spec =
         |] `parses`
           Schema
             []
-            [DeclE $ EnumDecl "Color" TInt16 (Metadata $ M.fromList [("attr", Nothing)]) $ fromList
+            [DeclE $ EnumDecl "Color" TInt16 (Metadata [("attr", Nothing)])
               [ EnumVal "Red" Nothing
               , EnumVal "Blue" (Just 18446744073709551615)
               , EnumVal "Gray" (Just (-18446744073709551615))
@@ -172,14 +171,12 @@ spec =
             []
             [ DeclU $ UnionDecl
                 "Weapon"
-                (Metadata $ M.fromList [("attr", Nothing)])
-                (fromList
-                  [ UnionVal Nothing (TypeRef "" "Sword")
-                  , UnionVal (Just "mace") (TypeRef "" "Stick")
-                  , UnionVal (Just "mace2") (TypeRef "My.Api" "Stick")
-                  , UnionVal Nothing (TypeRef "" "Axe")
-                  ]
-                )
+                (Metadata [("attr", Nothing)])
+                [ UnionVal Nothing (TypeRef "" "Sword")
+                , UnionVal (Just "mace") (TypeRef "" "Stick")
+                , UnionVal (Just "mace2") (TypeRef "My.Api" "Stick")
+                , UnionVal Nothing (TypeRef "" "Axe")
+                ]
             ]
 
       it "root types, file extensions / identifiers, attribute declarations" $
@@ -232,7 +229,7 @@ spec =
 shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =
   case p of
-    Left (ParseErrorBundle (x :| []) _) -> parseErrorTextPretty x `shouldBe` s
+    Left (ParseErrorBundle [x] _) -> parseErrorTextPretty x `shouldBe` s
     Left (ParseErrorBundle xs _)        -> fail $ "Expected one parsing error, but got more:\n" ++ show xs
     Right a                             -> fail $ "Expected parsing to fail, but succeeded with:\n" ++ show a
 
