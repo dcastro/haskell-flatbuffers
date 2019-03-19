@@ -164,3 +164,11 @@ instance IsString Namespace where
 qualify :: Namespace -> Ident -> Ident
 qualify "" i = i
 qualify ns (Ident i) = Ident (display ns <> "." <> i)
+
+class HasIdent a where
+  getIdent :: a -> Ident
+
+instance HasIdent EnumDecl    where getIdent = enumIdent
+instance HasIdent StructDecl  where getIdent = structIdent
+instance HasIdent TableDecl   where getIdent = tableIdent
+instance HasIdent UnionDecl   where getIdent = unionIdent

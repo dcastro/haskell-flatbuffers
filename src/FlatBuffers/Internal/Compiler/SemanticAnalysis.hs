@@ -37,7 +37,7 @@ import qualified Data.Tree                                as Tree
 import           Data.Word
 import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
-                                                           Schema, qualify)
+                                                           Schema, qualify, HasIdent(..))
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
 import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo)
@@ -50,66 +50,90 @@ type Required = Bool
 
 newtype DefaultVal a = DefaultVal (Maybe a)
 
--- | Unvalidated type declarations, paired with their respective namespaces
-data DeclsWithNamespace = DeclsWithNamespace
-  { tables  :: [(Namespace, ST.TableDecl)]
-  , structs :: [(Namespace, ST.StructDecl)]
-  , enums   :: [(Namespace, ST.EnumDecl)]
-  , unions  :: [(Namespace, ST.UnionDecl)]
+data SymbolTable enum struct table union = SymbolTable
+  { symbolEnums   :: [(Namespace, enum)]
+  , symbolStructs :: [(Namespace, struct)]
+  , symbolTables  :: [(Namespace, table)]
+  , symbolUnions  :: [(Namespace, union)]
+  }
+  deriving (Eq, Show)
+
+instance Semigroup (SymbolTable e s t u)  where
+  SymbolTable e1 s1 t1 u1 <> SymbolTable e2 s2 t2 u2 =
+    SymbolTable (e1 <> e2) (s1 <> s2) (t1 <> t2) (u1 <> u2)
+
+instance Monoid (SymbolTable e s t u) where
+  mempty = SymbolTable [] [] [] []
+
+type Stage1     = SymbolTable ST.EnumDecl ST.StructDecl ST.TableDecl ST.UnionDecl
+type Stage2     = SymbolTable    EnumDecl ST.StructDecl ST.TableDecl ST.UnionDecl
+type Stage3     = SymbolTable    EnumDecl    StructDecl ST.TableDecl ST.UnionDecl
+type Stage4     = SymbolTable    EnumDecl    StructDecl    TableDecl ST.UnionDecl
+type ValidDecls = SymbolTable    EnumDecl    StructDecl    TableDecl    UnionDecl
+
+instance HasIdent EnumDecl    where getIdent = enumIdent
+instance HasIdent StructDecl  where getIdent = structIdent
+instance HasIdent TableDecl   where getIdent = tableIdent
+instance HasIdent UnionDecl   where getIdent = unionIdent
+
+data Match enum struct table union
+  = MatchE (Namespace, enum)
+  | MatchS (Namespace, struct)
+  | MatchT (Namespace, table)
+  | MatchU (Namespace, union)
+  | NoMatch (NonEmpty Namespace) -- ^ the list of namespaces in which the type reference was searched for
+
+-- | Looks for a type reference in a set of type declarations.
+-- If none is found, the list of namespaces in which the type reference was searched for is return.
+findDecl ::
+     (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
+  => Namespace
+  -> SymbolTable e s t u
+  -> ST.TypeRef
+  -> Match e s t u
+findDecl currentNamespace symbolTable (ST.TypeRef refNamespace refIdent) =
+  let parentNamespaces' = parentNamespaces currentNamespace
+      results = do
+        parentNamespace <- parentNamespaces'
+        let candidateNamespace = parentNamespace <> refNamespace
+        pure $ foldl1 (<|>) 
+          [ MatchE <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolEnums symbolTable)
+          , MatchS <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolStructs symbolTable)
+          , MatchT <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolTables symbolTable)
+          , MatchU <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolUnions symbolTable)
+          ]
+  in 
+    case foldl1 (<|>) results of
+      Just match -> match
+      Nothing    -> NoMatch parentNamespaces'
+
+data UnionDecl = UnionDecl
+  { unionIdent :: Ident
   }
 
-instance Semigroup DeclsWithNamespace where
-  DeclsWithNamespace t1 s1 e1 u1 <> DeclsWithNamespace t2 s2 e2 u2 =
-    DeclsWithNamespace (t1 <> t2) (s1 <> s2) (e1 <> e2) (u1 <> u2)
-
-instance Monoid DeclsWithNamespace where
-  mempty = DeclsWithNamespace [] [] [] []
-
--- | Semantically valid type declarations
-data ValidDecls = ValidDecls
-  { validEnums   :: [EnumDecl]
-  , validStructs :: [StructDecl]
-  } deriving (Show, Eq)
-
-instance Semigroup ValidDecls where
-  ValidDecls e1 s1 <> ValidDecls e2 s2 =
-    ValidDecls (e1 <> e2) (s1 <> s2)
-
-instance Monoid ValidDecls where
-  mempty = ValidDecls [] []
-
 -- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
-pairDeclsWithNamespaces :: Tree.Tree Schema -> DeclsWithNamespace
-pairDeclsWithNamespaces = foldMap (pairDeclsWithNamespaces' . ST.decls)
+createSymbolTable :: Tree.Tree Schema -> Stage1
+createSymbolTable = foldMap (pairDeclsWithNamespaces . ST.decls)
   where
-    pairDeclsWithNamespaces' :: [ST.Decl] -> DeclsWithNamespace
-    pairDeclsWithNamespaces' = snd . foldl go ("", mempty)
+    pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
+    pairDeclsWithNamespaces = snd . foldl go ("", mempty)
 
-    go :: (Namespace, DeclsWithNamespace) -> ST.Decl -> (Namespace, DeclsWithNamespace)
+    go :: (Namespace, Stage1) -> ST.Decl -> (Namespace, Stage1)
     go (currentNamespace, decls) decl =
       case decl of
         ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
-        ST.DeclT table  -> (currentNamespace, decls <> DeclsWithNamespace [(currentNamespace, table)] [] [] [])
-        ST.DeclS struct -> (currentNamespace, decls <> DeclsWithNamespace [] [(currentNamespace, struct)] [] [])
-        ST.DeclE enum   -> (currentNamespace, decls <> DeclsWithNamespace [] [] [(currentNamespace, enum)] [])
-        ST.DeclU union  -> (currentNamespace, decls <> DeclsWithNamespace [] [] [] [(currentNamespace, union)])
+        ST.DeclE enum   -> (currentNamespace, decls <> SymbolTable [(currentNamespace, enum)] [] [] [])
+        ST.DeclS struct -> (currentNamespace, decls <> SymbolTable [] [(currentNamespace, struct)] [] [])
+        ST.DeclT table  -> (currentNamespace, decls <> SymbolTable [] [] [(currentNamespace, table)] [])
+        ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
         _               -> (currentNamespace, decls)
 
-
-validateDecls :: MonadError Text m => DeclsWithNamespace -> m ValidDecls
-validateDecls decls = flip runReaderT "" $ do
-  validEnums <- validateEnums (enums decls)
-  validStructs <- validateStructs validEnums (structs decls)
-
-  pure $ ValidDecls
-    { validEnums = validEnums
-    , validStructs = validStructs
-    }
+validateDecls :: MonadError Text m => Stage1 -> m Stage3
+validateDecls symbolTable = runReaderT (validateEnums symbolTable >>= validateStructs) ""
 
 
 data EnumDecl = EnumDecl
-  { enumNamespace :: Namespace
-  , enumIdent     :: Ident
+  { enumIdent     :: Ident
   , enumType      :: EnumType
   , enumVals      :: NonEmpty EnumVal
   } deriving (Show, Eq)
@@ -130,8 +154,16 @@ data EnumType
   | EWord64
   deriving (Show, Eq)
 
-validateEnums :: forall m. ValidationCtx m => [(Namespace, ST.EnumDecl)] -> m [EnumDecl]
-validateEnums = traverse validateEnum
+
+validateEnums :: forall m. ValidationCtx m => Stage1 -> m Stage2
+validateEnums symbolTable = do
+  let enums = symbolEnums symbolTable
+  validEnums <- traverse validate enums
+  pure symbolTable { symbolEnums = validEnums }
+  where
+    validate (namespace, enum) = do
+      validEnum <- validateEnum (namespace, enum)
+      pure (namespace, validEnum)
 
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
@@ -145,8 +177,7 @@ validateEnum (currentNamespace, enum) =
       validateOrder enumVals
       traverse_ (validateBounds enumType) enumVals
       pure EnumDecl
-        { enumNamespace = currentNamespace
-        , enumIdent = ST.enumIdent enum
+        { enumIdent = ST.enumIdent enum
         , enumType = enumType
         , enumVals = enumVals
         }
@@ -265,8 +296,7 @@ findStringAttr name (ST.Metadata attrs) =
 
 data TableDecl = TableDecl
   { tableIdent     :: Ident
-  , tableNamespace :: Ident
-  , tableFields    :: NonEmpty TableField
+  , tableFields    :: [TableField]
   }
 
 data TableField = TableField
@@ -313,8 +343,7 @@ data VectorElementType
   | VString
 
 data StructDecl = StructDecl
-  { structNamespace  :: Namespace
-  , structIdent      :: Ident
+  { structIdent      :: Ident
   , structAlignment  :: Word8 -- [1, 16]
   , structFields     :: NonEmpty StructField
   } deriving (Show, Eq)
@@ -340,16 +369,20 @@ data StructFieldType
       Namespace -- ^ The namespace of the enum that this field refers to
       Ident     -- ^ The name of the enum that this field refers to
       EnumType
-  | SStruct StructDecl
+  | SStruct (Namespace, StructDecl)
   deriving (Show, Eq)
 
-validateStructs :: ValidationCtx m => [EnumDecl] -> [(Namespace, ST.StructDecl)] -> m [StructDecl]
-validateStructs validEnums structs = do
-  traverse_ (checkStructCycles structs) structs
-  flip execStateT [] $ traverse (validateStruct validEnums structs) structs
+validateStructs :: ValidationCtx m => Stage2 -> m Stage3
+validateStructs symbolTable = do
+  let structs = symbolStructs symbolTable
 
-checkStructCycles :: forall m. ValidationCtx m => [(Namespace, ST.StructDecl)] -> (Namespace, ST.StructDecl) -> m ()
-checkStructCycles structs = go []
+  traverse_ (checkStructCycles symbolTable) structs
+  validStructs <- flip execStateT [] $ traverse (validateStruct symbolTable) structs
+
+  pure symbolTable { symbolStructs = validStructs }
+
+checkStructCycles :: forall m. ValidationCtx m => Stage2 -> (Namespace, ST.StructDecl) -> m ()
+checkStructCycles symbolTable = go []
   where
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) =
@@ -365,24 +398,23 @@ checkStructCycles structs = go []
                 forM_ (ST.structFields struct) $ \field ->
                   case ST.structFieldType field of
                     ST.TRef typeRef ->
-                      case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
-                        Right struct ->
+                      case findDecl currentNamespace symbolTable typeRef of
+                        MatchS struct ->
                           go (qualifiedName : visited) struct
-                        Left _ ->
+                        _ ->
                           pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
                     _ -> pure () -- Field is not a TypeRef, no validation needed
 
 validateStruct ::
-     forall m. (MonadState [StructDecl] m, ValidationCtx m)
-  => [EnumDecl]
-  -> [(Namespace, ST.StructDecl)]
+     forall m. (MonadState [(Namespace, StructDecl)] m, ValidationCtx m)
+  => Stage2
   -> (Namespace, ST.StructDecl)
-  -> m StructDecl
-validateStruct validEnums structs (currentNamespace, struct) =
+  -> m (Namespace, StructDecl)
+validateStruct symbolTable (currentNamespace, struct) =
   local (\_ -> qualify currentNamespace (ST.structIdent struct)) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
-    case find (\s -> structNamespace s == currentNamespace && structIdent s == ST.structIdent struct) validStructs of
+    case find (\(ns, s) -> ns == currentNamespace && structIdent s == ST.structIdent struct) validStructs of
       Just match -> pure match
       Nothing -> do
         checkDuplicateFields
@@ -394,13 +426,12 @@ validateStruct validEnums structs (currentNamespace, struct) =
         let alignment = fromMaybe naturalAlignment forceAlign
 
         let validStruct = StructDecl
-              { structNamespace  = currentNamespace
-              , structIdent      = ST.structIdent struct
+              { structIdent      = ST.structIdent struct
               , structAlignment  = alignment
               , structFields     = fields
               }
-        modify (validStruct :)
-        pure validStruct
+        modify ((currentNamespace, validStruct) :)
+        pure (currentNamespace, validStruct)
 
   where
     invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
@@ -432,24 +463,20 @@ validateStruct validEnums structs (currentNamespace, struct) =
         ST.TString -> throwErrorMsg invalidStructFieldType
         ST.TVector _ -> throwErrorMsg invalidStructFieldType
         ST.TRef typeRef ->
-          -- check if this is a reference to an enum
-          case findDecl currentNamespace validEnums enumNamespace enumIdent typeRef of
-            Right enum -> pure (SEnum (enumNamespace enum) (enumIdent enum) (enumType enum))
-            Left _ ->
-              -- check if this is a reference to a struct, and validate it
-              case findDecl currentNamespace structs fst (ST.structIdent . snd) typeRef of
-                Right (nestedNamespace, nestedStruct) ->
-                  SStruct <$> validateStruct validEnums structs (nestedNamespace, nestedStruct)
-                Left checkedNamespaces ->
-                  throwErrorMsg $
-                    "type '"
-                    <> display typeRef
-                    <> "' does not exist (checked in these namespaces: "
-                    <> display checkedNamespaces
-                    <> ") or is not allowed in a struct field"
-                    <> " ("
-                    <> invalidStructFieldType
-                    <> ")"
+          case findDecl currentNamespace symbolTable typeRef of
+            MatchE (enumNamespace, enum) ->
+              pure (SEnum enumNamespace (enumIdent enum) (enumType enum))
+            MatchS (nestedNamespace, nestedStruct) ->
+              -- if this is a reference to a struct, we need to validate it first
+              SStruct <$> validateStruct symbolTable (nestedNamespace, nestedStruct)
+            NoMatch checkedNamespaces ->
+              throwErrorMsg $
+                "type '"
+                <> display typeRef
+                <> "' does not exist (checked in these namespaces: "
+                <> display checkedNamespaces
+                <> ")"
+            _ -> throwErrorMsg invalidStructFieldType
 
     checkDeprecated :: ST.StructField -> m ()
     checkDeprecated structField =
@@ -489,7 +516,7 @@ structFieldAlignment sf =
     SDouble -> 8
     SBool -> 1
     SEnum _ _ enumType -> enumAlignment enumType
-    SStruct nestedStruct -> structAlignment nestedStruct
+    SStruct (_, nestedStruct) -> structAlignment nestedStruct
 
 -- | The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
 enumSize :: EnumType -> Word8
@@ -515,34 +542,6 @@ enumAlignment = enumSize
 parentNamespaces :: ST.Namespace -> NonEmpty ST.Namespace
 parentNamespaces (ST.Namespace ns) =
   coerce $ NE.reverse $ NE.inits ns
-  
-
--- | Looks for a type reference in a set of type declarations.
--- If none is found, the list of namespaces in which the type reference was searched for is return.
-findDecl ::
-     Namespace
-  -> [decl]
-  -> (decl -> Namespace)
-  -> (decl -> Ident)
-  -> ST.TypeRef
-  -> Either (NonEmpty Namespace) decl
-findDecl currentNamespace decls getNamespace getIdent (ST.TypeRef refNamespace refIdent) =
-  let parentNamespaces' = parentNamespaces currentNamespace
-      results = do
-        parentNamespace <- parentNamespaces'
-        let candidateNamespace = parentNamespace <> refNamespace
-        pure $ find (\decl -> getNamespace decl == candidateNamespace && getIdent decl == refIdent) decls
-  in  
-    case foldl1 (<|>) results of
-      Just match -> Right match
-      Nothing    -> Left parentNamespaces'
-
-enumQualifiedName :: EnumDecl -> Ident
-enumQualifiedName e = qualify (enumNamespace e) (enumIdent e)
-
-structQualifiedName :: StructDecl -> Ident
-structQualifiedName s = qualify (structNamespace s) (structIdent s)
-
 
 throwErrorMsg :: ValidationCtx m => Text -> m a
 throwErrorMsg msg = do

@@ -12,6 +12,7 @@ import qualified Data.Tree                                      as Tree
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
+import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace)
 import           Test.Hspec
 import           Text.Megaparsec
 import           Text.RawString.QQ                              (r)
@@ -25,7 +26,7 @@ spec =
           namespace Ns;
           enum Color : uint32 { Red, Green, Blue }
         |] `shouldValidate`
-          enum (EnumDecl "Ns" "Color" EWord32
+          enum ("Ns", EnumDecl "Color" EWord32
             [ EnumVal "Red" 0
             , EnumVal "Green" 1
             , EnumVal "Blue" 2
@@ -44,14 +45,14 @@ spec =
           enum Color3 : uint32 { Blue }
 
         |] `shouldValidate` foldDecls
-          [ enum (EnumDecl "A" "Color1" EWord32 [EnumVal "Red" 0] )
-          , enum (EnumDecl "" "Color2" EWord32 [EnumVal "Green" 0] )
-          , enum (EnumDecl "A.B.C" "Color3" EWord32 [EnumVal "Blue" 0] )
+          [ enum ("A",      EnumDecl "Color1" EWord32 [EnumVal "Red" 0] )
+          , enum ("",       EnumDecl "Color2" EWord32 [EnumVal "Green" 0] )
+          , enum ("A.B.C",  EnumDecl "Color3" EWord32 [EnumVal "Blue" 0] )
           ]
 
       it "with explicit values" $
         [r| enum Color : int32 { Red = -2, Green, Blue = 2 } |] `shouldValidate`
-          enum (EnumDecl "" "Color" EInt32
+          enum ("", EnumDecl "Color" EInt32
             [ EnumVal "Red" (-2)
             , EnumVal "Green" (-1)
             , EnumVal "Blue" 2
@@ -59,7 +60,7 @@ spec =
 
       it "with explicit values (min/maxBound)" $
         [r| enum Color : int8 { Red = -128, Green, Blue = 127 } |] `shouldValidate`
-          enum (EnumDecl "" "Color" EInt8
+          enum ("", EnumDecl "Color" EInt8
           [ EnumVal "Red" (toInteger (minBound :: Int8))
           , EnumVal "Green" (-127) 
           , EnumVal "Blue" (toInteger (maxBound :: Int8))
@@ -106,7 +107,7 @@ spec =
             x: int;
           }
         |] `shouldValidate`
-          struct (StructDecl "Ns" "S" 4
+          struct ("Ns", StructDecl "S" 4
             [ StructField "x" SInt32
             ])
 
@@ -118,7 +119,7 @@ spec =
             z: bool;
           }
         |] `shouldValidate`
-          struct (StructDecl "" "S" 8
+          struct ("", StructDecl "S" 8
             [ StructField "x" SWord8
             , StructField "y" SDouble
             , StructField "z" SBool
@@ -126,7 +127,7 @@ spec =
 
       it "when unqualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
         let enumVal = EnumVal "x" 0
-            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 [enumVal])
+            mkEnum namespace ident = enum (namespace, EnumDecl ident EInt16 [enumVal])
         [r|
           namespace ;       enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
           namespace A;      enum E1 : short{x}   enum E2 : short{x}
@@ -144,7 +145,7 @@ spec =
           , mkEnum "A"      "E1", mkEnum "A"      "E2"
           , mkEnum "A.B"    "E1"
           , mkEnum "A.B.C"  "E1", mkEnum "A.B.C"  "E2", mkEnum "A.B.C"  "E3"
-          , struct (StructDecl "A.B" "S" 2
+          , struct ("A.B", StructDecl "S" 2
               [ StructField "x" (SEnum "A.B"  "E1" EInt16)
               , StructField "y" (SEnum "A"    "E2" EInt16)
               , StructField "z" (SEnum ""     "E3" EInt16)
@@ -153,7 +154,7 @@ spec =
 
       it "when qualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
         let enumVal = EnumVal "x" 0
-            mkEnum namespace ident = enum (EnumDecl namespace ident EInt16 [enumVal])
+            mkEnum namespace ident = enum (namespace, EnumDecl ident EInt16 [enumVal])
         [r|
           namespace ;         enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
           namespace A;        enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
@@ -175,12 +176,23 @@ spec =
           , mkEnum "A.A"      "E1", mkEnum "A.A"      "E2"
           , mkEnum "A.B.A"    "E1"
           , mkEnum "A.B.C.A"  "E1", mkEnum "A.B.C.A"  "E2", mkEnum "A.B.C.A"  "E3"
-          , struct (StructDecl "A.B" "S" 2
+          , struct ("A.B", StructDecl "S" 2
               [ StructField "x" (SEnum "A.B.A" "E1" EInt16)
               , StructField "y" (SEnum "A.A"   "E2" EInt16)
               , StructField "z" (SEnum "A"     "E3" EInt16)
               ])
           ]
+
+      it "when TypeRef is ambiguous, types in namespaces closer to the struct are preferred, even if they're not valid" $
+        [r|
+          namespace A;    struct X {x: int;}
+          namespace A.B;  table X {}
+
+          struct S {
+            x: X;
+          }
+        |] `shouldFail`
+          "[A.B.S.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
 
       it "with field referencing an enum" $
         [r|
@@ -191,15 +203,15 @@ spec =
             x: Color;
           }
         |] `shouldValidate` foldDecls
-          [ enum (EnumDecl "A" "Color" EWord16 [EnumVal "Blue" 0])
-          , struct (StructDecl "A" "S" 2
+          [ enum ("A", EnumDecl "Color" EWord16 [EnumVal "Blue" 0])
+          , struct ("A", StructDecl "S" 2
               [ StructField "x" (SEnum "A" "Color" EWord16)
               ])
           ]
 
       it "with nested structs (backwards/forwards references)" $ do
-        let backwards = StructDecl "A.B" "Backwards" 4 [ StructField "x" SFloat ]
-        let forwards = StructDecl "A.B" "Forwards" 4 [ StructField "y" (SStruct backwards) ]
+        let backwards = ("A.B", StructDecl "Backwards" 4 [ StructField "x" SFloat ])
+        let forwards = ("A.B", StructDecl "Forwards" 4 [ StructField "y" (SStruct backwards) ])
         [r|
           namespace A.B;
           struct Backwards {
@@ -215,7 +227,7 @@ spec =
             y: Backwards;
           }
         |] `shouldValidate` foldDecls
-          [ struct (StructDecl "A.B" "S" 4
+          [ struct ("A.B", StructDecl "S" 4
               [ StructField "x1" (SStruct backwards)
               , StructField "x2" (SStruct forwards)
               ])
@@ -232,9 +244,7 @@ spec =
             x: A.T;
           }
         |] `shouldFail`
-          ( "[A.S.x]: type 'A.T' does not exist (checked in these namespaces: ['A', ''])"
-          <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or other structs)"
-          )
+          "[A.S.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
 
       it "with reference to a union" $
         [r|
@@ -245,9 +255,16 @@ spec =
             x: U;
           }
         |] `shouldFail`
-         ( "[A.B.S.x]: type 'U' does not exist (checked in these namespaces: ['A.B', 'A', ''])"
-         <> " or is not allowed in a struct field (struct fields may only be integers, floating point, bool, enums, or other structs)"
-         )
+         "[A.B.S.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
+
+      it "with invalid reference" $
+        [r|
+          namespace X.Y.Z;
+          struct S {
+            x: A.T;
+          }
+        |] `shouldFail`
+          "[X.Y.Z.S.x]: type 'A.T' does not exist (checked in these namespaces: ['X.Y.Z', 'X.Y', 'X', ''])"
 
       it "with reference to a vector" $
         [r| struct S { x: [byte]; } |] `shouldFail`
@@ -263,23 +280,23 @@ spec =
 
       it "with `force_align` attribute" $ do
         -- just 1 field
-        [r| struct S (force_align: 4) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 4 [StructField "x" SInt32])
-        [r| struct S (force_align: 8) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 8 [StructField "x" SInt32])
-        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct (StructDecl "" "S" 16 [StructField "x" SInt32])
+        [r| struct S (force_align: 4) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 4 [StructField "x" SInt32])
+        [r| struct S (force_align: 8) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 8 [StructField "x" SInt32])
+        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" SInt32])
         -- multiple fields
-        [r| struct S (force_align: 2) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 2 [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 4) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 4 [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 8) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 8 [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct (StructDecl "" "S" 16 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 2) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 2 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 4) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 4 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 8) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 8 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" SInt8, StructField "y" SWord16])
         -- nested structs
-        let s1 = StructDecl "" "S1" 2 [StructField "x" SInt8]
-        let s2 = StructDecl "" "S2" 4 [StructField "x" SInt32]
+        let s1 = ("", StructDecl "S1" 2 [StructField "x" SInt8])
+        let s2 = ("", StructDecl "S2" 4 [StructField "x" SInt32])
         [r|
           struct S (force_align: 4) { x: S1; y: S2; z: bool; }
           struct S1 (force_align: 2) { x: byte; }
           struct S2 { x: int; }
         |] `shouldValidate` foldDecls
-          [ struct (StructDecl "" "S" 4 [StructField "x" (SStruct s1), StructField "y" (SStruct s2), StructField "z" SBool])
+          [ struct ("", StructDecl "S" 4 [StructField "x" (SStruct s1), StructField "y" (SStruct s2), StructField "z" SBool])
           , struct s2, struct s1
           ]
 
@@ -313,23 +330,24 @@ spec =
         |] `shouldFail`
           "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
 
-foldDecls :: [ValidDecls] -> ValidDecls
+
+foldDecls :: [Stage3] -> Stage3
 foldDecls = fold
 
-enum :: EnumDecl -> ValidDecls
-enum e = ValidDecls [e] []
+enum :: (Namespace, EnumDecl) -> Stage3
+enum e = SymbolTable [e] [] [] []
 
-struct :: StructDecl -> ValidDecls
-struct s = ValidDecls [] [s]
+struct :: (Namespace, StructDecl) -> Stage3
+struct s = SymbolTable [] [s] [] []
 
-shouldValidate :: String -> ValidDecls -> Expectation
+shouldValidate :: String -> Stage3 -> Expectation
 shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = Tree.Node schema []
-          declsWithNamespaces = pairDeclsWithNamespaces schemas
-      in  validateDecls declsWithNamespaces `shouldBe` Right expectation
+          symbolTable = createSymbolTable schemas
+      in  validateDecls symbolTable `shouldBe` Right expectation
 
 shouldFail :: String -> Text -> Expectation
 shouldFail input expectedErrorMsg =
@@ -337,8 +355,8 @@ shouldFail input expectedErrorMsg =
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = Tree.Node schema []
-          declsWithNamespaces = pairDeclsWithNamespaces schemas
-      in  validateDecls declsWithNamespaces `shouldBe` Left expectedErrorMsg
+          symbolTable = createSymbolTable schemas
+      in  validateDecls symbolTable `shouldBe` Left expectedErrorMsg
 
 showBundle :: ( ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
