@@ -21,7 +21,7 @@ import           Control.Monad.State.Class                (MonadState)
 import           Data.Coerce                              (coerce)
 import           Data.Foldable                            (find, maximum,
                                                            traverse_)
-import           Data.Functor                             ((<&>))
+import           Data.Functor                             (($>), (<&>))
 import           Data.Int
 import           Data.Ix                                  (inRange)
 import qualified Data.List                                as List
@@ -29,8 +29,10 @@ import           Data.List.NonEmpty                       (NonEmpty)
 import qualified Data.List.NonEmpty                       as NE
 import           Data.Map.Strict                          (Map)
 import qualified Data.Map.Strict                          as Map
-import           Data.Maybe                               (fromMaybe)
+import           Data.Maybe                               (catMaybes, fromMaybe, isJust)
 import           Data.Monoid                              (Sum (..))
+import           Data.Scientific                          (Scientific)
+import qualified Data.Scientific                          as Scientific
 import           Data.Text                                (Text)
 import qualified Data.Text                                as T
 import qualified Data.Tree                                as Tree
@@ -43,12 +45,8 @@ import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo)
 
 -- |  The identifier in the reader environment represents the validation context,
--- the thing being validated (e.g. a struct name, or a table field).
+-- the thing being validated (e.g. a fully-qualified struct name, or a table field name).
 type ValidationCtx m = (MonadError Text m, MonadReader Ident m)
-
-type Required = Bool
-
-newtype DefaultVal a = DefaultVal (Maybe a)
 
 data SymbolTable enum struct table union = SymbolTable
   { symbolEnums   :: [(Namespace, enum)]
@@ -294,15 +292,20 @@ findStringAttr name (ST.Metadata attrs) =
         <> name
         <> ": \"abc\"'"
 
+        
+newtype DefaultVal a = DefaultVal a
+        
+type Required = Bool
+
 data TableDecl = TableDecl
   { tableIdent     :: Ident
   , tableFields    :: [TableField]
   }
 
 data TableField = TableField
-  { tableFieldType       :: TableFieldType
+  { tableFieldIdent      :: Ident
+  , tableFieldType       :: TableFieldType
   , tableFieldDeprecated :: Bool
-  , tableFieldId         :: Maybe Int
   }
 
 data TableFieldType
@@ -314,13 +317,13 @@ data TableFieldType
   | TWord16 (DefaultVal Word16)
   | TWord32 (DefaultVal Word32)
   | TWord64 (DefaultVal Word64)
-  | TFloat (DefaultVal Float)
-  | TDouble (DefaultVal Double)
+  | TFloat (DefaultVal Scientific)
+  | TDouble (DefaultVal Scientific)
   | TBool (DefaultVal Bool)
-  | TEnum (DefaultVal Ident) Ident
-  | TStruct Required Ident
-  | TTable Required Ident
-  | TUnion Required Ident
+  | TEnum (DefaultVal Ident) ST.TypeRef
+  | TStruct Required ST.TypeRef
+  | TTable Required ST.TypeRef
+  | TUnion Required ST.TypeRef
   | TString Required
   | TVector Required VectorElementType
 
@@ -336,11 +339,184 @@ data VectorElementType
   | VFloat
   | VDouble
   | VBool
-  | VEnum Ident InlineSize
-  | VStruct Ident InlineSize
-  | VTable Ident
-  | VUnion Ident
+  | VEnum ST.TypeRef InlineSize
+  | VStruct ST.TypeRef InlineSize
+  | VTable ST.TypeRef
+  | VUnion ST.TypeRef
   | VString
+
+
+validateTables :: ValidationCtx m => Stage3 -> m Stage4
+validateTables symbolTable = do
+  let tables = symbolTables symbolTable
+  validTables <- traverse validate tables
+  pure symbolTable { symbolTables = validTables }
+  where
+    validate (namespace, table) = do
+      validTable <- validateTable symbolTable (namespace, table)
+      pure (namespace, validTable)
+
+validateTable :: forall m. ValidationCtx m => Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
+validateTable symbolTable (currentNamespace, table) =
+  local (\_ -> qualify currentNamespace (ST.tableIdent table)) $ do
+
+    checkDuplicateFields
+    sortedFields <- sortFields (ST.tableFields table)
+
+    validFields <- traverse validateTableField sortedFields
+
+    pure TableDecl
+      { tableIdent = ST.tableIdent table
+      , tableFields = validFields
+      }
+
+  where
+    checkDuplicateFields :: m ()
+    checkDuplicateFields =
+      checkDuplicateIdentifiers
+        (coerce . ST.tableFieldIdent <$> ST.tableFields table)
+
+    sortFields :: [ST.TableField] -> m [ST.TableField]
+    sortFields tfs = do
+      attrs <- catMaybes <$> traverse (findIntAttr "id" . ST.tableFieldMetadata) tfs
+      if null attrs
+        then pure tfs
+        else do
+          when (length attrs /= length tfs) $
+            throwErrorMsg "either all fields or no fields must have an 'id' attribute"
+          when (List.sort attrs /= [0.. List.genericLength tfs - 1]) $
+            throwErrorMsg "field id's must be consecutive from 0"
+          pure . fmap fst . List.sortOn snd $ zip tfs attrs
+
+    validateTableField :: ST.TableField -> m TableField
+    validateTableField tf =
+      local (\context -> context <> "." <> ST.tableFieldIdent tf) $ do
+        validFieldType <- validateTableFieldType (ST.tableFieldMetadata tf) (ST.tableFieldDefault tf) (ST.tableFieldType tf)
+        pure TableField
+          { tableFieldIdent = ST.tableFieldIdent tf
+          , tableFieldType = undefined
+          , tableFieldDeprecated = hasAttribute "deprecated" (ST.tableFieldMetadata tf)
+          }
+
+    validateTableFieldType :: ST.Metadata -> Maybe ST.DefaultVal -> ST.Type -> m TableFieldType
+    validateTableFieldType md dflt tableFieldType =
+      case tableFieldType of
+        ST.TInt8 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt8
+        ST.TInt16 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt16
+        ST.TInt32 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt32
+        ST.TInt64 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt64
+        ST.TWord8 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord8
+        ST.TWord16 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord16
+        ST.TWord32 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord32
+        ST.TWord64 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord64
+        ST.TFloat -> checkNoRequired md >> validateDefaultValAsScientific dflt <&> TFloat
+        ST.TDouble -> checkNoRequired md >> validateDefaultValAsScientific dflt <&> TDouble
+        ST.TBool -> checkNoRequired md >> validateDefaultValAsBool dflt <&> TBool
+        ST.TString -> checkNoDefault dflt $> TString (isRequired md)
+        ST.TRef typeRef ->
+          case findDecl currentNamespace symbolTable typeRef of
+            MatchE enum         -> checkNoRequired md  >> validateTableFieldTypeAsEnum dflt enum
+            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (isRequired md) (ST.TypeRef ns (structIdent struct))
+            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (isRequired md) (ST.TypeRef ns (ST.tableIdent table))
+            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (isRequired md) (ST.TypeRef ns (ST.unionIdent union))
+            NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
+        ST.TVector vecType ->
+          checkNoDefault dflt >> TVector (isRequired md) <$>
+            case vecType of
+              ST.TInt8 -> pure VInt8
+              ST.TInt16 -> pure VInt16
+              ST.TInt32 -> pure VInt32
+              ST.TInt64 -> pure VInt64
+              ST.TWord8 -> pure VWord8
+              ST.TWord16 -> pure VWord16
+              ST.TWord32 -> pure VWord32
+              ST.TWord64 -> pure VWord64
+              ST.TFloat -> pure VFloat
+              ST.TDouble -> pure VDouble
+              ST.TBool -> pure VBool
+              ST.TString -> pure VString
+              ST.TVector _ -> throwErrorMsg "nested vector types not supported"
+              ST.TRef typeRef ->
+                case findDecl currentNamespace symbolTable typeRef of
+                  MatchE (ns, enum) ->
+                    pure $ VEnum (ST.TypeRef ns (enumIdent enum))
+                                 (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
+                  MatchS (ns, struct) ->
+                    pure $ VStruct (ST.TypeRef ns (structIdent struct))
+                                   undefined -- TODO: STRUCT SIZE
+                  MatchT (ns, table) -> pure $ VTable (ST.TypeRef ns (ST.tableIdent table))
+                  MatchU (ns, union) -> pure $ VTable (ST.TypeRef ns (ST.unionIdent union))
+                  NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
+
+    validateTableFieldTypeAsEnum :: Maybe ST.DefaultVal -> (Namespace, EnumDecl) -> m TableFieldType
+    validateTableFieldTypeAsEnum dflt (enumNamespace, enum) = do
+      validDflt <-
+        case dflt of
+          Nothing ->
+            case find (\val -> enumValInt val == 0) (enumVals enum) of
+              Just zeroVal -> pure (enumValIdent zeroVal)
+              Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
+          Just (ST.DefaultNum n) ->
+            case Scientific.floatingOrInteger n of
+              Left _double -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
+              Right i -> 
+                case find (\val -> enumValInt val == i) (enumVals enum) of
+                  Just matchingVal -> pure (enumValIdent matchingVal)
+                  Nothing -> throwErrorMsg $ "default value of " <> display n <> " is not part of enum " <> display (enumIdent enum)
+          Just (ST.DefaultRef ref) ->
+            case find (\val -> enumValIdent val == ref) (enumVals enum) of
+              Just _  -> pure ref
+              Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (enumIdent enum)
+          
+          Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
+      pure $ TEnum (DefaultVal validDflt) (ST.TypeRef enumNamespace (enumIdent enum))
+
+checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
+checkNoRequired md =
+  when (hasAttribute "required" md) $
+    throwErrorMsg "only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
+
+checkNoDefault :: ValidationCtx m => Maybe ST.DefaultVal -> m ()
+checkNoDefault dflt =
+  when (isJust dflt) $
+    throwErrorMsg
+      "default values currently only supported for scalar fields (integers, floating point, bool, enums)"
+
+isRequired :: ST.Metadata -> Required
+isRequired = hasAttribute "required"
+
+validateDefaultValAsInt :: forall m a. (ValidationCtx m, Integral a, Bounded a, Show a) => Maybe ST.DefaultVal -> m (DefaultVal a)
+validateDefaultValAsInt dflt =
+  case dflt of
+    Nothing -> pure (DefaultVal 0)
+    Just (ST.DefaultNum n) ->
+      if not (Scientific.isInteger n)
+        then throwErrorMsg "default value must be integral"
+        else case Scientific.toBoundedInteger n of
+          Nothing ->
+            throwErrorMsg $
+              "default value does not fit ["
+              <> T.pack (show (minBound @a))
+              <> "; "
+              <> T.pack (show (maxBound @a))
+              <> "]"
+          Just i -> pure (DefaultVal i)
+    Just _ -> throwErrorMsg "default value must be integral"
+
+validateDefaultValAsScientific :: ValidationCtx m => Maybe ST.DefaultVal -> m (DefaultVal Scientific)
+validateDefaultValAsScientific dflt =
+  case dflt of
+    Nothing                 -> pure (DefaultVal 0)
+    Just (ST.DefaultNum n)  -> pure (DefaultVal n)
+    Just _                  -> throwErrorMsg "default value must be a number"
+
+validateDefaultValAsBool :: ValidationCtx m => Maybe ST.DefaultVal -> m (DefaultVal Bool)
+validateDefaultValAsBool dflt =
+  case dflt of
+    Nothing                 -> pure (DefaultVal False)
+    Just (ST.DefaultBool b) -> pure (DefaultVal b)
+    Just _                  -> throwErrorMsg "default value must be a boolean"
+
 
 data StructDecl = StructDecl
   { structIdent      :: Ident
@@ -470,12 +646,7 @@ validateStruct symbolTable (currentNamespace, struct) =
               -- if this is a reference to a struct, we need to validate it first
               SStruct <$> validateStruct symbolTable (nestedNamespace, nestedStruct)
             NoMatch checkedNamespaces ->
-              throwErrorMsg $
-                "type '"
-                <> display typeRef
-                <> "' does not exist (checked in these namespaces: "
-                <> display checkedNamespaces
-                <> ")"
+              typeRefNotFound checkedNamespaces typeRef
             _ -> throwErrorMsg invalidStructFieldType
 
     checkDeprecated :: ST.StructField -> m ()
@@ -547,4 +718,13 @@ throwErrorMsg :: ValidationCtx m => Text -> m a
 throwErrorMsg msg = do
   context <- ask
   throwError $ "[" <> display context <> "]: " <> msg
+
+typeRefNotFound :: ValidationCtx m => NonEmpty Namespace -> ST.TypeRef -> m a
+typeRefNotFound checkedNamespaces typeRef =
+  throwErrorMsg $
+    "type '"
+    <> display typeRef
+    <> "' does not exist (checked in these namespaces: "
+    <> display checkedNamespaces
+    <> ")"
 
