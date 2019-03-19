@@ -394,7 +394,7 @@ validateTable symbolTable (currentNamespace, table) =
         validFieldType <- validateTableFieldType (ST.tableFieldMetadata tf) (ST.tableFieldDefault tf) (ST.tableFieldType tf)
         pure TableField
           { tableFieldIdent = ST.tableFieldIdent tf
-          , tableFieldType = undefined
+          , tableFieldType = validFieldType
           , tableFieldDeprecated = hasAttribute "deprecated" (ST.tableFieldMetadata tf)
           }
 
@@ -415,7 +415,10 @@ validateTable symbolTable (currentNamespace, table) =
         ST.TString -> checkNoDefault dflt $> TString (isRequired md)
         ST.TRef typeRef ->
           case findDecl currentNamespace symbolTable typeRef of
-            MatchE enum         -> checkNoRequired md  >> validateTableFieldTypeAsEnum dflt enum
+            MatchE (ns, enum) -> do
+              checkNoRequired md
+              validDefault <- validateDefaultAsEnum dflt enum
+              pure $ TEnum validDefault (ST.TypeRef ns (enumIdent enum))
             MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (isRequired md) (ST.TypeRef ns (structIdent struct))
             MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (isRequired md) (ST.TypeRef ns (ST.tableIdent table))
             MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (isRequired md) (ST.TypeRef ns (ST.unionIdent union))
@@ -447,29 +450,6 @@ validateTable symbolTable (currentNamespace, table) =
                   MatchT (ns, table) -> pure $ VTable (ST.TypeRef ns (ST.tableIdent table))
                   MatchU (ns, union) -> pure $ VTable (ST.TypeRef ns (ST.unionIdent union))
                   NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
-
-    validateTableFieldTypeAsEnum :: Maybe ST.DefaultVal -> (Namespace, EnumDecl) -> m TableFieldType
-    validateTableFieldTypeAsEnum dflt (enumNamespace, enum) = do
-      validDflt <-
-        case dflt of
-          Nothing ->
-            case find (\val -> enumValInt val == 0) (enumVals enum) of
-              Just zeroVal -> pure (enumValIdent zeroVal)
-              Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
-          Just (ST.DefaultNum n) ->
-            case Scientific.floatingOrInteger n of
-              Left _double -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
-              Right i -> 
-                case find (\val -> enumValInt val == i) (enumVals enum) of
-                  Just matchingVal -> pure (enumValIdent matchingVal)
-                  Nothing -> throwErrorMsg $ "default value of " <> display n <> " is not part of enum " <> display (enumIdent enum)
-          Just (ST.DefaultRef ref) ->
-            case find (\val -> enumValIdent val == ref) (enumVals enum) of
-              Just _  -> pure ref
-              Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (enumIdent enum)
-          
-          Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
-      pure $ TEnum (DefaultVal validDflt) (ST.TypeRef enumNamespace (enumIdent enum))
 
 checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
 checkNoRequired md =
@@ -517,6 +497,27 @@ validateDefaultValAsBool dflt =
     Just (ST.DefaultBool b) -> pure (DefaultVal b)
     Just _                  -> throwErrorMsg "default value must be a boolean"
 
+validateDefaultAsEnum :: ValidationCtx m => Maybe ST.DefaultVal -> EnumDecl -> m (DefaultVal Ident)
+validateDefaultAsEnum dflt enum =
+  DefaultVal <$>
+    case dflt of
+      Nothing ->
+        case find (\val -> enumValInt val == 0) (enumVals enum) of
+          Just zeroVal -> pure (enumValIdent zeroVal)
+          Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
+      Just (ST.DefaultNum n) ->
+        case Scientific.floatingOrInteger n of
+          Left _double -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
+          Right i -> 
+            case find (\val -> enumValInt val == i) (enumVals enum) of
+              Just matchingVal -> pure (enumValIdent matchingVal)
+              Nothing -> throwErrorMsg $ "default value of " <> display n <> " is not part of enum " <> display (enumIdent enum)
+      Just (ST.DefaultRef ref) ->
+        case find (\val -> enumValIdent val == ref) (enumVals enum) of
+          Just _  -> pure ref
+          Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (enumIdent enum)
+      
+      Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
 
 data StructDecl = StructDecl
   { structIdent      :: Ident
