@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TypeApplications  #-}
 
@@ -196,29 +197,32 @@ cases =
       (root $
        table
          [ missing
-         , vector [inline int32 1, inline int32 2]
-         , vector [text "", text "hi", text "hi 👬"]
-         , vector [inline int64 3, inline int64 4]
+         , vector @[] [inline int32 1, inline int32 2]
+         , vector @[] [text "", text "hi", text "hi 👬"]
+         , vector @[] [inline int64 3, inline int64 4]
          ])
       (object
-         [ "w" .= [] @Value
-         , "x" .= [Number 1, Number 2]
-         , "y" .= [String "", String "hi", String "hi 👬"]
-         , "z" .= [Number 3, Number 4]
+         [ "w" .= array []
+         , "x" .= array [Number 1, Number 2]
+         , "y" .= array [String "", String "hi", String "hi 👬"]
+         , "z" .= array [Number 3, Number 4]
          ])
   , Case
       "Structs"
       "Structs"
       (root $
        table
-         [ struct Nothing (int32 maxBound) [word32 maxBound]
+         [ struct Nothing [int32 maxBound, word32 maxBound]
          , missing
          , struct Nothing
-             (int32 maxBound)
-             [padded 3 $ word8 maxBound, int64 maxBound, padded 7 $ bool True]
+             [ int32 maxBound
+             , padded 3 $ word8 maxBound
+             , int64 maxBound
+             , padded 7 $ bool True
+             ]
          , struct Nothing
-             (int32 maxBound)
-             [ word32 maxBound
+             [ int32 maxBound
+             , word32 maxBound
              , int32 maxBound
              , padded 3 $ word8 maxBound
              , int64 maxBound
@@ -252,14 +256,14 @@ cases =
       "VectorOfTables"
       (root $
        table
-         [ vector
+         [ vector @[]
              [ table [inline int32 1, text "a"]
              , table [inline int32 2, text "b"]
              , table [inline int32 minBound, text "c"]
              ]
          ])
       (object
-         [ "xs" .=
+         [ "xs" .= array
            [ object ["n" .= Number 1, "s" .= String "a"]
            , object ["n" .= Number 2, "s" .= String "b"]
            , object ["n" .= minBound @Int32, "s" .= String "c"]
@@ -270,17 +274,22 @@ cases =
       "VectorOfStructs"
       (root $
        table
-         [ vector
-             [ struct Nothing (word8 1) [word8 2, word8 3]
-             , struct Nothing (word8 4) [word8 5, word8 6]
-             , struct Nothing (word8 7) [word8 8, word8 9]
+         [ vector @[]
+             [ struct Nothing [word8 1, word8 2, word8 3]
+             , struct Nothing [word8 4, word8 5, word8 6]
+             , struct Nothing [word8 7, word8 8, word8 9]
              ]
          ])
       (object
-         [ "xs" .=
+         [ "xs" .= array
            [ object ["x" .= Number 1, "y" .= Number 2, "z" .= Number 3]
            , object ["x" .= Number 4, "y" .= Number 5, "z" .= Number 6]
            , object ["x" .= Number 7, "y" .= Number 8, "z" .= Number 9]
            ]
          ])
   ]
+
+-- In the presence of OverloadedLists, [] can sometimes be ambiguous, so
+-- we use this here to help disambiguate such scenarios.
+array :: [Value] -> [Value]
+array = id

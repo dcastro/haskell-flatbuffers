@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE OverloadedLists            #-}
 {-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.ReadSpec where
@@ -43,7 +44,7 @@ spec =
       myRootF opt s >>= \mb -> isNothing mb `shouldBe` True
     
     it "throws when string is invalid utf-8" $ do
-      let text = F.vector [F.inline F.word8 255]
+      let text = F.vector @[] [F.inline F.word8 255]
       let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
       s <- decode bs
       myRootD req s `shouldThrow` \x ->
@@ -181,8 +182,8 @@ newtype MyStruct =
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
   writeStruct Nothing
-    ( ws a )
-    [ padded 3 $ ws b
+    [ ws a
+    , padded 3 $ ws b
     , ws c
     ]
 
@@ -200,8 +201,8 @@ newtype ThreeBytes = ThreeBytes Struct
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
   writeStruct Nothing
-    ( ws a )
-    [ ws b
+    [ ws a
+    , ws b
     , ws c
     ]
 
@@ -220,8 +221,8 @@ newtype SWS = SWS Struct
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
   writeStruct Nothing
-    ( ws myStructA )
-    [ padded 3 $ ws myStructB
+    [ ws myStructA
+    , padded 3 $ ws myStructB
     , ws myStructC
     , ws threeBytesA
     , ws threeBytesB

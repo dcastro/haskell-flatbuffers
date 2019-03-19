@@ -44,6 +44,7 @@ import qualified Data.List               as L
 import qualified Data.Map.Strict         as M
 import           Data.Maybe              (fromMaybe)
 import           Data.Monoid
+import           Data.List.NonEmpty      (NonEmpty)
 import           Data.Semigroup          (Max (..))
 import           Data.Text               (Text)
 import qualified Data.Text.Encoding      as T
@@ -162,10 +163,9 @@ root' ref = do
   prep align (coerce uoffsetSize)
   write ref
 
-struct :: Maybe InlineSize -> InlineField -> [InlineField] -> Field
-struct forceAlign head tail =
-  let fields = head : tail
-      structSize = getSum $ foldMap (Sum . size) fields
+struct :: Maybe InlineSize -> NonEmpty InlineField -> Field
+struct forceAlign fields =
+  let structSize = getSum $ foldMap (Sum . size) fields
       structAlign = fromMaybe (getMax $ foldMap (Max . align) fields) forceAlign 
   in Field . pure . InlineField structSize structAlign $
       traverse_ write (Reverse fields)

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Examples.HandWritten where
@@ -185,8 +186,8 @@ newtype ThreeBytes = ThreeBytes Struct
 threeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 threeBytes a b c =
   writeStruct Nothing
-    ( ws a )
-    [ ws b
+    [ ws a
+    , ws b
     , ws c
     ]
 

@@ -82,7 +82,7 @@ data Match enum struct table union
   | NoMatch (NonEmpty Namespace) -- ^ the list of namespaces in which the type reference was searched for
 
 -- | Looks for a type reference in a set of type declarations.
--- If none is found, the list of namespaces in which the type reference was searched for is return.
+-- If none is found, the list of namespaces in which the type reference was searched for is returned.
 findDecl ::
      (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
   => Namespace

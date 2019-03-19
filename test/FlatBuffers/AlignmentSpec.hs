@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists   #-}
+{-# LANGUAGE TypeApplications  #-}
 
 module FlatBuffers.AlignmentSpec where
 
@@ -59,7 +61,7 @@ spec =
       it "3 bytes aligned to 1 byte" $ do
         let b = testRoot initialBuffer $ table
                 [ struct Nothing
-                    (word8 11) [word8 22, word8 33] ]
+                    [word8 11, word8 22, word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -72,7 +74,7 @@ spec =
       it "3 bytes aligned to 2 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ struct (Just 2)
-                    (word8 11) [word8 22, padded 1 $ word8 33] ]
+                    [word8 11, word8 22, padded 1 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -85,7 +87,7 @@ spec =
       it "3 bytes aligned to 4 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ struct (Just 4)
-                    (word8 11) [word8 22, padded 1 $ word8 33] ]
+                    [word8 11, word8 22, padded 1 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -98,7 +100,7 @@ spec =
       it "3 bytes aligned to 8 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ struct (Just 8)
-                    (word8 11) [word8 22, padded 5 $ word8 33] ]
+                    [word8 11, word8 22, padded 5 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -113,7 +115,7 @@ spec =
       it "3 bytes aligned to 16 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ struct (Just 16)
-                    (word8 11) [word8 22, padded 13 $ word8 33] ]
+                    [word8 11, word8 22, padded 13 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -131,9 +133,9 @@ spec =
 
       it "vector of struct with 3 bytes aligned to 1 byte" $ do
         let b = testRoot initialBuffer $ table
-                [ vector
-                  [ struct Nothing (word8 11) [word8 22, word8 33]
-                  , struct Nothing (word8 44) [word8 55, word8 66]
+                [ vector @[]
+                  [ struct Nothing [word8 11, word8 22, word8 33]
+                  , struct Nothing [word8 44, word8 55, word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -149,9 +151,9 @@ spec =
 
       it "vector of struct with 3 bytes aligned to 2 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ vector
-                  [ struct (Just 2) (word8 11) [word8 22, padded 1 $ word8 33]
-                  , struct (Just 2) (word8 44) [word8 55, padded 1 $ word8 66]
+                [ vector @[]
+                  [ struct (Just 2) [word8 11, word8 22, padded 1 $ word8 33]
+                  , struct (Just 2) [word8 44, word8 55, padded 1 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -168,9 +170,9 @@ spec =
 
       it "vector of struct with 3 bytes aligned to 4 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ vector
-                  [ struct (Just 4) (word8 11) [word8 22, padded 1 $ word8 33]
-                  , struct (Just 4) (word8 44) [word8 55, padded 1 $ word8 66]
+                [ vector @[]
+                  [ struct (Just 4) [word8 11, word8 22, padded 1 $ word8 33]
+                  , struct (Just 4) [word8 44, word8 55, padded 1 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -187,9 +189,9 @@ spec =
 
       it "vector of struct with 3 bytes aligned to 8 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ vector
-                  [ struct (Just 8) (word8 11) [word8 22, padded 5 $ word8 33]
-                  , struct (Just 8) (word8 44) [word8 55, padded 5 $ word8 66]
+                [ vector @[]
+                  [ struct (Just 8) [word8 11, word8 22, padded 5 $ word8 33]
+                  , struct (Just 8) [word8 44, word8 55, padded 5 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -209,9 +211,9 @@ spec =
 
       it "vector of struct with 3 bytes aligned to 16 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ vector
-                  [ struct (Just 16) (word8 11) [word8 22, padded 13 $ word8 33]
-                  , struct (Just 16) (word8 44) [word8 55, padded 13 $ word8 66]
+                [ vector @[]
+                  [ struct (Just 16) [word8 11, word8 22, padded 13 $ word8 33]
+                  , struct (Just 16) [word8 44, word8 55, padded 13 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`

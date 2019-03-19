@@ -19,6 +19,7 @@ module FlatBuffers.Write
 import           Data.Bifunctor             (bimap)
 import qualified Data.ByteString.Lazy       as BSL
 import           Data.Int
+import           Data.List.NonEmpty         (NonEmpty)
 import           Data.Text                  (Text)
 import           Data.Word
 import           FlatBuffers.Constants      (InlineSize)
@@ -39,8 +40,8 @@ data WriteUnion a
 writeTable :: [Field] -> WriteTable a
 writeTable = WriteTable . F.table
 
-writeStruct :: Maybe InlineSize -> InlineField -> [InlineField] -> WriteStruct a
-writeStruct forceAlign x xs = WriteStruct (F.struct forceAlign x xs)
+writeStruct :: Maybe InlineSize -> NonEmpty InlineField -> WriteStruct a
+writeStruct forceAlign xs = WriteStruct (F.struct forceAlign xs)
 
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b
 writeUnion n (WriteTable t) = Some (n, t)
