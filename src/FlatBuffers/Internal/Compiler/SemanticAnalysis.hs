@@ -532,7 +532,7 @@ data UnpaddedStructField = UnpaddedStructField
 
 data StructField = StructField
   { structFieldIdent    :: Ident
-  , structFieldPadding  :: InlineSize
+  , structFieldPadding  :: Word8
   , structFieldType     :: StructFieldType
   } deriving (Show, Eq)
 
@@ -635,13 +635,13 @@ validateStruct symbolTable (currentNamespace, struct) =
               nextFieldsAlignment = fromIntegral @Word8 @InlineSize (structFieldAlignment y)
               paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` nextFieldsAlignment) - sizeAccum'
               sizeAccum'' = sizeAccum' + paddingNeeded
-              paddedField = StructField (unpaddedStructFieldIdent x) paddingNeeded (unpaddedStructFieldType x)
+              paddedField = StructField (unpaddedStructFieldIdent x) (fromIntegral @InlineSize @Word8 paddingNeeded) (unpaddedStructFieldType x)
           in  paddedField : go sizeAccum'' (y : tail)
         go sizeAccum [x] =
           let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
               structAlignment' = fromIntegral @Word8 @InlineSize structAlignment
               paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` structAlignment') - sizeAccum'
-          in  [StructField (unpaddedStructFieldIdent x) paddingNeeded (unpaddedStructFieldType x)]
+          in  [StructField (unpaddedStructFieldIdent x) (fromIntegral @InlineSize @Word8 paddingNeeded) (unpaddedStructFieldType x)]
 
     validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
@@ -755,7 +755,7 @@ structFieldTypeSize sft =
 
 structFieldSize :: StructField -> InlineSize
 structFieldSize sf =
-  structFieldPadding sf + structFieldTypeSize (structFieldType sf)
+  fromIntegral @Word8 @InlineSize (structFieldPadding sf) + structFieldTypeSize (structFieldType sf)
 
 structSize :: StructDecl -> InlineSize
 structSize struct =
