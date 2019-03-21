@@ -446,7 +446,7 @@ validateTable symbolTable (currentNamespace, table) =
                                  (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
                   MatchS (ns, struct) ->
                     pure $ VStruct (ST.TypeRef ns (structIdent struct))
-                                   undefined -- TODO: STRUCT SIZE
+                                   (structSize struct)
                   MatchT (ns, table) -> pure $ VTable (ST.TypeRef ns (ST.tableIdent table))
                   MatchU (ns, union) -> pure $ VTable (ST.TypeRef ns (ST.unionIdent union))
                   NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
