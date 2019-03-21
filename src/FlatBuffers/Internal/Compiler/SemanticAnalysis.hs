@@ -129,8 +129,8 @@ createSymbolTable = foldMap (pairDeclsWithNamespaces . ST.decls)
         ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
         _               -> (currentNamespace, decls)
 
-validateDecls :: MonadError Text m => Stage1 -> m Stage3
-validateDecls symbolTable = runReaderT (validateEnums symbolTable >>= validateStructs) ""
+validateDecls :: MonadError Text m => Stage1 -> m Stage4
+validateDecls symbolTable = runReaderT (validateEnums symbolTable >>= validateStructs >>= validateTables) ""
 
 
 data EnumDecl = EnumDecl
@@ -325,10 +325,10 @@ data TableFieldType
   | TFloat (DefaultVal Scientific)
   | TDouble (DefaultVal Scientific)
   | TBool (DefaultVal Bool)
-  | TEnum (DefaultVal Ident) ST.TypeRef
-  | TStruct Required ST.TypeRef
-  | TTable Required ST.TypeRef
-  | TUnion Required ST.TypeRef
+  | TEnum   ST.TypeRef (DefaultVal Ident)
+  | TStruct ST.TypeRef Required
+  | TTable  ST.TypeRef Required
+  | TUnion  ST.TypeRef Required
   | TString Required
   | TVector Required VectorElementType
   deriving (Eq, Show)
@@ -425,10 +425,10 @@ validateTable symbolTable (currentNamespace, table) =
             MatchE (ns, enum) -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
-              pure $ TEnum validDefault (ST.TypeRef ns (enumIdent enum))
-            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (isRequired md) (ST.TypeRef ns (structIdent struct))
-            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (isRequired md) (ST.TypeRef ns (ST.tableIdent table))
-            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (isRequired md) (ST.TypeRef ns (ST.unionIdent union))
+              pure $ TEnum (ST.TypeRef ns (enumIdent enum)) validDefault
+            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (ST.TypeRef ns (structIdent struct))  (isRequired md)
+            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (ST.TypeRef ns (ST.tableIdent table)) (isRequired md)
+            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (ST.TypeRef ns (ST.unionIdent union)) (isRequired md)
             NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
         ST.TVector vecType ->
           checkNoDefault dflt >> TVector (isRequired md) <$>
@@ -479,7 +479,7 @@ validateDefaultValAsInt dflt =
     Just (ST.DefaultNum n) ->
       if not (Scientific.isInteger n)
         then throwErrorMsg "default value must be integral"
-        else case Scientific.toBoundedInteger n of
+        else case Scientific.toBoundedInteger @a n of
           Nothing ->
             throwErrorMsg $
               "default value does not fit ["

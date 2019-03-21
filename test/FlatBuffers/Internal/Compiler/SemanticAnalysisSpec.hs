@@ -12,7 +12,7 @@ import qualified Data.Tree                                      as Tree
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
-import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace)
+import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace, TypeRef(..))
 import           Test.Hspec
 import           Text.Megaparsec
 import           Text.RawString.QQ                              (r)
@@ -331,17 +331,273 @@ spec =
         |] `shouldFail`
           "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
 
+    describe "tables" $ do
+      it "empty" $
+        [r| table T{} |] `shouldValidate` table ("", TableDecl "T" [])
+      describe "with numeric/bool/string fields" $ do
+        it "simple" $
+          [r|
+            namespace A.B;
+            table T {
+              a: byte;
+              b: short;
+              c: int;
+              d: long;
+              e: ubyte;
+              f: ushort;
+              g: uint;
+              h: ulong;
+              i: float;
+              j: double;
+              k: bool;
+            }
+          |] `shouldValidate`
+            table ("A.B", TableDecl "T"
+              [ TableField "a" (TInt8 0) False
+              , TableField "b" (TInt16 0) False
+              , TableField "c" (TInt32 0) False
+              , TableField "d" (TInt64 0) False
+              , TableField "e" (TWord8 0) False
+              , TableField "f" (TWord16 0) False
+              , TableField "g" (TWord32 0) False
+              , TableField "h" (TWord64 0) False
+              , TableField "i" (TFloat 0) False
+              , TableField "j" (TDouble 0) False
+              , TableField "k" (TBool (DefaultVal False)) False
+              ]
+            )
 
-foldDecls :: [Stage3] -> Stage3
+        it "with `required` attribute" $ do
+          let errorMsg = "[T.x]: only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
+          [r| table T {x: byte    (required); } |] `shouldFail` errorMsg
+          [r| table T {x: short   (required); } |] `shouldFail` errorMsg
+          [r| table T {x: int     (required); } |] `shouldFail` errorMsg
+          [r| table T {x: long    (required); } |] `shouldFail` errorMsg
+          [r| table T {x: ubyte   (required); } |] `shouldFail` errorMsg
+          [r| table T {x: ushort  (required); } |] `shouldFail` errorMsg
+          [r| table T {x: uint    (required); } |] `shouldFail` errorMsg
+          [r| table T {x: ulong   (required); } |] `shouldFail` errorMsg
+          [r| table T {x: float   (required); } |] `shouldFail` errorMsg
+          [r| table T {x: double  (required); } |] `shouldFail` errorMsg
+          [r| table T {x: bool    (required); } |] `shouldFail` errorMsg
+
+        it "with `deprecated` attribute" $
+          [r|
+            namespace A.B;
+            table T {
+              a: byte (deprecated);
+              b: short (deprecated);
+              c: int (deprecated);
+              d: long (deprecated);
+              e: ubyte (deprecated);
+              f: ushort (deprecated);
+              g: uint (deprecated);
+              h: ulong (deprecated);
+              i: float (deprecated);
+              j: double (deprecated);
+              k: bool (deprecated);
+            }
+          |] `shouldValidate`
+            table ("A.B", TableDecl "T"
+              [ TableField "a" (TInt8 0) True
+              , TableField "b" (TInt16 0) True
+              , TableField "c" (TInt32 0) True
+              , TableField "d" (TInt64 0) True
+              , TableField "e" (TWord8 0) True
+              , TableField "f" (TWord16 0) True
+              , TableField "g" (TWord32 0) True
+              , TableField "h" (TWord64 0) True
+              , TableField "i" (TFloat 0) True
+              , TableField "j" (TDouble 0) True
+              , TableField "k" (TBool (DefaultVal False)) True
+              ]
+            )
+
+      describe "with integer fields" $ do
+        it "with integer default values" $
+          [r|
+            table T {
+              a: byte = 127;
+              b: short = -32768;
+              c: int = 1;
+              d: long = 1.00;
+              e: ubyte = 2e1;
+              f: ushort = 200e-1;
+            }
+          |] `shouldValidate`
+            table ("", TableDecl "T"
+              [ TableField "a" (TInt8 127) False
+              , TableField "b" (TInt16 (-32768)) False
+              , TableField "c" (TInt32 1) False
+              , TableField "d" (TInt64 1) False
+              , TableField "e" (TWord8 20) False
+              , TableField "f" (TWord16 20) False
+              ]
+            )
+
+        it "with out-of-bounds default values" $ do
+          [r| table T { a: byte = -129; } |] `shouldFail` "[T.a]: default value does not fit [-128; 127]"
+          [r| table T { a: byte = 128;  } |] `shouldFail` "[T.a]: default value does not fit [-128; 127]"
+
+        let errorMsg = "[T.a]: default value must be integral"
+        it "with decimal default values" $ do
+          [r| table T { a: byte = 1.1;    } |] `shouldFail` errorMsg
+          [r| table T { a: byte = 2e-1;   } |] `shouldFail` errorMsg
+          [r| table T { a: byte = 2.22e1; } |] `shouldFail` errorMsg
+
+        it "with boolean default values" $
+          [r| table T { a: byte = true; } |] `shouldFail` errorMsg
+
+        it "with identifier default values" $
+          [r| table T { a: byte = Red; } |] `shouldFail` errorMsg
+          
+      describe "with floating point fields" $ do
+        it "with integer default values" $
+          [r|
+            table T {
+              a: float = 127;
+              b: float = -32768;
+              c: float = 1;
+              d: double = 1.00;
+              e: double = 2e1;
+              f: double = 200e-1;
+            }
+          |] `shouldValidate`
+            table ("", TableDecl "T"
+              [ TableField "a" (TFloat 127) False
+              , TableField "b" (TFloat (-32768)) False
+              , TableField "c" (TFloat 1) False
+              , TableField "d" (TDouble 1) False
+              , TableField "e" (TDouble 20) False
+              , TableField "f" (TDouble 20) False
+              ]
+            )
+
+
+
+      describe "with reference to enum" $
+        it "simple" $
+          [r|
+            namespace A.B;
+            enum E : short { A }
+            table T {
+              x: B.E;
+            }
+          |] `shouldValidate` foldDecls
+            [ enum ("A.B", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
+            , table ("A.B", TableDecl "T"
+                [ TableField "x" (TEnum (TypeRef "A.B" "E") "A") False ]
+              )
+            ]
+
+      describe "with string field" $ do
+        it "simple" $
+          [r| table T { x: string; } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TString Opt) False ])
+        it "with `required` attribute" $
+          [r| table T { x: string (required); } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TString Req) False ])
+        it "with `deprecated` attribute" $
+          [r| table T { x: string (deprecated); } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TString Opt) True ])
+        it "with default value" $ do
+          let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
+          [r| table T { x: string = a;   } |] `shouldFail` errorMsg
+          [r| table T { x: string = 0;   } |] `shouldFail` errorMsg
+          [r| table T { x: string = 0.0; } |] `shouldFail` errorMsg
+
+      describe "with reference to structs/table/union" $ do
+        it "simple" $
+          [r|
+            namespace A;
+            struct S { x: int; }
+            table T {}
+            union U {A.T}
+            table Table {
+              x: S;
+              y: T;
+              z: U;
+            }
+          |] `shouldValidate` foldDecls
+            [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
+            , table ("A", TableDecl "T" [])
+            , union ("A", ST.UnionDecl "U" (ST.Metadata []) [ST.UnionVal Nothing (TypeRef "A" "T")])
+            , table ("A", TableDecl "Table"
+                [ TableField "x" (TStruct (TypeRef "A" "S") Opt) False
+                , TableField "y" (TTable (TypeRef "A" "T") Opt) False
+                , TableField "z" (TUnion (TypeRef "A" "U") Opt) False
+                ]
+              )
+            ]
+
+        it "with `required` attribute" $
+          [r|
+            namespace A;
+            struct S { x: int; }
+            table T {}
+            union U {A.T}
+            table Table {
+              x: S (required);
+              y: T (required);
+              z: U (required);
+            }
+          |] `shouldValidate` foldDecls
+            [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
+            , table ("A", TableDecl "T" [])
+            , union ("A", ST.UnionDecl "U" (ST.Metadata []) [ST.UnionVal Nothing (TypeRef "A" "T")])
+            , table ("A", TableDecl "Table"
+                [ TableField "x" (TStruct (TypeRef "A" "S") Req) False
+                , TableField "y" (TTable (TypeRef "A" "T") Req) False
+                , TableField "z" (TUnion (TypeRef "A" "U") Req) False
+                ]
+              )
+            ]
+
+        it "with `deprecated` attribute" $
+          [r|
+            namespace A;
+            struct S { x: int; }
+            table T {}
+            union U {A.T}
+            table Table {
+              x: S (deprecated);
+              y: T (deprecated);
+              z: U (deprecated);
+            }
+          |] `shouldValidate` foldDecls
+            [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
+            , table ("A", TableDecl "T" [])
+            , union ("A", ST.UnionDecl "U" (ST.Metadata []) [ST.UnionVal Nothing (TypeRef "A" "T")])
+            , table ("A", TableDecl "Table"
+                [ TableField "x" (TStruct (TypeRef "A" "S") Opt) True
+                , TableField "y" (TTable (TypeRef "A" "T") Opt) True
+                , TableField "z" (TUnion (TypeRef "A" "U") Opt) True
+                ]
+              )
+            ]
+
+        it "with default value" $ do
+          let errorMsg = "[Table.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
+          [r| table Table { x: S = 0; }   struct S { x: int; } |] `shouldFail` errorMsg
+          [r| table Table { x: T = 0; }   table T{}            |] `shouldFail` errorMsg
+          [r| table Table { x: U = 0; }   union U{T}           |] `shouldFail` errorMsg
+
+foldDecls :: [Stage4] -> Stage4
 foldDecls = fold
 
-enum :: (Namespace, EnumDecl) -> Stage3
+enum :: (Namespace, EnumDecl) -> Stage4
 enum e = SymbolTable [e] [] [] []
 
-struct :: (Namespace, StructDecl) -> Stage3
+struct :: (Namespace, StructDecl) -> Stage4
 struct s = SymbolTable [] [s] [] []
 
-shouldValidate :: String -> Stage3 -> Expectation
+table :: (Namespace, TableDecl) -> Stage4
+table t = SymbolTable [] [] [t] []
+
+union :: (Namespace, ST.UnionDecl) -> Stage4
+union u = SymbolTable [] [] [] [u]
+
+shouldValidate :: String -> Stage4 -> Expectation
 shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
