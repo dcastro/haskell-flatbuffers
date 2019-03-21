@@ -170,6 +170,7 @@ struct forceAlign fields =
   in Field . pure . InlineField structSize structAlign $
       traverse_ write (Reverse fields)
 
+-- | Adds zero padding AFTER this field.
 padded :: Word8 -> InlineField -> InlineField
 padded n field = InlineField (size field + fromIntegral n) (align field + fromIntegral n) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)

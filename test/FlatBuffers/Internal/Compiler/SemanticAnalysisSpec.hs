@@ -108,7 +108,7 @@ spec =
           }
         |] `shouldValidate`
           struct ("Ns", StructDecl "S" 4
-            [ StructField "x" SInt32
+            [ StructField "x" 0 SInt32
             ])
 
       it "multiple fields" $
@@ -120,9 +120,9 @@ spec =
           }
         |] `shouldValidate`
           struct ("", StructDecl "S" 8
-            [ StructField "x" SWord8
-            , StructField "y" SDouble
-            , StructField "z" SBool
+            [ StructField "x" 7 SWord8
+            , StructField "y" 0 SDouble
+            , StructField "z" 7 SBool
             ])
 
       it "when unqualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
@@ -146,9 +146,9 @@ spec =
           , mkEnum "A.B"    "E1"
           , mkEnum "A.B.C"  "E1", mkEnum "A.B.C"  "E2", mkEnum "A.B.C"  "E3"
           , struct ("A.B", StructDecl "S" 2
-              [ StructField "x" (SEnum "A.B"  "E1" EInt16)
-              , StructField "y" (SEnum "A"    "E2" EInt16)
-              , StructField "z" (SEnum ""     "E3" EInt16)
+              [ StructField "x" 0 (SEnum "A.B"  "E1" EInt16)
+              , StructField "y" 0 (SEnum "A"    "E2" EInt16)
+              , StructField "z" 0 (SEnum ""     "E3" EInt16)
               ])
           ]
 
@@ -177,9 +177,9 @@ spec =
           , mkEnum "A.B.A"    "E1"
           , mkEnum "A.B.C.A"  "E1", mkEnum "A.B.C.A"  "E2", mkEnum "A.B.C.A"  "E3"
           , struct ("A.B", StructDecl "S" 2
-              [ StructField "x" (SEnum "A.B.A" "E1" EInt16)
-              , StructField "y" (SEnum "A.A"   "E2" EInt16)
-              , StructField "z" (SEnum "A"     "E3" EInt16)
+              [ StructField "x" 0 (SEnum "A.B.A" "E1" EInt16)
+              , StructField "y" 0 (SEnum "A.A"   "E2" EInt16)
+              , StructField "z" 0 (SEnum "A"     "E3" EInt16)
               ])
           ]
 
@@ -205,13 +205,13 @@ spec =
         |] `shouldValidate` foldDecls
           [ enum ("A", EnumDecl "Color" EWord16 [EnumVal "Blue" 0])
           , struct ("A", StructDecl "S" 2
-              [ StructField "x" (SEnum "A" "Color" EWord16)
+              [ StructField "x" 0 (SEnum "A" "Color" EWord16)
               ])
           ]
 
       it "with nested structs (backwards/forwards references)" $ do
-        let backwards = ("A.B", StructDecl "Backwards" 4 [ StructField "x" SFloat ])
-        let forwards = ("A.B", StructDecl "Forwards" 4 [ StructField "y" (SStruct backwards) ])
+        let backwards = ("A.B", StructDecl "Backwards" 4 [ StructField "x" 0 SFloat ])
+        let forwards = ("A.B", StructDecl "Forwards" 4 [ StructField "y" 0 (SStruct backwards) ])
         [r|
           namespace A.B;
           struct Backwards {
@@ -228,8 +228,8 @@ spec =
           }
         |] `shouldValidate` foldDecls
           [ struct ("A.B", StructDecl "S" 4
-              [ StructField "x1" (SStruct backwards)
-              , StructField "x2" (SStruct forwards)
+              [ StructField "x1" 0 (SStruct backwards)
+              , StructField "x2" 0 (SStruct forwards)
               ])
           , struct forwards
           , struct backwards
@@ -280,24 +280,25 @@ spec =
 
       it "with `force_align` attribute" $ do
         -- just 1 field
-        [r| struct S (force_align: 4) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 4 [StructField "x" SInt32])
-        [r| struct S (force_align: 8) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 8 [StructField "x" SInt32])
-        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" SInt32])
+        [r| struct S (force_align: 4)  { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 4  [StructField "x" 0 SInt32])
+        [r| struct S (force_align: 8)  { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 8  [StructField "x" 4 SInt32])
+        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" 12 SInt32])
         -- multiple fields
-        [r| struct S (force_align: 2) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 2 [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 4) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 4 [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 8) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 8 [StructField "x" SInt8, StructField "y" SWord16])
-        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" SInt8, StructField "y" SWord16])
+        [r| struct S (force_align: 2)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 2  [StructField "x" 1 SInt8, StructField "y" 0 SWord16])
+        [r| struct S (force_align: 4)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 4  [StructField "x" 1 SInt8, StructField "y" 0 SWord16])
+        [r| struct S (force_align: 8)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 8  [StructField "x" 1 SInt8, StructField "y" 4 SWord16])
+        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" 1 SInt8, StructField "y" 12 SWord16])
         -- nested structs
-        let s1 = ("", StructDecl "S1" 2 [StructField "x" SInt8])
-        let s2 = ("", StructDecl "S2" 4 [StructField "x" SInt32])
+        let s1 = ("", StructDecl "S1" 2 [StructField "x" 1 SInt8])
+        let s2 = ("", StructDecl "S2" 4 [StructField "x" 0 SInt32])
         [r|
           struct S (force_align: 4) { x: S1; y: S2; z: bool; }
           struct S1 (force_align: 2) { x: byte; }
           struct S2 { x: int; }
         |] `shouldValidate` foldDecls
-          [ struct ("", StructDecl "S" 4 [StructField "x" (SStruct s1), StructField "y" (SStruct s2), StructField "z" SBool])
-          , struct s2, struct s1
+          [ struct ("", StructDecl "S" 4 [StructField "x" 2 (SStruct s1), StructField "y" 0 (SStruct s2), StructField "z" 3 SBool])
+          , struct s2
+          , struct s1
           ]
 
       it "with `force_align` attribute less than the struct's natural alignment" $

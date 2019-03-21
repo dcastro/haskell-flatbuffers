@@ -42,7 +42,7 @@ import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
                                                            Schema, qualify, HasIdent(..))
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
 import           FlatBuffers.Internal.Util                (Display (..),
-                                                           isPowerOfTwo)
+                                                           isPowerOfTwo, roundUpToNearestMultipleOf)
 
 -- |  The identifier in the reader environment represents the validation context,
 -- the thing being validated (e.g. a fully-qualified struct name, or a table field name).
@@ -525,9 +525,15 @@ data StructDecl = StructDecl
   , structFields     :: NonEmpty StructField
   } deriving (Show, Eq)
 
+data UnpaddedStructField = UnpaddedStructField
+  { unpaddedStructFieldIdent    :: Ident
+  , unpaddedStructFieldType     :: StructFieldType
+  } deriving (Show, Eq)
+
 data StructField = StructField
-  { structFieldIdent :: Ident
-  , structFieldType  :: StructFieldType
+  { structFieldIdent    :: Ident
+  , structFieldPadding  :: InlineSize
+  , structFieldType     :: StructFieldType
   } deriving (Show, Eq)
 
 data StructFieldType
@@ -602,10 +608,15 @@ validateStruct symbolTable (currentNamespace, struct) =
         forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
         let alignment = fromMaybe naturalAlignment forceAlign
 
+        -- In order to calculate the padding between fields, we must first know the fields' and the struct's
+        -- alignment. Which means we must first validate all the struct's fields, and then do a second
+        -- pass to calculate the padding.
+        let paddedFields = addFieldPadding alignment fields
+
         let validStruct = StructDecl
               { structIdent      = ST.structIdent struct
               , structAlignment  = alignment
-              , structFields     = fields
+              , structFields     = paddedFields
               }
         modify ((currentNamespace, validStruct) :)
         pure (currentNamespace, validStruct)
@@ -613,14 +624,33 @@ validateStruct symbolTable (currentNamespace, struct) =
   where
     invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
 
-    validateStructField :: ST.StructField -> m StructField
+    addFieldPadding :: Word8 -> NonEmpty UnpaddedStructField -> NonEmpty StructField
+    addFieldPadding structAlignment =
+      NE.fromList . go 0 . NE.toList
+      where
+        go :: InlineSize -> [UnpaddedStructField] -> [StructField]
+        go sizeAccum [] = []
+        go sizeAccum (x : y : tail) =
+          let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
+              nextFieldsAlignment = fromIntegral @Word8 @InlineSize (structFieldAlignment y)
+              paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` nextFieldsAlignment) - sizeAccum'
+              sizeAccum'' = sizeAccum' + paddingNeeded
+              paddedField = StructField (unpaddedStructFieldIdent x) paddingNeeded (unpaddedStructFieldType x)
+          in  paddedField : go sizeAccum'' (y : tail)
+        go sizeAccum [x] =
+          let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
+              structAlignment' = fromIntegral @Word8 @InlineSize structAlignment
+              paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` structAlignment') - sizeAccum'
+          in  [StructField (unpaddedStructFieldIdent x) paddingNeeded (unpaddedStructFieldType x)]
+
+    validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
       local (\context -> context <> "." <> ST.structFieldIdent sf) $ do
         checkDeprecated sf
         structFieldType <- validateStructFieldType (ST.structFieldType sf)
-        pure $ StructField
-          { structFieldIdent = ST.structFieldIdent sf
-          , structFieldType = structFieldType
+        pure $ UnpaddedStructField
+          { unpaddedStructFieldIdent = ST.structFieldIdent sf
+          , unpaddedStructFieldType = structFieldType
           }
 
     validateStructFieldType :: ST.Type -> m StructFieldType
@@ -673,9 +703,9 @@ validateStruct symbolTable (currentNamespace, struct) =
       checkDuplicateIdentifiers
         (coerce . ST.structFieldIdent <$> ST.structFields struct)
 
-structFieldAlignment :: StructField -> Word8
-structFieldAlignment sf =
-  case structFieldType sf of
+structFieldAlignment :: UnpaddedStructField -> Word8
+structFieldAlignment usf =
+  case unpaddedStructFieldType usf of
     SInt8 -> 1
     SInt16 -> 2
     SInt32 -> 4
@@ -690,6 +720,9 @@ structFieldAlignment sf =
     SEnum _ _ enumType -> enumAlignment enumType
     SStruct (_, nestedStruct) -> structAlignment nestedStruct
 
+enumAlignment :: EnumType -> Word8
+enumAlignment = enumSize
+
 -- | The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
 enumSize :: EnumType -> Word8
 enumSize e =
@@ -703,8 +736,31 @@ enumSize e =
     EWord32 -> 3
     EWord64 -> 4
 
-enumAlignment :: EnumType -> Word8
-enumAlignment = enumSize
+structFieldTypeSize :: StructFieldType -> InlineSize
+structFieldTypeSize sft =
+  case sft of
+    SInt8 -> 1
+    SInt16 -> 2
+    SInt32 -> 4
+    SInt64 -> 8
+    SWord8 -> 1
+    SWord16 -> 2
+    SWord32 -> 4
+    SWord64 -> 8
+    SFloat -> 4
+    SDouble -> 8
+    SBool -> 1
+    SEnum _ _ enumType -> fromIntegral @Word8 @InlineSize (enumSize enumType)
+    SStruct (_, nestedStruct) -> structSize nestedStruct
+
+structFieldSize :: StructField -> InlineSize
+structFieldSize sf =
+  structFieldPadding sf + structFieldTypeSize (structFieldType sf)
+
+structSize :: StructDecl -> InlineSize
+structSize struct =
+  sum (structFieldSize <$> structFields struct)
+
 
 -- | Returns a list of all the namespaces "between" the current namespace
 -- and the root namespace, in that order.
