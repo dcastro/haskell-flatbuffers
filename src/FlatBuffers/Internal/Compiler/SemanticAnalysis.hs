@@ -5,6 +5,8 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE DerivingVia         #-}
+
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
@@ -33,6 +35,7 @@ import           Data.Maybe                               (catMaybes, fromMaybe,
 import           Data.Monoid                              (Sum (..))
 import           Data.Scientific                          (Scientific)
 import qualified Data.Scientific                          as Scientific
+import           Data.String                              (IsString (..))
 import           Data.Text                                (Text)
 import qualified Data.Text                                as T
 import qualified Data.Tree                                as Tree
@@ -294,19 +297,21 @@ findStringAttr name (ST.Metadata attrs) =
 
         
 newtype DefaultVal a = DefaultVal a
+  deriving (Eq, Show, Num, IsString) via a
         
-type Required = Bool
+data Required = Req | Opt
+  deriving (Eq, Show)
 
 data TableDecl = TableDecl
   { tableIdent     :: Ident
   , tableFields    :: [TableField]
-  }
+  } deriving (Eq, Show)
 
 data TableField = TableField
   { tableFieldIdent      :: Ident
   , tableFieldType       :: TableFieldType
   , tableFieldDeprecated :: Bool
-  }
+  } deriving (Eq, Show)
 
 data TableFieldType
   = TInt8 (DefaultVal Int8)
@@ -326,6 +331,7 @@ data TableFieldType
   | TUnion Required ST.TypeRef
   | TString Required
   | TVector Required VectorElementType
+  deriving (Eq, Show)
 
 data VectorElementType
   = VInt8
@@ -344,6 +350,7 @@ data VectorElementType
   | VTable ST.TypeRef
   | VUnion ST.TypeRef
   | VString
+  deriving (Eq, Show)
 
 
 validateTables :: ValidationCtx m => Stage3 -> m Stage4
@@ -463,7 +470,7 @@ checkNoDefault dflt =
       "default values currently only supported for scalar fields (integers, floating point, bool, enums)"
 
 isRequired :: ST.Metadata -> Required
-isRequired = hasAttribute "required"
+isRequired md = if hasAttribute "required" md then Req else Opt
 
 validateDefaultValAsInt :: forall m a. (ValidationCtx m, Integral a, Bounded a, Show a) => Maybe ST.DefaultVal -> m (DefaultVal a)
 validateDefaultValAsInt dflt =
