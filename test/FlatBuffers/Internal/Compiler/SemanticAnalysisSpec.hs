@@ -473,9 +473,51 @@ spec =
               ]
             )
 
+        it "with decimal default values" $
+          [r|
+            table T {
+              a: double = 1.1;
+              b: double = 2e-1;
+              c: double = 2.22e1;
+            }
+          |] `shouldValidate`
+            table ("", TableDecl "T"
+              [ TableField "a" (TDouble 1.1) False
+              , TableField "b" (TDouble 0.2) False
+              , TableField "c" (TDouble 22.2) False
+              ]
+            )
 
+        it "with boolean default values" $
+          [r| table T { a: double = true; } |] `shouldFail` "[T.a]: default value must be a number"
 
-      describe "with reference to enum" $
+        it "with identifier default values" $
+          [r| table T { a: double = Red; } |] `shouldFail` "[T.a]: default value must be a number"
+
+      describe "with boolean fields" $ do
+        it "with integer default values" $
+          [r| table T { a: bool = 1; } |] `shouldFail` "[T.a]: default value must be a boolean"
+          
+        it "with decimal default values" $
+          [r| table T { a: bool = 1.1; } |] `shouldFail` "[T.a]: default value must be a boolean"
+
+        it "with boolean default values" $
+          [r|
+            table T {
+              a: bool = true;
+              b: bool = false;
+            }
+          |] `shouldValidate`
+            table ("", TableDecl "T"
+              [ TableField "a" (TBool (DefaultVal True)) False
+              , TableField "b" (TBool (DefaultVal False)) False
+              ]
+            )
+
+        it "with identifier default values" $
+          [r| table T { a: bool = Red; } |] `shouldFail` "[T.a]: default value must be a boolean"
+
+      describe "with reference to enum" $ do
         it "simple" $
           [r|
             namespace A.B;
@@ -489,6 +531,63 @@ spec =
                 [ TableField "x" (TEnum (TypeRef "A.B" "E") "A") False ]
               )
             ]
+
+        it "with `required` attribute" $
+          [r| table T { x: E (required); } enum E : short{A} |] `shouldFail`
+            "[T.x]: only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
+
+        it "with `deprecated` attribute" $
+          [r| table T { x: E (deprecated); } enum E : short{A} |] `shouldValidate` foldDecls
+            [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
+            , table ("", TableDecl "T"
+                [ TableField "x" (TEnum (TypeRef "" "E") "A") True ]
+              )
+            ]
+
+        it "without default value, when enum has 0-value" $
+          [r| table T { x: E; } enum E : short{ A = -1, B = 0, C = 1} |] `shouldValidate` foldDecls
+            [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" (-1), EnumVal "B" 0, EnumVal "C" 1 ])
+            , table ("", TableDecl "T"
+                [ TableField "x" (TEnum (TypeRef "" "E") "B") False ]
+              )
+            ]
+
+        it "without default value, when enum doesn't have 0-value" $
+          [r| table T { x: E; } enum E : short{ A = -1, B = 1, C = 2} |] `shouldFail`
+            "[T.x]: enum does not have a 0 value; please manually specify a default for this field"
+
+        describe "with default value" $ do
+          it "valid integral" $
+            [r| table T { x: E = 1; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
+              , table ("", TableDecl "T"
+                  [ TableField "x" (TEnum (TypeRef "" "E") "B") False ]
+                )
+              ]
+
+          it "invalid integral" $
+            [r| table T { x: E = 3; } enum E : short{ A, B, C } |] `shouldFail`
+              "[T.x]: default value of 3 is not part of enum E"
+
+          it "valid identifier" $
+            [r| table T { x: E = B; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
+              , table ("", TableDecl "T"
+                  [ TableField "x" (TEnum (TypeRef "" "E") "B") False ]
+                )
+              ]
+
+          it "invalid identifier" $
+            [r| table T { x: E = D; } enum E : short{ A, B, C } |] `shouldFail`
+              "[T.x]: default value of D is not part of enum E"
+
+          it "decimal number" $
+            [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
+              "[T.x]: default value must be integral or ['A', 'B', 'C']"
+
+          it "boolean" $
+            [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
+              "[T.x]: default value must be integral or ['A', 'B', 'C']"
 
       describe "with string field" $ do
         it "simple" $

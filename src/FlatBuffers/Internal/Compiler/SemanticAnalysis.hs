@@ -297,7 +297,7 @@ findStringAttr name (ST.Metadata attrs) =
 
         
 newtype DefaultVal a = DefaultVal a
-  deriving (Eq, Show, Num, IsString) via a
+  deriving (Eq, Show, Num, IsString, Fractional) via a
         
 data Required = Req | Opt
   deriving (Eq, Show)
@@ -518,7 +518,7 @@ validateDefaultAsEnum dflt enum =
           Right i -> 
             case find (\val -> enumValInt val == i) (enumVals enum) of
               Just matchingVal -> pure (enumValIdent matchingVal)
-              Nothing -> throwErrorMsg $ "default value of " <> display n <> " is not part of enum " <> display (enumIdent enum)
+              Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (enumIdent enum)
       Just (ST.DefaultRef ref) ->
         case find (\val -> enumValIdent val == ref) (enumVals enum) of
           Just _  -> pure ref
