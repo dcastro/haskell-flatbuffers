@@ -1,9 +1,12 @@
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeApplications           #-}
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
+import           Data.Coerce               (coerce)
 import           Data.List.NonEmpty        (NonEmpty)
 import           Data.Map.Strict           (Map)
 import           Data.Scientific           (Scientific)
@@ -11,6 +14,7 @@ import           Data.String               (IsString (..))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           FlatBuffers.Internal.Util (Display (..))
+import           GHC.Exts                  (IsList(..))
 
 data Schema = Schema
   { includes :: [Include]
@@ -58,6 +62,11 @@ data DefaultVal
 newtype Metadata = Metadata
   { unMetadata :: Map Text (Maybe AttributeVal)
   } deriving newtype (Show, Eq)
+
+instance IsList Metadata where
+  type Item Metadata = (Text, Maybe AttributeVal)
+  fromList = coerce (fromList @(Map Text (Maybe AttributeVal)))
+  toList   = coerce (toList   @(Map Text (Maybe AttributeVal)))
 
 newtype NamespaceDecl = NamespaceDecl
   { unNamespaceDecl :: Namespace

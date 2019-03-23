@@ -334,6 +334,15 @@ spec =
     describe "tables" $ do
       it "empty" $
         [r| table T{} |] `shouldValidate` table ("", TableDecl "T" [])
+
+      it "with invalid reference" $ do
+        [r| table T { x: A.X; }   |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
+        [r| table T { x: [A.X]; } |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
+
+      it "with duplicate fields" $
+        [r| table T { x: byte; x: int; } |] `shouldFail`
+          "[T]: [x] declared more than once"
+
       describe "with numeric/bool fields" $ do
         it "simple" $
           [r|
@@ -681,13 +690,51 @@ spec =
           [r| table Table { x: T = 0; }   table T{}            |] `shouldFail` errorMsg
           [r| table Table { x: U = 0; }   union U{T}           |] `shouldFail` errorMsg
 
-      it "with invalid reference" $ do
-        [r| table T { x: A.X; }   |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
-        [r| table T { x: [A.X]; } |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
+      describe "with vector fields" $ do
+        it "simple" $
+          [r| table T { x: [string]; y: [int]; z: [bool]; } |] `shouldValidate`
+            table ("", TableDecl "T"
+              [ TableField "x" (TVector Opt VString) False
+              , TableField "y" (TVector Opt VInt32) False
+              , TableField "z" (TVector Opt VBool) False
+              ])
 
-      it "with duplicate fields" $
-        [r| table T { x: byte; x: int; } |] `shouldFail`
-          "[T]: [x] declared more than once"
+        it "where the elements are references" $
+          [r|
+            namespace A;
+            table Table { w: [B.E]; x: [B.S]; y: [B.T]; z: [B.U]; }
+
+            namespace A.B;
+            enum   E : int16 { EA }
+            struct S { x: ubyte; y: int64; }
+            table  T {}
+            union  U { T }
+          |] `shouldValidate` foldDecls
+            [ table ("A", TableDecl "Table"
+                [ TableField "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") 2)) False
+                , TableField "x" (TVector Opt (VStruct (TypeRef "A.B" "S") 16)) False
+                , TableField "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
+                , TableField "z" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False
+                ])
+            , enum   ("A.B", EnumDecl "E" EInt16 [EnumVal "EA" 0])
+            , struct ("A.B", StructDecl "S" 8 [StructField "x" 7 SWord8, StructField "y" 0 SInt64])
+            , table  ("A.B", TableDecl "T" [])
+            , union  ("A.B", ST.UnionDecl "U" [] [ST.UnionVal Nothing (TypeRef "" "T")])
+            ]
+
+        it "with `required` attribute" $
+          [r| table T { x: [byte] (required); } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TVector Req VInt8) False ])
+
+        it "with `deprecated` attribute" $
+          [r| table T { x: [string] (deprecated); } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TVector Opt VString) True ])
+
+        it "with default value" $ do
+          let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
+          [r| table T { x: [int] = a;   } |] `shouldFail` errorMsg
+          [r| table T { x: [int] = 0;   } |] `shouldFail` errorMsg
+          [r| table T { x: [int] = 0.0; } |] `shouldFail` errorMsg
 
       describe "with `id` attribute" $ do
         it "sorts fields" $

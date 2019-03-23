@@ -461,7 +461,7 @@ validateTable symbolTable (currentNamespace, table) =
                     pure $ VStruct (ST.TypeRef ns (structIdent struct))
                                    (structSize struct)
                   MatchT (ns, table) -> pure $ VTable (ST.TypeRef ns (ST.tableIdent table))
-                  MatchU (ns, union) -> pure $ VTable (ST.TypeRef ns (ST.unionIdent union))
+                  MatchU (ns, union) -> pure $ VUnion (ST.TypeRef ns (ST.unionIdent union))
                   NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
 
 checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
