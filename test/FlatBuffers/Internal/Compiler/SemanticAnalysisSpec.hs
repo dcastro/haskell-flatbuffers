@@ -335,6 +335,12 @@ spec =
       it "empty" $
         [r| table T{} |] `shouldValidate` table ("", TableDecl "T" [])
 
+      it "with cyclic reference" $
+        [r| table T{x: T;} |] `shouldValidate`
+          table ("", TableDecl "T"
+            [ TableField "x" (TTable (TypeRef "" "T") Opt) False
+            ])
+
       it "with invalid reference" $ do
         [r| table T { x: A.X; }   |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
         [r| table T { x: [A.X]; } |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
