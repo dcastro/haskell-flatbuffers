@@ -314,7 +314,7 @@ spec =
           "[S]: force_align must be a power of two integer ranging from the struct's natural alignment (in this case, 4) to 16"
 
       it "with `force_align` given as a string" $
-        [r| struct S (force_align: "2") { x: byte; } |] `shouldFail`
+        [r| struct S (force_align: "hello") { x: byte; } |] `shouldFail`
           "[S]: expected attribute 'force_align' to have an integer value, e.g. 'force_align: 123'"
 
       it "with deprecated field" $ 
@@ -334,7 +334,7 @@ spec =
     describe "tables" $ do
       it "empty" $
         [r| table T{} |] `shouldValidate` table ("", TableDecl "T" [])
-      describe "with numeric/bool/string fields" $ do
+      describe "with numeric/bool fields" $ do
         it "simple" $
           [r|
             namespace A.B;
@@ -517,6 +517,22 @@ spec =
         it "with identifier default values" $
           [r| table T { a: bool = Red; } |] `shouldFail` "[T.a]: default value must be a boolean"
 
+      describe "with string fields" $ do
+        it "simple" $
+          [r| table T { x: string; } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TString Opt) False ])
+        it "with `required` attribute" $
+          [r| table T { x: string (required); } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TString Req) False ])
+        it "with `deprecated` attribute" $
+          [r| table T { x: string (deprecated); } |] `shouldValidate`
+            table ("", TableDecl "T" [ TableField "x" (TString Opt) True ])
+        it "with default value" $ do
+          let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
+          [r| table T { x: string = a;   } |] `shouldFail` errorMsg
+          [r| table T { x: string = 0;   } |] `shouldFail` errorMsg
+          [r| table T { x: string = 0.0; } |] `shouldFail` errorMsg
+
       describe "with reference to enum" $ do
         it "simple" $
           [r|
@@ -588,22 +604,6 @@ spec =
           it "boolean" $
             [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
               "[T.x]: default value must be integral or ['A', 'B', 'C']"
-
-      describe "with string field" $ do
-        it "simple" $
-          [r| table T { x: string; } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TString Opt) False ])
-        it "with `required` attribute" $
-          [r| table T { x: string (required); } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TString Req) False ])
-        it "with `deprecated` attribute" $
-          [r| table T { x: string (deprecated); } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TString Opt) True ])
-        it "with default value" $ do
-          let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
-          [r| table T { x: string = a;   } |] `shouldFail` errorMsg
-          [r| table T { x: string = 0;   } |] `shouldFail` errorMsg
-          [r| table T { x: string = 0.0; } |] `shouldFail` errorMsg
 
       describe "with reference to structs/table/union" $ do
         it "simple" $
@@ -680,6 +680,66 @@ spec =
           [r| table Table { x: S = 0; }   struct S { x: int; } |] `shouldFail` errorMsg
           [r| table Table { x: T = 0; }   table T{}            |] `shouldFail` errorMsg
           [r| table Table { x: U = 0; }   union U{T}           |] `shouldFail` errorMsg
+
+      it "with invalid reference" $ do
+        [r| table T { x: A.X; }   |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
+        [r| table T { x: [A.X]; } |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
+
+      it "with duplicate fields" $
+        [r| table T { x: byte; x: int; } |] `shouldFail`
+          "[T]: [x] declared more than once"
+
+      describe "with `id` attribute" $ do
+        it "sorts fields" $
+          [r|
+            table T {
+              w: byte (id: 2);
+              x: byte (id: 1);
+              y: byte (id: 3);
+              z: byte (id: 0);
+            }
+          |] `shouldValidate` foldDecls
+            [ table ("", TableDecl "T"
+                [ TableField "z" (TInt8 0) False
+                , TableField "x" (TInt8 0) False
+                , TableField "w" (TInt8 0) False
+                , TableField "y" (TInt8 0) False
+                ]
+              )
+            ]
+
+        it "id can be a string, if it's coercible to an integer" $
+          [r|
+            table T {
+              x: byte (id: "1");
+              y: byte (id: "  02 ");
+              z: byte (id: "0");
+            }
+          |] `shouldValidate` foldDecls
+            [ table ("", TableDecl "T"
+                [ TableField "z" (TInt8 0) False
+                , TableField "x" (TInt8 0) False
+                , TableField "y" (TInt8 0) False
+                ]
+              )
+            ]
+
+        it "ids cannot be non-integral string" $ do
+          [r| table T { x: byte (id: "0.3");   } |] `shouldFail` "[T]: expected attribute 'id' to have an integer value, e.g. 'id: 123'"
+          [r| table T { x: byte (id: "hello"); } |] `shouldFail` "[T]: expected attribute 'id' to have an integer value, e.g. 'id: 123'"
+
+        it "when one field has it, all other fields must have it as well" $
+          [r| table T { x: byte (id: 0); y: int; } |] `shouldFail`
+            "[T]: either all fields or no fields must have an 'id' attribute"
+
+        it "ids must be consecutive" $
+          [r| table T { x: byte (id: 0); y: int (id: 2); } |] `shouldFail`
+            "[T]: field ids must be consecutive from 0"
+
+        it "ids must start from 0" $
+         [r| table T { x: byte (id: 1); y: int (id: 2); } |] `shouldFail`
+            "[T]: field ids must be consecutive from 0"
+
 
 foldDecls :: [Stage4] -> Stage4
 foldDecls = fold

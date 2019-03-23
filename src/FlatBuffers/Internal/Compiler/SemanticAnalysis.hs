@@ -46,6 +46,7 @@ import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
 import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo, roundUpToNearestMultipleOf)
+import           Text.Read                                (readMaybe)
 
 -- |  The identifier in the reader environment represents the validation context,
 -- the thing being validated (e.g. a fully-qualified struct name, or a table field name).
@@ -273,8 +274,14 @@ findIntAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Integer)
 findIntAttr name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
+    Just Nothing             -> err
     Just (Just (ST.AttrI i)) -> pure (Just i)
-    Just _ ->
+    Just (Just (ST.AttrS t)) ->
+      case readMaybe @Integer (T.unpack t) of
+        Just i  -> pure (Just i)
+        Nothing -> err
+  where
+    err = 
       throwErrorMsg $
         "expected attribute '"
         <> name
@@ -369,7 +376,6 @@ validateTable symbolTable (currentNamespace, table) =
 
     checkDuplicateFields
     sortedFields <- sortFields (ST.tableFields table)
-
     validFields <- traverse validateTableField sortedFields
 
     pure TableDecl
@@ -392,7 +398,7 @@ validateTable symbolTable (currentNamespace, table) =
           when (length attrs /= length tfs) $
             throwErrorMsg "either all fields or no fields must have an 'id' attribute"
           when (List.sort attrs /= [0.. List.genericLength tfs - 1]) $
-            throwErrorMsg "field id's must be consecutive from 0"
+            throwErrorMsg "field ids must be consecutive from 0"
           pure . fmap fst . List.sortOn snd $ zip tfs attrs
 
     validateTableField :: ST.TableField -> m TableField
