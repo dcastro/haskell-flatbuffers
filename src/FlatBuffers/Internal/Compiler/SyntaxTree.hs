@@ -136,8 +136,8 @@ data Type
   -- others
   | TBool
   | TString
-  | TVector Type
   | TRef TypeRef
+  | TVector Type
   deriving (Show, Eq)
 
 data TypeRef = TypeRef

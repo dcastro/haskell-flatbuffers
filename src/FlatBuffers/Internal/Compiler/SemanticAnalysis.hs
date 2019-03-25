@@ -158,7 +158,6 @@ data EnumType
   | EWord64
   deriving (Show, Eq)
 
-
 validateEnums :: forall m. ValidationCtx m => Stage1 -> m Stage2
 validateEnums symbolTable = do
   let enums = symbolEnums symbolTable
@@ -332,11 +331,11 @@ data TableFieldType
   | TFloat (DefaultVal Scientific)
   | TDouble (DefaultVal Scientific)
   | TBool (DefaultVal Bool)
+  | TString Required
   | TEnum   TypeRef (DefaultVal Ident)
   | TStruct TypeRef Required
   | TTable  TypeRef Required
   | TUnion  TypeRef Required
-  | TString Required
   | TVector Required VectorElementType
   deriving (Eq, Show)
 
@@ -352,11 +351,11 @@ data VectorElementType
   | VFloat
   | VDouble
   | VBool
+  | VString
   | VEnum TypeRef InlineSize
   | VStruct TypeRef InlineSize
   | VTable TypeRef
   | VUnion TypeRef
-  | VString
   deriving (Eq, Show)
 
 

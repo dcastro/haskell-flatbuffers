@@ -122,8 +122,8 @@ typ =
 
   TBool <$ rword "bool" <|>
   TString <$ rword "string" <|>
-  label "vector type" vector <|>
-  label "type identifier" (TRef <$> typeRef)
+  label "type identifier" (TRef <$> typeRef) <|>
+  label "vector type" vector
   where
     vector = TVector <$> between
               (symbol "[" *> (notFollowedBy (symbol "[") <|> fail "nested vector types not supported" ))
