@@ -116,8 +116,8 @@ data UnionDecl = UnionDecl
   } deriving (Show, Eq)
 
 data UnionVal = UnionVal
-  { unionValAlias :: Maybe Ident
-  , unionValType  :: TypeRef
+  { unionValIdent   :: Maybe Ident
+  , unionValTypeRef :: TypeRef
   } deriving (Show, Eq)
 
 data Type
@@ -178,6 +178,9 @@ class HasIdent a where
   getIdent :: a -> Ident
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
+instance HasIdent EnumVal     where getIdent = enumValIdent
 instance HasIdent StructDecl  where getIdent = structIdent
+instance HasIdent StructField where getIdent = structFieldIdent
 instance HasIdent TableDecl   where getIdent = tableIdent
+instance HasIdent TableField  where getIdent = tableFieldIdent
 instance HasIdent UnionDecl   where getIdent = unionIdent

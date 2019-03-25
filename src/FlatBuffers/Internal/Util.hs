@@ -26,7 +26,10 @@ instance Display Text where
   display = id
 
 instance Display a => Display (NonEmpty a) where
-  display xs = "[" <> T.intercalate ", " (NE.toList (fmap displayOne xs)) <> "]"
+  display = display . NE.toList
+
+instance Display a => Display [a] where
+  display xs = "[" <> T.intercalate ", " (fmap displayOne xs) <> "]"
     where
       displayOne x = "'" <> display x <> "'"
 

@@ -42,7 +42,7 @@ import qualified Data.Tree                                as Tree
 import           Data.Word
 import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
-                                                           Schema, qualify, HasIdent(..))
+                                                           Schema, qualify, HasIdent(..), TypeRef(..))
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
 import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo, roundUpToNearestMultipleOf)
@@ -74,9 +74,14 @@ type Stage4     = SymbolTable    EnumDecl    StructDecl    TableDecl ST.UnionDec
 type ValidDecls = SymbolTable    EnumDecl    StructDecl    TableDecl    UnionDecl
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
+instance HasIdent EnumVal     where getIdent = enumValIdent
 instance HasIdent StructDecl  where getIdent = structIdent
+instance HasIdent StructField where getIdent = structFieldIdent
 instance HasIdent TableDecl   where getIdent = tableIdent
+instance HasIdent TableField  where getIdent = tableFieldIdent
 instance HasIdent UnionDecl   where getIdent = unionIdent
+instance HasIdent UnionVal    where getIdent = unionValIdent
+
 
 data Match enum struct table union
   = MatchE (Namespace, enum)
@@ -91,9 +96,9 @@ findDecl ::
      (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
   => Namespace
   -> SymbolTable e s t u
-  -> ST.TypeRef
+  -> TypeRef
   -> Match e s t u
-findDecl currentNamespace symbolTable (ST.TypeRef refNamespace refIdent) =
+findDecl currentNamespace symbolTable (TypeRef refNamespace refIdent) =
   let parentNamespaces' = parentNamespaces currentNamespace
       results = do
         parentNamespace <- parentNamespaces'
@@ -109,9 +114,6 @@ findDecl currentNamespace symbolTable (ST.TypeRef refNamespace refIdent) =
       Just match -> match
       Nothing    -> NoMatch parentNamespaces'
 
-data UnionDecl = UnionDecl
-  { unionIdent :: Ident
-  }
 
 -- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
 createSymbolTable :: Tree.Tree Schema -> Stage1
@@ -243,22 +245,20 @@ validateEnum (currentNamespace, enum) =
     checkDuplicateFields :: m ()
     checkDuplicateFields =
       checkDuplicateIdentifiers
-        (coerce . ST.enumValIdent <$> ST.enumVals enum)
+        (ST.enumVals enum)
 
     checkBitFlags :: m ()
     checkBitFlags =
       when (hasAttribute "bit_flags" (ST.enumMetadata enum)) $
         throwErrorMsg "`bit_flags` are not supported yet"
 
-checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f) => f Text -> m ()
-checkDuplicateIdentifiers idents =
-  case findDups idents of
+checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f, HasIdent a) => f a -> m ()
+checkDuplicateIdentifiers xs =
+  case findDups (getIdent <$> xs) of
     [] -> pure ()
     dups ->
       throwErrorMsg $
-      "["
-      <> T.intercalate ", " dups
-      <> "] declared more than once"
+        display dups <> " declared more than once"
 
 findDups :: (Foldable f, Functor f, Ord a) => f a -> [a]
 findDups xs = Map.keys $ Map.filter (>1) $ occurrences xs
@@ -332,10 +332,10 @@ data TableFieldType
   | TFloat (DefaultVal Scientific)
   | TDouble (DefaultVal Scientific)
   | TBool (DefaultVal Bool)
-  | TEnum   ST.TypeRef (DefaultVal Ident)
-  | TStruct ST.TypeRef Required
-  | TTable  ST.TypeRef Required
-  | TUnion  ST.TypeRef Required
+  | TEnum   TypeRef (DefaultVal Ident)
+  | TStruct TypeRef Required
+  | TTable  TypeRef Required
+  | TUnion  TypeRef Required
   | TString Required
   | TVector Required VectorElementType
   deriving (Eq, Show)
@@ -352,10 +352,10 @@ data VectorElementType
   | VFloat
   | VDouble
   | VBool
-  | VEnum ST.TypeRef InlineSize
-  | VStruct ST.TypeRef InlineSize
-  | VTable ST.TypeRef
-  | VUnion ST.TypeRef
+  | VEnum TypeRef InlineSize
+  | VStruct TypeRef InlineSize
+  | VTable TypeRef
+  | VUnion TypeRef
   | VString
   deriving (Eq, Show)
 
@@ -387,7 +387,7 @@ validateTable symbolTable (currentNamespace, table) =
     checkDuplicateFields :: m ()
     checkDuplicateFields =
       checkDuplicateIdentifiers
-        (coerce . ST.tableFieldIdent <$> ST.tableFields table)
+        (ST.tableFields table)
 
     sortFields :: [ST.TableField] -> m [ST.TableField]
     sortFields tfs = do
@@ -431,10 +431,10 @@ validateTable symbolTable (currentNamespace, table) =
             MatchE (ns, enum) -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
-              pure $ TEnum (ST.TypeRef ns (enumIdent enum)) validDefault
-            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (ST.TypeRef ns (structIdent struct))  (isRequired md)
-            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (ST.TypeRef ns (ST.tableIdent table)) (isRequired md)
-            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (ST.TypeRef ns (ST.unionIdent union)) (isRequired md)
+              pure $ TEnum (TypeRef ns (enumIdent enum)) validDefault
+            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (TypeRef ns (structIdent struct))  (isRequired md)
+            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (TypeRef ns (ST.tableIdent table)) (isRequired md)
+            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (TypeRef ns (ST.unionIdent union)) (isRequired md)
             NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
         ST.TVector vecType ->
           checkNoDefault dflt >> TVector (isRequired md) <$>
@@ -455,13 +455,13 @@ validateTable symbolTable (currentNamespace, table) =
               ST.TRef typeRef ->
                 case findDecl currentNamespace symbolTable typeRef of
                   MatchE (ns, enum) ->
-                    pure $ VEnum (ST.TypeRef ns (enumIdent enum))
+                    pure $ VEnum (TypeRef ns (enumIdent enum))
                                  (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
                   MatchS (ns, struct) ->
-                    pure $ VStruct (ST.TypeRef ns (structIdent struct))
+                    pure $ VStruct (TypeRef ns (structIdent struct))
                                    (structSize struct)
-                  MatchT (ns, table) -> pure $ VTable (ST.TypeRef ns (ST.tableIdent table))
-                  MatchU (ns, union) -> pure $ VUnion (ST.TypeRef ns (ST.unionIdent union))
+                  MatchT (ns, table) -> pure $ VTable (TypeRef ns (ST.tableIdent table))
+                  MatchU (ns, union) -> pure $ VUnion (TypeRef ns (ST.unionIdent union))
                   NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
 
 checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
@@ -531,6 +531,49 @@ validateDefaultAsEnum dflt enum =
           Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (enumIdent enum)
       
       Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
+
+data UnionDecl = UnionDecl
+  { unionIdent :: Ident
+  , unionVals  :: NonEmpty UnionVal
+  } deriving (Show, Eq)
+
+data UnionVal = UnionVal
+  { unionValIdent    :: Ident
+  , unionValTableRef :: TypeRef
+  } deriving (Show, Eq)
+
+
+validateUnion :: forall m. ValidationCtx m => Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
+validateUnion symbolTable (currentNamespace, union) =
+  local (\_ -> qualify currentNamespace (ST.unionIdent union)) $ do
+    validUnionVals <- traverse validateUnionVal (ST.unionVals union)
+    checkDuplicateVals validUnionVals
+    pure $ UnionDecl
+      { unionIdent = getIdent union
+      , unionVals = validUnionVals
+      }
+  where
+    validateUnionVal :: ST.UnionVal -> m UnionVal
+    validateUnionVal uv = do
+      let tref = ST.unionValTypeRef uv
+      let partiallyQualifiedTypeRef = qualify (typeRefNamespace tref) (typeRefIdent tref)
+      let ident = fromMaybe partiallyQualifiedTypeRef (ST.unionValIdent uv)
+      local (\context -> context <> "." <> ident) $ do
+        tableRef <- validateUnionValType tref
+        pure $ UnionVal
+          { unionValIdent = ident
+          , unionValTableRef = tableRef
+          }
+
+    validateUnionValType :: TypeRef -> m TypeRef
+    validateUnionValType typeRef =
+      case findDecl currentNamespace symbolTable typeRef of
+        NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
+        MatchT (ns, table)        -> pure $ TypeRef ns (getIdent table)
+        _                         -> throwErrorMsg "union members may only be tables"
+
+    checkDuplicateVals :: NonEmpty UnionVal -> m ()
+    checkDuplicateVals = checkDuplicateIdentifiers
 
 data StructDecl = StructDecl
   { structIdent      :: Ident
@@ -714,7 +757,7 @@ validateStruct symbolTable (currentNamespace, struct) =
     checkDuplicateFields :: m ()
     checkDuplicateFields =
       checkDuplicateIdentifiers
-        (coerce . ST.structFieldIdent <$> ST.structFields struct)
+        (ST.structFields struct)
 
 structFieldAlignment :: UnpaddedStructField -> Word8
 structFieldAlignment usf =
@@ -789,7 +832,7 @@ throwErrorMsg msg = do
   context <- ask
   throwError $ "[" <> display context <> "]: " <> msg
 
-typeRefNotFound :: ValidationCtx m => NonEmpty Namespace -> ST.TypeRef -> m a
+typeRefNotFound :: ValidationCtx m => NonEmpty Namespace -> TypeRef -> m a
 typeRefNotFound checkedNamespaces typeRef =
   throwErrorMsg $
     "type '"

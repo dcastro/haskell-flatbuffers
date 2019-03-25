@@ -89,7 +89,7 @@ spec =
 
       it "with duplicate values" $
         [r| enum Color : int8 { Red, Green, Red, Gray, Green, Green, Black } |] `shouldFail`
-          "[Color]: [Green, Red] declared more than once"
+          "[Color]: ['Green', 'Red'] declared more than once"
 
       it "with invalid underlying type" $ do
         [r| enum Color : double { Red, Green, Blue } |] `shouldFail`
@@ -276,7 +276,7 @@ spec =
 
       it "with duplicate fields" $
         [r| struct S { x: byte; x: int; } |] `shouldFail`
-          "[S]: [x] declared more than once"
+          "[S]: ['x'] declared more than once"
 
       it "with `force_align` attribute" $ do
         -- just 1 field
@@ -347,7 +347,7 @@ spec =
 
       it "with duplicate fields" $
         [r| table T { x: byte; x: int; } |] `shouldFail`
-          "[T]: [x] declared more than once"
+          "[T]: ['x'] declared more than once"
 
       describe "with numeric/bool fields" $ do
         it "simple" $
