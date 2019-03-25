@@ -172,7 +172,7 @@ validateEnums symbolTable = do
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
 validateEnum (currentNamespace, enum) =
-  local (\_ -> qualify currentNamespace (ST.enumIdent enum)) $
+  local (\_ -> qualify currentNamespace (getIdent enum)) $
     checkBitFlags >> checkDuplicateFields >> validEnum
   where
     validEnum = do
@@ -181,7 +181,7 @@ validateEnum (currentNamespace, enum) =
       validateOrder enumVals
       traverse_ (validateBounds enumType) enumVals
       pure EnumDecl
-        { enumIdent = ST.enumIdent enum
+        { enumIdent = getIdent enum
         , enumType = enumType
         , enumVals = enumVals
         }
@@ -197,7 +197,7 @@ validateEnum (currentNamespace, enum) =
               Just lastInt -> lastInt + 1
               Nothing      -> 0
       put (Just thisInt)
-      pure (EnumVal (ST.enumValIdent enumVal) thisInt)
+      pure (EnumVal (getIdent enumVal) thisInt)
 
     validateOrder :: NonEmpty EnumVal -> m ()
     validateOrder xs =
@@ -207,7 +207,7 @@ validateEnum (currentNamespace, enum) =
 
     validateBounds :: EnumType -> EnumVal -> m ()
     validateBounds enumType enumVal =
-      local (\context -> context <> "." <> enumValIdent enumVal) $
+      local (\context -> context <> "." <> getIdent enumVal) $
         case enumType of
           EInt8 -> validateBounds' @Int8 enumVal
           EInt16 -> validateBounds' @Int16 enumVal
@@ -372,14 +372,14 @@ validateTables symbolTable = do
 
 validateTable :: forall m. ValidationCtx m => Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
 validateTable symbolTable (currentNamespace, table) =
-  local (\_ -> qualify currentNamespace (ST.tableIdent table)) $ do
+  local (\_ -> qualify currentNamespace (getIdent table)) $ do
 
     checkDuplicateFields
     sortedFields <- sortFields (ST.tableFields table)
     validFields <- traverse validateTableField sortedFields
 
     pure TableDecl
-      { tableIdent = ST.tableIdent table
+      { tableIdent = getIdent table
       , tableFields = validFields
       }
 
@@ -403,10 +403,10 @@ validateTable symbolTable (currentNamespace, table) =
 
     validateTableField :: ST.TableField -> m TableField
     validateTableField tf =
-      local (\context -> context <> "." <> ST.tableFieldIdent tf) $ do
+      local (\context -> context <> "." <> getIdent tf) $ do
         validFieldType <- validateTableFieldType (ST.tableFieldMetadata tf) (ST.tableFieldDefault tf) (ST.tableFieldType tf)
         pure TableField
-          { tableFieldIdent = ST.tableFieldIdent tf
+          { tableFieldIdent = getIdent tf
           , tableFieldType = validFieldType
           , tableFieldDeprecated = hasAttribute "deprecated" (ST.tableFieldMetadata tf)
           }
@@ -431,10 +431,10 @@ validateTable symbolTable (currentNamespace, table) =
             MatchE (ns, enum) -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
-              pure $ TEnum (TypeRef ns (enumIdent enum)) validDefault
-            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (TypeRef ns (structIdent struct))  (isRequired md)
-            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (TypeRef ns (ST.tableIdent table)) (isRequired md)
-            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (TypeRef ns (ST.unionIdent union)) (isRequired md)
+              pure $ TEnum (TypeRef ns (getIdent enum)) validDefault
+            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (TypeRef ns (getIdent struct))  (isRequired md)
+            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (TypeRef ns (getIdent table)) (isRequired md)
+            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (TypeRef ns (getIdent union)) (isRequired md)
             NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
         ST.TVector vecType ->
           checkNoDefault dflt >> TVector (isRequired md) <$>
@@ -455,13 +455,13 @@ validateTable symbolTable (currentNamespace, table) =
               ST.TRef typeRef ->
                 case findDecl currentNamespace symbolTable typeRef of
                   MatchE (ns, enum) ->
-                    pure $ VEnum (TypeRef ns (enumIdent enum))
+                    pure $ VEnum (TypeRef ns (getIdent enum))
                                  (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
                   MatchS (ns, struct) ->
-                    pure $ VStruct (TypeRef ns (structIdent struct))
+                    pure $ VStruct (TypeRef ns (getIdent struct))
                                    (structSize struct)
-                  MatchT (ns, table) -> pure $ VTable (TypeRef ns (ST.tableIdent table))
-                  MatchU (ns, union) -> pure $ VUnion (TypeRef ns (ST.unionIdent union))
+                  MatchT (ns, table) -> pure $ VTable (TypeRef ns (getIdent table))
+                  MatchU (ns, union) -> pure $ VUnion (TypeRef ns (getIdent union))
                   NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
 
 checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
@@ -516,21 +516,21 @@ validateDefaultAsEnum dflt enum =
     case dflt of
       Nothing ->
         case find (\val -> enumValInt val == 0) (enumVals enum) of
-          Just zeroVal -> pure (enumValIdent zeroVal)
+          Just zeroVal -> pure (getIdent zeroVal)
           Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
       Just (ST.DefaultNum n) ->
         case Scientific.floatingOrInteger n of
-          Left _double -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
+          Left _double -> throwErrorMsg $ "default value must be integral or " <> display (getIdent <$> enumVals enum)
           Right i -> 
             case find (\val -> enumValInt val == i) (enumVals enum) of
-              Just matchingVal -> pure (enumValIdent matchingVal)
-              Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (enumIdent enum)
+              Just matchingVal -> pure (getIdent matchingVal)
+              Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
       Just (ST.DefaultRef ref) ->
-        case find (\val -> enumValIdent val == ref) (enumVals enum) of
+        case find (\val -> getIdent val == ref) (enumVals enum) of
           Just _  -> pure ref
-          Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (enumIdent enum)
+          Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
       
-      Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (enumValIdent <$> enumVals enum)
+      Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (getIdent <$> enumVals enum)
 
 data UnionDecl = UnionDecl
   { unionIdent :: Ident
@@ -545,7 +545,7 @@ data UnionVal = UnionVal
 
 validateUnion :: forall m. ValidationCtx m => Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
 validateUnion symbolTable (currentNamespace, union) =
-  local (\_ -> qualify currentNamespace (ST.unionIdent union)) $ do
+  local (\_ -> qualify currentNamespace (getIdent union)) $ do
     validUnionVals <- traverse validateUnionVal (ST.unionVals union)
     checkDuplicateVals validUnionVals
     pure $ UnionDecl
@@ -625,7 +625,7 @@ checkStructCycles symbolTable = go []
   where
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) =
-      let qualifiedName = qualify currentNamespace (ST.structIdent struct)
+      let qualifiedName = qualify currentNamespace (getIdent struct)
       in  local (const qualifiedName) $
             if qualifiedName `elem` visited
               then
@@ -650,10 +650,10 @@ validateStruct ::
   -> (Namespace, ST.StructDecl)
   -> m (Namespace, StructDecl)
 validateStruct symbolTable (currentNamespace, struct) =
-  local (\_ -> qualify currentNamespace (ST.structIdent struct)) $ do
+  local (\_ -> qualify currentNamespace (getIdent struct)) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
-    case find (\(ns, s) -> ns == currentNamespace && structIdent s == ST.structIdent struct) validStructs of
+    case find (\(ns, s) -> ns == currentNamespace && getIdent s == getIdent struct) validStructs of
       Just match -> pure match
       Nothing -> do
         checkDuplicateFields
@@ -670,7 +670,7 @@ validateStruct symbolTable (currentNamespace, struct) =
         let paddedFields = addFieldPadding alignment fields
 
         let validStruct = StructDecl
-              { structIdent      = ST.structIdent struct
+              { structIdent      = getIdent struct
               , structAlignment  = alignment
               , structFields     = paddedFields
               }
@@ -701,11 +701,11 @@ validateStruct symbolTable (currentNamespace, struct) =
 
     validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
-      local (\context -> context <> "." <> ST.structFieldIdent sf) $ do
+      local (\context -> context <> "." <> getIdent sf) $ do
         checkDeprecated sf
         structFieldType <- validateStructFieldType (ST.structFieldType sf)
         pure $ UnpaddedStructField
-          { unpaddedStructFieldIdent = ST.structFieldIdent sf
+          { unpaddedStructFieldIdent = getIdent sf
           , unpaddedStructFieldType = structFieldType
           }
 
@@ -728,7 +728,7 @@ validateStruct symbolTable (currentNamespace, struct) =
         ST.TRef typeRef ->
           case findDecl currentNamespace symbolTable typeRef of
             MatchE (enumNamespace, enum) ->
-              pure (SEnum enumNamespace (enumIdent enum) (enumType enum))
+              pure (SEnum enumNamespace (getIdent enum) (enumType enum))
             MatchS (nestedNamespace, nestedStruct) ->
               -- if this is a reference to a struct, we need to validate it first
               SStruct <$> validateStruct symbolTable (nestedNamespace, nestedStruct)
