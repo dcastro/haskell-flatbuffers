@@ -321,6 +321,14 @@ spec =
         [r| struct S { x: byte (deprecated); } |] `shouldFail`
           "[S.x]: can't deprecate fields in a struct"
 
+      it "with required field" $ 
+        [r| struct S { x: byte (required); } |] `shouldFail`
+          "[S.x]: struct fields are already required, the 'required' attribute is redundant"
+
+      it "with id field" $ 
+        [r| struct S { x: byte (id: 1); } |] `shouldFail`
+          "[S.x]: struct fields cannot be reordered using the 'id' attribute"
+
       it "with cyclic dependency" $
         [r|
           struct S {x: S1;}

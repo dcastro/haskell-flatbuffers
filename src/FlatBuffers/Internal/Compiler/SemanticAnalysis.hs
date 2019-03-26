@@ -701,7 +701,7 @@ validateStruct symbolTable (currentNamespace, struct) =
     validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
       local (\context -> context <> "." <> getIdent sf) $ do
-        checkDeprecated sf
+        checkUnsupportedAttributes sf
         structFieldType <- validateStructFieldType (ST.structFieldType sf)
         pure $ UnpaddedStructField
           { unpaddedStructFieldIdent = getIdent sf
@@ -735,10 +735,14 @@ validateStruct symbolTable (currentNamespace, struct) =
               typeRefNotFound checkedNamespaces typeRef
             _ -> throwErrorMsg invalidStructFieldType
 
-    checkDeprecated :: ST.StructField -> m ()
-    checkDeprecated structField =
+    checkUnsupportedAttributes :: ST.StructField -> m ()
+    checkUnsupportedAttributes structField = do
       when (hasAttribute "deprecated" (ST.structFieldMetadata structField)) $
         throwErrorMsg "can't deprecate fields in a struct"
+      when (hasAttribute "required" (ST.structFieldMetadata structField)) $
+        throwErrorMsg "struct fields are already required, the 'required' attribute is redundant"
+      when (hasAttribute "id" (ST.structFieldMetadata structField)) $
+        throwErrorMsg "struct fields cannot be reordered using the 'id' attribute"
 
     getForceAlignAttr :: m (Maybe Integer)
     getForceAlignAttr = findIntAttr "force_align" (ST.structMetadata struct)
