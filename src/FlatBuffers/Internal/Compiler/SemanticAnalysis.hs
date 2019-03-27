@@ -7,7 +7,6 @@
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE DerivingVia         #-}
 
-
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
 import           Control.Applicative                      ((<|>))
@@ -17,7 +16,7 @@ import           Control.Monad.Except                     (MonadError,
 import           Control.Monad.Reader                     (runReaderT)
 import           Control.Monad.Reader.Class               (MonadReader (..))
 import           Control.Monad.State                      (State, evalState,
-                                                           execStateT, get,
+                                                           evalStateT, get,
                                                            modify, put)
 import           Control.Monad.State.Class                (MonadState)
 import           Data.Coerce                              (coerce)
@@ -38,11 +37,11 @@ import qualified Data.Scientific                          as Scientific
 import           Data.String                              (IsString (..))
 import           Data.Text                                (Text)
 import qualified Data.Text                                as T
-import qualified Data.Tree                                as Tree
+import           Data.Traversable                         (for)
 import           Data.Word
 import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
-                                                           Schema, qualify, HasIdent(..), TypeRef(..))
+                                                           Schema, qualify, HasIdent(..), TypeRef(..), FileTree(..))
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
 import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo, roundUpToNearestMultipleOf)
@@ -53,10 +52,10 @@ import           Text.Read                                (readMaybe)
 type ValidationCtx m = (MonadError Text m, MonadReader Ident m)
 
 data SymbolTable enum struct table union = SymbolTable
-  { symbolEnums   :: [(Namespace, enum)]
-  , symbolStructs :: [(Namespace, struct)]
-  , symbolTables  :: [(Namespace, table)]
-  , symbolUnions  :: [(Namespace, union)]
+  { allEnums   :: [(Namespace, enum)]
+  , allStructs :: [(Namespace, struct)]
+  , allTables  :: [(Namespace, table)]
+  , allUnions  :: [(Namespace, union)]
   }
   deriving (Eq, Show)
 
@@ -95,29 +94,30 @@ data Match enum struct table union
 findDecl ::
      (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
   => Namespace
-  -> SymbolTable e s t u
+  -> FileTree (SymbolTable e s t u)
   -> TypeRef
   -> Match e s t u
-findDecl currentNamespace symbolTable (TypeRef refNamespace refIdent) =
+findDecl currentNamespace symbolTables (TypeRef refNamespace refIdent) =
   let parentNamespaces' = parentNamespaces currentNamespace
       results = do
         parentNamespace <- parentNamespaces'
         let candidateNamespace = parentNamespace <> refNamespace
-        pure $ foldl1 (<|>) 
-          [ MatchE <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolEnums symbolTable)
-          , MatchS <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolStructs symbolTable)
-          , MatchT <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolTables symbolTable)
-          , MatchU <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (symbolUnions symbolTable)
-          ]
+        let searchSymbolTable symbolTable =
+              foldl1 (<|>) 
+                [ MatchE <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allEnums symbolTable)
+                , MatchS <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allStructs symbolTable)
+                , MatchT <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allTables symbolTable)
+                , MatchU <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allUnions symbolTable)
+                ]
+        pure $ foldl1 (<|>) $ fmap searchSymbolTable symbolTables
   in 
     case foldl1 (<|>) results of
       Just match -> match
       Nothing    -> NoMatch parentNamespaces'
 
-
 -- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
-createSymbolTable :: Tree.Tree Schema -> Stage1
-createSymbolTable = foldMap (pairDeclsWithNamespaces . ST.decls)
+createSymbolTables :: FileTree Schema -> FileTree Stage1
+createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
   where
     pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
     pairDeclsWithNamespaces = snd . foldl go ("", mempty)
@@ -132,9 +132,10 @@ createSymbolTable = foldMap (pairDeclsWithNamespaces . ST.decls)
         ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
         _               -> (currentNamespace, decls)
 
-validateDecls :: MonadError Text m => Stage1 -> m Stage4
-validateDecls symbolTable = runReaderT (validateEnums symbolTable >>= validateStructs >>= validateTables) ""
-
+validateDecls :: MonadError Text m => FileTree Stage1 -> m (FileTree ValidDecls)
+validateDecls symbolTable =
+  flip runReaderT "" $ 
+    validateEnums symbolTable >>= validateStructs >>= validateTables >>= validateUnions
 
 data EnumDecl = EnumDecl
   { enumIdent     :: Ident
@@ -158,15 +159,15 @@ data EnumType
   | EWord64
   deriving (Show, Eq)
 
-validateEnums :: forall m. ValidationCtx m => Stage1 -> m Stage2
-validateEnums symbolTable = do
-  let enums = symbolEnums symbolTable
-  validEnums <- traverse validate enums
-  pure symbolTable { symbolEnums = validEnums }
-  where
-    validate (namespace, enum) = do
-      validEnum <- validateEnum (namespace, enum)
-      pure (namespace, validEnum)
+validateEnums :: forall m. ValidationCtx m => FileTree Stage1 -> m (FileTree Stage2)
+validateEnums symbolTables =
+  for symbolTables $ \symbolTable -> do
+    let enums = allEnums symbolTable
+    let validate (namespace, enum) = do
+          validEnum <- validateEnum (namespace, enum)
+          pure (namespace, validEnum)
+    validEnums <- traverse validate enums
+    pure symbolTable { allEnums = validEnums }
 
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
@@ -359,18 +360,18 @@ data VectorElementType
   deriving (Eq, Show)
 
 
-validateTables :: ValidationCtx m => Stage3 -> m Stage4
-validateTables symbolTable = do
-  let tables = symbolTables symbolTable
-  validTables <- traverse validate tables
-  pure symbolTable { symbolTables = validTables }
-  where
-    validate (namespace, table) = do
-      validTable <- validateTable symbolTable (namespace, table)
-      pure (namespace, validTable)
+validateTables :: ValidationCtx m => FileTree Stage3 -> m (FileTree Stage4)
+validateTables symbolTables =
+  for symbolTables $ \symbolTable -> do
+    let tables = allTables symbolTable
+    let validate (namespace, table) = do
+          validTable <- validateTable symbolTables (namespace, table)
+          pure (namespace, validTable)
+    validTables <- traverse validate tables
+    pure symbolTable { allTables = validTables }
 
-validateTable :: forall m. ValidationCtx m => Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
-validateTable symbolTable (currentNamespace, table) =
+validateTable :: forall m. ValidationCtx m => FileTree Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
+validateTable symbolTables (currentNamespace, table) =
   local (\_ -> qualify currentNamespace (getIdent table)) $ do
 
     checkDuplicateFields
@@ -426,7 +427,7 @@ validateTable symbolTable (currentNamespace, table) =
         ST.TBool -> checkNoRequired md >> validateDefaultValAsBool dflt <&> TBool
         ST.TString -> checkNoDefault dflt $> TString (isRequired md)
         ST.TRef typeRef ->
-          case findDecl currentNamespace symbolTable typeRef of
+          case findDecl currentNamespace symbolTables typeRef of
             MatchE (ns, enum) -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
@@ -452,7 +453,7 @@ validateTable symbolTable (currentNamespace, table) =
               ST.TString -> pure VString
               ST.TVector _ -> throwErrorMsg "nested vector types not supported"
               ST.TRef typeRef ->
-                case findDecl currentNamespace symbolTable typeRef of
+                case findDecl currentNamespace symbolTables typeRef of
                   MatchE (ns, enum) ->
                     pure $ VEnum (TypeRef ns (getIdent enum))
                                  (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
@@ -542,8 +543,18 @@ data UnionVal = UnionVal
   } deriving (Show, Eq)
 
 
-validateUnion :: forall m. ValidationCtx m => Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
-validateUnion symbolTable (currentNamespace, union) =
+validateUnions :: ValidationCtx m => FileTree Stage4 -> m (FileTree ValidDecls)
+validateUnions symbolTables =
+  for symbolTables $ \symbolTable -> do
+    let unions = allUnions symbolTable
+    let validate (namespace, union) = do
+          validUnion <- validateUnion symbolTables (namespace, union)
+          pure (namespace, validUnion)
+    validUnions <- traverse validate unions
+    pure symbolTable { allUnions = validUnions }
+
+validateUnion :: forall m. ValidationCtx m => FileTree Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
+validateUnion symbolTables (currentNamespace, union) =
   local (\_ -> qualify currentNamespace (getIdent union)) $ do
     validUnionVals <- traverse validateUnionVal (ST.unionVals union)
     checkDuplicateVals validUnionVals
@@ -566,7 +577,7 @@ validateUnion symbolTable (currentNamespace, union) =
 
     validateUnionValType :: TypeRef -> m TypeRef
     validateUnionValType typeRef =
-      case findDecl currentNamespace symbolTable typeRef of
+      case findDecl currentNamespace symbolTables typeRef of
         NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
         MatchT (ns, table)        -> pure $ TypeRef ns (getIdent table)
         _                         -> throwErrorMsg "union members may only be tables"
@@ -610,17 +621,21 @@ data StructFieldType
   | SStruct (Namespace, StructDecl)
   deriving (Show, Eq)
 
-validateStructs :: ValidationCtx m => Stage2 -> m Stage3
-validateStructs symbolTable = do
-  let structs = symbolStructs symbolTable
+validateStructs :: ValidationCtx m => FileTree Stage2 -> m (FileTree Stage3)
+validateStructs symbolTables =
+  flip evalStateT [] $ traverse validateFile symbolTables
+  where
+  validateFile :: (MonadState [(Namespace, StructDecl)] m, ValidationCtx m) => Stage2 -> m Stage3
+  validateFile symbolTable = do
+    let structs = allStructs symbolTable
 
-  traverse_ (checkStructCycles symbolTable) structs
-  validStructs <- flip execStateT [] $ traverse (validateStruct symbolTable) structs
+    traverse_ (checkStructCycles symbolTables) structs
+    validStructs <- traverse (validateStruct symbolTables) structs
 
-  pure symbolTable { symbolStructs = validStructs }
+    pure symbolTable { allStructs = validStructs }
 
-checkStructCycles :: forall m. ValidationCtx m => Stage2 -> (Namespace, ST.StructDecl) -> m ()
-checkStructCycles symbolTable = go []
+checkStructCycles :: forall m. ValidationCtx m => FileTree Stage2 -> (Namespace, ST.StructDecl) -> m ()
+checkStructCycles symbolTables = go []
   where
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) =
@@ -636,7 +651,7 @@ checkStructCycles symbolTable = go []
                 forM_ (ST.structFields struct) $ \field ->
                   case ST.structFieldType field of
                     ST.TRef typeRef ->
-                      case findDecl currentNamespace symbolTable typeRef of
+                      case findDecl currentNamespace symbolTables typeRef of
                         MatchS struct ->
                           go (qualifiedName : visited) struct
                         _ ->
@@ -645,10 +660,10 @@ checkStructCycles symbolTable = go []
 
 validateStruct ::
      forall m. (MonadState [(Namespace, StructDecl)] m, ValidationCtx m)
-  => Stage2
+  => FileTree Stage2
   -> (Namespace, ST.StructDecl)
   -> m (Namespace, StructDecl)
-validateStruct symbolTable (currentNamespace, struct) =
+validateStruct symbolTables (currentNamespace, struct) =
   local (\_ -> qualify currentNamespace (getIdent struct)) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
@@ -725,12 +740,12 @@ validateStruct symbolTable (currentNamespace, struct) =
         ST.TString -> throwErrorMsg invalidStructFieldType
         ST.TVector _ -> throwErrorMsg invalidStructFieldType
         ST.TRef typeRef ->
-          case findDecl currentNamespace symbolTable typeRef of
+          case findDecl currentNamespace symbolTables typeRef of
             MatchE (enumNamespace, enum) ->
               pure (SEnum enumNamespace (getIdent enum) (enumType enum))
             MatchS (nestedNamespace, nestedStruct) ->
               -- if this is a reference to a struct, we need to validate it first
-              SStruct <$> validateStruct symbolTable (nestedNamespace, nestedStruct)
+              SStruct <$> validateStruct symbolTables (nestedNamespace, nestedStruct)
             NoMatch checkedNamespaces ->
               typeRefNotFound checkedNamespaces typeRef
             _ -> throwErrorMsg invalidStructFieldType

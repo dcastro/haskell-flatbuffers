@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE DeriveTraversable          #-}
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
@@ -15,6 +16,9 @@ import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           FlatBuffers.Internal.Util (Display (..))
 import           GHC.Exts                  (IsList(..))
+
+data FileTree a = FileTree FilePath a [FileTree a]
+  deriving (Show, Eq, Foldable, Functor, Traversable)
 
 data Schema = Schema
   { includes :: [Include]

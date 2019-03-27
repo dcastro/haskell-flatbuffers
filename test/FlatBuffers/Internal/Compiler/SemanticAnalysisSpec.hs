@@ -8,11 +8,10 @@ import           Data.Foldable                                  (fold)
 import           Data.Int
 import           Data.Maybe                                     (mapMaybe)
 import           Data.Text                                      (Text)
-import qualified Data.Tree                                      as Tree
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
-import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace, TypeRef(..))
+import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace, TypeRef(..), FileTree(..))
 import           Test.Hspec
 import           Text.Megaparsec
 import           Text.RawString.QQ                              (r)
@@ -227,12 +226,12 @@ spec =
             y: Backwards;
           }
         |] `shouldValidate` foldDecls
-          [ struct ("A.B", StructDecl "S" 4
+          [ struct backwards
+          , struct ("A.B", StructDecl "S" 4
               [ StructField "x1" 0 (SStruct backwards)
               , StructField "x2" 0 (SStruct forwards)
               ])
           , struct forwards
-          , struct backwards
           ]
 
       it "with reference to a table" $
@@ -297,8 +296,8 @@ spec =
           struct S2 { x: int; }
         |] `shouldValidate` foldDecls
           [ struct ("", StructDecl "S" 4 [StructField "x" 2 (SStruct s1), StructField "y" 0 (SStruct s2), StructField "z" 3 SBool])
-          , struct s2
           , struct s1
+          , struct s2
           ]
 
       it "with `force_align` attribute less than the struct's natural alignment" $
@@ -643,7 +642,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
             , table ("A", TableDecl "T" [])
-            , union ("A", ST.UnionDecl "U" (ST.Metadata []) [ST.UnionVal Nothing (TypeRef "A" "T")])
+            , union ("A", UnionDecl "U" [UnionVal "A.T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table"
                 [ TableField "x" (TStruct (TypeRef "A" "S") Opt) False
                 , TableField "y" (TTable (TypeRef "A" "T") Opt) False
@@ -666,7 +665,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
             , table ("A", TableDecl "T" [])
-            , union ("A", ST.UnionDecl "U" (ST.Metadata []) [ST.UnionVal Nothing (TypeRef "A" "T")])
+            , union ("A", UnionDecl "U" [UnionVal "A.T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table"
                 [ TableField "x" (TStruct (TypeRef "A" "S") Req) False
                 , TableField "y" (TTable (TypeRef "A" "T") Req) False
@@ -689,7 +688,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
             , table ("A", TableDecl "T" [])
-            , union ("A", ST.UnionDecl "U" (ST.Metadata []) [ST.UnionVal Nothing (TypeRef "A" "T")])
+            , union ("A", UnionDecl "U" [UnionVal "A.T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table"
                 [ TableField "x" (TStruct (TypeRef "A" "S") Opt) True
                 , TableField "y" (TTable (TypeRef "A" "T") Opt) True
@@ -733,7 +732,7 @@ spec =
             , enum   ("A.B", EnumDecl "E" EInt16 [EnumVal "EA" 0])
             , struct ("A.B", StructDecl "S" 8 [StructField "x" 7 SWord8, StructField "y" 0 SInt64])
             , table  ("A.B", TableDecl "T" [])
-            , union  ("A.B", ST.UnionDecl "U" [] [ST.UnionVal Nothing (TypeRef "" "T")])
+            , union  ("A.B", UnionDecl "U" [UnionVal "T" (TypeRef "A.B" "T")])
             ]
 
         it "with `required` attribute" $
@@ -802,38 +801,40 @@ spec =
             "[T]: field ids must be consecutive from 0"
 
 
-foldDecls :: [Stage4] -> Stage4
+
+
+foldDecls :: [ValidDecls] -> ValidDecls
 foldDecls = fold
 
-enum :: (Namespace, EnumDecl) -> Stage4
+enum :: (Namespace, EnumDecl) -> ValidDecls
 enum e = SymbolTable [e] [] [] []
 
-struct :: (Namespace, StructDecl) -> Stage4
+struct :: (Namespace, StructDecl) -> ValidDecls
 struct s = SymbolTable [] [s] [] []
 
-table :: (Namespace, TableDecl) -> Stage4
+table :: (Namespace, TableDecl) -> ValidDecls
 table t = SymbolTable [] [] [t] []
 
-union :: (Namespace, ST.UnionDecl) -> Stage4
+union :: (Namespace, UnionDecl) -> ValidDecls
 union u = SymbolTable [] [] [] [u]
 
-shouldValidate :: String -> Stage4 -> Expectation
+shouldValidate :: String -> ValidDecls -> Expectation
 shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
-      let schemas = Tree.Node schema []
-          symbolTable = createSymbolTable schemas
-      in  validateDecls symbolTable `shouldBe` Right expectation
+      let schemas = FileTree "" schema []
+          symbolTables = createSymbolTables schemas
+      in  validateDecls symbolTables `shouldBe` Right (FileTree "" expectation [])
 
 shouldFail :: String -> Text -> Expectation
 shouldFail input expectedErrorMsg =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
-      let schemas = Tree.Node schema []
-          symbolTable = createSymbolTable schemas
-      in  validateDecls symbolTable `shouldBe` Left expectedErrorMsg
+      let schemas = FileTree "" schema []
+          symbolTables = createSymbolTables schemas
+      in  validateDecls symbolTables `shouldBe` Left expectedErrorMsg
 
 showBundle :: ( ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
