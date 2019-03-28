@@ -325,7 +325,7 @@ spec =
           "[S.x]: struct fields are already required, the 'required' attribute is redundant"
 
       it "with id field" $ 
-        [r| struct S { x: byte (id: 1); } |] `shouldFail`
+        [r| struct S { x: byte (id: 0); } |] `shouldFail`
           "[S.x]: struct fields cannot be reordered using the 'id' attribute"
 
       it "with cyclic dependency" $
@@ -768,6 +768,60 @@ spec =
               )
             ]
 
+        it "id must be skipped when field is a union" $ do
+          [r|
+            union U { T }
+            table T {
+              x: U (id: 2);
+              y: byte (id: 3);
+              z: byte (id: 0);
+            }
+          |] `shouldValidate` foldDecls
+            [ table ("", TableDecl "T"
+                [ TableField "z" (TInt8 0) False
+                , TableField "x" (TUnion (TypeRef "" "U") Opt) False
+                , TableField "y" (TInt8 0) False
+                ]
+              )
+            , union ("", UnionDecl "U" [UnionVal "T" (TypeRef "" "T")])
+            ]
+          [r|
+            union U { T }
+            table T {
+              x: U (id: 1);
+              y: byte (id: 2);
+              z: byte (id: 0);
+            }
+          |] `shouldFail`
+            "[T]: field ids must be consecutive from 0; id 2 is missing"
+
+        it "id must be skipped when field is a vector of unions" $ do
+          [r|
+            union U { T }
+            table T {
+              x: [U] (id: 2);
+              y: byte (id: 3);
+              z: byte (id: 0);
+            }
+          |] `shouldValidate` foldDecls
+            [ table ("", TableDecl "T"
+                [ TableField "z" (TInt8 0) False
+                , TableField "x" (TVector Opt (VUnion (TypeRef "" "U"))) False
+                , TableField "y" (TInt8 0) False
+                ]
+              )
+            , union ("", UnionDecl "U" [UnionVal "T" (TypeRef "" "T")])
+            ]
+          [r|
+            union U { T }
+            table T {
+              x: [U] (id: 1);
+              y: byte (id: 2);
+              z: byte (id: 0);
+            }
+          |] `shouldFail`
+            "[T]: field ids must be consecutive from 0; id 2 is missing"
+
         it "id can be a string, if it's coercible to an integer" $
           [r|
             table T {
@@ -794,11 +848,11 @@ spec =
 
         it "ids must be consecutive" $
           [r| table T { x: byte (id: 0); y: int (id: 2); } |] `shouldFail`
-            "[T]: field ids must be consecutive from 0"
+            "[T]: field ids must be consecutive from 0; id 1 is missing"
 
         it "ids must start from 0" $
          [r| table T { x: byte (id: 1); y: int (id: 2); } |] `shouldFail`
-            "[T]: field ids must be consecutive from 0"
+            "[T]: field ids must be consecutive from 0; id 0 is missing"
 
 
 

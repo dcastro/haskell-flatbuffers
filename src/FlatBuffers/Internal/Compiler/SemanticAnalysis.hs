@@ -10,7 +10,7 @@
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
 import           Control.Applicative                      ((<|>))
-import           Control.Monad                            (forM_, when)
+import           Control.Monad                            (forM_, when, void)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
 import           Control.Monad.Reader                     (runReaderT)
@@ -20,8 +20,8 @@ import           Control.Monad.State                      (State, evalState,
                                                            modify, put)
 import           Control.Monad.State.Class                (MonadState)
 import           Data.Coerce                              (coerce)
-import           Data.Foldable                            (find, maximum,
-                                                           traverse_)
+import           Data.Foldable                            (find,
+                                                           traverse_, foldlM)
 import           Data.Functor                             (($>), (<&>))
 import           Data.Int
 import           Data.Ix                                  (inRange)
@@ -374,32 +374,47 @@ validateTable :: forall m. ValidationCtx m => FileTree Stage3 -> (Namespace, ST.
 validateTable symbolTables (currentNamespace, table) =
   local (\_ -> qualify currentNamespace (getIdent table)) $ do
 
+    let fields = ST.tableFields table
+    let fieldsMetadata = ST.tableFieldMetadata <$> fields
+    
     checkDuplicateFields
-    sortedFields <- sortFields (ST.tableFields table)
-    validFields <- traverse validateTableField sortedFields
+    validFields <- traverse validateTableField fields
+    sortedFields <- sortFields fieldsMetadata validFields
 
     pure TableDecl
       { tableIdent = getIdent table
-      , tableFields = validFields
+      , tableFields = sortedFields
       }
 
   where
     checkDuplicateFields :: m ()
-    checkDuplicateFields =
-      checkDuplicateIdentifiers
-        (ST.tableFields table)
+    checkDuplicateFields = checkDuplicateIdentifiers (ST.tableFields table)
 
-    sortFields :: [ST.TableField] -> m [ST.TableField]
-    sortFields tfs = do
-      attrs <- catMaybes <$> traverse (findIntAttr "id" . ST.tableFieldMetadata) tfs
-      if null attrs
-        then pure tfs
+    sortFields :: [ST.Metadata] -> [TableField] -> m [TableField]
+    sortFields metadata fields = do
+      ids <- catMaybes <$> traverse (findIntAttr "id") metadata
+      if null ids
+        then pure fields
         else do
-          when (length attrs /= length tfs) $
+          when (length ids /= length fields) $
             throwErrorMsg "either all fields or no fields must have an 'id' attribute"
-          when (List.sort attrs /= [0.. List.genericLength tfs - 1]) $
-            throwErrorMsg "field ids must be consecutive from 0"
-          pure . fmap fst . List.sortOn snd $ zip tfs attrs
+
+          let fieldsWithIds = List.sortOn snd $ zip fields ids
+          void $ foldlM checkFieldId (-1) fieldsWithIds
+          pure (fst <$> fieldsWithIds)
+            
+    checkFieldId :: Integer -> (TableField, Integer) -> m Integer
+    checkFieldId lastId (field, id) =
+      let expectedId = case tableFieldType field of
+                        TUnion _ _            -> lastId + 2
+                        TVector _ (VUnion _)  -> lastId + 2
+                        _                     -> lastId + 1
+      in if id /= expectedId
+          then throwErrorMsg $
+                "field ids must be consecutive from 0; id "
+                <> display expectedId
+                <> " is missing"
+          else pure id
 
     validateTableField :: ST.TableField -> m TableField
     validateTableField tf =
