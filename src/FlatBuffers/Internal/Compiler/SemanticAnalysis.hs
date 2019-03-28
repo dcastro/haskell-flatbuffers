@@ -402,20 +402,23 @@ validateTable symbolTables (currentNamespace, table) =
           let fieldsWithIds = List.sortOn snd $ zip fields ids
           void $ foldlM checkFieldId (-1) fieldsWithIds
           pure (fst <$> fieldsWithIds)
-            
+          
     checkFieldId :: Integer -> (TableField, Integer) -> m Integer
     checkFieldId lastId (field, id) =
-      let expectedId = case tableFieldType field of
-                        TUnion _ _            -> lastId + 2
-                        TVector _ (VUnion _)  -> lastId + 2
-                        _                     -> lastId + 1
-      in if id /= expectedId
-          then throwErrorMsg $
-                "field ids must be consecutive from 0; id "
-                <> display expectedId
-                <> " is missing"
-          else pure id
-
+      local (\context -> context <> "." <> getIdent field) $ do
+        case tableFieldType field of
+          TUnion _ _ ->
+            when (id /= lastId + 2) $
+              throwErrorMsg $ "the id of an union field must be the last field's id + 2"
+          TVector _ (VUnion _) ->
+            when (id /= lastId + 2) $
+              throwErrorMsg $ "the id of a vector of unions field must be the last field's id + 2"
+          _ ->
+            when (id /= lastId + 1) $
+              throwErrorMsg $ "field ids must be consecutive from 0; id " <> display (lastId + 1) <> " is missing"
+        pure id
+            
+          
     validateTableField :: ST.TableField -> m TableField
     validateTableField tf =
       local (\context -> context <> "." <> getIdent tf) $ do

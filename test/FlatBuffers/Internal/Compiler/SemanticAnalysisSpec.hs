@@ -793,7 +793,7 @@ spec =
               z: byte (id: 0);
             }
           |] `shouldFail`
-            "[T]: field ids must be consecutive from 0; id 2 is missing"
+            "[T.x]: the id of an union field must be the last field's id + 2"
 
         it "id must be skipped when field is a vector of unions" $ do
           [r|
@@ -820,7 +820,7 @@ spec =
               z: byte (id: 0);
             }
           |] `shouldFail`
-            "[T]: field ids must be consecutive from 0; id 2 is missing"
+            "[T.x]: the id of a vector of unions field must be the last field's id + 2"
 
         it "id can be a string, if it's coercible to an integer" $
           [r|
@@ -848,15 +848,15 @@ spec =
 
         it "ids must be consecutive" $
           [r| table T { x: byte (id: 0); y: int (id: 2); } |] `shouldFail`
-            "[T]: field ids must be consecutive from 0; id 1 is missing"
+            "[T.y]: field ids must be consecutive from 0; id 1 is missing"
 
         it "ids must start from 0" $
-         [r| table T { x: byte (id: 1); y: int (id: 2); } |] `shouldFail`
-            "[T]: field ids must be consecutive from 0; id 0 is missing"
+         [r| table T { x: byte (id: 2); y: int (id: 1); } |] `shouldFail`
+            "[T.y]: field ids must be consecutive from 0; id 0 is missing"
 
         it "ids must not be duplicated" $
           [r| table T { x: byte (id: 0); y: int (id: 0); } |] `shouldFail`
-            "[T]: field ids must be consecutive from 0; id 1 is missing"
+            "[T.y]: field ids must be consecutive from 0; id 1 is missing"
 
 
 
