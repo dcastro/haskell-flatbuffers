@@ -854,6 +854,9 @@ spec =
          [r| table T { x: byte (id: 1); y: int (id: 2); } |] `shouldFail`
             "[T]: field ids must be consecutive from 0; id 0 is missing"
 
+        it "ids must not be duplicated" $
+          [r| table T { x: byte (id: 0); y: int (id: 0); } |] `shouldFail`
+            "[T]: field ids must be consecutive from 0; id 1 is missing"
 
 
 
