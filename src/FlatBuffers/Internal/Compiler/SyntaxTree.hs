@@ -172,6 +172,7 @@ qualify ns (Ident i) = Ident (display ns <> "." <> i)
 class HasIdent a where
   getIdent :: a -> Ident
 
+instance HasIdent Ident       where getIdent = id
 instance HasIdent EnumDecl    where getIdent = enumIdent
 instance HasIdent EnumVal     where getIdent = enumValIdent
 instance HasIdent StructDecl  where getIdent = structIdent

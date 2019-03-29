@@ -586,10 +586,11 @@ validateUnion symbolTables (currentNamespace, union) =
       let tref = ST.unionValTypeRef uv
       let partiallyQualifiedTypeRef = qualify (typeRefNamespace tref) (typeRefIdent tref)
       let ident = fromMaybe partiallyQualifiedTypeRef (ST.unionValIdent uv)
-      local (\context -> context <> "." <> ident) $ do
+      let identFormatted = coerce $ T.replace "." "_" $ coerce ident
+      local (\context -> context <> "." <> identFormatted) $ do
         tableRef <- validateUnionValType tref
         pure $ UnionVal
-          { unionValIdent = ident
+          { unionValIdent = identFormatted
           , unionValTableRef = tableRef
           }
 
@@ -601,7 +602,7 @@ validateUnion symbolTables (currentNamespace, union) =
         _                         -> throwErrorMsg "union members may only be tables"
 
     checkDuplicateVals :: NonEmpty UnionVal -> m ()
-    checkDuplicateVals = checkDuplicateIdentifiers
+    checkDuplicateVals vals = checkDuplicateIdentifiers (NE.cons "NONE" (fmap getIdent vals))
 
 data StructDecl = StructDecl
   { structIdent      :: Ident

@@ -642,7 +642,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
             , table ("A", TableDecl "T" [])
-            , union ("A", UnionDecl "U" [UnionVal "A.T" (TypeRef "A" "T")])
+            , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table"
                 [ TableField "x" (TStruct (TypeRef "A" "S") Opt) False
                 , TableField "y" (TTable (TypeRef "A" "T") Opt) False
@@ -665,7 +665,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
             , table ("A", TableDecl "T" [])
-            , union ("A", UnionDecl "U" [UnionVal "A.T" (TypeRef "A" "T")])
+            , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table"
                 [ TableField "x" (TStruct (TypeRef "A" "S") Req) False
                 , TableField "y" (TTable (TypeRef "A" "T") Req) False
@@ -688,7 +688,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
             , table ("A", TableDecl "T" [])
-            , union ("A", UnionDecl "U" [UnionVal "A.T" (TypeRef "A" "T")])
+            , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table"
                 [ TableField "x" (TStruct (TypeRef "A" "S") Opt) True
                 , TableField "y" (TTable (TypeRef "A" "T") Opt) True
@@ -854,10 +854,129 @@ spec =
          [r| table T { x: byte (id: 2); y: int (id: 1); } |] `shouldFail`
             "[T.y]: field ids must be consecutive from 0; id 0 is missing"
 
-        it "ids must not be duplicated" $
+        it "can't have duplicate ids" $
           [r| table T { x: byte (id: 0); y: int (id: 0); } |] `shouldFail`
             "[T.y]: field ids must be consecutive from 0; id 1 is missing"
 
+    describe "unions" $ do
+      it "simple" $
+        [r|
+          table T1{}
+          table T2{}
+          union U { T1, T2 }
+        |] `shouldValidate` foldDecls
+          [ table ("", TableDecl "T1" [])
+          , table ("", TableDecl "T2" [])
+          , union ("", UnionDecl "U"
+              [ UnionVal "T1" (TypeRef "" "T1")
+              , UnionVal "T2" (TypeRef "" "T2")
+              ])
+          ]
+
+      it "with partially qualified type reference" $
+        [r|
+          namespace A.B;
+          table T1{}
+          table T2{}
+
+          namespace A;
+          union U { A.B.T1, B.T2 }
+        |] `shouldValidate` foldDecls
+          [ table ("A.B", TableDecl "T1" [])
+          , table ("A.B", TableDecl "T2" [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "A_B_T1" (TypeRef "A.B" "T1")
+              , UnionVal "B_T2"   (TypeRef "A.B" "T2")
+              ])
+          ]
+      
+      it "with alias" $
+        [r|
+          namespace A.B;
+          table T1{}
+          table T2{}
+
+          namespace A;
+          union U { Alias1 : A.B.T1, Alias2:B.T2 }
+        |] `shouldValidate` foldDecls
+          [ table ("A.B", TableDecl "T1" [])
+          , table ("A.B", TableDecl "T2" [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "Alias1" (TypeRef "A.B" "T1")
+              , UnionVal "Alias2" (TypeRef "A.B" "T2")
+              ])
+          ]
+
+      it "union member must be a valid reference" $
+        [r| union U { T } |] `shouldFail`
+          "[U.T]: type 'T' does not exist (checked in these namespaces: [''])"
+
+      it "union members must be tables" $ do
+        [r| union U { S }   struct S {x: byte;}      |] `shouldFail` "[U.S]: union members may only be tables"
+        [r| union U { U2 }  union U2 {T}   table T{} |] `shouldFail` "[U.U2]: union members may only be tables"
+        [r| union U { E }   enum E : int {X}         |] `shouldFail` "[U.E]: union members may only be tables"
+        [r| union U { string }                       |] `shouldFail` "[U.string]: type 'string' does not exist (checked in these namespaces: [''])"
+
+      it "can't have duplicate identifiers" $ do
+        [r| table T{}                union U {T, T}        |] `shouldFail` "[U]: ['T'] declared more than once"
+        [r| namespace A; table T{}   union U {A.T, A.T}    |] `shouldFail` "[A.U]: ['A_T'] declared more than once"
+        [r| namespace A; table T{}   union U {A.T, A_T: T} |] `shouldFail` "[A.U]: ['A_T'] declared more than once"
+
+      it "can't use NONE as an alias" $
+        [r| table T{} union U {NONE: T} |] `shouldFail` "[U]: ['NONE'] declared more than once"
+
+      it "can't refer to a table named NONE" $
+        [r| table NONE {} union U {NONE} |] `shouldFail` "[U]: ['NONE'] declared more than once"
+
+      it "can refer to a table named NONE, if using a qualified name" $
+        [r|
+          namespace A;
+          table NONE {}
+          union U {A.NONE}
+        |] `shouldValidate` foldDecls
+          [ table ("A", TableDecl "NONE" [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "A_NONE"   (TypeRef "A" "NONE")
+              ])
+          ]
+
+      it "can refer to a table named NONE, if using an alias" $
+        [r|
+          namespace A;
+          table NONE {}
+          union U {alias: NONE}
+        |] `shouldValidate` foldDecls
+          [ table ("A", TableDecl "NONE" [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "alias"   (TypeRef "A" "NONE")
+              ])
+          ]
+
+      it "can use the same table twice, if using a qualified name" $
+        [r|
+          namespace A;
+          table T{}
+          union U {T, A.T}
+        |] `shouldValidate` foldDecls
+          [ table ("A", TableDecl "T" [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "T"   (TypeRef "A" "T")
+              , UnionVal "A_T" (TypeRef "A" "T")
+              ])
+          ]
+
+      it "can use the same table twice, if using an alias" $
+        [r|
+          namespace A;
+          table T{}
+          union U {T, alias:T}
+        |] `shouldValidate` foldDecls
+          [ table ("A", TableDecl "T" [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "T"     (TypeRef "A" "T")
+              , UnionVal "alias" (TypeRef "A" "T")
+              ])
+          ]
 
 
 foldDecls :: [ValidDecls] -> ValidDecls
