@@ -74,8 +74,7 @@ data StructFieldType
   | SDouble
   | SBool
   | SEnum
-      Namespace -- ^ The namespace of the enum that this field refers to
-      Ident     -- ^ The name of the enum that this field refers to
+      TypeRef
       EnumType
   | SStruct (Namespace, StructDecl)
   deriving (Show, Eq)

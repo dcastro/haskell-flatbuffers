@@ -605,7 +605,7 @@ validateStruct symbolTables (currentNamespace, struct) =
         ST.TRef typeRef ->
           case findDecl currentNamespace symbolTables typeRef of
             MatchE (enumNamespace, enum) ->
-              pure (SEnum enumNamespace (getIdent enum) (enumType enum))
+              pure (SEnum (TypeRef enumNamespace (getIdent enum)) (enumType enum))
             MatchS (nestedNamespace, nestedStruct) ->
               -- if this is a reference to a struct, we need to validate it first
               SStruct <$> validateStruct symbolTables (nestedNamespace, nestedStruct)
@@ -657,7 +657,7 @@ structFieldAlignment usf =
     SFloat -> 4
     SDouble -> 8
     SBool -> 1
-    SEnum _ _ enumType -> enumAlignment enumType
+    SEnum _ enumType -> enumAlignment enumType
     SStruct (_, nestedStruct) -> structAlignment nestedStruct
 
 enumAlignment :: EnumType -> Word8
@@ -690,7 +690,7 @@ structFieldTypeSize sft =
     SFloat -> 4
     SDouble -> 8
     SBool -> 1
-    SEnum _ _ enumType -> fromIntegral @Word8 @InlineSize (enumSize enumType)
+    SEnum _ enumType -> fromIntegral @Word8 @InlineSize (enumSize enumType)
     SStruct (_, nestedStruct) -> structSize nestedStruct
 
 structFieldSize :: StructField -> InlineSize

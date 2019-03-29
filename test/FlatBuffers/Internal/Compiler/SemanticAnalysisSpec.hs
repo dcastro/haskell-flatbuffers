@@ -146,9 +146,9 @@ spec =
           , mkEnum "A.B"    "E1"
           , mkEnum "A.B.C"  "E1", mkEnum "A.B.C"  "E2", mkEnum "A.B.C"  "E3"
           , struct ("A.B", StructDecl "S" 2
-              [ StructField "x" 0 (SEnum "A.B"  "E1" EInt16)
-              , StructField "y" 0 (SEnum "A"    "E2" EInt16)
-              , StructField "z" 0 (SEnum ""     "E3" EInt16)
+              [ StructField "x" 0 (SEnum (TypeRef "A.B"  "E1") EInt16)
+              , StructField "y" 0 (SEnum (TypeRef "A"    "E2") EInt16)
+              , StructField "z" 0 (SEnum (TypeRef ""     "E3") EInt16)
               ])
           ]
 
@@ -177,9 +177,9 @@ spec =
           , mkEnum "A.B.A"    "E1"
           , mkEnum "A.B.C.A"  "E1", mkEnum "A.B.C.A"  "E2", mkEnum "A.B.C.A"  "E3"
           , struct ("A.B", StructDecl "S" 2
-              [ StructField "x" 0 (SEnum "A.B.A" "E1" EInt16)
-              , StructField "y" 0 (SEnum "A.A"   "E2" EInt16)
-              , StructField "z" 0 (SEnum "A"     "E3" EInt16)
+              [ StructField "x" 0 (SEnum (TypeRef "A.B.A" "E1") EInt16)
+              , StructField "y" 0 (SEnum (TypeRef "A.A"   "E2") EInt16)
+              , StructField "z" 0 (SEnum (TypeRef "A"     "E3") EInt16)
               ])
           ]
 
@@ -205,7 +205,7 @@ spec =
         |] `shouldValidate` foldDecls
           [ enum ("A", EnumDecl "Color" EWord16 [EnumVal "Blue" 0])
           , struct ("A", StructDecl "S" 2
-              [ StructField "x" 0 (SEnum "A" "Color" EWord16)
+              [ StructField "x" 0 (SEnum (TypeRef "A" "Color") EWord16)
               ])
           ]
 
