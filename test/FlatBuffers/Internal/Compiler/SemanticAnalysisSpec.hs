@@ -12,6 +12,7 @@ import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
 import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace, TypeRef(..), FileTree(..))
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           Test.Hspec
 import           Text.Megaparsec
 import           Text.RawString.QQ                              (r)

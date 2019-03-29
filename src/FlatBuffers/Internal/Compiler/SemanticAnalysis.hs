@@ -5,7 +5,6 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE DerivingVia         #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
@@ -34,7 +33,6 @@ import           Data.Maybe                               (catMaybes, fromMaybe,
 import           Data.Monoid                              (Sum (..))
 import           Data.Scientific                          (Scientific)
 import qualified Data.Scientific                          as Scientific
-import           Data.String                              (IsString (..))
 import           Data.Text                                (Text)
 import qualified Data.Text                                as T
 import           Data.Traversable                         (for)
@@ -43,6 +41,7 @@ import           FlatBuffers.Constants                    (InlineSize (..))
 import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
                                                            Schema, qualify, HasIdent(..), TypeRef(..), FileTree(..))
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Util                (Display (..),
                                                            isPowerOfTwo, roundUpToNearestMultipleOf)
 import           Text.Read                                (readMaybe)
@@ -71,15 +70,6 @@ type Stage2     = SymbolTable    EnumDecl ST.StructDecl ST.TableDecl ST.UnionDec
 type Stage3     = SymbolTable    EnumDecl    StructDecl ST.TableDecl ST.UnionDecl
 type Stage4     = SymbolTable    EnumDecl    StructDecl    TableDecl ST.UnionDecl
 type ValidDecls = SymbolTable    EnumDecl    StructDecl    TableDecl    UnionDecl
-
-instance HasIdent EnumDecl    where getIdent = enumIdent
-instance HasIdent EnumVal     where getIdent = enumValIdent
-instance HasIdent StructDecl  where getIdent = structIdent
-instance HasIdent StructField where getIdent = structFieldIdent
-instance HasIdent TableDecl   where getIdent = tableIdent
-instance HasIdent TableField  where getIdent = tableFieldIdent
-instance HasIdent UnionDecl   where getIdent = unionIdent
-instance HasIdent UnionVal    where getIdent = unionValIdent
 
 
 data Match enum struct table union
@@ -137,28 +127,10 @@ validateDecls symbolTable =
   flip runReaderT "" $ 
     validateEnums symbolTable >>= validateStructs >>= validateTables >>= validateUnions
 
-data EnumDecl = EnumDecl
-  { enumIdent     :: Ident
-  , enumType      :: EnumType
-  , enumVals      :: NonEmpty EnumVal
-  } deriving (Show, Eq)
 
-data EnumVal = EnumVal
-  { enumValIdent :: Ident
-  , enumValInt   :: Integer
-  } deriving (Show, Eq)
-
-data EnumType
-  = EInt8
-  | EInt16
-  | EInt32
-  | EInt64
-  | EWord8
-  | EWord16
-  | EWord32
-  | EWord64
-  deriving (Show, Eq)
-
+----------------------------------
+------------- Enums --------------
+----------------------------------
 validateEnums :: forall m. ValidationCtx m => FileTree Stage1 -> m (FileTree Stage2)
 validateEnums symbolTables =
   for symbolTables $ \symbolTable -> do
@@ -302,64 +274,10 @@ findStringAttr name (ST.Metadata attrs) =
         <> name
         <> ": \"abc\"'"
 
-        
-newtype DefaultVal a = DefaultVal a
-  deriving (Eq, Show, Num, IsString, Fractional) via a
-        
-data Required = Req | Opt
-  deriving (Eq, Show)
 
-data TableDecl = TableDecl
-  { tableIdent     :: Ident
-  , tableFields    :: [TableField]
-  } deriving (Eq, Show)
-
-data TableField = TableField
-  { tableFieldIdent      :: Ident
-  , tableFieldType       :: TableFieldType
-  , tableFieldDeprecated :: Bool
-  } deriving (Eq, Show)
-
-data TableFieldType
-  = TInt8 (DefaultVal Int8)
-  | TInt16 (DefaultVal Int16)
-  | TInt32 (DefaultVal Int32)
-  | TInt64 (DefaultVal Int64)
-  | TWord8 (DefaultVal Word8)
-  | TWord16 (DefaultVal Word16)
-  | TWord32 (DefaultVal Word32)
-  | TWord64 (DefaultVal Word64)
-  | TFloat (DefaultVal Scientific)
-  | TDouble (DefaultVal Scientific)
-  | TBool (DefaultVal Bool)
-  | TString Required
-  | TEnum   TypeRef (DefaultVal Ident)
-  | TStruct TypeRef Required
-  | TTable  TypeRef Required
-  | TUnion  TypeRef Required
-  | TVector Required VectorElementType
-  deriving (Eq, Show)
-
-data VectorElementType
-  = VInt8
-  | VInt16
-  | VInt32
-  | VInt64
-  | VWord8
-  | VWord16
-  | VWord32
-  | VWord64
-  | VFloat
-  | VDouble
-  | VBool
-  | VString
-  | VEnum TypeRef InlineSize
-  | VStruct TypeRef InlineSize
-  | VTable TypeRef
-  | VUnion TypeRef
-  deriving (Eq, Show)
-
-
+----------------------------------
+------------ Tables --------------
+----------------------------------
 validateTables :: ValidationCtx m => FileTree Stage3 -> m (FileTree Stage4)
 validateTables symbolTables =
   for symbolTables $ \symbolTable -> do
@@ -550,17 +468,10 @@ validateDefaultAsEnum dflt enum =
       
       Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (getIdent <$> enumVals enum)
 
-data UnionDecl = UnionDecl
-  { unionIdent :: Ident
-  , unionVals  :: NonEmpty UnionVal
-  } deriving (Show, Eq)
 
-data UnionVal = UnionVal
-  { unionValIdent    :: Ident
-  , unionValTableRef :: TypeRef
-  } deriving (Show, Eq)
-
-
+----------------------------------
+------------ Unions --------------
+----------------------------------
 validateUnions :: ValidationCtx m => FileTree Stage4 -> m (FileTree ValidDecls)
 validateUnions symbolTables =
   for symbolTables $ \symbolTable -> do
@@ -604,42 +515,10 @@ validateUnion symbolTables (currentNamespace, union) =
     checkDuplicateVals :: NonEmpty UnionVal -> m ()
     checkDuplicateVals vals = checkDuplicateIdentifiers (NE.cons "NONE" (fmap getIdent vals))
 
-data StructDecl = StructDecl
-  { structIdent      :: Ident
-  , structAlignment  :: Word8 -- [1, 16]
-  , structFields     :: NonEmpty StructField
-  } deriving (Show, Eq)
 
-data UnpaddedStructField = UnpaddedStructField
-  { unpaddedStructFieldIdent    :: Ident
-  , unpaddedStructFieldType     :: StructFieldType
-  } deriving (Show, Eq)
-
-data StructField = StructField
-  { structFieldIdent    :: Ident
-  , structFieldPadding  :: Word8
-  , structFieldType     :: StructFieldType
-  } deriving (Show, Eq)
-
-data StructFieldType
-  = SInt8
-  | SInt16
-  | SInt32
-  | SInt64
-  | SWord8
-  | SWord16
-  | SWord32
-  | SWord64
-  | SFloat
-  | SDouble
-  | SBool
-  | SEnum
-      Namespace -- ^ The namespace of the enum that this field refers to
-      Ident     -- ^ The name of the enum that this field refers to
-      EnumType
-  | SStruct (Namespace, StructDecl)
-  deriving (Show, Eq)
-
+----------------------------------
+------------ Structs -------------
+----------------------------------
 validateStructs :: ValidationCtx m => FileTree Stage2 -> m (FileTree Stage3)
 validateStructs symbolTables =
   flip evalStateT [] $ traverse validateFile symbolTables
