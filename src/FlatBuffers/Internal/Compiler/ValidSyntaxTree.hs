@@ -55,11 +55,6 @@ data StructDecl = StructDecl
   , structFields     :: NonEmpty StructField
   } deriving (Show, Eq)
 
-data UnpaddedStructField = UnpaddedStructField
-  { unpaddedStructFieldIdent    :: Ident
-  , unpaddedStructFieldType     :: StructFieldType
-  } deriving (Show, Eq)
-
 data StructField = StructField
   { structFieldIdent    :: Ident
   , structFieldPadding  :: Word8

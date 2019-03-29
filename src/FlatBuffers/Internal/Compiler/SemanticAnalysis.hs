@@ -71,7 +71,31 @@ type Stage3     = SymbolTable    EnumDecl    StructDecl ST.TableDecl ST.UnionDec
 type Stage4     = SymbolTable    EnumDecl    StructDecl    TableDecl ST.UnionDecl
 type ValidDecls = SymbolTable    EnumDecl    StructDecl    TableDecl    UnionDecl
 
+-- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
+createSymbolTables :: FileTree Schema -> FileTree Stage1
+createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
+  where
+    pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
+    pairDeclsWithNamespaces = snd . foldl go ("", mempty)
 
+    go :: (Namespace, Stage1) -> ST.Decl -> (Namespace, Stage1)
+    go (currentNamespace, decls) decl =
+      case decl of
+        ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
+        ST.DeclE enum   -> (currentNamespace, decls <> SymbolTable [(currentNamespace, enum)] [] [] [])
+        ST.DeclS struct -> (currentNamespace, decls <> SymbolTable [] [(currentNamespace, struct)] [] [])
+        ST.DeclT table  -> (currentNamespace, decls <> SymbolTable [] [] [(currentNamespace, table)] [])
+        ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
+        _               -> (currentNamespace, decls)
+
+validateDecls :: MonadError Text m => FileTree Stage1 -> m (FileTree ValidDecls)
+validateDecls symbolTable =
+  flip runReaderT "" $ 
+    validateEnums symbolTable >>= validateStructs >>= validateTables >>= validateUnions
+
+----------------------------------
+--------- Symbol search ----------
+----------------------------------
 data Match enum struct table union
   = MatchE (Namespace, enum)
   | MatchS (Namespace, struct)
@@ -105,28 +129,14 @@ findDecl currentNamespace symbolTables (TypeRef refNamespace refIdent) =
       Just match -> match
       Nothing    -> NoMatch parentNamespaces'
 
--- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
-createSymbolTables :: FileTree Schema -> FileTree Stage1
-createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
-  where
-    pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
-    pairDeclsWithNamespaces = snd . foldl go ("", mempty)
-
-    go :: (Namespace, Stage1) -> ST.Decl -> (Namespace, Stage1)
-    go (currentNamespace, decls) decl =
-      case decl of
-        ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
-        ST.DeclE enum   -> (currentNamespace, decls <> SymbolTable [(currentNamespace, enum)] [] [] [])
-        ST.DeclS struct -> (currentNamespace, decls <> SymbolTable [] [(currentNamespace, struct)] [] [])
-        ST.DeclT table  -> (currentNamespace, decls <> SymbolTable [] [] [(currentNamespace, table)] [])
-        ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
-        _               -> (currentNamespace, decls)
-
-validateDecls :: MonadError Text m => FileTree Stage1 -> m (FileTree ValidDecls)
-validateDecls symbolTable =
-  flip runReaderT "" $ 
-    validateEnums symbolTable >>= validateStructs >>= validateTables >>= validateUnions
-
+-- | Returns a list of all the namespaces "between" the current namespace
+-- and the root namespace, in that order.
+-- See: https://github.com/google/flatbuffers/issues/5234#issuecomment-471680403
+-- 
+-- > parentNamespaces "A.B.C" == ["A.B.C", "A.B", "A", ""]
+parentNamespaces :: ST.Namespace -> NonEmpty ST.Namespace
+parentNamespaces (ST.Namespace ns) =
+  coerce $ NE.reverse $ NE.inits ns
 
 ----------------------------------
 ------------- Enums --------------
@@ -224,56 +234,6 @@ validateEnum (currentNamespace, enum) =
       when (hasAttribute "bit_flags" (ST.enumMetadata enum)) $
         throwErrorMsg "`bit_flags` are not supported yet"
 
-checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f, HasIdent a) => f a -> m ()
-checkDuplicateIdentifiers xs =
-  case findDups (getIdent <$> xs) of
-    [] -> pure ()
-    dups ->
-      throwErrorMsg $
-        display dups <> " declared more than once"
-
-findDups :: (Foldable f, Functor f, Ord a) => f a -> [a]
-findDups xs = Map.keys $ Map.filter (>1) $ occurrences xs
-
-occurrences :: (Foldable f, Functor f, Ord a) => f a -> Map a (Sum Int)
-occurrences xs =
-  Map.unionsWith (<>) $ fmap (\x -> Map.singleton x (Sum 1)) xs
-
-hasAttribute :: Text -> ST.Metadata -> Bool
-hasAttribute name (ST.Metadata attrs) = Map.member name attrs
-
-findIntAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Integer)
-findIntAttr name (ST.Metadata attrs) =
-  case Map.lookup name attrs of
-    Nothing                  -> pure Nothing
-    Just Nothing             -> err
-    Just (Just (ST.AttrI i)) -> pure (Just i)
-    Just (Just (ST.AttrS t)) ->
-      case readMaybe @Integer (T.unpack t) of
-        Just i  -> pure (Just i)
-        Nothing -> err
-  where
-    err = 
-      throwErrorMsg $
-        "expected attribute '"
-        <> name
-        <> "' to have an integer value, e.g. '"
-        <> name
-        <> ": 123'"
-
-findStringAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Text)
-findStringAttr name (ST.Metadata attrs) =
-  case Map.lookup name attrs of
-    Nothing                  -> pure Nothing
-    Just (Just (ST.AttrS s)) -> pure (Just s)
-    Just _ ->
-      throwErrorMsg $
-        "expected attribute '"
-        <> name
-        <> "' to have a string value, e.g. '"
-        <> name
-        <> ": \"abc\"'"
-
 
 ----------------------------------
 ------------ Tables --------------
@@ -327,10 +287,10 @@ validateTable symbolTables (currentNamespace, table) =
         case tableFieldType field of
           TUnion _ _ ->
             when (id /= lastId + 2) $
-              throwErrorMsg $ "the id of an union field must be the last field's id + 2"
+              throwErrorMsg "the id of an union field must be the last field's id + 2"
           TVector _ (VUnion _) ->
             when (id /= lastId + 2) $
-              throwErrorMsg $ "the id of a vector of unions field must be the last field's id + 2"
+              throwErrorMsg "the id of a vector of unions field must be the last field's id + 2"
           _ ->
             when (id /= lastId + 1) $
               throwErrorMsg $ "field ids must be consecutive from 0; id " <> display (lastId + 1) <> " is missing"
@@ -556,6 +516,11 @@ checkStructCycles symbolTables = go []
                           pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
                     _ -> pure () -- Field is not a TypeRef, no validation needed
 
+data UnpaddedStructField = UnpaddedStructField
+  { unpaddedStructFieldIdent    :: Ident
+  , unpaddedStructFieldType     :: StructFieldType
+  } deriving (Show, Eq)
+
 validateStruct ::
      forall m. (MonadState [(Namespace, StructDecl)] m, ValidationCtx m)
   => FileTree Stage2
@@ -675,6 +640,9 @@ validateStruct symbolTables (currentNamespace, struct) =
       checkDuplicateIdentifiers
         (ST.structFields struct)
 
+----------------------------------
+------------ Helpers -------------
+----------------------------------
 structFieldAlignment :: UnpaddedStructField -> Word8
 structFieldAlignment usf =
   case unpaddedStructFieldType usf of
@@ -733,15 +701,55 @@ structSize :: StructDecl -> InlineSize
 structSize struct =
   sum (structFieldSize <$> structFields struct)
 
+checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f, HasIdent a) => f a -> m ()
+checkDuplicateIdentifiers xs =
+  case findDups (getIdent <$> xs) of
+    [] -> pure ()
+    dups ->
+      throwErrorMsg $
+        display dups <> " declared more than once"
+  where
+    findDups :: (Foldable f, Functor f, Ord a) => f a -> [a]
+    findDups xs = Map.keys $ Map.filter (>1) $ occurrences xs
 
--- | Returns a list of all the namespaces "between" the current namespace
--- and the root namespace, in that order.
--- See: https://github.com/google/flatbuffers/issues/5234#issuecomment-471680403
--- 
--- > parentNamespaces "A.B.C" == ["A.B.C", "A.B", "A", ""]
-parentNamespaces :: ST.Namespace -> NonEmpty ST.Namespace
-parentNamespaces (ST.Namespace ns) =
-  coerce $ NE.reverse $ NE.inits ns
+    occurrences :: (Foldable f, Functor f, Ord a) => f a -> Map a (Sum Int)
+    occurrences xs =
+      Map.unionsWith (<>) $ fmap (\x -> Map.singleton x (Sum 1)) xs
+
+hasAttribute :: Text -> ST.Metadata -> Bool
+hasAttribute name (ST.Metadata attrs) = Map.member name attrs
+
+findIntAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Integer)
+findIntAttr name (ST.Metadata attrs) =
+  case Map.lookup name attrs of
+    Nothing                  -> pure Nothing
+    Just Nothing             -> err
+    Just (Just (ST.AttrI i)) -> pure (Just i)
+    Just (Just (ST.AttrS t)) ->
+      case readMaybe @Integer (T.unpack t) of
+        Just i  -> pure (Just i)
+        Nothing -> err
+  where
+    err = 
+      throwErrorMsg $
+        "expected attribute '"
+        <> name
+        <> "' to have an integer value, e.g. '"
+        <> name
+        <> ": 123'"
+
+findStringAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Text)
+findStringAttr name (ST.Metadata attrs) =
+  case Map.lookup name attrs of
+    Nothing                  -> pure Nothing
+    Just (Just (ST.AttrS s)) -> pure (Just s)
+    Just _ ->
+      throwErrorMsg $
+        "expected attribute '"
+        <> name
+        <> "' to have a string value, e.g. '"
+        <> name
+        <> ": \"abc\"'"
 
 throwErrorMsg :: ValidationCtx m => Text -> m a
 throwErrorMsg msg = do
