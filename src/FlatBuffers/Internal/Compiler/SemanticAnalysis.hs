@@ -751,7 +751,9 @@ findStringAttr name (ST.Metadata attrs) =
 throwErrorMsg :: ValidationCtx m => Text -> m a
 throwErrorMsg msg = do
   context <- ask
-  throwError $ "[" <> display context <> "]: " <> msg
+  if context == ""
+    then throwError msg
+    else throwError $ "[" <> display context <> "]: " <> msg
 
 typeRefNotFound :: ValidationCtx m => NonEmpty Namespace -> TypeRef -> m a
 typeRefNotFound checkedNamespaces typeRef =
