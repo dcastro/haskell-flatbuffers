@@ -12,12 +12,10 @@ import           Control.Applicative                      ((<|>))
 import           Control.Monad                            (forM_, when, void)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
-import           Control.Monad.Reader                     (runReaderT)
-import           Control.Monad.Reader.Class               (MonadReader (..))
-import           Control.Monad.State                      (State, evalState,
+import           Control.Monad.Reader                     (MonadReader (..), runReaderT)
+import           Control.Monad.State                      (MonadState, State, evalState,
                                                            evalStateT, get,
                                                            modify, put)
-import           Control.Monad.State.Class                (MonadState)
 import           Data.Coerce                              (coerce)
 import           Data.Foldable                            (find,
                                                            traverse_, foldlM)

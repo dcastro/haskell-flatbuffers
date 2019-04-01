@@ -1,4 +1,3 @@
-
 ## Links
 
 * Spec: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md>
@@ -90,6 +89,11 @@
   * check if a field is present with `HasField`?
 * Define our own `Widen a b` typeclass
 
+## Differences between `flatc` and `haskell-flatbuffers`
+
+* In `flatc`, attributes must be declared before usage.
+  Also, structs can only refer to previously declared structs/enums, not to stucts/enums declared later on in the file.
+  In `haskell-flatbuffers`, the order in which they are declared doesn't matter.
 
 
   [scalars]: https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#scalars

@@ -13,7 +13,11 @@ import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           FlatBuffers.Internal.Util (Display (..))
 
-data FileTree a = FileTree FilePath a [FileTree a]
+data FileTree a = FileTree
+  { fileTreeFilePath :: FilePath
+  , fileTreeRoot     :: a
+  , fileTreeForest   :: Map FilePath a
+  }
   deriving (Show, Eq, Foldable, Functor, Traversable)
 
 data Schema = Schema

@@ -1,33 +1,62 @@
-{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module FlatBuffers.Internal.Compiler.Parser where
 
+import           Control.Monad                            ( when )
 import qualified Control.Monad.Combinators.NonEmpty       as NE
-import           Data.Coerce                              (coerce)
+import           Control.Monad.Except                     ( MonadError, MonadIO, liftIO, throwError )
+import           Control.Monad.State                      ( MonadState, execStateT, get, put )
+
+import           Data.Coerce                              ( coerce )
+import           Data.Foldable                            ( traverse_ )
 import           Data.Functor
-import           Data.List.NonEmpty                       (NonEmpty)
+import           Data.List.NonEmpty                       ( NonEmpty )
 import qualified Data.List.NonEmpty                       as NE
+import           Data.Map.Strict                          ( Map )
 import qualified Data.Map.Strict                          as Map
-import           Data.Maybe                               (catMaybes)
-import           Data.Text                                (Text)
+import           Data.Maybe                               ( catMaybes )
+import           Data.Text                                ( Text )
 import qualified Data.Text                                as T
-import           Data.Void                                (Void)
+import           Data.Void                                ( Void )
+
 import           FlatBuffers.Internal.Compiler.SyntaxTree
+
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer               as L
 
 type Parser = Parsec Void String
 
-parseSchemas :: FilePath -> IO (Either String (FileTree Schema))
-parseSchemas filePath = do
-  input <- readFile filePath
-  case parse schema filePath input of
-    Left err -> pure $ Left (errorBundlePretty err)
+parseSchemas :: (MonadIO m, MonadError String m) => FilePath -> m (FileTree Schema)
+parseSchemas rootFilePath = do
+  input <- liftIO $ readFile rootFilePath
+  case parse schema rootFilePath input of
+    Left err -> throwError (errorBundlePretty err)
     Right rootSchema -> do
-      forestSchema <- traverse (parseSchemas . T.unpack . coerce) (includes rootSchema)
-      pure $ FileTree filePath rootSchema <$> sequence forestSchema
+      let importedFilePaths = T.unpack . coerce <$> includes rootSchema
+      importedSchemas <- flip execStateT Map.empty $ traverse_ parseImportedSchema importedFilePaths
+      pure $ FileTree
+              { fileTreeFilePath = rootFilePath
+              , fileTreeRoot     = rootSchema
+              , fileTreeForest   = importedSchemas
+              }
+  where
+    parseImportedSchema ::
+         MonadState (Map FilePath Schema) m
+      => MonadIO m
+      => MonadError String m
+      => FilePath -> m ()
+    parseImportedSchema filePath = do
+      importedSchemas <- get
+      when (filePath /= rootFilePath && Map.notMember filePath importedSchemas) $ do
+        input <- liftIO $ readFile filePath
+        case parse schema filePath input of
+          Left err -> throwError (errorBundlePretty err)
+          Right importedSchema -> do
+            put (Map.insert filePath importedSchema importedSchemas)
+            traverse_ (parseImportedSchema . T.unpack . coerce) (includes importedSchema)
 
 -- | Roughly based on: https://google.github.io/flatbuffers/flatbuffers_grammar.html.
 -- Differences between this parser and the above grammar:
