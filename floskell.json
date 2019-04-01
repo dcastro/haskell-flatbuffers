@@ -1,0 +1,10 @@
+{
+  "language": "Haskell2010",
+  "extensions": [],
+  "style": "cramer",
+  "formatting": {
+    "penalty": {
+      "max-line-length": 120
+    }
+  }
+}
