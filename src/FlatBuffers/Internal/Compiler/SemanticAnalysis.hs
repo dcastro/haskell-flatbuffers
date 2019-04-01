@@ -8,7 +8,6 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Applicative                      ((<|>))
 import           Control.Monad                            (forM_, when, void)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
@@ -18,7 +17,7 @@ import           Control.Monad.State                      (MonadState, State, ev
                                                            modify, put)
 import           Data.Coerce                              (coerce)
 import           Data.Foldable                            (find,
-                                                           traverse_, foldlM)
+                                                           traverse_, foldlM, asum)
 import           Data.Functor                             (($>), (<&>))
 import           Data.Int
 import           Data.Ix                                  (inRange)
@@ -115,15 +114,15 @@ findDecl currentNamespace symbolTables (TypeRef refNamespace refIdent) =
         parentNamespace <- parentNamespaces'
         let candidateNamespace = parentNamespace <> refNamespace
         let searchSymbolTable symbolTable =
-              foldl1 (<|>) 
+              asum
                 [ MatchE <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allEnums symbolTable)
                 , MatchS <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allStructs symbolTable)
                 , MatchT <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allTables symbolTable)
                 , MatchU <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allUnions symbolTable)
                 ]
-        pure $ foldl1 (<|>) $ fmap searchSymbolTable symbolTables
+        pure $ asum $ fmap searchSymbolTable symbolTables
   in 
-    case foldl1 (<|>) results of
+    case asum results of
       Just match -> match
       Nothing    -> NoMatch parentNamespaces'
 
