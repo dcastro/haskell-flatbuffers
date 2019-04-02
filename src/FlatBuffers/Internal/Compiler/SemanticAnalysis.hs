@@ -8,7 +8,7 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad                            (forM_, when, void)
+import           Control.Monad                            (forM_, when, void, join)
 import           Control.Monad.Except                     (MonadError,
                                                            throwError)
 import           Control.Monad.Reader                     (MonadReader (..), runReaderT)
@@ -86,9 +86,18 @@ createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
         _               -> (currentNamespace, decls)
 
 validateDecls :: MonadError Text m => FileTree Stage1 -> m (FileTree ValidDecls)
-validateDecls symbolTable =
-  flip runReaderT "" $ 
-    validateEnums symbolTable >>= validateStructs >>= validateTables >>= validateUnions
+validateDecls symbolTables =
+  flip runReaderT "" $ do
+    checkDuplicateIdentifiers $ concatMap allQualifiedIdentifiers symbolTables
+    validateEnums symbolTables >>= validateStructs >>= validateTables >>= validateUnions
+  where
+    allQualifiedIdentifiers symbolTable =
+      join
+        [ uncurry qualify <$> allEnums symbolTable
+        , uncurry qualify <$> allStructs symbolTable
+        , uncurry qualify <$> allTables symbolTable
+        , uncurry qualify <$> allUnions symbolTable
+        ]
 
 ----------------------------------
 --------- Symbol search ----------
@@ -151,7 +160,7 @@ validateEnums symbolTables =
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
 validateEnum (currentNamespace, enum) =
-  local (\_ -> qualify currentNamespace (getIdent enum)) $
+  local (\_ -> qualify currentNamespace enum) $
     checkBitFlags >> checkDuplicateFields >> validEnum
   where
     validEnum = do
@@ -247,7 +256,7 @@ validateTables symbolTables =
 
 validateTable :: forall m. ValidationCtx m => FileTree Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
 validateTable symbolTables (currentNamespace, table) =
-  local (\_ -> qualify currentNamespace (getIdent table)) $ do
+  local (\_ -> qualify currentNamespace table) $ do
 
     let fields = ST.tableFields table
     let fieldsMetadata = ST.tableFieldMetadata <$> fields
@@ -441,7 +450,7 @@ validateUnions symbolTables =
 
 validateUnion :: forall m. ValidationCtx m => FileTree Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
 validateUnion symbolTables (currentNamespace, union) =
-  local (\_ -> qualify currentNamespace (getIdent union)) $ do
+  local (\_ -> qualify currentNamespace union) $ do
     validUnionVals <- traverse validateUnionVal (ST.unionVals union)
     checkDuplicateVals validUnionVals
     pure $ UnionDecl
@@ -494,7 +503,7 @@ checkStructCycles symbolTables = go []
   where
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) =
-      let qualifiedName = qualify currentNamespace (getIdent struct)
+      let qualifiedName = qualify currentNamespace struct
       in  local (const qualifiedName) $
             if qualifiedName `elem` visited
               then
@@ -524,7 +533,7 @@ validateStruct ::
   -> (Namespace, ST.StructDecl)
   -> m (Namespace, StructDecl)
 validateStruct symbolTables (currentNamespace, struct) =
-  local (\_ -> qualify currentNamespace (getIdent struct)) $ do
+  local (\_ -> qualify currentNamespace struct) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
     case find (\(ns, s) -> ns == currentNamespace && getIdent s == getIdent struct) validStructs of

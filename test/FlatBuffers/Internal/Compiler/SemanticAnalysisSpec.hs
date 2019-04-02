@@ -20,6 +20,27 @@ import           Text.RawString.QQ                              (r)
 spec :: Spec
 spec =
   describe "SemanticAnalysis" $ do
+    it "top-level identifiers cannot have duplicates in the same namespace" $ do
+      [r| namespace A; enum E:int{x} enum E:int{x} |] `shouldFail` "['A.E'] declared more than once"
+      [r| enum E:int{x}     enum E:int{x}     |] `shouldFail` "['E'] declared more than once"
+      [r| struct S{x:int;}  struct S{x:int;}  |] `shouldFail` "['S'] declared more than once"
+      [r| table T{}         table T{}         |] `shouldFail` "['T'] declared more than once"
+      [r| union U{x}        union U{x}        |] `shouldFail` "['U'] declared more than once"
+      [r| union U{x}        union U{x}        |] `shouldFail` "['U'] declared more than once"
+      [r| union X{x}        table X{}         |] `shouldFail` "['X'] declared more than once"
+
+    it "top-level identifiers can be duplicates, if they live in different namespaces" $
+      [r|
+        namespace A;
+        union X{B.X}
+
+        namespace B;
+        table X{}
+      |] `shouldValidate` foldDecls
+        [ union ("A", UnionDecl "X" [UnionVal "B_X" (TypeRef "B" "X")])
+        , table ("B", TableDecl "X" [])
+        ]
+
     describe "enums" $ do
       it "simple" $
         [r|

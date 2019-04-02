@@ -169,9 +169,9 @@ instance IsString Namespace where
   fromString "" = Namespace []
   fromString s = Namespace $ filter (/= "") $ T.splitOn "." $ T.pack s
 
-qualify :: Namespace -> Ident -> Ident
-qualify "" i = i
-qualify ns (Ident i) = Ident (display ns <> "." <> i)
+qualify :: HasIdent a => Namespace -> a -> Ident
+qualify "" a = getIdent a
+qualify ns a = Ident (display ns <> "." <> display (getIdent a))
 
 class HasIdent a where
   getIdent :: a -> Ident
