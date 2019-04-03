@@ -1,21 +1,25 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLists   #-}
-{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
-import           Data.Foldable                                  (fold)
+import           Data.Foldable                                  ( fold )
 import           Data.Int
-import           Data.Maybe                                     (mapMaybe)
-import           Data.Text                                      (Text)
+import           Data.Maybe                                     ( mapMaybe )
+import           Data.Text                                      ( Text )
+import qualified Data.Text                                      as T
+
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
-import           FlatBuffers.Internal.Compiler.SyntaxTree       (Namespace, TypeRef(..), FileTree(..))
+import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), Namespace, TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
+
 import           Test.Hspec
+
 import           Text.Megaparsec
-import           Text.RawString.QQ                              (r)
+import           Text.RawString.QQ                              ( r )
 
 spec :: Spec
 spec =
@@ -40,6 +44,44 @@ spec =
         [ union ("A", UnionDecl "X" [UnionVal "B_X" (TypeRef "B" "X")])
         , table ("B", TableDecl "X" [])
         ]
+
+    describe "attributes" $ do
+      it "user defined attributes must be declared" $ do
+        [r| enum E : int (x) {Y}      |] `shouldFail` "[E]: user defined attributes must be declared before use: x"
+        [r| struct S (x) { y: int;}   |] `shouldFail` "[S]: user defined attributes must be declared before use: x"
+        [r| struct S { y: int (x);}   |] `shouldFail` "[S.y]: user defined attributes must be declared before use: x"
+        [r| table T (x) {}            |] `shouldFail` "[T]: user defined attributes must be declared before use: x"
+        [r| table T { y: int (x); }   |] `shouldFail` "[T.y]: user defined attributes must be declared before use: x"
+        [r| union U (x) {Y} table Y{} |] `shouldFail` "[U]: user defined attributes must be declared before use: x"
+      
+      it "user defined attributes can be used when declared" $ do
+        shouldSucceed [r| attribute x; enum E : int (x) {Y}      |]
+        shouldSucceed [r| attribute x; struct S (x) { y: int;}   |]
+        shouldSucceed [r| attribute x; struct S { y: int (x);}   |]
+        shouldSucceed [r| attribute x; table T (x) {}            |]
+        shouldSucceed [r| attribute x; table T { y: int (x); }   |]
+        shouldSucceed [r| attribute x; union U (x) {Y} table Y{} |]
+
+      it "built-in attributes can be used without being declared" $
+        shouldSucceed
+          [r|
+            table T
+              (id,
+              deprecated,
+              required,
+              force_align,
+              bit_flags,
+              nested_flatbuffer,
+              flexbuffer,
+              key,
+              hash,
+              original_order,
+              native_inline,
+              native_default,
+              native_custom_alloc,
+              native_type
+             ) {}
+          |]
 
     describe "enums" $ do
       it "simple" $
@@ -1016,14 +1058,24 @@ table t = SymbolTable [] [] [t] []
 union :: (Namespace, UnionDecl) -> ValidDecls
 union u = SymbolTable [] [] [] [u]
 
+shouldSucceed :: String -> Expectation
+shouldSucceed input =
+  case parse P.schema "" input of
+    Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
+    Right schema ->
+      let schemas = FileTree "" schema []
+      in  case validateSchemas schemas of
+            Right _ -> pure ()
+            Left err -> expectationFailure (T.unpack err)
+
+
 shouldValidate :: String -> ValidDecls -> Expectation
 shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = FileTree "" schema []
-          symbolTables = createSymbolTables schemas
-      in  validateDecls symbolTables `shouldBe` Right (FileTree "" expectation [])
+      in  validateSchemas schemas `shouldBe` Right (FileTree "" expectation [])
 
 shouldFail :: String -> Text -> Expectation
 shouldFail input expectedErrorMsg =
@@ -1031,8 +1083,7 @@ shouldFail input expectedErrorMsg =
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = FileTree "" schema []
-          symbolTables = createSymbolTables schemas
-      in  validateDecls symbolTables `shouldBe` Left expectedErrorMsg
+      in  validateSchemas schemas `shouldBe` Left expectedErrorMsg
 
 showBundle :: ( ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty

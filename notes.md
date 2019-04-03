@@ -68,6 +68,7 @@
   * unions of structs / unions of strings: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions>
   * `file_identifier` and `root_type`
   * "size prefix before the standard header"?
+  * `nested_flatbuffer` attribute
 * Rules to be enforced at the type level
   * offsets can't be written to structs
   * vectors cannot contain `missing`

@@ -154,7 +154,7 @@ newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
   deriving newtype (Show, Eq, IsString)
 
 newtype AttributeDecl = AttributeDecl Text
-  deriving newtype (Show, Eq, IsString)
+  deriving newtype (Show, Eq, IsString, Ord)
 
 newtype Namespace = Namespace {unNamespace :: [Text] }
   deriving newtype (Eq, Ord, Semigroup)
@@ -184,3 +184,14 @@ instance HasIdent StructField where getIdent = structFieldIdent
 instance HasIdent TableDecl   where getIdent = tableIdent
 instance HasIdent TableField  where getIdent = tableFieldIdent
 instance HasIdent UnionDecl   where getIdent = unionIdent
+
+
+class HasMetadata a where
+  getMetadata :: a -> Metadata
+
+instance HasMetadata EnumDecl    where getMetadata = enumMetadata
+instance HasMetadata StructDecl  where getMetadata = structMetadata
+instance HasMetadata StructField where getMetadata = structFieldMetadata
+instance HasMetadata TableDecl   where getMetadata = tableMetadata
+instance HasMetadata TableField  where getMetadata = tableFieldMetadata
+instance HasMetadata UnionDecl   where getMetadata = unionMetadata

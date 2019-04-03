@@ -1,51 +1,61 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad                            (forM_, when, void, join)
-import           Control.Monad.Except                     (MonadError,
-                                                           throwError)
-import           Control.Monad.Reader                     (MonadReader (..), runReaderT)
-import           Control.Monad.State                      (MonadState, State, evalState,
-                                                           evalStateT, get,
-                                                           modify, put)
-import           Data.Coerce                              (coerce)
-import           Data.Foldable                            (find,
-                                                           traverse_, foldlM, asum)
-import           Data.Functor                             (($>), (<&>))
-import           Data.Int
-import           Data.Ix                                  (inRange)
-import qualified Data.List                                as List
-import           Data.List.NonEmpty                       (NonEmpty)
-import qualified Data.List.NonEmpty                       as NE
-import           Data.Map.Strict                          (Map)
-import qualified Data.Map.Strict                          as Map
-import           Data.Maybe                               (catMaybes, fromMaybe, isJust)
-import           Data.Monoid                              (Sum (..))
-import           Data.Scientific                          (Scientific)
-import qualified Data.Scientific                          as Scientific
-import           Data.Text                                (Text)
-import qualified Data.Text                                as T
-import           Data.Traversable                         (for)
-import           Data.Word
-import           FlatBuffers.Constants                    (InlineSize (..))
-import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
-                                                           Schema, qualify, HasIdent(..), TypeRef(..), FileTree(..))
-import qualified FlatBuffers.Internal.Compiler.SyntaxTree as ST
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.Util                (Display (..),
-                                                           isPowerOfTwo, roundUpToNearestMultipleOf)
-import           Text.Read                                (readMaybe)
+import           Control.Monad                                 ( forM_, join, void, when )
+import           Control.Monad.Except                          ( MonadError, throwError )
+import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
+import           Control.Monad.State                           ( MonadState, State, evalState, evalStateT, get, modify, put )
 
--- |  The identifier in the reader environment represents the validation context,
--- the thing being validated (e.g. a fully-qualified struct name, or a table field name).
-type ValidationCtx m = (MonadError Text m, MonadReader Ident m)
+import           Data.Coerce                                   ( coerce )
+import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
+import           Data.Functor                                  ( ($>), (<&>) )
+import           Data.Int
+import           Data.Ix                                       ( inRange )
+import qualified Data.List                                     as List
+import           Data.List.NonEmpty                            ( NonEmpty )
+import qualified Data.List.NonEmpty                            as NE
+import           Data.Map.Strict                               ( Map )
+import qualified Data.Map.Strict                               as Map
+import           Data.Maybe                                    ( catMaybes, fromMaybe, isJust )
+import           Data.Monoid                                   ( Sum(..) )
+import           Data.Scientific                               ( Scientific )
+import qualified Data.Scientific                               as Scientific
+import           Data.Set                                      ( Set )
+import qualified Data.Set                                      as Set
+import           Data.Text                                     ( Text )
+import qualified Data.Text                                     as T
+import           Data.Traversable                              ( for )
+import           Data.Word
+
+import           FlatBuffers.Constants                         ( InlineSize(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasIdent(..), HasMetadata(..), Ident, Namespace, Schema, TypeRef(..), qualify )
+import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
+import           FlatBuffers.Internal.Util                     ( Display(..), isPowerOfTwo, roundUpToNearestMultipleOf )
+
+import           Text.Read                                     ( readMaybe )
+
+type ValidationCtx m = (MonadError Text m, MonadReader ValidationState m)
+
+data ValidationState = ValidationState
+  { validationStateCurrentContext :: Ident
+    -- ^ The thing being validated (e.g. a fully-qualified struct name, or a table field name).
+  , validationStateAllAttributes  :: Set ST.AttributeDecl
+    -- ^ All the attributes declared in all the schemas (including imported ones).
+  }
+
+
+modifyContext :: ValidationCtx m => (Ident -> Ident) -> m a -> m a
+modifyContext f =
+  local $ \s ->
+    s { validationStateCurrentContext = f (validationStateCurrentContext s) }
 
 data SymbolTable enum struct table union = SymbolTable
   { allEnums   :: [(Namespace, enum)]
@@ -85,19 +95,67 @@ createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
         ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
         _               -> (currentNamespace, decls)
 
-validateDecls :: MonadError Text m => FileTree Stage1 -> m (FileTree ValidDecls)
-validateDecls symbolTables =
-  flip runReaderT "" $ do
-    checkDuplicateIdentifiers $ concatMap allQualifiedIdentifiers symbolTables
-    validateEnums symbolTables >>= validateStructs >>= validateTables >>= validateUnions
+validateSchemas :: MonadError Text m => FileTree Schema -> m (FileTree ValidDecls)
+validateSchemas schemas =
+  flip runReaderT (ValidationState "" allAttributes) $ do
+    checkDuplicateIdentifiers allQualifiedTopLevelIdentifiers
+    validateEnums symbolTables
+      >>= validateStructs
+      >>= validateTables
+      >>= validateUnions
   where
-    allQualifiedIdentifiers symbolTable =
-      join
-        [ uncurry qualify <$> allEnums symbolTable
-        , uncurry qualify <$> allStructs symbolTable
-        , uncurry qualify <$> allTables symbolTable
-        , uncurry qualify <$> allUnions symbolTable
-        ]
+    symbolTables = createSymbolTables schemas
+
+    allQualifiedTopLevelIdentifiers =
+      flip concatMap symbolTables $ \symbolTable ->
+        join
+          [ uncurry qualify <$> allEnums symbolTable
+          , uncurry qualify <$> allStructs symbolTable
+          , uncurry qualify <$> allTables symbolTable
+          , uncurry qualify <$> allUnions symbolTable
+          ]
+
+    declaredAttributes =
+      flip concatMap schemas $ \schema ->
+        [ attr | ST.DeclA attr <- ST.decls schema ]
+    
+    allAttributes = Set.fromList $ declaredAttributes <> knownAttributes
+
+----------------------------------
+----------- Attributes -----------
+----------------------------------
+knownAttributes :: [ST.AttributeDecl]
+knownAttributes =
+  coerce
+    [ idAttr
+    , deprecatedAttr
+    , requiredAttr
+    , forceAlignAttr
+    , bitFlagsAttr
+    ]
+  <> otherKnownAttributes
+
+idAttr, deprecatedAttr, requiredAttr, forceAlignAttr, bitFlagsAttr :: Text
+idAttr          = "id"
+deprecatedAttr  = "deprecated"
+requiredAttr    = "required"
+forceAlignAttr  = "force_align"
+bitFlagsAttr    = "bit_flags"
+
+otherKnownAttributes :: [ST.AttributeDecl]
+otherKnownAttributes =
+  -- https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
+  [ "nested_flatbuffer"
+  , "flexbuffer"
+  , "key"
+  , "hash"
+  , "original_order"
+  -- https://google.github.io/flatbuffers/flatbuffers_guide_use_cpp.html#flatbuffers_cpp_object_based_api
+  , "native_inline"
+  , "native_default"
+  , "native_custom_alloc"
+  , "native_type"
+  ]
 
 ----------------------------------
 --------- Symbol search ----------
@@ -160,8 +218,11 @@ validateEnums symbolTables =
 -- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
 validateEnum (currentNamespace, enum) =
-  local (\_ -> qualify currentNamespace enum) $
-    checkBitFlags >> checkDuplicateFields >> validEnum
+  modifyContext (\_ -> qualify currentNamespace enum) $ do
+    checkBitFlags
+    checkDuplicateFields
+    checkUndeclaredAttributes enum
+    validEnum
   where
     validEnum = do
       enumType <- validateEnumType (ST.enumType enum)
@@ -195,7 +256,7 @@ validateEnum (currentNamespace, enum) =
 
     validateBounds :: EnumType -> EnumVal -> m ()
     validateBounds enumType enumVal =
-      local (\context -> context <> "." <> getIdent enumVal) $
+      modifyContext (\context -> context <> "." <> getIdent enumVal) $
         case enumType of
           EInt8 -> validateBounds' @Int8 enumVal
           EInt16 -> validateBounds' @Int16 enumVal
@@ -237,7 +298,7 @@ validateEnum (currentNamespace, enum) =
 
     checkBitFlags :: m ()
     checkBitFlags =
-      when (hasAttribute "bit_flags" (ST.enumMetadata enum)) $
+      when (hasAttribute bitFlagsAttr (ST.enumMetadata enum)) $
         throwErrorMsg "`bit_flags` are not supported yet"
 
 
@@ -256,12 +317,13 @@ validateTables symbolTables =
 
 validateTable :: forall m. ValidationCtx m => FileTree Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
 validateTable symbolTables (currentNamespace, table) =
-  local (\_ -> qualify currentNamespace table) $ do
+  modifyContext (\_ -> qualify currentNamespace table) $ do
 
     let fields = ST.tableFields table
     let fieldsMetadata = ST.tableFieldMetadata <$> fields
     
     checkDuplicateFields
+    checkUndeclaredAttributes table
     validFields <- traverse validateTableField fields
     sortedFields <- sortFields fieldsMetadata validFields
 
@@ -276,7 +338,7 @@ validateTable symbolTables (currentNamespace, table) =
 
     sortFields :: [ST.Metadata] -> [TableField] -> m [TableField]
     sortFields metadata fields = do
-      ids <- catMaybes <$> traverse (findIntAttr "id") metadata
+      ids <- catMaybes <$> traverse (findIntAttr idAttr) metadata
       if null ids
         then pure fields
         else do
@@ -289,7 +351,7 @@ validateTable symbolTables (currentNamespace, table) =
           
     checkFieldId :: Integer -> (TableField, Integer) -> m Integer
     checkFieldId lastId (field, id) =
-      local (\context -> context <> "." <> getIdent field) $ do
+      modifyContext (\context -> context <> "." <> getIdent field) $ do
         case tableFieldType field of
           TUnion _ _ ->
             when (id /= lastId + 2) $
@@ -305,12 +367,13 @@ validateTable symbolTables (currentNamespace, table) =
           
     validateTableField :: ST.TableField -> m TableField
     validateTableField tf =
-      local (\context -> context <> "." <> getIdent tf) $ do
+      modifyContext (\context -> context <> "." <> getIdent tf) $ do
+        checkUndeclaredAttributes tf
         validFieldType <- validateTableFieldType (ST.tableFieldMetadata tf) (ST.tableFieldDefault tf) (ST.tableFieldType tf)
         pure TableField
           { tableFieldIdent = getIdent tf
           , tableFieldType = validFieldType
-          , tableFieldDeprecated = hasAttribute "deprecated" (ST.tableFieldMetadata tf)
+          , tableFieldDeprecated = hasAttribute deprecatedAttr (ST.tableFieldMetadata tf)
           }
 
     validateTableFieldType :: ST.Metadata -> Maybe ST.DefaultVal -> ST.Type -> m TableFieldType
@@ -368,7 +431,7 @@ validateTable symbolTables (currentNamespace, table) =
 
 checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
 checkNoRequired md =
-  when (hasAttribute "required" md) $
+  when (hasAttribute requiredAttr md) $
     throwErrorMsg "only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
 
 checkNoDefault :: ValidationCtx m => Maybe ST.DefaultVal -> m ()
@@ -378,7 +441,7 @@ checkNoDefault dflt =
       "default values currently only supported for scalar fields (integers, floating point, bool, enums)"
 
 isRequired :: ST.Metadata -> Required
-isRequired md = if hasAttribute "required" md then Req else Opt
+isRequired md = if hasAttribute requiredAttr md then Req else Opt
 
 validateDefaultValAsInt :: forall m a. (ValidationCtx m, Integral a, Bounded a, Show a) => Maybe ST.DefaultVal -> m (DefaultVal a)
 validateDefaultValAsInt dflt =
@@ -450,9 +513,10 @@ validateUnions symbolTables =
 
 validateUnion :: forall m. ValidationCtx m => FileTree Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
 validateUnion symbolTables (currentNamespace, union) =
-  local (\_ -> qualify currentNamespace union) $ do
+  modifyContext (\_ -> qualify currentNamespace union) $ do
     validUnionVals <- traverse validateUnionVal (ST.unionVals union)
     checkDuplicateVals validUnionVals
+    checkUndeclaredAttributes union
     pure $ UnionDecl
       { unionIdent = getIdent union
       , unionVals = validUnionVals
@@ -464,7 +528,7 @@ validateUnion symbolTables (currentNamespace, union) =
       let partiallyQualifiedTypeRef = qualify (typeRefNamespace tref) (typeRefIdent tref)
       let ident = fromMaybe partiallyQualifiedTypeRef (ST.unionValIdent uv)
       let identFormatted = coerce $ T.replace "." "_" $ coerce ident
-      local (\context -> context <> "." <> identFormatted) $ do
+      modifyContext (\context -> context <> "." <> identFormatted) $ do
         tableRef <- validateUnionValType tref
         pure $ UnionVal
           { unionValIdent = identFormatted
@@ -504,7 +568,7 @@ checkStructCycles symbolTables = go []
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) =
       let qualifiedName = qualify currentNamespace struct
-      in  local (const qualifiedName) $
+      in  modifyContext (const qualifiedName) $
             if qualifiedName `elem` visited
               then
                 throwErrorMsg $
@@ -533,18 +597,19 @@ validateStruct ::
   -> (Namespace, ST.StructDecl)
   -> m (Namespace, StructDecl)
 validateStruct symbolTables (currentNamespace, struct) =
-  local (\_ -> qualify currentNamespace struct) $ do
+  modifyContext (\_ -> qualify currentNamespace struct) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
     case find (\(ns, s) -> ns == currentNamespace && getIdent s == getIdent struct) validStructs of
       Just match -> pure match
       Nothing -> do
         checkDuplicateFields
+        checkUndeclaredAttributes struct
 
         fields <- traverse validateStructField (ST.structFields struct)
         let naturalAlignment = maximum (structFieldAlignment <$> fields)
-        forceAlignAttr <- getForceAlignAttr
-        forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttr
+        forceAlignAttrVal <- getForceAlignAttr
+        forceAlign <- traverse (validateForceAlign naturalAlignment) forceAlignAttrVal
         let alignment = fromMaybe naturalAlignment forceAlign
 
         -- In order to calculate the padding between fields, we must first know the fields' and the struct's
@@ -584,8 +649,9 @@ validateStruct symbolTables (currentNamespace, struct) =
 
     validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
-      local (\context -> context <> "." <> getIdent sf) $ do
+      modifyContext (\context -> context <> "." <> getIdent sf) $ do
         checkUnsupportedAttributes sf
+        checkUndeclaredAttributes sf
         structFieldType <- validateStructFieldType (ST.structFieldType sf)
         pure $ UnpaddedStructField
           { unpaddedStructFieldIdent = getIdent sf
@@ -621,15 +687,15 @@ validateStruct symbolTables (currentNamespace, struct) =
 
     checkUnsupportedAttributes :: ST.StructField -> m ()
     checkUnsupportedAttributes structField = do
-      when (hasAttribute "deprecated" (ST.structFieldMetadata structField)) $
+      when (hasAttribute deprecatedAttr (ST.structFieldMetadata structField)) $
         throwErrorMsg "can't deprecate fields in a struct"
-      when (hasAttribute "required" (ST.structFieldMetadata structField)) $
+      when (hasAttribute requiredAttr (ST.structFieldMetadata structField)) $
         throwErrorMsg "struct fields are already required, the 'required' attribute is redundant"
-      when (hasAttribute "id" (ST.structFieldMetadata structField)) $
+      when (hasAttribute idAttr (ST.structFieldMetadata structField)) $
         throwErrorMsg "struct fields cannot be reordered using the 'id' attribute"
 
     getForceAlignAttr :: m (Maybe Integer)
-    getForceAlignAttr = findIntAttr "force_align" (ST.structMetadata struct)
+    getForceAlignAttr = findIntAttr forceAlignAttr (ST.structMetadata struct)
 
     validateForceAlign :: Word8 -> Integer -> m Word8
     validateForceAlign naturalAlignment forceAlign =
@@ -722,6 +788,13 @@ checkDuplicateIdentifiers xs =
     occurrences xs =
       Map.unionsWith (<>) $ fmap (\x -> Map.singleton x (Sum 1)) xs
 
+checkUndeclaredAttributes :: (ValidationCtx m, HasMetadata a) => a -> m ()
+checkUndeclaredAttributes a = do
+  allAttributes <- asks validationStateAllAttributes
+  forM_ (Map.keys . ST.unMetadata . getMetadata $ a) $ \attr ->
+    when (coerce attr `Set.notMember` allAttributes) $
+      throwErrorMsg $ "user defined attributes must be declared before use: " <> attr
+
 hasAttribute :: Text -> ST.Metadata -> Bool
 hasAttribute name (ST.Metadata attrs) = Map.member name attrs
 
@@ -759,7 +832,7 @@ findStringAttr name (ST.Metadata attrs) =
 
 throwErrorMsg :: ValidationCtx m => Text -> m a
 throwErrorMsg msg = do
-  context <- ask
+  context <- asks validationStateCurrentContext
   if context == ""
     then throwError msg
     else throwError $ "[" <> display context <> "]: " <> msg
