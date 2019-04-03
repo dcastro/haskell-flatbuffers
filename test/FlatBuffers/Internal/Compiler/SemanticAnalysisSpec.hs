@@ -25,13 +25,13 @@ spec :: Spec
 spec =
   describe "SemanticAnalysis" $ do
     it "top-level identifiers cannot have duplicates in the same namespace" $ do
-      [r| namespace A; enum E:int{x} enum E:int{x} |] `shouldFail` "['A.E'] declared more than once"
-      [r| enum E:int{x}     enum E:int{x}     |] `shouldFail` "['E'] declared more than once"
-      [r| struct S{x:int;}  struct S{x:int;}  |] `shouldFail` "['S'] declared more than once"
-      [r| table T{}         table T{}         |] `shouldFail` "['T'] declared more than once"
-      [r| union U{x}        union U{x}        |] `shouldFail` "['U'] declared more than once"
-      [r| union U{x}        union U{x}        |] `shouldFail` "['U'] declared more than once"
-      [r| union X{x}        table X{}         |] `shouldFail` "['X'] declared more than once"
+      [r| namespace A; enum E:int{x} enum E:int{x} |] `shouldFail` "'A.E' declared more than once"
+      [r| enum E:int{x}     enum E:int{x}     |] `shouldFail` "'E' declared more than once"
+      [r| struct S{x:int;}  struct S{x:int;}  |] `shouldFail` "'S' declared more than once"
+      [r| table T{}         table T{}         |] `shouldFail` "'T' declared more than once"
+      [r| union U{x}        union U{x}        |] `shouldFail` "'U' declared more than once"
+      [r| union U{x}        union U{x}        |] `shouldFail` "'U' declared more than once"
+      [r| union X{x}        table X{}         |] `shouldFail` "'X' declared more than once"
 
     it "top-level identifiers can be duplicates, if they live in different namespaces" $
       [r|
@@ -152,7 +152,7 @@ spec =
 
       it "with duplicate values" $
         [r| enum Color : int8 { Red, Green, Red, Gray, Green, Green, Black } |] `shouldFail`
-          "[Color]: ['Green', 'Red'] declared more than once"
+          "[Color]: 'Green', 'Red' declared more than once"
 
       it "with invalid underlying type" $ do
         [r| enum Color : double { Red, Green, Blue } |] `shouldFail`
@@ -327,7 +327,7 @@ spec =
             x: A.T;
           }
         |] `shouldFail`
-          "[X.Y.Z.S.x]: type 'A.T' does not exist (checked in these namespaces: ['X.Y.Z', 'X.Y', 'X', ''])"
+          "[X.Y.Z.S.x]: type 'A.T' does not exist (checked in these namespaces: 'X.Y.Z', 'X.Y', 'X', '')"
 
       it "with reference to a vector" $
         [r| struct S { x: [byte]; } |] `shouldFail`
@@ -339,7 +339,7 @@ spec =
 
       it "with duplicate fields" $
         [r| struct S { x: byte; x: int; } |] `shouldFail`
-          "[S]: ['x'] declared more than once"
+          "[S]: 'x' declared more than once"
 
       it "with `force_align` attribute" $ do
         -- just 1 field
@@ -413,12 +413,12 @@ spec =
             ])
 
       it "with invalid reference" $ do
-        [r| table T { x: A.X; }   |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
-        [r| table T { x: [A.X]; } |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: [''])"
+        [r| table T { x: A.X; }   |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: '')"
+        [r| table T { x: [A.X]; } |] `shouldFail` "[T.x]: type 'A.X' does not exist (checked in these namespaces: '')"
 
       it "with duplicate fields" $
         [r| table T { x: byte; x: int; } |] `shouldFail`
-          "[T]: ['x'] declared more than once"
+          "[T]: 'x' declared more than once"
 
       describe "with numeric/bool fields" $ do
         it "simple" $
@@ -685,11 +685,11 @@ spec =
 
           it "decimal number" $
             [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
-              "[T.x]: default value must be integral or ['A', 'B', 'C']"
+              "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
 
           it "boolean" $
             [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
-              "[T.x]: default value must be integral or ['A', 'B', 'C']"
+              "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
 
       describe "with reference to structs/table/union" $ do
         it "simple" $
@@ -973,24 +973,24 @@ spec =
 
       it "union member must be a valid reference" $
         [r| union U { T } |] `shouldFail`
-          "[U.T]: type 'T' does not exist (checked in these namespaces: [''])"
+          "[U.T]: type 'T' does not exist (checked in these namespaces: '')"
 
       it "union members must be tables" $ do
         [r| union U { S }   struct S {x: byte;}      |] `shouldFail` "[U.S]: union members may only be tables"
         [r| union U { U2 }  union U2 {T}   table T{} |] `shouldFail` "[U.U2]: union members may only be tables"
         [r| union U { E }   enum E : int {X}         |] `shouldFail` "[U.E]: union members may only be tables"
-        [r| union U { string }                       |] `shouldFail` "[U.string]: type 'string' does not exist (checked in these namespaces: [''])"
+        [r| union U { string }                       |] `shouldFail` "[U.string]: type 'string' does not exist (checked in these namespaces: '')"
 
       it "can't have duplicate identifiers" $ do
-        [r| table T{}                union U {T, T}        |] `shouldFail` "[U]: ['T'] declared more than once"
-        [r| namespace A; table T{}   union U {A.T, A.T}    |] `shouldFail` "[A.U]: ['A_T'] declared more than once"
-        [r| namespace A; table T{}   union U {A.T, A_T: T} |] `shouldFail` "[A.U]: ['A_T'] declared more than once"
+        [r| table T{}                union U {T, T}        |] `shouldFail` "[U]: 'T' declared more than once"
+        [r| namespace A; table T{}   union U {A.T, A.T}    |] `shouldFail` "[A.U]: 'A_T' declared more than once"
+        [r| namespace A; table T{}   union U {A.T, A_T: T} |] `shouldFail` "[A.U]: 'A_T' declared more than once"
 
       it "can't use NONE as an alias" $
-        [r| table T{} union U {NONE: T} |] `shouldFail` "[U]: ['NONE'] declared more than once"
+        [r| table T{} union U {NONE: T} |] `shouldFail` "[U]: 'NONE' declared more than once"
 
       it "can't refer to a table named NONE" $
-        [r| table NONE {} union U {NONE} |] `shouldFail` "[U]: ['NONE'] declared more than once"
+        [r| table NONE {} union U {NONE} |] `shouldFail` "[U]: 'NONE' declared more than once"
 
       it "can refer to a table named NONE, if using a qualified name" $
         [r|
@@ -1067,7 +1067,6 @@ shouldSucceed input =
       in  case validateSchemas schemas of
             Right _ -> pure ()
             Left err -> expectationFailure (T.unpack err)
-
 
 shouldValidate :: String -> ValidDecls -> Expectation
 shouldValidate input expectation =

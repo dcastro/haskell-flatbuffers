@@ -485,7 +485,7 @@ validateDefaultAsEnum dflt enum =
           Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
       Just (ST.DefaultNum n) ->
         case Scientific.floatingOrInteger n of
-          Left _double -> throwErrorMsg $ "default value must be integral or " <> display (getIdent <$> enumVals enum)
+          Left _double -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
           Right i -> 
             case find (\val -> enumValInt val == i) (enumVals enum) of
               Just matchingVal -> pure (getIdent matchingVal)
@@ -495,7 +495,7 @@ validateDefaultAsEnum dflt enum =
           Just _  -> pure ref
           Nothing -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
       
-      Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or " <> display (getIdent <$> enumVals enum)
+      Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
 
 
 ----------------------------------
