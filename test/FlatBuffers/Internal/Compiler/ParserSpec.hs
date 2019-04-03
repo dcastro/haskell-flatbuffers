@@ -40,6 +40,15 @@ spec =
           include "other \"escaped\" File";
         |] `parses` Schema ["somefile", "other \"escaped\" File"] []
 
+      it "includes" $
+        [r|
+          include "a";
+          native_include "b";
+          include "c";
+          native_include "d";
+          include "e";
+        |] `parses` Schema ["a", "c", "e"] []
+
       it "namespaces" $
         [r|
           include "somefile";

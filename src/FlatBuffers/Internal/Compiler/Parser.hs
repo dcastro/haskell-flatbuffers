@@ -75,12 +75,14 @@ parseSchemas rootFilePath = do
 schema :: Parser Schema
 schema = do
   sc
-  includes <- many include
+  includes <- catMaybes <$> many (Just <$> include <|> Nothing <$ nativeInclude)
   decls <- many (decl <|> failOnInclude)
   eof
   pure $ Schema includes (catMaybes decls)
   where
-    failOnInclude = include *> fail "\"include\" statements must be at the beginning of the file."
+    failOnInclude =
+      include *> fail "\"include\" statements must be at the beginning of the file."
+      <|> (nativeInclude *> fail "\"native_include\" statements must be at the beginning of the file.")
 
 decl :: Parser (Maybe Decl)
 decl =
@@ -266,6 +268,10 @@ metadata =
 
 include :: Parser Include
 include = Include <$> (rword "include" *> stringLiteral <* semi)
+
+-- | See: https://google.github.io/flatbuffers/flatbuffers_guide_use_cpp.html#flatbuffers_cpp_object_based_api
+nativeInclude :: Parser ()
+nativeInclude = void (rword "native_include" >> stringLiteral >> semi)
 
 rootDecl :: Parser RootDecl
 rootDecl = RootDecl <$> (rword "root_type" *> typeRef <* semi)
