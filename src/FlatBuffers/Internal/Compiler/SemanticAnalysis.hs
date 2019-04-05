@@ -45,9 +45,9 @@ import           Text.Read                                     ( readMaybe )
 type ValidationCtx m = (MonadError Text m, MonadReader ValidationState m)
 
 data ValidationState = ValidationState
-  { validationStateCurrentContext :: Ident
+  { validationStateCurrentContext :: !Ident
     -- ^ The thing being validated (e.g. a fully-qualified struct name, or a table field name).
-  , validationStateAllAttributes  :: Set ST.AttributeDecl
+  , validationStateAllAttributes  :: !(Set ST.AttributeDecl)
     -- ^ All the attributes declared in all the schemas (including imported ones).
   }
 
@@ -58,10 +58,10 @@ modifyContext f =
     s { validationStateCurrentContext = f (validationStateCurrentContext s) }
 
 data SymbolTable enum struct table union = SymbolTable
-  { allEnums   :: [(Namespace, enum)]
-  , allStructs :: [(Namespace, struct)]
-  , allTables  :: [(Namespace, table)]
-  , allUnions  :: [(Namespace, union)]
+  { allEnums   :: ![(Namespace, enum)]
+  , allStructs :: ![(Namespace, struct)]
+  , allTables  :: ![(Namespace, table)]
+  , allUnions  :: ![(Namespace, union)]
   }
   deriving (Eq, Show)
 
@@ -126,9 +126,9 @@ validateSchemas schemas =
 ------------ Root Type -----------
 ----------------------------------
 data RootInfo = RootInfo
-  { rootTableNamespace :: Namespace
-  , rootTable          :: TableDecl
-  , rootFileIdent      :: Maybe Text
+  { rootTableNamespace :: !Namespace
+  , rootTable          :: !TableDecl
+  , rootFileIdent      :: !(Maybe Text)
   }
 
 -- | Finds the root table (if any) and sets the `IsRootType` flag accordingly.
@@ -208,10 +208,10 @@ otherKnownAttributes =
 --------- Symbol search ----------
 ----------------------------------
 data Match enum struct table union
-  = MatchE (Namespace, enum)
-  | MatchS (Namespace, struct)
-  | MatchT (Namespace, table)
-  | MatchU (Namespace, union)
+  = MatchE !(Namespace, enum)
+  | MatchS !(Namespace, struct)
+  | MatchT !(Namespace, table)
+  | MatchU !(Namespace, union)
 
 -- | Looks for a type reference in a set of type declarations.
 -- If none is found, the list of namespaces in which the type reference was searched for is returned.
@@ -637,8 +637,8 @@ checkStructCycles symbolTables = go []
                       _ -> pure () -- Field is not a TypeRef, no validation needed
 
 data UnpaddedStructField = UnpaddedStructField
-  { unpaddedStructFieldIdent    :: Ident
-  , unpaddedStructFieldType     :: StructFieldType
+  { unpaddedStructFieldIdent :: !Ident
+  , unpaddedStructFieldType  :: !StructFieldType
   } deriving (Show, Eq)
 
 validateStruct ::

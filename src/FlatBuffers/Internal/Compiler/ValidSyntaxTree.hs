@@ -26,14 +26,14 @@ instance HasIdent UnionVal    where getIdent = unionValIdent
 ------------- Enums --------------
 ----------------------------------
 data EnumDecl = EnumDecl
-  { enumIdent     :: Ident
-  , enumType      :: EnumType
-  , enumVals      :: NonEmpty EnumVal
+  { enumIdent     :: !Ident
+  , enumType      :: !EnumType
+  , enumVals      :: !(NonEmpty EnumVal)
   } deriving (Show, Eq)
 
 data EnumVal = EnumVal
-  { enumValIdent :: Ident
-  , enumValInt   :: Integer
+  { enumValIdent :: !Ident
+  , enumValInt   :: !Integer
   } deriving (Show, Eq)
 
 data EnumType
@@ -51,15 +51,15 @@ data EnumType
 ------------ Structs -------------
 ----------------------------------
 data StructDecl = StructDecl
-  { structIdent      :: Ident
-  , structAlignment  :: Word8 -- [1, 16]
-  , structFields     :: NonEmpty StructField
+  { structIdent      :: !Ident
+  , structAlignment  :: !Word8 -- [1, 16]
+  , structFields     :: !(NonEmpty StructField)
   } deriving (Show, Eq)
 
 data StructField = StructField
-  { structFieldIdent    :: Ident
-  , structFieldPadding  :: Word8
-  , structFieldType     :: StructFieldType
+  { structFieldIdent    :: !Ident
+  , structFieldPadding  :: !Word8
+  , structFieldType     :: !StructFieldType
   } deriving (Show, Eq)
 
 data StructFieldType
@@ -75,9 +75,9 @@ data StructFieldType
   | SDouble
   | SBool
   | SEnum
-      TypeRef
-      EnumType
-  | SStruct (Namespace, StructDecl)
+      !TypeRef
+      !EnumType
+  | SStruct !(Namespace, StructDecl)
   deriving (Show, Eq)
 
 ----------------------------------
@@ -91,39 +91,39 @@ data Required = Req | Opt
 
 data IsRoot
   = NotRoot              -- ^ This table is not the root table.
-  | IsRoot (Maybe Text) -- ^ This table is the root table, and has an optional file identifier.
+  | IsRoot !(Maybe Text) -- ^ This table is the root table, and has an optional file identifier.
   deriving (Eq, Show)
 
 data TableDecl = TableDecl
-  { tableIdent     :: Ident
-  , tableIsRoot    :: IsRoot
-  , tableFields    :: [TableField]
+  { tableIdent     :: !Ident
+  , tableIsRoot    :: !IsRoot
+  , tableFields    :: ![TableField]
   } deriving (Eq, Show)
 
 data TableField = TableField
-  { tableFieldIdent      :: Ident
-  , tableFieldType       :: TableFieldType
-  , tableFieldDeprecated :: Bool
+  { tableFieldIdent      :: !Ident
+  , tableFieldType       :: !TableFieldType
+  , tableFieldDeprecated :: !Bool
   } deriving (Eq, Show)
 
 data TableFieldType
-  = TInt8 (DefaultVal Int8)
-  | TInt16 (DefaultVal Int16)
-  | TInt32 (DefaultVal Int32)
-  | TInt64 (DefaultVal Int64)
-  | TWord8 (DefaultVal Word8)
-  | TWord16 (DefaultVal Word16)
-  | TWord32 (DefaultVal Word32)
-  | TWord64 (DefaultVal Word64)
-  | TFloat (DefaultVal Scientific)
-  | TDouble (DefaultVal Scientific)
-  | TBool (DefaultVal Bool)
-  | TString Required
-  | TEnum   TypeRef (DefaultVal Ident)
-  | TStruct TypeRef Required
-  | TTable  TypeRef Required
-  | TUnion  TypeRef Required
-  | TVector Required VectorElementType
+  = TInt8   !(DefaultVal Int8)
+  | TInt16  !(DefaultVal Int16)
+  | TInt32  !(DefaultVal Int32)
+  | TInt64  !(DefaultVal Int64)
+  | TWord8  !(DefaultVal Word8)
+  | TWord16 !(DefaultVal Word16)
+  | TWord32 !(DefaultVal Word32)
+  | TWord64 !(DefaultVal Word64)
+  | TFloat  !(DefaultVal Scientific)
+  | TDouble !(DefaultVal Scientific)
+  | TBool   !(DefaultVal Bool)
+  | TString !Required
+  | TEnum   !TypeRef !(DefaultVal Ident)
+  | TStruct !TypeRef !Required
+  | TTable  !TypeRef !Required
+  | TUnion  !TypeRef !Required
+  | TVector !Required !VectorElementType
   deriving (Eq, Show)
 
 data VectorElementType
@@ -139,21 +139,21 @@ data VectorElementType
   | VDouble
   | VBool
   | VString
-  | VEnum TypeRef InlineSize
-  | VStruct TypeRef InlineSize
-  | VTable TypeRef
-  | VUnion TypeRef
+  | VEnum   !TypeRef !InlineSize
+  | VStruct !TypeRef !InlineSize
+  | VTable  !TypeRef
+  | VUnion  !TypeRef
   deriving (Eq, Show)
 
 ----------------------------------
 ------------ Unions --------------
 ----------------------------------
 data UnionDecl = UnionDecl
-  { unionIdent :: Ident
-  , unionVals  :: NonEmpty UnionVal
+  { unionIdent :: !Ident
+  , unionVals  :: !(NonEmpty UnionVal)
   } deriving (Show, Eq)
 
 data UnionVal = UnionVal
-  { unionValIdent    :: Ident
-  , unionValTableRef :: TypeRef
+  { unionValIdent    :: !Ident
+  , unionValTableRef :: !TypeRef
   } deriving (Show, Eq)

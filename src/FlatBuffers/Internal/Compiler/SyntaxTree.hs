@@ -14,26 +14,26 @@ import qualified Data.Text                 as T
 import           FlatBuffers.Internal.Util (Display (..))
 
 data FileTree a = FileTree
-  { fileTreeFilePath :: FilePath
-  , fileTreeRoot     :: a
-  , fileTreeForest   :: Map FilePath a
+  { fileTreeFilePath :: !FilePath
+  , fileTreeRoot     :: !a
+  , fileTreeForest   :: !(Map FilePath a)
   }
   deriving (Show, Eq, Foldable, Functor, Traversable)
 
 data Schema = Schema
-  { includes :: [Include]
-  , decls    :: [Decl]
+  { includes :: ![Include]
+  , decls    :: ![Decl]
   } deriving (Show, Eq)
 
 data Decl
-  = DeclN NamespaceDecl
-  | DeclT TableDecl
-  | DeclS StructDecl
-  | DeclE EnumDecl
-  | DeclU UnionDecl
-  | DeclR RootDecl
-  | DeclFI FileIdentifierDecl
-  | DeclA AttributeDecl
+  = DeclN !NamespaceDecl
+  | DeclT !TableDecl
+  | DeclS !StructDecl
+  | DeclE !EnumDecl
+  | DeclU !UnionDecl
+  | DeclR !RootDecl
+  | DeclFI !FileIdentifierDecl
+  | DeclA !AttributeDecl
   deriving (Show, Eq)
 
 newtype Ident = Ident
@@ -53,14 +53,14 @@ newtype IntLiteral = IntLiteral
   } deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral)
 
 data AttributeVal
-  = AttrI Integer
-  | AttrS Text
+  = AttrI !Integer
+  | AttrS !Text
   deriving (Show, Eq)
 
 data DefaultVal
-  = DefaultNum Scientific
-  | DefaultBool Bool
-  | DefaultRef Ident
+  = DefaultNum !Scientific
+  | DefaultBool !Bool
+  | DefaultRef !Ident
   deriving (Show, Eq)
 
 newtype Metadata = Metadata
@@ -72,51 +72,51 @@ newtype NamespaceDecl = NamespaceDecl
   } deriving newtype (Show, Eq, IsString)
 
 data TableDecl = TableDecl
-  { tableIdent    :: Ident
-  , tableMetadata :: Metadata
-  , tableFields   :: [TableField]
+  { tableIdent    :: !Ident
+  , tableMetadata :: !Metadata
+  , tableFields   :: ![TableField]
   } deriving (Show, Eq)
 
 data TableField = TableField
-  { tableFieldIdent    :: Ident
-  , tableFieldType     :: Type
-  , tableFieldDefault  :: Maybe DefaultVal
-  , tableFieldMetadata :: Metadata
+  { tableFieldIdent    :: !Ident
+  , tableFieldType     :: !Type
+  , tableFieldDefault  :: !(Maybe DefaultVal)
+  , tableFieldMetadata :: !Metadata
   } deriving (Show, Eq)
 
 data StructDecl = StructDecl
-  { structIdent    :: Ident
-  , structMetadata :: Metadata
-  , structFields   :: NonEmpty StructField
+  { structIdent    :: !Ident
+  , structMetadata :: !Metadata
+  , structFields   :: !(NonEmpty StructField)
   } deriving (Show, Eq)
 
 data StructField = StructField
-  { structFieldIdent    :: Ident
-  , structFieldType     :: Type
-  , structFieldMetadata :: Metadata
+  { structFieldIdent    :: !Ident
+  , structFieldType     :: !Type
+  , structFieldMetadata :: !Metadata
   } deriving (Show, Eq)
 
 data EnumDecl = EnumDecl
-  { enumIdent    :: Ident
-  , enumType     :: Type
-  , enumMetadata :: Metadata
-  , enumVals     :: NonEmpty EnumVal
+  { enumIdent    :: !Ident
+  , enumType     :: !Type
+  , enumMetadata :: !Metadata
+  , enumVals     :: !(NonEmpty EnumVal)
   } deriving (Show, Eq)
 
 data EnumVal = EnumVal
-  { enumValIdent   :: Ident
-  , enumValLiteral :: Maybe IntLiteral
+  { enumValIdent   :: !Ident
+  , enumValLiteral :: !(Maybe IntLiteral)
   } deriving (Show, Eq)
 
 data UnionDecl = UnionDecl
-  { unionIdent    :: Ident
-  , unionMetadata :: Metadata
-  , unionVals     :: NonEmpty UnionVal
+  { unionIdent    :: !Ident
+  , unionMetadata :: !Metadata
+  , unionVals     :: !(NonEmpty UnionVal)
   } deriving (Show, Eq)
 
 data UnionVal = UnionVal
-  { unionValIdent   :: Maybe Ident
-  , unionValTypeRef :: TypeRef
+  { unionValIdent   :: !(Maybe Ident)
+  , unionValTypeRef :: !TypeRef
   } deriving (Show, Eq)
 
 data Type
@@ -135,13 +135,13 @@ data Type
   -- others
   | TBool
   | TString
-  | TRef TypeRef
-  | TVector Type
+  | TRef !TypeRef
+  | TVector !Type
   deriving (Show, Eq)
 
 data TypeRef = TypeRef
-  { typeRefNamespace :: Namespace
-  , typeRefIdent     :: Ident
+  { typeRefNamespace :: !Namespace
+  , typeRefIdent     :: !Ident
   } deriving (Show, Eq)
 
 instance Display TypeRef where
