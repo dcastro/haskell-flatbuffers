@@ -162,9 +162,8 @@ getRootInfo schema symbolTables =
         ST.DeclN (ST.NamespaceDecl newNamespace)       -> pure (newNamespace, rootInfo, fileIdent)
         ST.DeclFI (ST.FileIdentifierDecl newFileIdent) -> pure (currentNamespace, rootInfo, Just (coerce newFileIdent))
         ST.DeclR (ST.RootDecl typeRef)                 ->
-          case findDecl currentNamespace symbolTables typeRef of
+          findDecl currentNamespace symbolTables typeRef >>= \case
             MatchT (rootTableNamespace, rootTable)  -> pure (currentNamespace, Just (rootTableNamespace, rootTable), fileIdent)
-            NoMatch checkedNamespaces               -> typeRefNotFound checkedNamespaces typeRef
             _                                       -> throwErrorMsg "root type must be a table"
         _ -> pure state
 
@@ -213,17 +212,17 @@ data Match enum struct table union
   | MatchS (Namespace, struct)
   | MatchT (Namespace, table)
   | MatchU (Namespace, union)
-  | NoMatch (NonEmpty Namespace) -- ^ the list of namespaces in which the type reference was searched for
 
 -- | Looks for a type reference in a set of type declarations.
 -- If none is found, the list of namespaces in which the type reference was searched for is returned.
 findDecl ::
-     (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
+     ValidationCtx m
+  => (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
   => Namespace
   -> FileTree (SymbolTable e s t u)
   -> TypeRef
-  -> Match e s t u
-findDecl currentNamespace symbolTables (TypeRef refNamespace refIdent) =
+  -> m (Match e s t u)
+findDecl currentNamespace symbolTables typeRef@(TypeRef refNamespace refIdent) =
   let parentNamespaces' = parentNamespaces currentNamespace
       results = do
         parentNamespace <- parentNamespaces'
@@ -238,8 +237,14 @@ findDecl currentNamespace symbolTables (TypeRef refNamespace refIdent) =
         pure $ asum $ fmap searchSymbolTable symbolTables
   in 
     case asum results of
-      Just match -> match
-      Nothing    -> NoMatch parentNamespaces'
+      Just match -> pure match
+      Nothing    ->
+        throwErrorMsg $
+          "type '"
+          <> display typeRef
+          <> "' does not exist (checked in these namespaces: "
+          <> display parentNamespaces'
+          <> ")"
 
 -- | Returns a list of all the namespaces "between" the current namespace
 -- and the root namespace, in that order.
@@ -441,7 +446,7 @@ validateTable symbolTables (currentNamespace, table) =
         ST.TBool -> checkNoRequired md >> validateDefaultValAsBool dflt <&> TBool
         ST.TString -> checkNoDefault dflt $> TString (isRequired md)
         ST.TRef typeRef ->
-          case findDecl currentNamespace symbolTables typeRef of
+          findDecl currentNamespace symbolTables typeRef >>= \case
             MatchE (ns, enum) -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
@@ -449,7 +454,6 @@ validateTable symbolTables (currentNamespace, table) =
             MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (TypeRef ns (getIdent struct))  (isRequired md)
             MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (TypeRef ns (getIdent table)) (isRequired md)
             MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (TypeRef ns (getIdent union)) (isRequired md)
-            NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
         ST.TVector vecType ->
           checkNoDefault dflt >> TVector (isRequired md) <$>
             case vecType of
@@ -467,16 +471,15 @@ validateTable symbolTables (currentNamespace, table) =
               ST.TString -> pure VString
               ST.TVector _ -> throwErrorMsg "nested vector types not supported"
               ST.TRef typeRef ->
-                case findDecl currentNamespace symbolTables typeRef of
+                findDecl currentNamespace symbolTables typeRef <&> \case
                   MatchE (ns, enum) ->
-                    pure $ VEnum (TypeRef ns (getIdent enum))
-                                 (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
+                    VEnum (TypeRef ns (getIdent enum))
+                          (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
                   MatchS (ns, struct) ->
-                    pure $ VStruct (TypeRef ns (getIdent struct))
-                                   (structSize struct)
-                  MatchT (ns, table) -> pure $ VTable (TypeRef ns (getIdent table))
-                  MatchU (ns, union) -> pure $ VUnion (TypeRef ns (getIdent union))
-                  NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
+                    VStruct (TypeRef ns (getIdent struct))
+                            (structSize struct)
+                  MatchT (ns, table) -> VTable (TypeRef ns (getIdent table))
+                  MatchU (ns, union) -> VUnion (TypeRef ns (getIdent union))
 
 checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
 checkNoRequired md =
@@ -586,8 +589,7 @@ validateUnion symbolTables (currentNamespace, union) =
 
     validateUnionValType :: TypeRef -> m TypeRef
     validateUnionValType typeRef =
-      case findDecl currentNamespace symbolTables typeRef of
-        NoMatch checkedNamespaces -> typeRefNotFound checkedNamespaces typeRef
+      findDecl currentNamespace symbolTables typeRef >>= \case
         MatchT (ns, table)        -> pure $ TypeRef ns (getIdent table)
         _                         -> throwErrorMsg "union members may only be tables"
 
@@ -626,14 +628,13 @@ checkStructCycles symbolTables = go []
                   <>"] - structs cannot contain themselves, directly or indirectly"
               else
                 forM_ (ST.structFields struct) $ \field ->
-                  case ST.structFieldType field of
-                    ST.TRef typeRef ->
-                      case findDecl currentNamespace symbolTables typeRef of
-                        MatchS struct ->
-                          go (qualifiedName : visited) struct
-                        _ ->
-                          pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
-                    _ -> pure () -- Field is not a TypeRef, no validation needed
+                  modifyContext (\context -> context <> "." <> getIdent field) $
+                    case ST.structFieldType field of
+                      ST.TRef typeRef ->
+                        findDecl currentNamespace symbolTables typeRef >>= \case
+                          MatchS struct -> go (qualifiedName : visited) struct
+                          _             -> pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                      _ -> pure () -- Field is not a TypeRef, no validation needed
 
 data UnpaddedStructField = UnpaddedStructField
   { unpaddedStructFieldIdent    :: Ident
@@ -724,14 +725,12 @@ validateStruct symbolTables (currentNamespace, struct) =
         ST.TString -> throwErrorMsg invalidStructFieldType
         ST.TVector _ -> throwErrorMsg invalidStructFieldType
         ST.TRef typeRef ->
-          case findDecl currentNamespace symbolTables typeRef of
+          findDecl currentNamespace symbolTables typeRef >>= \case
             MatchE (enumNamespace, enum) ->
               pure (SEnum (TypeRef enumNamespace (getIdent enum)) (enumType enum))
             MatchS (nestedNamespace, nestedStruct) ->
               -- if this is a reference to a struct, we need to validate it first
               SStruct <$> validateStruct symbolTables (nestedNamespace, nestedStruct)
-            NoMatch checkedNamespaces ->
-              typeRefNotFound checkedNamespaces typeRef
             _ -> throwErrorMsg invalidStructFieldType
 
     checkUnsupportedAttributes :: ST.StructField -> m ()
@@ -886,12 +885,5 @@ throwErrorMsg msg = do
     then throwError msg
     else throwError $ "[" <> display context <> "]: " <> msg
 
-typeRefNotFound :: ValidationCtx m => NonEmpty Namespace -> TypeRef -> m a
-typeRefNotFound checkedNamespaces typeRef =
-  throwErrorMsg $
-    "type '"
-    <> display typeRef
-    <> "' does not exist (checked in these namespaces: "
-    <> display checkedNamespaces
-    <> ")"
+
 
