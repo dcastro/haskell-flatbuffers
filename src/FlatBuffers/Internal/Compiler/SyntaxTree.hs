@@ -150,7 +150,7 @@ instance Display TypeRef where
 newtype RootDecl = RootDecl TypeRef
   deriving newtype (Show, Eq)
 
-newtype FileIdentifierDecl = FileIdentifierDecl StringLiteral
+newtype FileIdentifierDecl = FileIdentifierDecl Text
   deriving newtype (Show, Eq, IsString)
 
 newtype AttributeDecl = AttributeDecl Text

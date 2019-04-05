@@ -9,6 +9,7 @@ import qualified Control.Monad.Combinators.NonEmpty       as NE
 import           Control.Monad.Except                     ( MonadError, MonadIO, liftIO, throwError )
 import           Control.Monad.State                      ( MonadState, execStateT, get, put )
 
+import qualified Data.ByteString                          as BS
 import           Data.Coerce                              ( coerce )
 import           Data.Foldable                            ( traverse_ )
 import           Data.Functor
@@ -19,6 +20,8 @@ import qualified Data.Map.Strict                          as Map
 import           Data.Maybe                               ( catMaybes )
 import           Data.Text                                ( Text )
 import qualified Data.Text                                as T
+
+import qualified Data.Text.Encoding                       as T
 import           Data.Void                                ( Void )
 
 import           FlatBuffers.Internal.Compiler.SyntaxTree
@@ -285,9 +288,18 @@ fileExtensionDecl = void (rword "file_extension" *> stringLiteral <* semi)
 fileIdentifierDecl :: Parser FileIdentifierDecl
 fileIdentifierDecl = do
   rword "file_identifier"
-  fi <- stringLiteral
-  when (T.length (coerce fi) /= 4) $
-    fail "file_identifier must be exactly 4 characters"
+  fi <- coerce stringLiteral
+
+  let byteCount = BS.length (T.encodeUtf8 fi)
+  let codePointCount = T.length fi
+
+  when (byteCount /= 4) $
+    if codePointCount == byteCount
+      -- if the user is using ASCII characters
+      then fail "file_identifier must be exactly 4 characters"
+      -- if the user is using multi UTF-8 code unit characters, show a more detailed error message
+      else fail "file_identifier must be exactly 4 UTF-8 code units"
+
   semi
   pure (FileIdentifierDecl fi)
 

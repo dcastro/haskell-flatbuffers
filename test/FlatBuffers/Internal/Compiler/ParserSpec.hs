@@ -206,9 +206,15 @@ spec =
             , DeclFI $ FileIdentifierDecl "abcd"
             ]
 
-      it "file identifier must have exactly 4 characters" $ do
+      it "file identifier must have exactly 4 UTF-8 code units" $ do
+        parseEof schema [r| file_identifier "";      |] `shouldFailWithError` "file_identifier must be exactly 4 characters\n"
         parseEof schema [r| file_identifier "abc";   |] `shouldFailWithError` "file_identifier must be exactly 4 characters\n"
         parseEof schema [r| file_identifier "abcde"; |] `shouldFailWithError` "file_identifier must be exactly 4 characters\n"
+        parseEof schema [r| file_identifier "abc👬"; |] `shouldFailWithError` "file_identifier must be exactly 4 UTF-8 code units\n"
+        parseEof schema [r| file_identifier "a👬";   |] `shouldFailWithError` "file_identifier must be exactly 4 UTF-8 code units\n"
+
+        [r| file_identifier "abcd"; |] `parses` Schema [] [ DeclFI "abcd" ]
+        [r| file_identifier "👬";   |] `parses` Schema [] [ DeclFI "👬" ]
 
       it "json objects" $
         [r|
