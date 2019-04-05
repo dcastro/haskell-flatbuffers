@@ -83,8 +83,8 @@ schema = do
   pure $ Schema includes (catMaybes decls)
   where
     failOnInclude =
-      include *> fail "\"include\" statements must be at the beginning of the file."
-      <|> (nativeInclude *> fail "\"native_include\" statements must be at the beginning of the file.")
+      rword "include" *> fail "\"include\" statements must be at the beginning of the file."
+      <|> (rword "native_include" *> fail "\"native_include\" statements must be at the beginning of the file.")
 
 decl :: Parser (Maybe Decl)
 decl =
