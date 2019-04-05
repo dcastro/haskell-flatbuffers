@@ -195,7 +195,7 @@ spec =
           root_type c;
           root_type My.Api.C ;
           file_extension "d";
-          file_identifier "e";
+          file_identifier "abcd";
         |] `parses`
           Schema
             []
@@ -203,8 +203,12 @@ spec =
             , DeclA $ AttributeDecl "b"
             , DeclR $ RootDecl (TypeRef "" "c")
             , DeclR $ RootDecl (TypeRef "My.Api" "C")
-            , DeclFI $ FileIdentifierDecl "e"
+            , DeclFI $ FileIdentifierDecl "abcd"
             ]
+
+      it "file identifier must have exactly 4 characters" $ do
+        parseEof schema [r| file_identifier "abc";   |] `shouldFailWithError` "file_identifier must be exactly 4 characters\n"
+        parseEof schema [r| file_identifier "abcde"; |] `shouldFailWithError` "file_identifier must be exactly 4 characters\n"
 
       it "json objects" $
         [r|

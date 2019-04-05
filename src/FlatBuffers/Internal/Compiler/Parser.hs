@@ -283,7 +283,13 @@ fileExtensionDecl :: Parser ()
 fileExtensionDecl = void (rword "file_extension" *> stringLiteral <* semi)
 
 fileIdentifierDecl :: Parser FileIdentifierDecl
-fileIdentifierDecl = FileIdentifierDecl <$> (rword "file_identifier" *> stringLiteral <* semi)
+fileIdentifierDecl = do
+  rword "file_identifier"
+  fi <- stringLiteral
+  when (T.length (coerce fi) /= 4) $
+    fail "file_identifier must be exactly 4 characters"
+  semi
+  pure (FileIdentifierDecl fi)
 
 attributeDecl :: Parser AttributeDecl
 attributeDecl = AttributeDecl <$> (rword "attribute" *> attributeName <* semi)
