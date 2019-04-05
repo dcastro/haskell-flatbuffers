@@ -103,6 +103,7 @@ validateSchemas schemas =
       >>= validateStructs
       >>= validateTables
       >>= validateUnions
+      >>= updateRootTable (fileTreeRoot schemas)
   where
     symbolTables = createSymbolTables schemas
 
@@ -120,6 +121,53 @@ validateSchemas schemas =
         [ attr | ST.DeclA attr <- ST.decls schema ]
     
     allAttributes = Set.fromList $ declaredAttributes <> knownAttributes
+
+----------------------------------
+------------ Root Type -----------
+----------------------------------
+data RootInfo = RootInfo
+  { rootTableNamespace :: Namespace
+  , rootTable          :: TableDecl
+  , rootFileIdent      :: Maybe Text
+  }
+
+-- | Finds the root table (if any) and sets the `IsRootType` flag accordingly.
+-- We only care about `root_type` declarations in the root schema. Imported schemas are not scanned for `root_types`.
+-- The root type declaration can point to a table in any schema (root or imported).
+updateRootTable :: forall m. ValidationCtx m => Schema -> FileTree ValidDecls -> m (FileTree ValidDecls)
+updateRootTable schema symbolTables =
+  getRootInfo schema symbolTables <&> \case
+    Just rootInfo -> updateSymbolTable rootInfo <$> symbolTables
+    Nothing       -> symbolTables
+
+  where
+    updateSymbolTable :: RootInfo -> ValidDecls -> ValidDecls
+    updateSymbolTable rootInfo st = st { allTables = updateTable rootInfo <$> allTables st}
+
+    updateTable :: RootInfo -> (Namespace, TableDecl) -> (Namespace, TableDecl)
+    updateTable (RootInfo rootTableNamespace rootTable fileIdent) pair@(namespace, table) =
+      if namespace == rootTableNamespace && table == rootTable
+        then (namespace, table { tableIsRoot = IsRoot fileIdent })
+        else pair
+
+getRootInfo :: forall m. ValidationCtx m => Schema -> FileTree ValidDecls -> m (Maybe RootInfo)
+getRootInfo schema symbolTables =
+  foldlM go ("", Nothing, Nothing) (ST.decls schema) <&> \case
+    (_, Just (rootTableNamespace, rootTable), fileIdent) -> Just $ RootInfo rootTableNamespace rootTable fileIdent
+    _ -> Nothing
+  where
+    go :: (Namespace, Maybe (Namespace, TableDecl), Maybe Text) -> ST.Decl -> m (Namespace, Maybe (Namespace, TableDecl), Maybe Text)
+    go state@(currentNamespace, rootInfo, fileIdent) decl =
+      case decl of
+        ST.DeclN (ST.NamespaceDecl newNamespace)       -> pure (newNamespace, rootInfo, fileIdent)
+        ST.DeclFI (ST.FileIdentifierDecl newFileIdent) -> pure (currentNamespace, rootInfo, Just (coerce newFileIdent))
+        ST.DeclR (ST.RootDecl typeRef)                 ->
+          case findDecl currentNamespace symbolTables typeRef of
+            MatchT (rootTableNamespace, rootTable)  -> pure (currentNamespace, Just (rootTableNamespace, rootTable), fileIdent)
+            NoMatch checkedNamespaces               -> typeRefNotFound checkedNamespaces typeRef
+            _                                       -> throwErrorMsg "root type must be a table"
+        _ -> pure state
+
 
 ----------------------------------
 ----------- Attributes -----------
@@ -329,6 +377,7 @@ validateTable symbolTables (currentNamespace, table) =
 
     pure TableDecl
       { tableIdent = getIdent table
+      , tableIsRoot = NotRoot
       , tableFields = sortedFields
       }
 

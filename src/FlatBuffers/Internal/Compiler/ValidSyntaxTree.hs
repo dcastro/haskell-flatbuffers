@@ -1,16 +1,17 @@
-{-# LANGUAGE DerivingVia         #-}
+{-# LANGUAGE DerivingVia #-}
 
 module FlatBuffers.Internal.Compiler.ValidSyntaxTree where
 
 import           Data.Int
-import           Data.List.NonEmpty                       (NonEmpty)
-import           Data.Scientific                          (Scientific)
-import           Data.String                              (IsString (..))
-import           Data.Word
-import           FlatBuffers.Constants                    (InlineSize (..))
-import           FlatBuffers.Internal.Compiler.SyntaxTree (Ident, Namespace,
-                                                           TypeRef, HasIdent(..))
+import           Data.List.NonEmpty                       ( NonEmpty )
+import           Data.Scientific                          ( Scientific )
+import           Data.String                              ( IsString(..) )
 
+import           Data.Text                                ( Text )
+import           Data.Word
+
+import           FlatBuffers.Constants                    ( InlineSize(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident, Namespace, TypeRef )
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
 instance HasIdent EnumVal     where getIdent = enumValIdent
@@ -84,12 +85,18 @@ data StructFieldType
 ----------------------------------
 newtype DefaultVal a = DefaultVal a
   deriving (Eq, Show, Num, IsString, Fractional) via a
-        
+
 data Required = Req | Opt
+  deriving (Eq, Show)
+
+data IsRoot
+  = NotRoot              -- ^ This table is not the root table.
+  | IsRoot (Maybe Text) -- ^ This table is the root table, and has an optional file identifier.
   deriving (Eq, Show)
 
 data TableDecl = TableDecl
   { tableIdent     :: Ident
+  , tableIsRoot    :: IsRoot
   , tableFields    :: [TableField]
   } deriving (Eq, Show)
 

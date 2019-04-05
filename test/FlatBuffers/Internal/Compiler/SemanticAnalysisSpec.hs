@@ -42,7 +42,7 @@ spec =
         table X{}
       |] `shouldValidate` foldDecls
         [ union ("A", UnionDecl "X" [UnionVal "B_X" (TypeRef "B" "X")])
-        , table ("B", TableDecl "X" [])
+        , table ("B", TableDecl "X" NotRoot [])
         ]
 
     describe "attributes" $ do
@@ -82,6 +82,58 @@ spec =
               native_type
              ) {}
           |]
+
+    describe "root type" $ do
+      it "flips the `isRoot` flag" $
+        [r|
+          table T{}
+          root_type T;
+        |] `shouldValidate`
+          table ("", TableDecl "T" (IsRoot Nothing) [])
+
+      it "can be paired with a file_identifier" $
+        [r|
+          table T{}
+          file_identifier "abcd";
+          root_type T;
+        |] `shouldValidate`
+          table ("", TableDecl "T" (IsRoot (Just "abcd")) [])
+
+      it "when set multiple times, the last declaration wins" $
+        [r|
+          file_identifier "abcd";
+          root_type T;
+          root_type T2;
+          file_identifier "efgh";
+          table T2{}
+          table T{}
+        |] `shouldValidate` foldDecls
+          [ table ("", TableDecl "T2" (IsRoot (Just "efgh")) [])
+          , table ("", TableDecl "T" NotRoot [])
+          ]
+
+      it "must reference a table" $ do
+        [r| root_type E; enum E:int{x}        |] `shouldFail` "root type must be a table"
+        [r| root_type S; struct S{x:int;}     |] `shouldFail` "root type must be a table"
+        [r| root_type U; union U{T} table T{} |] `shouldFail` "root type must be a table"
+        [r| root_type string;                 |] `shouldFail` "type 'string' does not exist (checked in these namespaces: '')"
+        
+      it "can reference tables in other namespaces" $
+        [r|
+          namespace A;
+          root_type B.T;
+          namespace A.B;
+          table T{}
+          file_identifier "abcd";
+        |] `shouldValidate`
+          table ("A.B", TableDecl "T" (IsRoot (Just "abcd")) [])
+
+      it "a file identifier on its own doesn't do anything" $
+        [r|
+          table T{}
+          file_identifier "abcd";
+        |] `shouldValidate`
+          table ("", TableDecl "T" NotRoot [])
 
     describe "enums" $ do
       it "simple" $
@@ -404,11 +456,11 @@ spec =
 
     describe "tables" $ do
       it "empty" $
-        [r| table T{} |] `shouldValidate` table ("", TableDecl "T" [])
+        [r| table T{} |] `shouldValidate` table ("", TableDecl "T" NotRoot [])
 
       it "with cyclic reference" $
         [r| table T{x: T;} |] `shouldValidate`
-          table ("", TableDecl "T"
+          table ("", TableDecl "T" NotRoot
             [ TableField "x" (TTable (TypeRef "" "T") Opt) False
             ])
 
@@ -438,7 +490,7 @@ spec =
               k: bool;
             }
           |] `shouldValidate`
-            table ("A.B", TableDecl "T"
+            table ("A.B", TableDecl "T" NotRoot
               [ TableField "a" (TInt8 0) False
               , TableField "b" (TInt16 0) False
               , TableField "c" (TInt32 0) False
@@ -484,7 +536,7 @@ spec =
               k: bool (deprecated);
             }
           |] `shouldValidate`
-            table ("A.B", TableDecl "T"
+            table ("A.B", TableDecl "T" NotRoot
               [ TableField "a" (TInt8 0) True
               , TableField "b" (TInt16 0) True
               , TableField "c" (TInt32 0) True
@@ -511,7 +563,7 @@ spec =
               f: ushort = 200e-1;
             }
           |] `shouldValidate`
-            table ("", TableDecl "T"
+            table ("", TableDecl "T" NotRoot
               [ TableField "a" (TInt8 127) False
               , TableField "b" (TInt16 (-32768)) False
               , TableField "c" (TInt32 1) False
@@ -549,7 +601,7 @@ spec =
               f: double = 200e-1;
             }
           |] `shouldValidate`
-            table ("", TableDecl "T"
+            table ("", TableDecl "T" NotRoot
               [ TableField "a" (TFloat 127) False
               , TableField "b" (TFloat (-32768)) False
               , TableField "c" (TFloat 1) False
@@ -567,7 +619,7 @@ spec =
               c: double = 2.22e1;
             }
           |] `shouldValidate`
-            table ("", TableDecl "T"
+            table ("", TableDecl "T" NotRoot
               [ TableField "a" (TDouble 1.1) False
               , TableField "b" (TDouble 0.2) False
               , TableField "c" (TDouble 22.2) False
@@ -594,7 +646,7 @@ spec =
               b: bool = false;
             }
           |] `shouldValidate`
-            table ("", TableDecl "T"
+            table ("", TableDecl "T" NotRoot
               [ TableField "a" (TBool (DefaultVal True)) False
               , TableField "b" (TBool (DefaultVal False)) False
               ]
@@ -606,13 +658,13 @@ spec =
       describe "with string fields" $ do
         it "simple" $
           [r| table T { x: string; } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TString Opt) False ])
+            table ("", TableDecl "T" NotRoot [ TableField "x" (TString Opt) False ])
         it "with `required` attribute" $
           [r| table T { x: string (required); } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TString Req) False ])
+            table ("", TableDecl "T" NotRoot [ TableField "x" (TString Req) False ])
         it "with `deprecated` attribute" $
           [r| table T { x: string (deprecated); } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TString Opt) True ])
+            table ("", TableDecl "T" NotRoot [ TableField "x" (TString Opt) True ])
         it "with default value" $ do
           let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
           [r| table T { x: string = a;   } |] `shouldFail` errorMsg
@@ -629,7 +681,7 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ enum ("A.B", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
-            , table ("A.B", TableDecl "T"
+            , table ("A.B", TableDecl "T" NotRoot
                 [ TableField "x" (TEnum (TypeRef "A.B" "E") "A") False ]
               )
             ]
@@ -641,7 +693,7 @@ spec =
         it "with `deprecated` attribute" $
           [r| table T { x: E (deprecated); } enum E : short{A} |] `shouldValidate` foldDecls
             [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
-            , table ("", TableDecl "T"
+            , table ("", TableDecl "T" NotRoot
                 [ TableField "x" (TEnum (TypeRef "" "E") "A") True ]
               )
             ]
@@ -649,7 +701,7 @@ spec =
         it "without default value, when enum has 0-value" $
           [r| table T { x: E; } enum E : short{ A = -1, B = 0, C = 1} |] `shouldValidate` foldDecls
             [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" (-1), EnumVal "B" 0, EnumVal "C" 1 ])
-            , table ("", TableDecl "T"
+            , table ("", TableDecl "T" NotRoot
                 [ TableField "x" (TEnum (TypeRef "" "E") "B") False ]
               )
             ]
@@ -662,7 +714,7 @@ spec =
           it "valid integral" $
             [r| table T { x: E = 1; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
               [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
-              , table ("", TableDecl "T"
+              , table ("", TableDecl "T" NotRoot
                   [ TableField "x" (TEnum (TypeRef "" "E") "B") False ]
                 )
               ]
@@ -674,7 +726,7 @@ spec =
           it "valid identifier" $
             [r| table T { x: E = B; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
               [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
-              , table ("", TableDecl "T"
+              , table ("", TableDecl "T" NotRoot
                   [ TableField "x" (TEnum (TypeRef "" "E") "B") False ]
                 )
               ]
@@ -705,9 +757,9 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
-            , table ("A", TableDecl "T" [])
+            , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
-            , table ("A", TableDecl "Table"
+            , table ("A", TableDecl "Table" NotRoot
                 [ TableField "x" (TStruct (TypeRef "A" "S") Opt) False
                 , TableField "y" (TTable (TypeRef "A" "T") Opt) False
                 , TableField "z" (TUnion (TypeRef "A" "U") Opt) False
@@ -728,9 +780,9 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
-            , table ("A", TableDecl "T" [])
+            , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
-            , table ("A", TableDecl "Table"
+            , table ("A", TableDecl "Table" NotRoot
                 [ TableField "x" (TStruct (TypeRef "A" "S") Req) False
                 , TableField "y" (TTable (TypeRef "A" "T") Req) False
                 , TableField "z" (TUnion (TypeRef "A" "U") Req) False
@@ -751,9 +803,9 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 SInt32 ])
-            , table ("A", TableDecl "T" [])
+            , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
-            , table ("A", TableDecl "Table"
+            , table ("A", TableDecl "Table" NotRoot
                 [ TableField "x" (TStruct (TypeRef "A" "S") Opt) True
                 , TableField "y" (TTable (TypeRef "A" "T") Opt) True
                 , TableField "z" (TUnion (TypeRef "A" "U") Opt) True
@@ -770,7 +822,7 @@ spec =
       describe "with vector fields" $ do
         it "simple" $
           [r| table T { x: [string]; y: [int]; z: [bool]; } |] `shouldValidate`
-            table ("", TableDecl "T"
+            table ("", TableDecl "T" NotRoot
               [ TableField "x" (TVector Opt VString) False
               , TableField "y" (TVector Opt VInt32) False
               , TableField "z" (TVector Opt VBool) False
@@ -787,7 +839,7 @@ spec =
             table  T {}
             union  U { T }
           |] `shouldValidate` foldDecls
-            [ table ("A", TableDecl "Table"
+            [ table ("A", TableDecl "Table" NotRoot
                 [ TableField "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") 2)) False
                 , TableField "x" (TVector Opt (VStruct (TypeRef "A.B" "S") 16)) False
                 , TableField "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
@@ -795,17 +847,17 @@ spec =
                 ])
             , enum   ("A.B", EnumDecl "E" EInt16 [EnumVal "EA" 0])
             , struct ("A.B", StructDecl "S" 8 [StructField "x" 7 SWord8, StructField "y" 0 SInt64])
-            , table  ("A.B", TableDecl "T" [])
+            , table  ("A.B", TableDecl "T" NotRoot [])
             , union  ("A.B", UnionDecl "U" [UnionVal "T" (TypeRef "A.B" "T")])
             ]
 
         it "with `required` attribute" $
           [r| table T { x: [byte] (required); } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TVector Req VInt8) False ])
+            table ("", TableDecl "T" NotRoot [ TableField "x" (TVector Req VInt8) False ])
 
         it "with `deprecated` attribute" $
           [r| table T { x: [string] (deprecated); } |] `shouldValidate`
-            table ("", TableDecl "T" [ TableField "x" (TVector Opt VString) True ])
+            table ("", TableDecl "T" NotRoot [ TableField "x" (TVector Opt VString) True ])
 
         it "with default value" $ do
           let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
@@ -823,7 +875,7 @@ spec =
               z: byte (id: 0);
             }
           |] `shouldValidate` foldDecls
-            [ table ("", TableDecl "T"
+            [ table ("", TableDecl "T" NotRoot
                 [ TableField "z" (TInt8 0) False
                 , TableField "x" (TInt8 0) False
                 , TableField "w" (TInt8 0) False
@@ -841,7 +893,7 @@ spec =
               z: byte (id: 0);
             }
           |] `shouldValidate` foldDecls
-            [ table ("", TableDecl "T"
+            [ table ("", TableDecl "T" NotRoot
                 [ TableField "z" (TInt8 0) False
                 , TableField "x" (TUnion (TypeRef "" "U") Opt) False
                 , TableField "y" (TInt8 0) False
@@ -868,7 +920,7 @@ spec =
               z: byte (id: 0);
             }
           |] `shouldValidate` foldDecls
-            [ table ("", TableDecl "T"
+            [ table ("", TableDecl "T" NotRoot
                 [ TableField "z" (TInt8 0) False
                 , TableField "x" (TVector Opt (VUnion (TypeRef "" "U"))) False
                 , TableField "y" (TInt8 0) False
@@ -894,7 +946,7 @@ spec =
               z: byte (id: "0");
             }
           |] `shouldValidate` foldDecls
-            [ table ("", TableDecl "T"
+            [ table ("", TableDecl "T" NotRoot
                 [ TableField "z" (TInt8 0) False
                 , TableField "x" (TInt8 0) False
                 , TableField "y" (TInt8 0) False
@@ -929,8 +981,8 @@ spec =
           table T2{}
           union U { T1, T2 }
         |] `shouldValidate` foldDecls
-          [ table ("", TableDecl "T1" [])
-          , table ("", TableDecl "T2" [])
+          [ table ("", TableDecl "T1" NotRoot [])
+          , table ("", TableDecl "T2" NotRoot [])
           , union ("", UnionDecl "U"
               [ UnionVal "T1" (TypeRef "" "T1")
               , UnionVal "T2" (TypeRef "" "T2")
@@ -946,8 +998,8 @@ spec =
           namespace A;
           union U { A.B.T1, B.T2 }
         |] `shouldValidate` foldDecls
-          [ table ("A.B", TableDecl "T1" [])
-          , table ("A.B", TableDecl "T2" [])
+          [ table ("A.B", TableDecl "T1" NotRoot [])
+          , table ("A.B", TableDecl "T2" NotRoot [])
           , union ("A", UnionDecl "U"
               [ UnionVal "A_B_T1" (TypeRef "A.B" "T1")
               , UnionVal "B_T2"   (TypeRef "A.B" "T2")
@@ -963,8 +1015,8 @@ spec =
           namespace A;
           union U { Alias1 : A.B.T1, Alias2:B.T2 }
         |] `shouldValidate` foldDecls
-          [ table ("A.B", TableDecl "T1" [])
-          , table ("A.B", TableDecl "T2" [])
+          [ table ("A.B", TableDecl "T1" NotRoot [])
+          , table ("A.B", TableDecl "T2" NotRoot [])
           , union ("A", UnionDecl "U"
               [ UnionVal "Alias1" (TypeRef "A.B" "T1")
               , UnionVal "Alias2" (TypeRef "A.B" "T2")
@@ -998,7 +1050,7 @@ spec =
           table NONE {}
           union U {A.NONE}
         |] `shouldValidate` foldDecls
-          [ table ("A", TableDecl "NONE" [])
+          [ table ("A", TableDecl "NONE" NotRoot [])
           , union ("A", UnionDecl "U"
               [ UnionVal "A_NONE"   (TypeRef "A" "NONE")
               ])
@@ -1010,7 +1062,7 @@ spec =
           table NONE {}
           union U {alias: NONE}
         |] `shouldValidate` foldDecls
-          [ table ("A", TableDecl "NONE" [])
+          [ table ("A", TableDecl "NONE" NotRoot [])
           , union ("A", UnionDecl "U"
               [ UnionVal "alias"   (TypeRef "A" "NONE")
               ])
@@ -1022,7 +1074,7 @@ spec =
           table T{}
           union U {T, A.T}
         |] `shouldValidate` foldDecls
-          [ table ("A", TableDecl "T" [])
+          [ table ("A", TableDecl "T" NotRoot [])
           , union ("A", UnionDecl "U"
               [ UnionVal "T"   (TypeRef "A" "T")
               , UnionVal "A_T" (TypeRef "A" "T")
@@ -1035,7 +1087,7 @@ spec =
           table T{}
           union U {T, alias:T}
         |] `shouldValidate` foldDecls
-          [ table ("A", TableDecl "T" [])
+          [ table ("A", TableDecl "T" NotRoot [])
           , union ("A", UnionDecl "U"
               [ UnionVal "T"     (TypeRef "A" "T")
               , UnionVal "alias" (TypeRef "A" "T")

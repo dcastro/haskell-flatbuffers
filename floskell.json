@@ -1,6 +1,10 @@
 {
   "language": "Haskell2010",
-  "extensions": [],
+  "extensions": [
+    "LambdaCase",
+    "ScopedTypeVariables",
+    "TypeApplications"
+  ],
   "style": "cramer",
   "formatting": {
     "penalty": {
