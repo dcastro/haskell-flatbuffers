@@ -185,7 +185,7 @@ newtype ThreeBytes = ThreeBytes Struct
 
 threeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 threeBytes a b c =
-  writeStruct Nothing
+  writeStruct 1
     [ ws a
     , ws b
     , ws c

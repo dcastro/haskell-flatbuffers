@@ -163,10 +163,9 @@ root' ref = do
   prep align (coerce uoffsetSize)
   write ref
 
-struct :: Maybe InlineSize -> NonEmpty InlineField -> Field
-struct forceAlign fields =
+struct :: InlineSize -> NonEmpty InlineField -> Field
+struct structAlign fields =
   let structSize = getSum $ foldMap (Sum . size) fields
-      structAlign = fromMaybe (getMax $ foldMap (Max . align) fields) forceAlign 
   in Field . pure . InlineField structSize structAlign $
       traverse_ write (Reverse fields)
 

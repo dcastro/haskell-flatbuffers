@@ -60,7 +60,7 @@ spec =
       let initialBuffer = B.word8 99 <> B.word8 99
       it "3 bytes aligned to 1 byte" $ do
         let b = testRoot initialBuffer $ table
-                [ struct Nothing
+                [ struct 1
                     [word8 11, word8 22, word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
@@ -73,7 +73,7 @@ spec =
 
       it "3 bytes aligned to 2 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ struct (Just 2)
+                [ struct 2
                     [word8 11, word8 22, padded 1 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
@@ -86,7 +86,7 @@ spec =
 
       it "3 bytes aligned to 4 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ struct (Just 4)
+                [ struct 4
                     [word8 11, word8 22, padded 1 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
@@ -99,7 +99,7 @@ spec =
 
       it "3 bytes aligned to 8 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ struct (Just 8)
+                [ struct 8
                     [word8 11, word8 22, padded 5 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
@@ -114,7 +114,7 @@ spec =
 
       it "3 bytes aligned to 16 bytes" $ do
         let b = testRoot initialBuffer $ table
-                [ struct (Just 16)
+                [ struct 16
                     [word8 11, word8 22, padded 13 $ word8 33] ]
         b `bufferShouldBe`
           [ 12,0,0,0
@@ -134,8 +134,8 @@ spec =
       it "vector of struct with 3 bytes aligned to 1 byte" $ do
         let b = testRoot initialBuffer $ table
                 [ vector @[]
-                  [ struct Nothing [word8 11, word8 22, word8 33]
-                  , struct Nothing [word8 44, word8 55, word8 66]
+                  [ struct 1 [word8 11, word8 22, word8 33]
+                  , struct 1 [word8 44, word8 55, word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -152,8 +152,8 @@ spec =
       it "vector of struct with 3 bytes aligned to 2 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ vector @[]
-                  [ struct (Just 2) [word8 11, word8 22, padded 1 $ word8 33]
-                  , struct (Just 2) [word8 44, word8 55, padded 1 $ word8 66]
+                  [ struct 2 [word8 11, word8 22, padded 1 $ word8 33]
+                  , struct 2 [word8 44, word8 55, padded 1 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -171,8 +171,8 @@ spec =
       it "vector of struct with 3 bytes aligned to 4 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ vector @[]
-                  [ struct (Just 4) [word8 11, word8 22, padded 1 $ word8 33]
-                  , struct (Just 4) [word8 44, word8 55, padded 1 $ word8 66]
+                  [ struct 4 [word8 11, word8 22, padded 1 $ word8 33]
+                  , struct 4 [word8 44, word8 55, padded 1 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -190,8 +190,8 @@ spec =
       it "vector of struct with 3 bytes aligned to 8 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ vector @[]
-                  [ struct (Just 8) [word8 11, word8 22, padded 5 $ word8 33]
-                  , struct (Just 8) [word8 44, word8 55, padded 5 $ word8 66]
+                  [ struct 8 [word8 11, word8 22, padded 5 $ word8 33]
+                  , struct 8 [word8 44, word8 55, padded 5 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`
@@ -212,8 +212,8 @@ spec =
       it "vector of struct with 3 bytes aligned to 16 bytes" $ do
         let b = testRoot initialBuffer $ table
                 [ vector @[]
-                  [ struct (Just 16) [word8 11, word8 22, padded 13 $ word8 33]
-                  , struct (Just 16) [word8 44, word8 55, padded 13 $ word8 66]
+                  [ struct 16 [word8 11, word8 22, padded 13 $ word8 33]
+                  , struct 16 [word8 44, word8 55, padded 13 $ word8 66]
                   ]
                 ]
         b `bufferShouldBe`

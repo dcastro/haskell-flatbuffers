@@ -181,7 +181,7 @@ newtype MyStruct =
 
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
-  writeStruct Nothing
+  writeStruct 8
     [ ws a
     , padded 3 $ ws b
     , ws c
@@ -200,7 +200,7 @@ newtype ThreeBytes = ThreeBytes Struct
 
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
-  writeStruct Nothing
+  writeStruct 1
     [ ws a
     , ws b
     , ws c
@@ -220,7 +220,7 @@ newtype SWS = SWS Struct
 
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
-  writeStruct Nothing
+  writeStruct 8
     [ ws myStructA
     , padded 3 $ ws myStructB
     , ws myStructC

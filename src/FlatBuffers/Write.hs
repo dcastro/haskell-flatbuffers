@@ -40,8 +40,8 @@ data WriteUnion a
 writeTable :: [Field] -> WriteTable a
 writeTable = WriteTable . F.table
 
-writeStruct :: Maybe InlineSize -> NonEmpty InlineField -> WriteStruct a
-writeStruct forceAlign xs = WriteStruct (F.struct forceAlign xs)
+writeStruct :: InlineSize -> NonEmpty InlineField -> WriteStruct a
+writeStruct structAlign xs = WriteStruct (F.struct structAlign xs)
 
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b
 writeUnion n (WriteTable t) = Some (n, t)
