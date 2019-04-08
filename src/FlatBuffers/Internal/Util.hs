@@ -2,11 +2,16 @@
 
 module FlatBuffers.Internal.Util where
 
-import           Data.Bits          (Bits, (.&.))
-import           Data.List.NonEmpty (NonEmpty)
+import           Data.Bits          ( (.&.), Bits )
+import           Data.List.NonEmpty ( NonEmpty )
 import qualified Data.List.NonEmpty as NE
-import           Data.Text          (Text)
+
+import           Data.Monoid        ( First(..) )
+import           Data.Text          ( Text )
 import qualified Data.Text          as T
+
+headF :: Foldable f => f a -> Maybe a
+headF xs = getFirst $ foldMap (First . Just) xs
 
 isPowerOfTwo :: (Num a, Bits a) => a -> Bool
 isPowerOfTwo 0 = False

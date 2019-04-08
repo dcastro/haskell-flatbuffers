@@ -31,25 +31,30 @@ module FlatBuffers.Internal.Write
 
 import           Control.Lens
 import           Control.Monad.State
-import qualified Data.ByteString         as BS
-import           Data.ByteString.Builder (Builder)
-import qualified Data.ByteString.Builder as B
-import qualified Data.ByteString.Lazy    as BSL
-import           Data.Coerce             (coerce)
+
+import qualified Data.ByteString           as BS
+import           Data.ByteString.Builder   ( Builder )
+import qualified Data.ByteString.Builder   as B
+import qualified Data.ByteString.Lazy      as BSL
+import           Data.Coerce               ( coerce )
 import           Data.Foldable
-import qualified Data.Foldable           as Foldable
-import           Data.Functor.Reverse    (Reverse (..))
+import qualified Data.Foldable             as Foldable
+import           Data.Functor.Reverse      ( Reverse(..) )
 import           Data.Int
-import qualified Data.List               as L
-import qualified Data.Map.Strict         as M
-import           Data.Maybe              (fromMaybe)
+import qualified Data.List                 as L
+
+import           Data.List.NonEmpty        ( NonEmpty )
+import qualified Data.Map.Strict           as M
+import           Data.Maybe                ( fromMaybe )
 import           Data.Monoid
-import           Data.List.NonEmpty      (NonEmpty)
-import           Data.Semigroup          (Max (..))
-import           Data.Text               (Text)
-import qualified Data.Text.Encoding      as T
+
+import           Data.Semigroup            ( Max(..) )
+import           Data.Text                 ( Text )
+import qualified Data.Text.Encoding        as T
 import           Data.Word
+
 import           FlatBuffers.Constants
+import           FlatBuffers.Internal.Util ( headF )
 
 type Offset = BytesWritten
 type BytesWritten = Int32
@@ -229,13 +234,13 @@ table' fields = do
 
   pure $ uoffsetFrom tableLocation
 
+-- | NOTE: Assumes all elemenets have the same size and alignment.
 vector :: Traversable t => t Field -> Field
 vector fields = Field $ do
   inlineFields <- traverse dump fields
 
-  -- TODO: all elements should have the same size
-  let elemSize = getMax $ foldMap (Max . size) inlineFields
-  let elemAlign = getMax $ foldMap (Max . align) inlineFields
+  let elemSize = maybe 0 size $ headF inlineFields
+  let elemAlign = maybe 0 align $ headF inlineFields
   let elemCount = Foldable.length inlineFields
 
   prep (coerce uoffsetSize)   (coerce elemSize * fromIntegral @Int @Word16 elemCount)
