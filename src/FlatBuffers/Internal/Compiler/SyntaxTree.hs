@@ -1,17 +1,18 @@
-{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
-import           Data.List.NonEmpty        (NonEmpty)
-import           Data.Map.Strict           (Map)
-import           Data.Scientific           (Scientific)
-import           Data.String               (IsString (..))
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import           FlatBuffers.Internal.Util (Display (..))
+import           Data.List.NonEmpty           ( NonEmpty )
+import           Data.Map.Strict              ( Map )
+import           Data.Scientific              ( Scientific )
+import           Data.String                  ( IsString(..) )
+import           Data.Text                    ( Text )
+import qualified Data.Text                    as T
+
+import           FlatBuffers.Internal.Display ( Display(..) )
 
 data FileTree a = FileTree
   { fileTreeFilePath :: !FilePath

@@ -38,7 +38,8 @@ import           FlatBuffers.Constants                         ( InlineSize(..) 
 import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasIdent(..), HasMetadata(..), Ident, Namespace, Schema, TypeRef(..), qualify )
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.Util                     ( Display(..), isPowerOfTwo, roundUpToNearestMultipleOf )
+import           FlatBuffers.Internal.Display                  ( Display(..) )
+import           FlatBuffers.Internal.Util                     ( isPowerOfTwo, roundUpToNearestMultipleOf )
 
 import           Text.Read                                     ( readMaybe )
 
