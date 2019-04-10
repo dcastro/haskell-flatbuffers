@@ -132,8 +132,8 @@ data RootInfo = RootInfo
   , rootFileIdent      :: !(Maybe Text)
   }
 
--- | Finds the root table (if any) and sets the `IsRootType` flag accordingly.
--- We only care about `root_type` declarations in the root schema. Imported schemas are not scanned for `root_types`.
+-- | Finds the root table (if any) and sets the `tableIsRoot` flag accordingly.
+-- We only care about @root_type@ declarations in the root schema. Imported schemas are not scanned for @root_type@s.
 -- The root type declaration can point to a table in any schema (root or imported).
 updateRootTable :: forall m. ValidationCtx m => Schema -> FileTree ValidDecls -> m (FileTree ValidDecls)
 updateRootTable schema symbolTables =

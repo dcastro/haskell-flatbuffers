@@ -99,7 +99,7 @@ data Vector a
   | UnionVector
       !(RawVector Word8) -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
       !(RawVector a)     -- ^ A table vector, with the actual union values
-      !a                 -- ^ A value that represents the `None` value for the union type `a`
+      !a                 -- ^ A value that represents the @NONE@ value for the union type @a@
       !(forall m. ReadCtx m => Word8 -> Position -> m a) -- ^ A function to read a union value from this vector
 
 data RawVector a = RawVector

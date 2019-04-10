@@ -76,7 +76,7 @@ parseSchemas rootFilePath = do
 --     approach and disallow floats.
 --   * The grammar says namespaces must include at least one fragment, but an empty namespace
 --     (i.e. @namespace ;@) is perfectly valid.
---   * This supports `native_include` statements
+--   * This supports @native_include@ statements
 --     (see: https://google.github.io/flatbuffers/flatbuffers_guide_use_cpp.html#flatbuffers_cpp_object_based_api)
 schema :: Parser Schema
 schema = do
