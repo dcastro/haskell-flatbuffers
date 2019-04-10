@@ -12,6 +12,9 @@ voffsetSize = word16Size
 uoffsetSize = word32Size
 soffsetSize = int32Size
 
+fileIdentifierSize :: InlineSize
+fileIdentifierSize = 4
+
 textSize, tableSize :: InlineSize
 textSize = uoffsetSize
 tableSize = uoffsetSize

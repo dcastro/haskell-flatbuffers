@@ -32,20 +32,26 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                   ).some
 
                 case "Primitives" =>
-                  val obj = Primitives.getRootAsPrimitives(bb)
-                  Json.obj(
-                    "a" =>> obj.a,
-                    "b" =>> obj.b,
-                    "c" =>> obj.c,
-                    "d" =>> JsonNumber.fromIntegralStringUnsafe(java.lang.Long.toUnsignedString(obj.d)),
-                    "e" =>> obj.e,
-                    "f" =>> obj.f,
-                    "g" =>> obj.g,
-                    "h" =>> obj.h,
-                    "i" =>> obj.i,
-                    "j" =>> obj.j,
-                    "k" =>> obj.k
-                  ).some
+
+                  if (!Primitives.PrimitivesBufferHasIdentifier(bb)) {
+                    throw new Exception("buffer did not have expected identifier")
+                  }
+                  else {
+                    val obj = Primitives.getRootAsPrimitives(bb)
+                    Json.obj(
+                      "a" =>> obj.a,
+                      "b" =>> obj.b,
+                      "c" =>> obj.c,
+                      "d" =>> JsonNumber.fromIntegralStringUnsafe(java.lang.Long.toUnsignedString(obj.d)),
+                      "e" =>> obj.e,
+                      "f" =>> obj.f,
+                      "g" =>> obj.g,
+                      "h" =>> obj.h,
+                      "i" =>> obj.i,
+                      "j" =>> obj.j,
+                      "k" =>> obj.k
+                    ).some
+                  }
 
                 case "ManyTables" =>
                   val obj = ManyTables.getRootAsManyTables(bb)

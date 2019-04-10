@@ -17,8 +17,16 @@ spec :: Spec
 spec =
   describe "Round Trip" $ do
     describe "Primitives" $ do
+      it "writes file identifier to buffer" $ do
+        let bs = encodeWithFileIdentifier $ primitives
+              (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+              (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+              (Just 1234.56) (Just 2873242.82782) (Just True)
+
+        checkFileIdentifier @Primitives bs `shouldBe` True
+        
       it "present" $ do
-        x <- decode @Primitives $ encode $ primitives
+        x <- decode @Primitives $ encodeWithFileIdentifier $ primitives
           (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
           (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
           (Just 1234.56) (Just 2873242.82782) (Just True)
@@ -33,8 +41,9 @@ spec =
         getPrimitives'i x `shouldBe` Just 1234.56
         getPrimitives'j x `shouldBe` Just 2873242.82782
         getPrimitives'k x `shouldBe` Just True
+
       it "missing" $ do
-        x <- decode @Primitives $ encode $ primitives
+        x <- decode @Primitives $ encodeWithFileIdentifier $ primitives
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing
@@ -83,7 +92,7 @@ spec =
 
       it "throws when union type is present, but union value is missing" $ do
         let union = writeUnion 1 (writeTable [w @Text "hello"])
-        x <- decode @TableWithUnion $ encode $ writeTable [wType union]
+        x <- decode $ encode $ writeTable @TableWithUnion [wType union]
         getTableWithUnion'uni x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
     describe "VectorOfUnions" $ do
@@ -112,13 +121,13 @@ spec =
         getVectorOfUnions'xs opt x >>= \mb -> isNothing mb `shouldBe` True
 
       it "throws when union type vector is present, but union value vector is missing" $ do
-          x <- decode @VectorOfUnions $ encode $ writeTable [w @[Word8] []]
+          x <- decode $ encode $ writeTable @VectorOfUnions [w @[Word8] []]
           getVectorOfUnions'xs opt x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
       it "present" $ do
-        x <- decode @VectorOfStructs $ encode $ vectorOfStructs (Just
+        x <- decode $ encode $ vectorOfStructs (Just
           [ threeBytes 1 2 3
           , threeBytes 4 5 6
           ])

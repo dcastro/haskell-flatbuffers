@@ -1,10 +1,14 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.Write
   ( WriteUnion(..)
   , WriteTable(..)
   , WriteStruct(..)
   , encode
+  , encodeWithFileIdentifier
+  , encodeWithFileIdentifier'
   , none
   , AsUnion(..)
   , AsTableField(..)
@@ -16,18 +20,28 @@ module FlatBuffers.Write
   , F.inline
   ) where
 
-import           Data.Bifunctor             (bimap)
+import           Data.Bifunctor             ( bimap )
 import qualified Data.ByteString.Lazy       as BSL
 import           Data.Int
-import           Data.List.NonEmpty         (NonEmpty)
-import           Data.Text                  (Text)
+import           Data.List.NonEmpty         ( NonEmpty )
+import           Data.Text                  ( Text )
 import           Data.Word
-import           FlatBuffers.Constants      (InlineSize)
+
+import           FlatBuffers.Constants      ( InlineSize )
+
+import           FlatBuffers.FileIdentifier ( FileIdentifier, HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Write
+
 import qualified FlatBuffers.Internal.Write as F
 
 encode :: WriteTable a -> BSL.ByteString
 encode (WriteTable table) = root table
+
+encodeWithFileIdentifier :: forall a. HasFileIdentifier a => WriteTable a -> BSL.ByteString
+encodeWithFileIdentifier = encodeWithFileIdentifier' (getFileIdentifier @a)
+
+encodeWithFileIdentifier' :: forall a. FileIdentifier -> WriteTable a -> BSL.ByteString
+encodeWithFileIdentifier' fi (WriteTable table) = rootWithFileIdentifier fi table
 
 newtype WriteTable a = WriteTable Field
 

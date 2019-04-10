@@ -1,6 +1,7 @@
-{-# LANGUAGE LambdaCase       #-}
-{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module FlatBuffers.Internal.Write
   ( FBState(..)
@@ -13,6 +14,7 @@ module FlatBuffers.Internal.Write
   , padded
   , inline
   , root
+  , rootWithFileIdentifier
   , word8
   , word16
   , word32
@@ -32,29 +34,30 @@ module FlatBuffers.Internal.Write
 import           Control.Lens
 import           Control.Monad.State
 
-import qualified Data.ByteString           as BS
-import           Data.ByteString.Builder   ( Builder )
-import qualified Data.ByteString.Builder   as B
-import qualified Data.ByteString.Lazy      as BSL
-import           Data.Coerce               ( coerce )
+import qualified Data.ByteString            as BS
+import           Data.ByteString.Builder    ( Builder )
+import qualified Data.ByteString.Builder    as B
+import qualified Data.ByteString.Lazy       as BSL
+import           Data.Coerce                ( coerce )
 import           Data.Foldable
-import qualified Data.Foldable             as Foldable
-import           Data.Functor.Reverse      ( Reverse(..) )
+import qualified Data.Foldable              as Foldable
+import           Data.Functor.Reverse       ( Reverse(..) )
 import           Data.Int
-import qualified Data.List                 as L
+import qualified Data.List                  as L
 
-import           Data.List.NonEmpty        ( NonEmpty )
-import qualified Data.Map.Strict           as M
-import           Data.Maybe                ( fromMaybe )
+import           Data.List.NonEmpty         ( NonEmpty )
+import qualified Data.Map.Strict            as M
+import           Data.Maybe                 ( fromMaybe )
 import           Data.Monoid
 
-import           Data.Semigroup            ( Max(..) )
-import           Data.Text                 ( Text )
-import qualified Data.Text.Encoding        as T
+import           Data.Semigroup             ( Max(..) )
+import           Data.Text                  ( Text )
+import qualified Data.Text.Encoding         as T
 import           Data.Word
 
 import           FlatBuffers.Constants
-import           FlatBuffers.Internal.Util ( headF )
+import           FlatBuffers.FileIdentifier ( FileIdentifier(..) )
+import           FlatBuffers.Internal.Util  ( headF )
 
 type Offset = BytesWritten
 type BytesWritten = Int32
@@ -84,6 +87,9 @@ primitive size f a =
   InlineField size size $ do
     builder %= mappend (f a)
     bytesWritten += fromIntegral size
+
+fileIdentifier :: FileIdentifier -> InlineField
+fileIdentifier (unFileIdentifier -> bs) = primitive fileIdentifierSize B.byteString bs
 
 int8 :: Int8 -> InlineField
 int8 = primitive int8Size B.int8
@@ -159,14 +165,24 @@ root table =
   _builder $
   execState
     (do ref <- dump table
-        root' ref)
+        align <- uses maxAlign getMax
+        prep align (coerce uoffsetSize)
+        write ref
+    )
     (FBState mempty 0 1 mempty)
 
-root' :: InlineField -> State FBState ()
-root' ref = do
-  align <- uses maxAlign getMax
-  prep align (coerce uoffsetSize)
-  write ref
+rootWithFileIdentifier :: FileIdentifier -> Field -> BSL.ByteString
+rootWithFileIdentifier fi table =
+  B.toLazyByteString $
+  _builder $
+  execState
+    (do ref <- dump table
+        align <- uses maxAlign getMax
+        prep align (coerce (uoffsetSize + fileIdentifierSize))
+        write $ fileIdentifier fi
+        write ref
+    )
+    (FBState mempty 0 1 mempty)
 
 struct :: InlineSize -> NonEmpty InlineField -> Field
 struct structAlign fields =

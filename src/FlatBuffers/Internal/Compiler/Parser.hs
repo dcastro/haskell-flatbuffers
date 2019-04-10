@@ -24,6 +24,7 @@ import qualified Data.Text                                as T
 import qualified Data.Text.Encoding                       as T
 import           Data.Void                                ( Void )
 
+import           FlatBuffers.Constants                    ( fileIdentifierSize )
 import           FlatBuffers.Internal.Compiler.SyntaxTree
 
 import           Text.Megaparsec
@@ -293,12 +294,12 @@ fileIdentifierDecl = do
   let byteCount = BS.length (T.encodeUtf8 fi)
   let codePointCount = T.length fi
 
-  when (byteCount /= 4) $
+  when (byteCount /= fromIntegral fileIdentifierSize) $
     if codePointCount == byteCount
       -- if the user is using ASCII characters
-      then fail "file_identifier must be exactly 4 characters"
+      then fail $ "file_identifier must be exactly " <> show fileIdentifierSize <> " characters"
       -- if the user is using multi UTF-8 code unit characters, show a more detailed error message
-      else fail "file_identifier must be exactly 4 UTF-8 code units"
+      else fail $ "file_identifier must be exactly " <> show fileIdentifierSize <> " UTF-8 code units"
 
   semi
   pure (FileIdentifierDecl fi)

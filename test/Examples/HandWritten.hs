@@ -1,13 +1,16 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Examples.HandWritten where
 
-import           Control.Exception.Safe (throwM)
+import           Control.Exception.Safe     ( throwM )
+
 import           Data.Int
-import           Data.Text              (Text)
+import           Data.Text                  ( Text )
 import           Data.Word
+
+import           FlatBuffers.FileIdentifier ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
@@ -16,6 +19,9 @@ import           FlatBuffers.Write
 ----------------------------------
 newtype Primitives =
   Primitives Table
+
+instance HasFileIdentifier Primitives where
+  getFileIdentifier = unsafeFileIdentifier "PRIM"
 
 primitives ::
      Maybe Word8

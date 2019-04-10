@@ -1,13 +1,14 @@
-{-# LANGUAGE ConstraintKinds            #-}
-{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE ViewPatterns               #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module FlatBuffers.Read
   ( ReadCtx
@@ -21,6 +22,7 @@ module FlatBuffers.Read
   , Position(..)
   , Vector(..)
   , decode
+  , checkFileIdentifier, checkFileIdentifier'
   , readWord8, readWord16, readWord32, readWord64
   , readInt8, readInt16, readInt32, readInt64
   , readBool, readFloat, readDouble
@@ -37,24 +39,28 @@ module FlatBuffers.Read
   , req, opt
   ) where
   
-import           Control.Exception.Safe        (Exception, MonadThrow, throwM)
-import           Data.Binary.Get               (Get)
+import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
+
+import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
 import qualified Data.ByteString               as BS
-import           Data.ByteString.Lazy          (ByteString)
+import           Data.ByteString.Lazy          ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
-import           Data.Coerce                   (Coercible, coerce)
-import           Data.Functor                  ((<&>))
+import           Data.Coerce                   ( Coercible, coerce )
+import           Data.Functor                  ( (<&>) )
 import           Data.Int
-import           Data.String                   (IsString)
-import           Data.Text                     (Text)
+import           Data.String                   ( IsString )
+import           Data.Text                     ( Text )
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Encoding.Error      as T
 import           Data.Word
+
 import           FlatBuffers.Constants
-import           HaskellWorks.Data.Int.Widen   (widen16, widen32, widen64)
+import           FlatBuffers.FileIdentifier    ( FileIdentifier(..), HasFileIdentifier(..) )
+
+import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 
 type ReadCtx m = MonadThrow m
 
@@ -121,6 +127,27 @@ decode :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
 decode root = readTable initialPos
   where
     initialPos = Position root root 0
+
+-- | Checks if a buffer contains the file identifier for a root table @a@, to see if it's
+-- safe to decode it to a table @a@.
+-- It should be used in conjunction with @-XTypeApplications@.
+-- 
+-- > {-# LANGUAGE TypeApplications #-}
+-- >
+-- > if checkFileIdentifier @Monster bs
+-- >   then decode @Monster bs
+-- >   else return someMonster
+checkFileIdentifier :: forall a. HasFileIdentifier a => ByteString -> Bool
+checkFileIdentifier = checkFileIdentifier' (getFileIdentifier @a)
+
+checkFileIdentifier' :: FileIdentifier -> ByteString -> Bool
+checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
+  actualFileIdent == BSL.fromStrict fileIdent
+  where
+    actualFileIdent =
+      BSL.take (fromIntegral @InlineSize @Int64 fileIdentifierSize) .
+        BSL.drop (fromIntegral @InlineSize @Int64 uoffsetSize) $
+          bs
 
 ----------------------------------
 ------------- ReadMode -----------

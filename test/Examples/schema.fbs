@@ -1,4 +1,4 @@
-namespace testapi.flatbuffers;
+namespace testapi . flatbuffers;
 
 table Simple {
   n: int;
@@ -19,6 +19,8 @@ table Primitives {
   j: float64;
   k: bool;
 }
+root_type Primitives;
+file_identifier "PRIM";
 
 table ManyTables {
   n: int;

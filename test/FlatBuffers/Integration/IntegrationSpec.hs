@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy       as BSL
 import qualified Data.ByteString.Lazy.UTF8  as BSLU
 import           Data.Int
 import           Data.Word
+import           FlatBuffers.FileIdentifier (unsafeFileIdentifier)
 import           FlatBuffers.Internal.Write
 import           Network.HTTP.Client
 import           Network.HTTP.Types.Status  (statusCode)
@@ -58,7 +59,7 @@ cases =
   , Case
       "Primitives - maxBound"
       "Primitives"
-      (root $
+      (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
        table
          [ inline word8 maxBound
          , inline word16 maxBound
@@ -88,7 +89,7 @@ cases =
   , Case
       "Primitives - minBound"
       "Primitives"
-      (root $
+      (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
        table
          [ inline word8 minBound
          , inline word16 minBound
@@ -118,7 +119,7 @@ cases =
   , Case
       "Primitives - missing fields"
       "Primitives"
-      (root $
+      (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
        table
          [ missing
          , missing
