@@ -136,8 +136,7 @@ getUnionB'y = readTableFieldWithDef readInt32 0 0
 ------------- Union --------------
 ----------------------------------
 data Union
-  = Union'None
-  | Union'UnionA !UnionA
+  = Union'UnionA !UnionA
   | Union'UnionB !UnionB
 
 class EncodeUnion a where
@@ -149,12 +148,12 @@ instance EncodeUnion UnionA where
 instance EncodeUnion UnionB where
   union = writeUnion 2
 
-readUnion :: ReadCtx m => Word8 -> Position -> m Union
+readUnion :: ReadCtx m => Word8 -> Position -> m (Maybe Union)
 readUnion n pos =
   case n of
-    0 -> pure Union'None
-    1 -> fmap Union'UnionA (readTable pos)
-    2 -> fmap Union'UnionB (readTable pos)
+    0 -> pure Nothing
+    1 -> Just . Union'UnionA <$> readTable pos
+    2 -> Just . Union'UnionB <$> readTable pos
     _ -> throwM $ UnionUnknown "Union" n
 
 ----------------------------------
@@ -168,8 +167,8 @@ tableWithUnion x1 =
   writeTable [wType x1, wValue x1]
 
 
-getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m Union
-getTableWithUnion'uni = readTableFieldUnion readUnion 0 Union'None
+getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m (Maybe Union)
+getTableWithUnion'uni = readTableFieldUnion readUnion 0
 
 ----------------------------------
 ------- VectorOfUnions -----------
@@ -181,8 +180,8 @@ vectorOfUnions :: Maybe [WriteUnion Union] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
   writeTable [wType x1, wValue x1]
 
-getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector Union) a -> VectorOfUnions -> m a
-getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs" Union'None
+getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector (Maybe Union)) a -> VectorOfUnions -> m a
+getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs"
 
 ----------------------------------
 ----------- ThreeBytes -----------

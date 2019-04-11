@@ -9,6 +9,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE GADTs #-}
+
 
 module FlatBuffers.Read
   ( ReadCtx
@@ -92,15 +94,16 @@ data Table = Table
 
 newtype Struct = Struct { unStruct :: Position }
 
-data Vector a
-  = Vector
-      !(RawVector a)                              -- ^ A pointer to an actual FlatBuffers vector
-      !(forall m. ReadCtx m => Position -> m a)   -- ^ A function to read elements from this vector
-  | UnionVector
-      !(RawVector Word8) -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
-      !(RawVector a)     -- ^ A table vector, with the actual union values
-      !a                 -- ^ A value that represents the @NONE@ value for the union type @a@
-      !(forall m. ReadCtx m => Word8 -> Position -> m a) -- ^ A function to read a union value from this vector
+data Vector a where
+  Vector ::
+       !(RawVector a)                              -- ^ A pointer to an actual FlatBuffers vector
+    -> !(forall m. ReadCtx m => Position -> m a)   -- ^ A function to read elements from this vector
+    -> Vector a
+  UnionVector ::
+       !(RawVector Word8)     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
+    -> !(RawVector (Maybe a)) -- ^ A table vector, with the actual union values
+    -> !(forall m. ReadCtx m => Word8 -> Position -> m (Maybe a)) -- ^ A function to read a union value from this vector
+    -> Vector (Maybe a)
 
 data RawVector a = RawVector
   { rawVectorLength   :: !VectorLength
@@ -185,10 +188,10 @@ readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
     Nothing -> pure dflt
     Just offset -> read (move t offset)
 
-readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Word8 -> Position -> m a) -> TableIndex -> a -> t -> m a
-readTableFieldUnion read ix none t =
+readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Word8 -> Position -> m (Maybe a)) -> TableIndex -> t -> m (Maybe a)
+readTableFieldUnion read ix t =
   readTableFieldWithDef readWord8 ix 0 t >>= \case
-    0          -> pure none
+    0          -> pure Nothing
     uniontType -> readTableField (read uniontType) (ix + 1) "" mode t 
     where
       mode :: ReadMode a a
@@ -197,21 +200,20 @@ readTableFieldUnion read ix none t =
         Nothing -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
 readTableFieldUnionVector :: (Coercible t Table, ReadCtx m)
-  => (forall m. ReadCtx m => Word8 -> Position -> m a)
+  => (forall m. ReadCtx m => Word8 -> Position -> m (Maybe a))
   -> TableIndex
   -> FieldName
-  -> a
-  -> ReadMode (Vector a) b
+  -> ReadMode (Vector (Maybe a)) b
   -> t
   -> m b
-readTableFieldUnionVector read ix name none (ReadMode mode) (coerce -> t :: Table) =
+readTableFieldUnionVector read ix name (ReadMode mode) (coerce -> t :: Table) =
   tableIndexToVOffset t ix >>= \case
     Nothing -> mode name Nothing
     Just typesOffset ->
       tableIndexToVOffset t (ix + 1) >>= \case
         Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset -> do
-          vec <- readUnionVector none read (move t typesOffset) (move t valuesOffset)
+          vec <- readUnionVector read (move t typesOffset) (move t valuesOffset)
           mode name (Just vec)
 
 ----------------------------------
@@ -222,10 +224,10 @@ index v n =
   case v of
     Vector vec readElem' ->
       readElemRaw readElem' n vec
-    UnionVector types values unionNone readUnion -> do
+    UnionVector types values readUnion -> do
       unionType <- readElemRaw readWord8 n types
       case unionType of
-        0 -> pure unionNone
+        0 -> pure Nothing
         _ -> readElemRaw (readUnion unionType) n values
   where
     readElemRaw :: forall a m. ReadCtx m => (Position -> m a) -> VectorIndex -> RawVector a -> m a
@@ -243,7 +245,7 @@ toList vec = traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
 
 vectorLength :: Vector a -> VectorLength
 vectorLength (Vector v _         ) = rawVectorLength v
-vectorLength (UnionVector v _ _ _) = rawVectorLength v -- NOTE: we assume the two vectors have the same length
+vectorLength (UnionVector v _ _) = rawVectorLength v -- NOTE: we assume the two vectors have the same length
 
 ----------------------------------
 ------ Read from `Position` ------
@@ -295,16 +297,15 @@ readVector readElem' elemSize pos =
 
 readUnionVector ::
      forall a m. ReadCtx m
-  => a
-  -> (forall m. ReadCtx m => Word8 -> Position -> m a)
+  => (forall m. ReadCtx m => Word8 -> Position -> m (Maybe a))
   -> Position
   -> Position
-  -> m (Vector a)
-readUnionVector unionNone readUnion typesPos valuesPos =
+  -> m (Vector (Maybe a))
+readUnionVector readUnion typesPos valuesPos =
   do
     typesVec <- readRawVector word8Size typesPos
     valuesVec <- readRawVector tableSize valuesPos
-    pure $ UnionVector typesVec valuesVec unionNone readUnion
+    pure $ UnionVector typesVec valuesVec readUnion
 
 readRawVector ::
      forall a m. ReadCtx m

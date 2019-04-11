@@ -71,24 +71,24 @@ spec =
       it "present" $ do
         x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
         getTableWithUnion'uni x >>= \case
-          Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
-          _              -> unexpectedUnionType
+          Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
+          _                     -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
         getTableWithUnion'uni x >>= \case
-          Union'UnionB x -> getUnionB'y x `shouldBe` Just maxBound
-          _              -> unexpectedUnionType
+          Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just maxBound
+          _                     -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just none)
         getTableWithUnion'uni x >>= \case
-          Union'None -> pure ()
-          _          -> unexpectedUnionType
+          Nothing -> pure ()
+          _       -> unexpectedUnionType
 
       it "missing" $ do
         x <- decode $ encode $ tableWithUnion Nothing
         getTableWithUnion'uni x >>= \case
-          Union'None -> pure ()
-          _          -> unexpectedUnionType
+          Nothing -> pure ()
+          _       -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
         let union = writeUnion 1 (writeTable [w @Text "hello"])
@@ -105,14 +105,14 @@ spec =
         xs <- getVectorOfUnions'xs req x
         vectorLength xs `shouldBe` 3
         xs `index` 0 >>= \case
-          Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
-          _              -> unexpectedUnionType
+          Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
+          _                     -> unexpectedUnionType
         xs `index` 1 >>= \case
-          Union'None -> pure ()
-          _          -> unexpectedUnionType
+          Nothing -> pure ()
+          _       -> unexpectedUnionType
         xs `index` 2 >>= \case
-          Union'UnionB x -> getUnionB'y x `shouldBe` Just 98
-          _              -> unexpectedUnionType
+          Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just 98
+          _                     -> unexpectedUnionType
         xs `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
       it "missing" $ do
