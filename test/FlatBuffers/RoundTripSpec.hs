@@ -68,27 +68,47 @@ spec =
         getEnums'x x `shouldBe` Just Blue
 
     describe "Union" $ do
-      it "present" $ do
-        x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
-        getTableWithUnion'uni opt x >>= \case
-          Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
-          _                     -> unexpectedUnionType
+      describe "present" $ do
+        it "required mode" $ do
+          x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
+          getTableWithUnion'uni req x >>= \case
+            Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
+            _              -> unexpectedUnionType
 
-        x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
-        getTableWithUnion'uni opt x >>= \case
-          Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just maxBound
-          _                     -> unexpectedUnionType
+          x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
+          getTableWithUnion'uni req x >>= \case
+            Union'UnionB x -> getUnionB'y x `shouldBe` Just maxBound
+            _              -> unexpectedUnionType
 
-        x <- decode $ encode $ tableWithUnion (Just none)
-        getTableWithUnion'uni opt x >>= \case
-          Nothing -> pure ()
-          _       -> unexpectedUnionType
+          x <- decode $ encode $ tableWithUnion (Just none)
+          getTableWithUnion'uni req x `shouldThrow` \err -> err == MissingField "uni"
 
-      it "missing" $ do
-        x <- decode $ encode $ tableWithUnion Nothing
-        getTableWithUnion'uni opt x >>= \case
-          Nothing -> pure ()
-          _       -> unexpectedUnionType
+        it "optional mode" $ do
+          x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
+          getTableWithUnion'uni opt x >>= \case
+            Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
+            _                     -> unexpectedUnionType
+
+          x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
+          getTableWithUnion'uni opt x >>= \case
+            Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just maxBound
+            _                     -> unexpectedUnionType
+
+          x <- decode $ encode $ tableWithUnion (Just none)
+          getTableWithUnion'uni opt x >>= \case
+            Nothing -> pure ()
+            _       -> unexpectedUnionType
+
+      describe "missing" $ do
+        it "required mode" $ do
+          x <- decode $ encode $ tableWithUnion Nothing
+          getTableWithUnion'uni req x `shouldThrow` \err -> err == MissingField "uni"
+
+        it "optional mode" $ do
+          x <- decode $ encode $ tableWithUnion Nothing
+          getTableWithUnion'uni opt x >>= \case
+            Nothing -> pure ()
+            _       -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
         let union = writeUnion 1 (writeTable [w @Text "hello"])
@@ -121,8 +141,8 @@ spec =
         getVectorOfUnions'xs opt x >>= \mb -> isNothing mb `shouldBe` True
 
       it "throws when union type vector is present, but union value vector is missing" $ do
-          x <- decode $ encode $ writeTable @VectorOfUnions [w @[Word8] []]
-          getVectorOfUnions'xs opt x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        x <- decode $ encode $ writeTable @VectorOfUnions [w @[Word8] []]
+        getVectorOfUnions'xs opt x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c

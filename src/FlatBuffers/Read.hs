@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GADTs #-}
-
+{-# LANGUAGE DerivingStrategies #-}
 
 module FlatBuffers.Read
   ( ReadCtx
@@ -68,25 +68,25 @@ import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 type ReadCtx m = MonadThrow m
 
 newtype FieldName = FieldName Text
-  deriving (Show, Eq, IsString)
+  deriving newtype (Show, Eq, IsString)
 
 newtype TableIndex = TableIndex { unTableIndex :: Word16 }
-  deriving (Show, Num)
+  deriving newtype (Show, Num)
 
 newtype VectorLength = VectorLength { unVectorLength :: Word32 }
-  deriving (Show, Num, Eq)
+  deriving newtype (Show, Num, Eq)
 
 newtype VectorIndex = VectorIndex { unVectorIndex :: Word32 }
-  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
+  deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 newtype VOffset = VOffset { unVOffset :: Word16 }
-  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
+  deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 newtype UOffset = UOffset { unUOffset :: Word32 }
-  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
+  deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
-  deriving (Show, Num, Real, Ord, Enum, Integral, Eq)
+  deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table = Table
   { vtable   :: !ByteString
