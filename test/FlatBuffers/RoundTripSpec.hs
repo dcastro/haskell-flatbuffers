@@ -70,30 +70,30 @@ spec =
     describe "Union" $ do
       it "present" $ do
         x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
-        getTableWithUnion'uni x >>= \case
+        getTableWithUnion'uni opt x >>= \case
           Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
           _                     -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
-        getTableWithUnion'uni x >>= \case
+        getTableWithUnion'uni opt x >>= \case
           Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just maxBound
           _                     -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just none)
-        getTableWithUnion'uni x >>= \case
+        getTableWithUnion'uni opt x >>= \case
           Nothing -> pure ()
           _       -> unexpectedUnionType
 
       it "missing" $ do
         x <- decode $ encode $ tableWithUnion Nothing
-        getTableWithUnion'uni x >>= \case
+        getTableWithUnion'uni opt x >>= \case
           Nothing -> pure ()
           _       -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
         let union = writeUnion 1 (writeTable [w @Text "hello"])
         x <- decode $ encode $ writeTable @TableWithUnion [wType union]
-        getTableWithUnion'uni x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+        getTableWithUnion'uni opt x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
     describe "VectorOfUnions" $ do
       it "present" $ do

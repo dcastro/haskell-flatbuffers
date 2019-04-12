@@ -4,13 +4,14 @@
 
 module Examples.HandWritten where
 
-import           Control.Exception.Safe     ( throwM )
+import           Control.Exception.Safe        ( throwM )
 
 import           Data.Int
-import           Data.Text                  ( Text )
+import           Data.Text                     ( Text )
 import           Data.Word
 
-import           FlatBuffers.FileIdentifier ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.FileIdentifier    ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.Internal.Positive ( Positive(getPositive) )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
@@ -148,13 +149,12 @@ instance EncodeUnion UnionA where
 instance EncodeUnion UnionB where
   union = writeUnion 2
 
-readUnion :: ReadCtx m => Word8 -> Position -> m (Maybe Union)
+readUnion :: ReadCtx m => Positive Word8 -> Position -> m Union
 readUnion n pos =
-  case n of
-    0 -> pure Nothing
-    1 -> Just . Union'UnionA <$> readTable pos
-    2 -> Just . Union'UnionB <$> readTable pos
-    _ -> throwM $ UnionUnknown "Union" n
+  case getPositive n of
+    1 -> Union'UnionA <$> readTable pos
+    2 -> Union'UnionB <$> readTable pos
+    _ -> throwM $ UnionUnknown "Union" (getPositive n)
 
 ----------------------------------
 ------- TableWithUnion -----------
@@ -166,9 +166,8 @@ tableWithUnion :: Maybe (WriteUnion Union) -> WriteTable TableWithUnion
 tableWithUnion x1 =
   writeTable [wType x1, wValue x1]
 
-
-getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m (Maybe Union)
-getTableWithUnion'uni = readTableFieldUnion readUnion 0
+getTableWithUnion'uni :: ReadCtx m => ReadMode Union a -> TableWithUnion -> m a
+getTableWithUnion'uni = readTableFieldUnion readUnion 0 "uni"
 
 ----------------------------------
 ------- VectorOfUnions -----------

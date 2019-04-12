@@ -61,6 +61,7 @@ import           Data.Word
 
 import           FlatBuffers.Constants
 import           FlatBuffers.FileIdentifier    ( FileIdentifier(..), HasFileIdentifier(..) )
+import           FlatBuffers.Internal.Positive ( Positive(getPositive), positive )
 
 import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 
@@ -101,8 +102,8 @@ data Vector a where
     -> Vector a
   UnionVector ::
        !(RawVector Word8)     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
-    -> !(RawVector (Maybe a)) -- ^ A table vector, with the actual union values
-    -> !(forall m. ReadCtx m => Word8 -> Position -> m (Maybe a)) -- ^ A function to read a union value from this vector
+    -> !(RawVector a) -- ^ A table vector, with the actual union values
+    -> !(forall m. ReadCtx m => Positive Word8 -> Position -> m a) -- ^ A function to read a union value from this vector
     -> Vector (Maybe a)
 
 data RawVector a = RawVector
@@ -188,19 +189,20 @@ readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
     Nothing -> pure dflt
     Just offset -> read (move t offset)
 
-readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Word8 -> Position -> m (Maybe a)) -> TableIndex -> t -> m (Maybe a)
-readTableFieldUnion read ix t =
-  readTableFieldWithDef readWord8 ix 0 t >>= \case
-    0          -> pure Nothing
-    uniontType -> readTableField (read uniontType) (ix + 1) "" mode t 
-    where
-      mode :: ReadMode a a
-      mode = ReadMode $ \_ -> \case
-        Just a  -> pure a
-        Nothing -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Positive Word8 -> Position -> m a) -> TableIndex -> FieldName -> ReadMode a b -> t -> m b
+readTableFieldUnion read ix name m@(ReadMode mode) t =
+  readTableFieldWithDef readWord8 ix 0 t >>= \unionType ->
+    case positive unionType of
+      Nothing         -> mode name Nothing
+      Just unionType' -> readTableField (read unionType') (ix + 1) name (unionValueReadMode m) t 
+
+unionValueReadMode :: ReadMode a b -> ReadMode a b
+unionValueReadMode (ReadMode mode) = ReadMode $ \name -> \case
+  Nothing -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+  res     -> mode name res
 
 readTableFieldUnionVector :: (Coercible t Table, ReadCtx m)
-  => (forall m. ReadCtx m => Word8 -> Position -> m (Maybe a))
+  => (forall m. ReadCtx m => Positive Word8 -> Position -> m a)
   -> TableIndex
   -> FieldName
   -> ReadMode (Vector (Maybe a)) b
@@ -226,9 +228,9 @@ index v n =
       readElemRaw readElem' n vec
     UnionVector types values readUnion -> do
       unionType <- readElemRaw readWord8 n types
-      case unionType of
-        0 -> pure Nothing
-        _ -> readElemRaw (readUnion unionType) n values
+      case positive unionType of
+        Nothing         -> pure Nothing
+        Just unionType' -> Just <$> readElemRaw (readUnion unionType') n values
   where
     readElemRaw :: forall a m. ReadCtx m => (Position -> m a) -> VectorIndex -> RawVector a -> m a
     readElemRaw readElem n vec =
@@ -297,7 +299,7 @@ readVector readElem' elemSize pos =
 
 readUnionVector ::
      forall a m. ReadCtx m
-  => (forall m. ReadCtx m => Word8 -> Position -> m (Maybe a))
+  => (forall m. ReadCtx m => Positive Word8 -> Position -> m a)
   -> Position
   -> Position
   -> m (Vector (Maybe a))
