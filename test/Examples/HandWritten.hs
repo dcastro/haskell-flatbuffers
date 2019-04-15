@@ -12,8 +12,10 @@ import           Data.Word
 
 import           FlatBuffers.FileIdentifier    ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Positive ( Positive(getPositive) )
+import qualified FlatBuffers.Internal.Write    as W
 import           FlatBuffers.Read
 import           FlatBuffers.Write
+
 
 ----------------------------------
 ---------- Primitives ------------
@@ -215,3 +217,49 @@ vectorOfStructs x1 = writeTable [w x1]
 
 getVectorOfStructs'xs :: ReadCtx m => ReadMode (Vector ThreeBytes) a -> VectorOfStructs -> m a
 getVectorOfStructs'xs = readTableField (readVector (pure . readStruct) 3) 0 "xs"
+
+
+----------------------------------
+------------- Align --------------
+----------------------------------
+newtype Align1 = Align1 Struct
+
+align1 :: Int16 -> WriteStruct Align1
+align1 a = writeStruct 4 [ W.padded 2 $ ws a ]
+
+getAlign1'x :: ReadCtx m => Align1 -> m Int16
+getAlign1'x = readStructField readInt16 0
+
+
+newtype Align2 = Align2 Struct
+
+align2 :: Int16 -> Word64 -> Word8 -> WriteStruct Align2
+align2 a b c = writeStruct 8 [ W.padded 6 $ ws a, ws b, W.padded 7 $ ws c ]
+
+getAlign2'x :: Align2 -> Align1
+getAlign2'x = readStructField readStruct 0
+
+getAlign2'y :: ReadCtx m => Align2 -> m Word64
+getAlign2'y = readStructField readWord64 8
+
+getAlign2'z :: ReadCtx m => Align2 -> m Word8
+getAlign2'z = readStructField readWord8 16
+
+
+newtype AlignT = AlignT Table
+
+alignT :: Maybe (WriteStruct Align1) -> Maybe (WriteStruct Align2) -> Maybe [WriteStruct Align1] -> Maybe [WriteStruct Align2] -> WriteTable AlignT
+alignT a b c d = writeTable [ w a, w b, w c, w d ]
+
+getAlignT'x :: ReadCtx m => ReadMode Align1 a ->  AlignT -> m a
+getAlignT'x = readTableField (pure . readStruct) 0 "x"
+
+getAlignT'y :: ReadCtx m => ReadMode Align2 a ->  AlignT -> m a
+getAlignT'y = readTableField (pure . readStruct) 1 "y"
+
+getAlignT'xs :: ReadCtx m => ReadMode (Vector Align1) a -> AlignT -> m a
+getAlignT'xs = readTableField (readVector (pure . readStruct) 4) 2 "xs"
+
+getAlignT'ys :: ReadCtx m => ReadMode (Vector Align2) a -> AlignT -> m a
+getAlignT'ys = readTableField (readVector (pure . readStruct) 24) 3 "ys"
+

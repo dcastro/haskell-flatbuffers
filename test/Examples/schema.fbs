@@ -92,6 +92,25 @@ table VectorOfUnions {
   xs: [Union];
 }
 
+// These are used for testing padding and alignment of structs / struct fields
+struct Align1 (force_align: 4) {
+  x: short;
+}
+
+struct Align2 {
+  x: Align1;
+  y: ulong;
+  z: ubyte;
+}
+
+table AlignT {
+  x: Align1;
+  y: Align2;
+  xs: [Align1];
+  ys: [Align2];
+}
+
+
 // TODO: add support
 
 // union UnionOfStructs { UOS_A, UOS_B }

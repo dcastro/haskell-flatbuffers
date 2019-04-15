@@ -24,7 +24,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
           val json: Try[Option[Json]] =
             Try {
               flatBufferName match {
-                case "Simple"     =>
+                case "Simple" =>
                   val obj = Simple.getRootAsSimple(bb)
                   Json.obj(
                     "n" =>> obj.n,
@@ -170,6 +170,27 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                       (0 until obj.xsLength()).map { i =>
                         readUnion(obj)(_.xsType(i), root => union => root.xs(union, i))
                       }
+                  ).some
+
+                case "AlignT" =>
+                  def printAlign1(a: Align1): Json =
+                    Json.obj(
+                      "x" =>> a.x()
+                    )
+
+                  def printAlign2(a: Align2): Json =
+                    Json.obj(
+                      "x" =>> inside(a.x)(printAlign1),
+                      "y" =>> a.y(),
+                      "z" =>> a.z()
+                    )
+
+                  val obj = AlignT.getRootAsAlignT(bb)
+                  Json.obj(
+                    "x" =>> inside(obj.x)(printAlign1),
+                    "y" =>> inside(obj.y)(printAlign2),
+                    "xs" =>> Json.fromValues((0 until obj.xsLength()).map(obj.xs).map(printAlign1)),
+                    "ys" =>> Json.fromValues((0 until obj.ysLength()).map(obj.ys).map(printAlign2))
                   ).some
 
                 case _ => none

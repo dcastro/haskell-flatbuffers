@@ -76,6 +76,52 @@ spec =
         (encode $ vectorOfUnions Nothing)
         (object ["xs" .= [] @Value])
 
+    it "Align" $ do
+      test
+        "AlignT"
+        (encode $ alignT
+          (Just (align1 11))
+          (Just (align2 22 33 44))
+          (Just [align1 101, align1 102, align1 103])
+          (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
+        )
+        (object
+          [ "x" .= object ["x" .= Number 11]
+          , "y" .= object
+            [ "x" .= object ["x" .= Number 22]
+            , "y" .= Number 33
+            , "z" .= Number 44
+            ]
+          , "xs" .=
+            [ object ["x" .= Number 101]
+            , object ["x" .= Number 102]
+            , object ["x" .= Number 103]
+            ]
+          , "ys" .=
+            [ object
+              [ "x" .= object ["x" .= Number 104]
+              , "y" .= Number 105
+              , "z" .= Number 106
+              ]
+            , object
+              [ "x" .= object ["x" .= Number 107]
+              , "y" .= Number 108
+              , "z" .= Number 109
+              ]
+            , object
+              [ "x" .= object ["x" .= Number 110]
+              , "y" .= Number 111
+              , "z" .= Number 112
+              ]
+            ]
+          ]
+        )
+      test
+        "AlignT"
+        (encode $ alignT Nothing Nothing Nothing Nothing)
+        (object ["x" .= Null, "y" .= Null, "xs" .= [] @Value, "ys" .= [] @Value])
+
+
 newtype Pretty =
   Pretty J.Value
   deriving (Eq)

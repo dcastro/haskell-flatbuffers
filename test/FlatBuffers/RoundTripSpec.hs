@@ -5,6 +5,7 @@
 module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative    (liftA3)
+import           Control.Monad          (forM)
 import           Data.Maybe             (isNothing)
 import           Data.Text              (Text)
 import           Data.Word
@@ -157,5 +158,44 @@ spec =
         x <- decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
         getVectorOfStructs'xs req x `shouldThrow` \err -> err == MissingField "xs"
         getVectorOfStructs'xs opt x >>= \mb -> isNothing mb `shouldBe` True
+
+
+    describe "Align" $ do
+      it "present" $ do
+        root <- decode $ encode $ alignT
+                (Just (align1 11))
+                (Just (align2 22 33 44))
+                (Just [align1 101, align1 102, align1 103])
+                (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
+
+        a1 <- getAlignT'x req root
+        a2 <- getAlignT'y req root
+        a1s <- getAlignT'xs req root >>= toList
+        a2s <- getAlignT'ys req root >>= toList
+
+        getAlign1'x a1 `shouldBe` Just 11
+
+        getAlign1'x (getAlign2'x a2) `shouldBe` Just 22
+        getAlign2'y a2 `shouldBe` Just 33
+        getAlign2'z a2 `shouldBe` Just 44
+
+        traverse getAlign1'x a1s `shouldBe` Just [101, 102, 103]
+
+        forM a2s (\a2 -> (,,) <$> getAlign1'x (getAlign2'x a2) <*> getAlign2'y a2 <*> getAlign2'z a2)
+          `shouldBe` Just [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
+
+
+      it "missing" $ do
+        root <- decode $ encode $ alignT Nothing Nothing Nothing Nothing
+
+        getAlignT'x req root `shouldThrow` \err -> err == MissingField "x"
+        getAlignT'y req root `shouldThrow` \err -> err == MissingField "y"
+        getAlignT'xs req root `shouldThrow` \err -> err == MissingField "xs"
+        getAlignT'ys req root `shouldThrow` \err -> err == MissingField "ys"
+
+        getAlignT'x opt root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'y opt root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'xs opt root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'ys opt root >>= \mb -> isNothing mb `shouldBe` True
 
 unexpectedUnionType = expectationFailure "Unexpected union type"
