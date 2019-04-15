@@ -130,12 +130,6 @@ class HasPosition a where
 instance HasPosition ByteString   where getPosition = id
 instance HasPosition PositionInfo where getPosition = posCurrent
 
-class HasPositionInfo a where
-  getPos :: a -> PositionInfo
-
-instance HasPositionInfo Table         where getPos = tablePos
-instance HasPositionInfo (RawVector a) where getPos = rawVectorPos
-
 decode :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
 decode root = readTable initialPos
   where
@@ -190,13 +184,13 @@ readTableField read ix name (ReadMode mode) (coerce -> t :: Table) = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
     Nothing -> mode name Nothing
-    Just offset -> read (move t offset) >>= \a -> mode name (Just a)
+    Just offset -> read (move (tablePos t) offset) >>= \a -> mode name (Just a)
 
 readTableFieldWithDef :: (ReadCtx m, Coercible t Table) => (PositionInfo -> m a) -> TableIndex -> a -> t -> m a
 readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
   tableIndexToVOffset t ix >>= \case
     Nothing -> pure dflt
-    Just offset -> read (move t offset)
+    Just offset -> read (move (tablePos t) offset)
 
 readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Positive Word8 -> PositionInfo -> m a) -> TableIndex -> FieldName -> ReadMode a b -> t -> m b
 readTableFieldUnion read ix name m@(ReadMode mode) t =
@@ -224,7 +218,7 @@ readTableFieldUnionVector read ix name (ReadMode mode) (coerce -> t :: Table) =
       tableIndexToVOffset t (ix + 1) >>= \case
         Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset -> do
-          vec <- readUnionVector read (move t typesOffset) (move t valuesOffset)
+          vec <- readUnionVector read (move (tablePos t) typesOffset) (move (tablePos t) valuesOffset)
           mode name (Just vec)
 
 ----------------------------------
@@ -249,7 +243,7 @@ index v n =
       where
         elemSize = fromIntegral @InlineSize @Int64 (rawVectorElemSize vec)
         elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
-        elemPos = moveInt64 vec elemOffset
+        elemPos = moveInt64 (rawVectorPos vec) elemOffset
 
 toList :: forall a m. ReadCtx m => Vector a -> m [a]
 toList vec = traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
@@ -383,18 +377,12 @@ tableIndexToVOffset (coerce -> Table{..}) ix =
           0 -> Nothing
           word16 -> Just (VOffset word16)
 
-move :: HasPositionInfo p => p -> VOffset -> PositionInfo
-move hs offset =
-  moveInt64 hs (fromIntegral @VOffset @Int64 offset)
+move :: PositionInfo -> VOffset -> PositionInfo
+move pos offset =
+  moveInt64 pos (fromIntegral @VOffset @Int64 offset)
 
-moveUOffset :: Get UOffset
-moveUOffset = do
-  uoffset <- G.getWord32le
-  G.skip (fromIntegral @Word32 @Int uoffset - 4)
-  pure (UOffset uoffset)
-
-moveInt64 :: HasPositionInfo p => p -> Int64 -> PositionInfo
-moveInt64 (getPos -> PositionInfo{..}) offset =
+moveInt64 :: PositionInfo -> Int64 -> PositionInfo
+moveInt64 PositionInfo{..} offset =
   PositionInfo
   { posRoot = posRoot
   , posCurrent = BSL.drop offset posCurrent
@@ -404,6 +392,11 @@ moveInt64 (getPos -> PositionInfo{..}) offset =
 moveBS :: ByteString -> VOffset -> ByteString
 moveBS bs offset = BSL.drop (fromIntegral @VOffset @Int64 offset) bs
 
+moveUOffset :: Get UOffset
+moveUOffset = do
+  uoffset <- G.getWord32le
+  G.skip (fromIntegral @Word32 @Int uoffset - 4)
+  pure (UOffset uoffset)
 
 data ReadError
   = ParsingError { position :: !G.ByteOffset
