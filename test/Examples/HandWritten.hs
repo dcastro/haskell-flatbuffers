@@ -88,7 +88,7 @@ instance AsStructField Color where
       Gray  -> 5 :: Word8
       Black -> 8 :: Word8
 
-readColor :: ReadCtx m => Position -> m Color
+readColor :: (ReadCtx m, HasPosition a) => a -> m Color
 readColor p =
   readWord8 p >>= \n ->
     case n of
@@ -151,7 +151,7 @@ instance EncodeUnion UnionA where
 instance EncodeUnion UnionB where
   union = writeUnion 2
 
-readUnion :: ReadCtx m => Positive Word8 -> Position -> m Union
+readUnion :: ReadCtx m => Positive Word8 -> PositionInfo -> m Union
 readUnion n pos =
   case getPositive n of
     1 -> Union'UnionA <$> readTable pos
