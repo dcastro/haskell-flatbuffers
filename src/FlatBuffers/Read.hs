@@ -177,20 +177,20 @@ opt = ReadMode (const pure)
 ----------------------------------
 readStructField :: (Coercible s Struct) => (Position -> a) -> VOffset -> s -> a
 readStructField read voffset (coerce -> Struct bs) =
-  read (moveBS bs voffset)
+  read (move' bs (fromIntegral @VOffset @Int64 voffset))
 
 readTableField :: (Coercible t Table, ReadCtx m) => (PositionInfo -> m a) -> TableIndex -> FieldName -> ReadMode a b -> t -> m b
 readTableField read ix name (ReadMode mode) (coerce -> t :: Table) = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
     Nothing -> mode name Nothing
-    Just offset -> read (move (tablePos t) offset) >>= \a -> mode name (Just a)
+    Just offset -> read (moveV (tablePos t) offset) >>= \a -> mode name (Just a)
 
 readTableFieldWithDef :: (ReadCtx m, Coercible t Table) => (PositionInfo -> m a) -> TableIndex -> a -> t -> m a
 readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
   tableIndexToVOffset t ix >>= \case
     Nothing -> pure dflt
-    Just offset -> read (move (tablePos t) offset)
+    Just offset -> read (moveV (tablePos t) offset)
 
 readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Positive Word8 -> PositionInfo -> m a) -> TableIndex -> FieldName -> ReadMode a b -> t -> m b
 readTableFieldUnion read ix name m@(ReadMode mode) t =
@@ -218,7 +218,7 @@ readTableFieldUnionVector read ix name (ReadMode mode) (coerce -> t :: Table) =
       tableIndexToVOffset t (ix + 1) >>= \case
         Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset -> do
-          vec <- readUnionVector read (move (tablePos t) typesOffset) (move (tablePos t) valuesOffset)
+          vec <- readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
           mode name (Just vec)
 
 ----------------------------------
@@ -243,7 +243,7 @@ index v n =
       where
         elemSize = fromIntegral @InlineSize @Int64 (rawVectorElemSize vec)
         elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
-        elemPos = moveInt64 (rawVectorPos vec) elemOffset
+        elemPos = move (rawVectorPos vec) elemOffset
 
 toList :: forall a m. ReadCtx m => Vector a -> m [a]
 toList vec = traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
@@ -319,19 +319,20 @@ readRawVector ::
   -> m (RawVector a)
 readRawVector elemSize pos@PositionInfo{..} =
   flip runGetM posCurrent $ do
-    uoffset <- moveUOffset
+    uoffset <- readAndSkipUOffset
     length <- G.getWord32le
     pure $ RawVector
       { rawVectorLength = VectorLength length
-      , rawVectorPos = moveInt64 pos (fromIntegral @UOffset @Int64 uoffset)
+      , rawVectorPos = moveU pos uoffset
       , rawVectorElemSize = elemSize
       }
 
 readText :: ReadCtx m => PositionInfo -> m Text
 readText PositionInfo{..} = do
   bs <- flip runGetM posCurrent $ do
-    moveUOffset
+    readAndSkipUOffset
     strLength <- G.getWord32le
+    -- NOTE: this might overflow in systems where Max Int < Max Word32
     G.getByteString $ fromIntegral @Word32 @Int strLength
   case T.decodeUtf8' bs of
     Right t -> pure t
@@ -346,13 +347,13 @@ readStruct (getPosition -> pos) = coerce (Struct pos)
 readTable :: forall t m. (ReadCtx m, Coercible Table t) => PositionInfo -> m t
 readTable pos@PositionInfo{..} =
   flip runGetM posCurrent $ do
-    tableOffset <- moveUOffset
+    tableOffset <- readAndSkipUOffset
     soffset <- G.getInt32le
 
     let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
     let tableOffsetFromRoot = tableOffset64 + fromIntegral @_ @Int64 posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
-    pure . coerce $ Table vtable (moveInt64 pos (fromIntegral @UOffset @Int64 tableOffset))
+    pure . coerce $ Table vtable (moveU pos tableOffset)
 
 
 ----------------------------------
@@ -371,23 +372,25 @@ tableIndexToVOffset (coerce -> Table{..}) ix =
           0 -> Nothing
           word16 -> Just (VOffset word16)
 
-move :: PositionInfo -> VOffset -> PositionInfo
-move pos offset =
-  moveInt64 pos (fromIntegral @VOffset @Int64 offset)
+moveV :: PositionInfo -> VOffset -> PositionInfo
+moveV pos offset = move pos (fromIntegral @VOffset @Int64 offset)
 
-moveInt64 :: PositionInfo -> Int64 -> PositionInfo
-moveInt64 PositionInfo{..} offset =
+moveU :: PositionInfo -> UOffset -> PositionInfo
+moveU pos offset = move pos (fromIntegral @UOffset @Int64 offset)
+
+move :: PositionInfo -> Int64 -> PositionInfo
+move PositionInfo{..} offset =
   PositionInfo
   { posRoot = posRoot
-  , posCurrent = BSL.drop offset posCurrent
+  , posCurrent = move' posCurrent offset
   , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Int64 @OffsetFromRoot offset
   }
 
-moveBS :: ByteString -> VOffset -> ByteString
-moveBS bs offset = BSL.drop (fromIntegral @VOffset @Int64 offset) bs
+move' :: Position -> Int64 -> ByteString
+move' bs offset = BSL.drop offset bs
 
-moveUOffset :: Get UOffset
-moveUOffset = do
+readAndSkipUOffset :: Get UOffset
+readAndSkipUOffset = do
   uoffset <- G.getWord32le
   -- NOTE: this might overflow in systems where Max Int < Max Word32
   G.skip (fromIntegral @Word32 @Int uoffset - 4)
