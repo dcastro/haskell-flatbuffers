@@ -317,18 +317,13 @@ readRawVector ::
   => InlineSize
   -> PositionInfo
   -> m (RawVector a)
-readRawVector elemSize PositionInfo{..} =
+readRawVector elemSize pos@PositionInfo{..} =
   flip runGetM posCurrent $ do
     uoffset <- moveUOffset
     length <- G.getWord32le
     pure $ RawVector
       { rawVectorLength = VectorLength length
-      , rawVectorPos =
-          PositionInfo
-          { posRoot = posRoot
-          , posCurrent = BSL.drop (fromIntegral @UOffset @Int64 uoffset) posCurrent
-          , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @UOffset @OffsetFromRoot uoffset
-          }
+      , rawVectorPos = moveInt64 pos (fromIntegral @UOffset @Int64 uoffset)
       , rawVectorElemSize = elemSize
       }
 
@@ -349,7 +344,7 @@ readStruct :: (Coercible Struct t, HasPosition a) => a -> t
 readStruct (getPosition -> pos) = coerce (Struct pos)
 
 readTable :: forall t m. (ReadCtx m, Coercible Table t) => PositionInfo -> m t
-readTable PositionInfo{..} =
+readTable pos@PositionInfo{..} =
   flip runGetM posCurrent $ do
     tableOffset <- moveUOffset
     soffset <- G.getInt32le
@@ -357,8 +352,7 @@ readTable PositionInfo{..} =
     let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
     let tableOffsetFromRoot = tableOffset64 + fromIntegral @_ @Int64 posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
-    let table = BSL.drop tableOffsetFromRoot posRoot
-    pure . coerce $ Table vtable (PositionInfo posRoot table (posOffsetFromRoot + fromIntegral @UOffset @OffsetFromRoot tableOffset))
+    pure . coerce $ Table vtable (moveInt64 pos (fromIntegral @UOffset @Int64 tableOffset))
 
 
 ----------------------------------
@@ -395,6 +389,7 @@ moveBS bs offset = BSL.drop (fromIntegral @VOffset @Int64 offset) bs
 moveUOffset :: Get UOffset
 moveUOffset = do
   uoffset <- G.getWord32le
+  -- NOTE: this might overflow in systems where Max Int < Max Word32
   G.skip (fromIntegral @Word32 @Int uoffset - 4)
   pure (UOffset uoffset)
 
