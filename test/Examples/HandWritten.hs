@@ -97,7 +97,7 @@ readColor p =
       2 -> pure Blue
       5 -> pure Gray
       8 -> pure Black
-      _ -> throwM $ EnumUnknown "Color" (fromIntegral @Word8 @Word64 n)
+      _ -> throwM $ EnumUnknown "Color" (toInteger n)
 
 ----------------------------------
 ------------- Enums --------------
