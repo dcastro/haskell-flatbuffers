@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Examples.HandWritten where
 
@@ -114,8 +113,8 @@ getEnums'x = readTableFieldWithDef readColor 0 Blue
 getEnums'y :: ReadCtx m => ReadMode StructWithEnum a -> Enums -> m a
 getEnums'y = readTableField (pure . readStruct) 1 "y"
 
-getEnums'xs :: ReadCtx m => ReadMode (Vector Color) a -> Enums -> m a
-getEnums'xs = readTableField (readVector readColor 2) 2 "xs"
+getEnums'xs :: ReadCtx m => Enums -> m (Vector Color)
+getEnums'xs = readTableField (readVector readColor 2) 2 "xs" req
 
 getEnums'ys :: ReadCtx m => ReadMode (Vector StructWithEnum) a -> Enums -> m a
 getEnums'ys = readTableField (readVector (pure . readStruct) 6) 3 "ys"

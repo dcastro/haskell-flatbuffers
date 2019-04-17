@@ -99,12 +99,12 @@ newtype Struct = Struct { unStruct :: Position }
 
 data Vector a where
   Vector ::
-       !(RawVector a)                              -- ^ A pointer to an actual FlatBuffers vector
+       !(RawVector a)                                  -- ^ A pointer to an actual FlatBuffers vector
     -> !(forall m. ReadCtx m => PositionInfo -> m a)   -- ^ A function to read elements from this vector
     -> Vector a
   UnionVector ::
-       !(RawVector Word8)     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
-    -> !(RawVector a) -- ^ A table vector, with the actual union values
+       !(RawVector Word8) -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
+    -> !(RawVector a)     -- ^ A table vector, with the actual union values
     -> !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m a) -- ^ A function to read a union value from this vector
     -> Vector (Maybe a)
 

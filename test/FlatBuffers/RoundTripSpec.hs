@@ -71,11 +71,10 @@ spec =
 
         getEnums'x x `shouldBe` Just Gray
         (getEnums'y req x >>= readStructWithEnum) `shouldBe` Just (11, Red, 22)
-        (getEnums'xs req x >>= toList) `shouldBe` Just [Black, Blue, Green]
+        (getEnums'xs x >>= toList) `shouldBe` Just [Black, Blue, Green]
         (getEnums'ys req x >>= toList >>= traverse readStructWithEnum) `shouldBe` Just [(33, Red, 44), (55, Green, 66)]
 
         (getEnums'y opt x >>= traverse readStructWithEnum) `shouldBe` Just (Just (11, Red, 22))
-        (getEnums'xs opt x >>= traverse toList) `shouldBe` Just (Just [Black, Blue, Green])
         (getEnums'ys opt x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Just (Just [(33, Red, 44), (55, Green, 66)])
 
       it "missing" $ do
@@ -83,11 +82,10 @@ spec =
 
         getEnums'x x `shouldBe` Just Blue
         getEnums'y req x `shouldThrow` \err -> err == MissingField "y"
-        (getEnums'xs req x >>= toList) `shouldBe` Just []
+        (getEnums'xs x >>= toList) `shouldBe` Just []
         getEnums'ys req x `shouldThrow` \err -> err == MissingField "ys"
 
         getEnums'y opt x >>= \mb -> isNothing mb `shouldBe` True
-        (getEnums'xs opt x >>= traverse toList) `shouldBe` Just (Just [])
         getEnums'ys opt x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "Union" $ do

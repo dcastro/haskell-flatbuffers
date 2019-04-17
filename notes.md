@@ -23,6 +23,11 @@
   - a missing field of type union should default to some concept of "none". We consider that a union is "missing" if "the byte" field is missing or if it's 0.
     - QUESTION: what to do if the byte field of a union is invalid? fail? default to "none"? leave it to the user?
 
+* when a table field has the `required` attribute, then constructors/accessors don't need to accept/return `Maybe` (regardless of backwards/forwards compatibility)
+    - https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
+    - "specifying this field, you force code that constructs FlatBuffers to ensure this field is initialized, so the reading code may access it directly, without checking for NULL"
+    - "Note that if you add this attribute to an existing field, this will only be valid if existing data always contains this field / existing code always writes this field."
+
 * Containers
   * Table: can contain all types.
   * Structs: can contain other structs, numeric, bool, enums. Can't contain tables, vectors, strings, unions, or "missing" elements.
