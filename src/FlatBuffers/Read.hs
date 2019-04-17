@@ -35,6 +35,7 @@ module FlatBuffers.Read
   , readTable
   , readVector
   , readStruct
+  , readStruct'
   , readStructField
   , readTableField
   , readTableFieldWithDef
@@ -343,6 +344,10 @@ readText PositionInfo{..} = do
     -- The `EncodeError` constructor is deprecated and not used
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
+
+-- | Convenience function for reading structs from table fields / vectors
+readStruct' :: (Applicative f, Coercible Struct t, HasPosition a) => a -> f t
+readStruct' = pure . readStruct
 
 readStruct :: (Coercible Struct t, HasPosition a) => a -> t
 readStruct (getPosition -> pos) = coerce (Struct pos)

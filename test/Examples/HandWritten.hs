@@ -111,13 +111,13 @@ getEnums'x :: ReadCtx m => Enums -> m Color
 getEnums'x = readTableFieldWithDef readColor 0 Blue
 
 getEnums'y :: ReadCtx m => ReadMode StructWithEnum a -> Enums -> m a
-getEnums'y = readTableField (pure . readStruct) 1 "y"
+getEnums'y = readTableField readStruct' 1 "y"
 
 getEnums'xs :: ReadCtx m => Enums -> m (Vector Color)
 getEnums'xs = readTableField (readVector readColor 2) 2 "xs" req
 
 getEnums'ys :: ReadCtx m => ReadMode (Vector StructWithEnum) a -> Enums -> m a
-getEnums'ys = readTableField (readVector (pure . readStruct) 6) 3 "ys"
+getEnums'ys = readTableField (readVector readStruct' 6) 3 "ys"
 
 
 
@@ -241,7 +241,7 @@ vectorOfStructs :: Maybe [WriteStruct ThreeBytes] -> WriteTable VectorOfStructs
 vectorOfStructs x1 = writeTable [w x1]
 
 getVectorOfStructs'xs :: ReadCtx m => ReadMode (Vector ThreeBytes) a -> VectorOfStructs -> m a
-getVectorOfStructs'xs = readTableField (readVector (pure . readStruct) 3) 0 "xs"
+getVectorOfStructs'xs = readTableField (readVector readStruct' 3) 0 "xs"
 
 
 ----------------------------------
@@ -277,14 +277,14 @@ alignT :: Maybe (WriteStruct Align1) -> Maybe (WriteStruct Align2) -> Maybe [Wri
 alignT a b c d = writeTable [ w a, w b, w c, w d ]
 
 getAlignT'x :: ReadCtx m => ReadMode Align1 a ->  AlignT -> m a
-getAlignT'x = readTableField (pure . readStruct) 0 "x"
+getAlignT'x = readTableField readStruct' 0 "x"
 
 getAlignT'y :: ReadCtx m => ReadMode Align2 a ->  AlignT -> m a
-getAlignT'y = readTableField (pure . readStruct) 1 "y"
+getAlignT'y = readTableField readStruct' 1 "y"
 
 getAlignT'xs :: ReadCtx m => ReadMode (Vector Align1) a -> AlignT -> m a
-getAlignT'xs = readTableField (readVector (pure . readStruct) 4) 2 "xs"
+getAlignT'xs = readTableField (readVector readStruct' 4) 2 "xs"
 
 getAlignT'ys :: ReadCtx m => ReadMode (Vector Align2) a -> AlignT -> m a
-getAlignT'ys = readTableField (readVector (pure . readStruct) 24) 3 "ys"
+getAlignT'ys = readTableField (readVector readStruct' 24) 3 "ys"
 

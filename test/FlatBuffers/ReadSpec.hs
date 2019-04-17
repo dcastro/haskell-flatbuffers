@@ -144,7 +144,7 @@ myRootD :: ReadCtx m => ReadMode Text a -> MyRoot -> m a
 myRootD = readTableField readText 3 "d"
 
 myRootE :: ReadCtx m => ReadMode SWS a -> MyRoot -> m a
-myRootE = readTableField (pure . readStruct) 4 "e"
+myRootE = readTableField readStruct' 4 "e"
 
 myRootF :: ReadCtx m => ReadMode (Vector Text) a -> MyRoot -> m a
 myRootF = readTableField (readVector readText textSize) 5 "f"
