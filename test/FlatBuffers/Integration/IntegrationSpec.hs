@@ -165,13 +165,13 @@ cases =
   , Case
       "Enums"
       "Enums"
-      (root $ table [inline word8 5])
-      (object ["color" .= String "Gray"])
+      (root $ table [inline word16 5])
+      (object ["x" .= String "Gray", "y" .= Null, "xs" .= array [], "ys" .= array []])
   , Case
       "Enums - missing"
       "Enums"
       (root $ table [missing])
-      (object ["color" .= String "Blue"])
+      (object ["x" .= String "Blue", "y" .= Null, "xs" .= array [], "ys" .= array []])
   , Case
       "TableWithUnion with UnionA"
       "TableWithUnion"

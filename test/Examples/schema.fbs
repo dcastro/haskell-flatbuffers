@@ -29,10 +29,19 @@ table ManyTables {
   z: Simple;
 }
 
-enum Color:ubyte { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
+enum Color:ushort { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
+
+struct StructWithEnum {
+  x: byte;
+  y: Color;
+  z: byte;
+}
 
 table Enums {
   x: Color = Blue;
+  y: StructWithEnum;
+  xs: [Color] (required);
+  ys: [StructWithEnum];
 }
 
 union Union { UnionA, UnionB }

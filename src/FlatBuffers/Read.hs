@@ -246,10 +246,14 @@ index v n =
         elemPos = move (rawVectorPos vec) elemOffset
 
 toList :: forall a m. ReadCtx m => Vector a -> m [a]
-toList vec = traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
+toList vec =
+  if vectorLength vec == 0
+    then pure []
+    else traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
+  
 
 vectorLength :: Vector a -> VectorLength
-vectorLength (Vector v _         ) = rawVectorLength v
+vectorLength (Vector v _)        = rawVectorLength v
 vectorLength (UnionVector v _ _) = rawVectorLength v -- NOTE: we assume the two vectors have the same length
 
 ----------------------------------

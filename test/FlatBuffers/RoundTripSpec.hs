@@ -61,12 +61,34 @@ spec =
         getPrimitives'k x `shouldBe` Just False
 
     describe "Enums" $ do
+      let readStructWithEnum = (liftA3 . liftA3) (,,) getStructWithEnum'x getStructWithEnum'y getStructWithEnum'z
       it "present" $ do
-        x <- decode $ encode $ enums (Just Gray)
+        x <- decode $ encode $ enums
+          (Just Gray)
+          (Just (structWithEnum 11 Red 22))
+          [Black, Blue, Green]
+          (Just [structWithEnum 33 Red 44, structWithEnum 55 Green 66])
+
         getEnums'x x `shouldBe` Just Gray
+        (getEnums'y req x >>= readStructWithEnum) `shouldBe` Just (11, Red, 22)
+        (getEnums'xs req x >>= toList) `shouldBe` Just [Black, Blue, Green]
+        (getEnums'ys req x >>= toList >>= traverse readStructWithEnum) `shouldBe` Just [(33, Red, 44), (55, Green, 66)]
+
+        (getEnums'y opt x >>= traverse readStructWithEnum) `shouldBe` Just (Just (11, Red, 22))
+        (getEnums'xs opt x >>= traverse toList) `shouldBe` Just (Just [Black, Blue, Green])
+        (getEnums'ys opt x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Just (Just [(33, Red, 44), (55, Green, 66)])
+
       it "missing" $ do
-        x <- decode @Enums $ encode $ enums Nothing
+        x <- decode @Enums $ encode $ enums Nothing Nothing [] Nothing
+
         getEnums'x x `shouldBe` Just Blue
+        getEnums'y req x `shouldThrow` \err -> err == MissingField "y"
+        (getEnums'xs req x >>= toList) `shouldBe` Just []
+        getEnums'ys req x `shouldThrow` \err -> err == MissingField "ys"
+
+        getEnums'y opt x >>= \mb -> isNothing mb `shouldBe` True
+        (getEnums'xs opt x >>= traverse toList) `shouldBe` Just (Just [])
+        getEnums'ys opt x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "Union" $ do
       describe "present" $ do

@@ -82,15 +82,15 @@ instance AsStructField Color where
   ws x =
     ws $
     case x of
-      Red   -> 0 :: Word8
-      Green -> 1 :: Word8
-      Blue  -> 2 :: Word8
-      Gray  -> 5 :: Word8
-      Black -> 8 :: Word8
+      Red   -> 0 :: Word16
+      Green -> 1 :: Word16
+      Blue  -> 2 :: Word16
+      Gray  -> 5 :: Word16
+      Black -> 8 :: Word16
 
 readColor :: (ReadCtx m, HasPosition a) => a -> m Color
 readColor p =
-  readWord8 p >>= \n ->
+  readWord16 p >>= \n ->
     case n of
       0 -> pure Red
       1 -> pure Green
@@ -105,11 +105,37 @@ readColor p =
 newtype Enums =
   Enums Table
 
-enums :: Maybe Color -> WriteTable Enums
-enums x1 = writeTable [w x1]
+enums :: Maybe Color -> Maybe (WriteStruct StructWithEnum) -> [Color] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
+enums x1 x2 x3 x4 = writeTable [w x1, w x2, w x3, w x4]
 
 getEnums'x :: ReadCtx m => Enums -> m Color
 getEnums'x = readTableFieldWithDef readColor 0 Blue
+
+getEnums'y :: ReadCtx m => ReadMode StructWithEnum a -> Enums -> m a
+getEnums'y = readTableField (pure . readStruct) 1 "y"
+
+getEnums'xs :: ReadCtx m => ReadMode (Vector Color) a -> Enums -> m a
+getEnums'xs = readTableField (readVector readColor 2) 2 "xs"
+
+getEnums'ys :: ReadCtx m => ReadMode (Vector StructWithEnum) a -> Enums -> m a
+getEnums'ys = readTableField (readVector (pure . readStruct) 6) 3 "ys"
+
+
+
+newtype StructWithEnum = StructWithEnum Struct
+
+structWithEnum :: Int8 -> Color -> Int8 -> WriteStruct StructWithEnum
+structWithEnum x1 x2 x3 = writeStruct 2 [W.padded 1 $ ws x1, ws x2, W.padded 1 $ ws x3]
+
+getStructWithEnum'x :: ReadCtx m => StructWithEnum -> m Int8
+getStructWithEnum'x = readStructField readInt8 0
+
+getStructWithEnum'y :: ReadCtx m => StructWithEnum -> m Color
+getStructWithEnum'y = readStructField readColor 2
+
+getStructWithEnum'z :: ReadCtx m => StructWithEnum -> m Int8
+getStructWithEnum'z = readStructField readInt8 4
+
 
 ----------------------------------
 ------------- UnionA -------------

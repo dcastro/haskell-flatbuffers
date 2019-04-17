@@ -20,7 +20,7 @@ spec :: Spec
 spec =
   describe "Haskell encoders should be consistent with Scala decoders" $
   parallel $ do
-    it "Primitives" $ do
+    it "Primitives" $
       test
         "Primitives"
         (encodeWithFileIdentifier $ primitives
@@ -40,6 +40,36 @@ spec =
           , "j" .= Number 2873242.82782
           , "k" .= True
           ])
+
+    it "Enums" $ do
+      test
+        "Enums"
+        (encode $ enums
+          (Just Gray)
+          (Just (structWithEnum 11 Red 22))
+          [Black, Blue, Green]
+          (Just [structWithEnum 33 Red 44, structWithEnum 55 Green 66])
+        )
+        (object
+          [ "x" .= String "Gray"
+          , "y" .= object [ "x" .= Number 11, "y" .= String "Red", "z" .= Number 22 ]
+          , "xs" .= [ String "Black", String "Blue", String "Green" ]
+          , "ys" .=
+            [ object [ "x" .= Number 33, "y" .= String "Red", "z" .= Number 44 ]
+            , object [ "x" .= Number 55, "y" .= String "Green", "z" .= Number 66 ]
+            ]
+          ]
+        )
+      test
+        "Enums"
+        (encode $ enums Nothing Nothing [] Nothing)
+        (object
+          [ "x" .= String "Blue"
+          , "y" .= Null
+          , "xs" .= [] @Value
+          , "ys" .= [] @Value
+          ]
+        )
 
     it "VectorOfUnions" $ do
       test
