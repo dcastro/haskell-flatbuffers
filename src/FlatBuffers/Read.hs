@@ -411,7 +411,6 @@ data ReadError
   | Utf8DecodingError { msg  :: !Text
                       , byte :: !(Maybe Word8) }
   | VectorIndexOutOfBounds !VectorLength !VectorIndex
-  | EnumUnknown { enumName :: !Text, enumValue :: !Integer }
   | UnionUnknown { unionName :: !Text, unionValue :: !Word8 }
   | MalformedBuffer !Text
   deriving (Show, Eq)

@@ -119,7 +119,7 @@ data TableFieldType
   | TDouble !(DefaultVal Scientific)
   | TBool   !(DefaultVal Bool)
   | TString !Required
-  | TEnum   !TypeRef !(DefaultVal Ident)
+  | TEnum   !TypeRef !(DefaultVal Integer)
   | TStruct !TypeRef !Required
   | TTable  !TypeRef !Required
   | TUnion  !TypeRef !Required
