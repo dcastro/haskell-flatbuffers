@@ -192,12 +192,15 @@ readWeapon n pos =
 newtype TableWithUnion =
   TableWithUnion Table
 
-tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteTable TableWithUnion
-tableWithUnion x1 =
-  writeTable [wType x1, wValue x1]
+tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteUnion Weapon -> WriteTable TableWithUnion
+tableWithUnion x1 x2 =
+  writeTable [wType x1, wValue x1, wType x2, wValue x2]
 
 getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m (Union Weapon)
 getTableWithUnion'uni = readTableFieldUnion readWeapon 0
+
+getTableWithUnion'uniReq :: ReadCtx m => TableWithUnion -> m (Union Weapon)
+getTableWithUnion'uniReq = readTableFieldUnion readWeapon 1
 
 ----------------------------------
 ------- VectorOfUnions -----------

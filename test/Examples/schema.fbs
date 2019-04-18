@@ -50,6 +50,7 @@ table Axe { y: int; }
 
 table TableWithUnion {
   uni: Weapon;
+  uniReq: Weapon (required);
 }
 
 table Vectors {

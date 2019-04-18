@@ -90,23 +90,23 @@ spec =
 
     describe "Union" $ do
       it "present" $ do
-        x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
+        x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi")))) none
         getTableWithUnion'uni x >>= \case
           Union (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
           _                      -> unexpectedUnionType
 
-        x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
+        x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound)))) none
         getTableWithUnion'uni x >>= \case
           Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Just maxBound
           _                    -> unexpectedUnionType
 
-        x <- decode $ encode $ tableWithUnion (Just none)
+        x <- decode $ encode $ tableWithUnion (Just none) none
         getTableWithUnion'uni x >>= \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
 
       it "missing" $ do
-        x <- decode $ encode $ tableWithUnion Nothing
+        x <- decode $ encode $ tableWithUnion Nothing none
         getTableWithUnion'uni x >>= \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
