@@ -96,7 +96,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                 case "TableWithUnion" =>
                   val obj = TableWithUnion.getRootAsTableWithUnion(bb)
                   Json.obj(
-                    "uni" =>> readUnion(obj)(_.uniType, _.uni),
+                    "uni" =>> readWeapon(obj)(_.uniType, _.uni),
                   ).some
 
                 case "Vectors" =>
@@ -178,7 +178,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                   Json.obj(
                     "xs" =>>
                       (0 until obj.xsLength()).map { i =>
-                        readUnion(obj)(_.xsType(i), root => union => root.xs(union, i))
+                        readWeapon(obj)(_.xsType(i), root => union => root.xs(union, i))
                       }
                   ).some
 
@@ -237,14 +237,14 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
       }
   }
 
-  def readUnion[A <: Table](obj: A)(unionType: A => Byte, union: A => Table => Table): Json =
-    unionType(obj) match {
-      case Union.NONE => "NONE".asJson
-      case Union.UnionA   =>
-        val uni = union(obj)(new UnionA()).asInstanceOf[UnionA]
+  def readWeapon[A <: Table](obj: A)(weaponType: A => Byte, weapon: A => Table => Table): Json =
+    weaponType(obj) match {
+      case Weapon.NONE => "NONE".asJson
+      case Weapon.Sword   =>
+        val uni = weapon(obj)(new Sword()).asInstanceOf[Sword]
         Json.obj("x" =>> uni.x)
-      case Union.UnionB   =>
-        val uni = union(obj)(new UnionB()).asInstanceOf[UnionB]
+      case Weapon.Axe   =>
+        val uni = weapon(obj)(new Axe()).asInstanceOf[Axe]
         Json.obj("y" =>> uni.y)
     }
 }

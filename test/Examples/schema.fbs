@@ -44,12 +44,12 @@ table Enums {
   ys: [StructWithEnum];
 }
 
-union Union { UnionA, UnionB }
-table UnionA { x: string; }
-table UnionB { y: int; }
+union Weapon { Sword, Axe }
+table Sword { x: string; }
+table Axe { y: int; }
 
 table TableWithUnion {
-  uni: Union;
+  uni: Weapon;
 }
 
 table Vectors {
@@ -98,7 +98,7 @@ table VectorOfStructs {
 }
 
 table VectorOfUnions {
-  xs: [Union];
+  xs: [Weapon];
 }
 
 // These are used for testing padding and alignment of structs / struct fields

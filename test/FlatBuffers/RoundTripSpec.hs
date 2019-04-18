@@ -91,29 +91,29 @@ spec =
     describe "Union" $ do
       describe "present" $ do
         it "required mode" $ do
-          x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
+          x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
           getTableWithUnion'uni req x >>= \case
-            Union'UnionA x -> getUnionA'x req x `shouldBe` Just "hi"
+            Weapon'Sword x -> getSword'x req x `shouldBe` Just "hi"
             _              -> unexpectedUnionType
 
-          x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
+          x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
           getTableWithUnion'uni req x >>= \case
-            Union'UnionB x -> getUnionB'y x `shouldBe` Just maxBound
-            _              -> unexpectedUnionType
+            Weapon'Axe x -> getAxe'y x `shouldBe` Just maxBound
+            _            -> unexpectedUnionType
 
           x <- decode $ encode $ tableWithUnion (Just none)
           getTableWithUnion'uni req x `shouldThrow` \err -> err == MissingField "uni"
 
         it "optional mode" $ do
-          x <- decode $ encode $ tableWithUnion (Just (union (unionA (Just "hi"))))
+          x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
           getTableWithUnion'uni opt x >>= \case
-            Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
+            Just (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
             _                     -> unexpectedUnionType
 
-          x <- decode $ encode $ tableWithUnion (Just (union (unionB (Just maxBound))))
+          x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
           getTableWithUnion'uni opt x >>= \case
-            Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just maxBound
-            _                     -> unexpectedUnionType
+            Just (Weapon'Axe x) -> getAxe'y x `shouldBe` Just maxBound
+            _                   -> unexpectedUnionType
 
           x <- decode $ encode $ tableWithUnion (Just none)
           getTableWithUnion'uni opt x >>= \case
@@ -139,21 +139,21 @@ spec =
     describe "VectorOfUnions" $ do
       it "present" $ do
         x <- decode $ encode $ vectorOfUnions (Just
-          [ union (unionA (Just "hi"))
+          [ weapon (sword (Just "hi"))
           , none
-          , union (unionB (Just 98))
+          , weapon (axe (Just 98))
           ])
         xs <- getVectorOfUnions'xs req x
         vectorLength xs `shouldBe` 3
         xs `index` 0 >>= \case
-          Just (Union'UnionA x) -> getUnionA'x req x `shouldBe` Just "hi"
+          Just (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
           _                     -> unexpectedUnionType
         xs `index` 1 >>= \case
           Nothing -> pure ()
           _       -> unexpectedUnionType
         xs `index` 2 >>= \case
-          Just (Union'UnionB x) -> getUnionB'y x `shouldBe` Just 98
-          _                     -> unexpectedUnionType
+          Just (Weapon'Axe x) -> getAxe'y x `shouldBe` Just 98
+          _                   -> unexpectedUnionType
         xs `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
       it "missing" $ do

@@ -74,20 +74,20 @@ spec =
     it "VectorOfUnions" $ do
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just [union (unionA (Just "hi"))]))
+        (encode $ vectorOfUnions (Just [weapon (sword (Just "hi"))]))
         (object ["xs" .= [object ["x" .= String "hi"]]])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just [union (unionA Nothing)]))
+        (encode $ vectorOfUnions (Just [weapon (sword Nothing)]))
         (object ["xs" .= [object ["x" .= Null]]])
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
           (Just
-              [ union (unionA (Just "hi"))
+              [ weapon (sword (Just "hi"))
               , none
-              , union (unionB (Just maxBound))
-              , union (unionA (Just "oi"))
+              , weapon (axe (Just maxBound))
+              , weapon (sword (Just "oi"))
               ]))
         (object
           [ "xs" .=

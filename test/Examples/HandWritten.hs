@@ -140,51 +140,51 @@ getStructWithEnum'z = readStructField readInt8 4
 
 
 ----------------------------------
-------------- UnionA -------------
+------------- Sword -------------
 ----------------------------------
-newtype UnionA =
-  UnionA Table
+newtype Sword =
+  Sword Table
 
-unionA :: Maybe Text -> WriteTable UnionA
-unionA x1 = writeTable [w x1]
+sword :: Maybe Text -> WriteTable Sword
+sword x1 = writeTable [w x1]
 
-getUnionA'x :: ReadCtx m => ReadMode Text a -> UnionA -> m a
-getUnionA'x = readTableField readText 0 "x"
-
-----------------------------------
-------------- UnionB -------------
-----------------------------------
-newtype UnionB =
-  UnionB Table
-
-unionB :: Maybe Int32 -> WriteTable UnionB
-unionB x1 = writeTable [w x1]
-
-getUnionB'y :: ReadCtx m => UnionB -> m Int32
-getUnionB'y = readTableFieldWithDef readInt32 0 0
+getSword'x :: ReadCtx m => ReadMode Text a -> Sword -> m a
+getSword'x = readTableField readText 0 "x"
 
 ----------------------------------
-------------- Union --------------
+------------- Axe -------------
 ----------------------------------
-data Union
-  = Union'UnionA !UnionA
-  | Union'UnionB !UnionB
+newtype Axe =
+  Axe Table
 
-class EncodeUnion a where
-  union :: WriteTable a -> WriteUnion Union
+axe :: Maybe Int32 -> WriteTable Axe
+axe x1 = writeTable [w x1]
 
-instance EncodeUnion UnionA where
-  union = writeUnion 1
+getAxe'y :: ReadCtx m => Axe -> m Int32
+getAxe'y = readTableFieldWithDef readInt32 0 0
 
-instance EncodeUnion UnionB where
-  union = writeUnion 2
+----------------------------------
+------------- Weapon --------------
+----------------------------------
+data Weapon
+  = Weapon'Sword !Sword
+  | Weapon'Axe !Axe
 
-readUnion :: ReadCtx m => Positive Word8 -> PositionInfo -> m Union
-readUnion n pos =
+class EncodeWeapon a where
+  weapon :: WriteTable a -> WriteUnion Weapon
+
+instance EncodeWeapon Sword where
+  weapon = writeUnion 1
+
+instance EncodeWeapon Axe where
+  weapon = writeUnion 2
+
+readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m Weapon
+readWeapon n pos =
   case getPositive n of
-    1 -> Union'UnionA <$> readTable pos
-    2 -> Union'UnionB <$> readTable pos
-    _ -> throwM $ UnionUnknown "Union" (getPositive n)
+    1 -> Weapon'Sword <$> readTable pos
+    2 -> Weapon'Axe <$> readTable pos
+    _ -> throwM $ UnionUnknown "Weapon" (getPositive n)
 
 ----------------------------------
 ------- TableWithUnion -----------
@@ -192,12 +192,12 @@ readUnion n pos =
 newtype TableWithUnion =
   TableWithUnion Table
 
-tableWithUnion :: Maybe (WriteUnion Union) -> WriteTable TableWithUnion
+tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteTable TableWithUnion
 tableWithUnion x1 =
   writeTable [wType x1, wValue x1]
 
-getTableWithUnion'uni :: ReadCtx m => ReadMode Union a -> TableWithUnion -> m a
-getTableWithUnion'uni = readTableFieldUnion readUnion 0 "uni"
+getTableWithUnion'uni :: ReadCtx m => ReadMode Weapon a -> TableWithUnion -> m a
+getTableWithUnion'uni = readTableFieldUnion readWeapon 0 "uni"
 
 ----------------------------------
 ------- VectorOfUnions -----------
@@ -205,12 +205,12 @@ getTableWithUnion'uni = readTableFieldUnion readUnion 0 "uni"
 newtype VectorOfUnions =
   VectorOfUnions Table
 
-vectorOfUnions :: Maybe [WriteUnion Union] -> WriteTable VectorOfUnions
+vectorOfUnions :: Maybe [WriteUnion Weapon] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
   writeTable [wType x1, wValue x1]
 
-getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector (Maybe Union)) a -> VectorOfUnions -> m a
-getVectorOfUnions'xs = readTableFieldUnionVector readUnion 0 "xs"
+getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector (Maybe Weapon)) a -> VectorOfUnions -> m a
+getVectorOfUnions'xs = readTableFieldUnionVector readWeapon 0 "xs"
 
 ----------------------------------
 ----------- ThreeBytes -----------
