@@ -64,6 +64,11 @@
 
 ## TODO
 
+* Add support for `bit_flags` attribute on enums.
+    - Could maybe represent as `newtype Colors = Colors { unColors :: Word16 }`
+    -`hasRed`/`hasBlue`/etc
+    - add Semigroup/Monoid instances with bitwise ops
+
 * Test with this file: https://github.com/google/flatbuffers/blob/master/tests/monster_test.fbs
 * Add TH function to validate a user-provided file identifier, ala refinement types. See if we can avoid using `unsafeFileIdentifier`.
 
