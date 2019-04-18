@@ -73,7 +73,7 @@ data Color
   | Blue
   | Gray
   | Black
-  deriving (Eq, Show, Enum, Ord)
+  deriving (Eq, Show, Ord, Bounded)
 
 instance AsTableField Color where
   w = inline ws
