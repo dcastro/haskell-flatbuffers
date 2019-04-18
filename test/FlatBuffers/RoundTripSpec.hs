@@ -6,7 +6,7 @@ module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative    (liftA3)
 import           Control.Monad          (forM)
-import           Data.Maybe             (isNothing)
+import           Data.Maybe             (fromJust, isNothing)
 import           Data.Text              (Text)
 import           Data.Word
 import           Examples.HandWritten
@@ -70,29 +70,23 @@ spec =
           (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
 
         toColor <$> getEnums'x x `shouldBe` Just (Just ColorGray)
-        (getEnums'y req x >>= readStructWithEnum) `shouldBe` Just (11, Just ColorRed, 22)
+        (getEnums'y x >>= traverse readStructWithEnum) `shouldBe` Just (Just (11, Just ColorRed, 22))
         (getEnums'xs x >>= toList) `shouldBe` Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
-        (getEnums'ys req x >>= toList >>= traverse readStructWithEnum) `shouldBe` Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)]
-
-        (getEnums'y opt x >>= traverse readStructWithEnum) `shouldBe` Just (Just (11, Just ColorRed, 22))
-        (getEnums'ys opt x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Just (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
+        (getEnums'ys x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Just (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
 
       it "missing" $ do
         x <- decode @Enums $ encode $ enums Nothing Nothing [] Nothing
 
         toColor <$> getEnums'x x `shouldBe` Just (Just ColorBlue)
-        getEnums'y req x `shouldThrow` \err -> err == MissingField "y"
+        getEnums'y x >>= \mb -> isNothing mb `shouldBe` True
         (getEnums'xs x >>= toList) `shouldBe` Just []
-        getEnums'ys req x `shouldThrow` \err -> err == MissingField "ys"
-
-        getEnums'y opt x >>= \mb -> isNothing mb `shouldBe` True
-        getEnums'ys opt x >>= \mb -> isNothing mb `shouldBe` True
+        getEnums'ys x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "Union" $ do
       it "present" $ do
         x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi")))) none
         getTableWithUnion'uni x >>= \case
-          Union (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
+          Union (Weapon'Sword x) -> getSword'x x `shouldBe` Just (Just "hi")
           _                      -> unexpectedUnionType
 
         x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound)))) none
@@ -123,10 +117,10 @@ spec =
           , none
           , weapon (axe (Just 98))
           ])
-        xs <- getVectorOfUnions'xs req x
+        Just xs <- getVectorOfUnions'xs x
         vectorLength xs `shouldBe` 3
         xs `index` 0 >>= \case
-          Union (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
+          Union (Weapon'Sword x) -> getSword'x x `shouldBe` Just (Just "hi")
           _                      -> unexpectedUnionType
         xs `index` 1 >>= \case
           UnionNone -> pure ()
@@ -138,12 +132,11 @@ spec =
 
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing
-        getVectorOfUnions'xs req x `shouldThrow` \err -> err == MissingField "xs"
-        getVectorOfUnions'xs opt x >>= \mb -> isNothing mb `shouldBe` True
+        getVectorOfUnions'xs x >>= \mb -> isNothing mb `shouldBe` True
 
       it "throws when union type vector is present, but union value vector is missing" $ do
         x <- decode $ encode $ writeTable @VectorOfUnions [w @[Word8] []]
-        getVectorOfUnions'xs opt x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        getVectorOfUnions'xs x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
@@ -152,13 +145,11 @@ spec =
           [ threeBytes 1 2 3
           , threeBytes 4 5 6
           ])
-        xs <- getVectorOfStructs'xs req x
+        Just xs <- getVectorOfStructs'xs x
         (toList xs >>= traverse getBytes) `shouldBe` Just [(1,2,3), (4,5,6)]
       it "missing" $ do
         x <- decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
-        getVectorOfStructs'xs req x `shouldThrow` \err -> err == MissingField "xs"
-        getVectorOfStructs'xs opt x >>= \mb -> isNothing mb `shouldBe` True
-
+        getVectorOfStructs'xs x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "Align" $ do
       it "present" $ do
@@ -168,10 +159,10 @@ spec =
                 (Just [align1 101, align1 102, align1 103])
                 (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
 
-        a1 <- getAlignT'x req root
-        a2 <- getAlignT'y req root
-        a1s <- getAlignT'xs req root >>= toList
-        a2s <- getAlignT'ys req root >>= toList
+        Just a1 <- getAlignT'x root
+        Just a2 <- getAlignT'y root
+        a1s <- getAlignT'xs root >>= toList . fromJust
+        a2s <- getAlignT'ys root >>= toList . fromJust
 
         getAlign1'x a1 `shouldBe` Just 11
 
@@ -188,14 +179,9 @@ spec =
       it "missing" $ do
         root <- decode $ encode $ alignT Nothing Nothing Nothing Nothing
 
-        getAlignT'x req root `shouldThrow` \err -> err == MissingField "x"
-        getAlignT'y req root `shouldThrow` \err -> err == MissingField "y"
-        getAlignT'xs req root `shouldThrow` \err -> err == MissingField "xs"
-        getAlignT'ys req root `shouldThrow` \err -> err == MissingField "ys"
-
-        getAlignT'x opt root >>= \mb -> isNothing mb `shouldBe` True
-        getAlignT'y opt root >>= \mb -> isNothing mb `shouldBe` True
-        getAlignT'xs opt root >>= \mb -> isNothing mb `shouldBe` True
-        getAlignT'ys opt root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'x root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'y root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'xs root >>= \mb -> isNothing mb `shouldBe` True
+        getAlignT'ys root >>= \mb -> isNothing mb `shouldBe` True
 
 unexpectedUnionType = expectationFailure "Unexpected union type"

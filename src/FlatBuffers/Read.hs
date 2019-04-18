@@ -14,7 +14,6 @@
 
 module FlatBuffers.Read
   ( ReadCtx
-  , ReadMode(..)
   , TableIndex(..), VectorIndex(..)
   , FieldName(..), VectorLength(..)
   , VOffset(..)
@@ -38,12 +37,13 @@ module FlatBuffers.Read
   , readStruct
   , readStruct'
   , readStructField
-  , readTableField
+  , readTableFieldOpt
+  , readTableFieldReq
   , readTableFieldWithDef
   , readTableFieldUnion
-  , readTableFieldUnionVector
+  , readTableFieldUnionVectorOpt
+  , readTableFieldUnionVectorReq
   , vectorLength, index, toList
-  , req, opt
   ) where
 
 import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
@@ -163,34 +163,23 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
           bs
 
 ----------------------------------
-------------- ReadMode -----------
----------------------------------- 
-newtype ReadMode a b =
-  ReadMode (forall m. ReadCtx m => FieldName -> Maybe a -> m b)
-
-req :: ReadMode a a
-req = ReadMode req'
-  where
-    req' _ (Just a) = pure a
-    req' fn _       = throwM $ MissingField fn
-
-opt :: ReadMode a (Maybe a)
-opt = ReadMode (const pure)
-
-
-----------------------------------
 ----- Read from Struct/Table -----
 ----------------------------------
 readStructField :: (Coercible s Struct) => (Position -> a) -> VOffset -> s -> a
 readStructField read voffset (coerce -> Struct bs) =
   read (move' bs (fromIntegral @VOffset @Int64 voffset))
 
-readTableField :: (Coercible t Table, ReadCtx m) => (PositionInfo -> m a) -> TableIndex -> FieldName -> ReadMode a b -> t -> m b
-readTableField read ix name (ReadMode mode) (coerce -> t :: Table) = do
+readTableFieldOpt :: (Coercible t Table, ReadCtx m) => (PositionInfo -> m a) -> TableIndex -> t -> m (Maybe a)
+readTableFieldOpt read ix (coerce -> t :: Table) = do
+  mbOffset <- tableIndexToVOffset t ix
+  traverse (\offset -> read (moveV (tablePos t) offset)) mbOffset
+
+readTableFieldReq :: (Coercible t Table, ReadCtx m) => (PositionInfo -> m a) -> TableIndex -> FieldName -> t -> m a
+readTableFieldReq read ix name (coerce -> t :: Table) = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
-    Nothing -> mode name Nothing
-    Just offset -> read (moveV (tablePos t) offset) >>= \a -> mode name (Just a)
+    Nothing -> throwM $ MissingField name
+    Just offset -> read (moveV (tablePos t) offset)
 
 readTableFieldWithDef :: (ReadCtx m, Coercible t Table) => (PositionInfo -> m a) -> TableIndex -> a -> t -> m a
 readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
@@ -208,22 +197,34 @@ readTableFieldUnion read ix (coerce -> t :: Table) =
           Nothing     -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
           Just offset -> read unionType' (moveV (tablePos t) offset)
 
-readTableFieldUnionVector :: (Coercible t Table, ReadCtx m)
+readTableFieldUnionVectorOpt :: (Coercible t Table, ReadCtx m)
   => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
   -> TableIndex
-  -> FieldName
-  -> ReadMode (Vector (Union a)) b
   -> t
-  -> m b
-readTableFieldUnionVector read ix name (ReadMode mode) (coerce -> t :: Table) =
+  -> m (Maybe (Vector (Union a)))
+readTableFieldUnionVectorOpt read ix (coerce -> t :: Table) =
   tableIndexToVOffset t ix >>= \case
-    Nothing -> mode name Nothing
+    Nothing -> pure Nothing
     Just typesOffset ->
       tableIndexToVOffset t (ix + 1) >>= \case
         Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
-        Just valuesOffset -> do
-          vec <- readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
-          mode name (Just vec)
+        Just valuesOffset ->
+          Just <$> readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
+
+readTableFieldUnionVectorReq :: (Coercible t Table, ReadCtx m)
+  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+  -> TableIndex
+  -> FieldName
+  -> t
+  -> m (Vector (Union a))
+readTableFieldUnionVectorReq read ix name (coerce -> t :: Table) =
+  tableIndexToVOffset t ix >>= \case
+    Nothing -> throwM $ MissingField name
+    Just typesOffset ->
+      tableIndexToVOffset t (ix + 1) >>= \case
+        Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Just valuesOffset ->
+          readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
 ----------------------------------
 ------- Vector functions ---------

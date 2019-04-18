@@ -113,14 +113,14 @@ enums x1 x2 x3 x4 = writeTable [w x1, w x2, w x3, w x4]
 getEnums'x :: ReadCtx m => Enums -> m Word16
 getEnums'x = readTableFieldWithDef readWord16 0 2
 
-getEnums'y :: ReadCtx m => ReadMode StructWithEnum a -> Enums -> m a
-getEnums'y = readTableField readStruct' 1 "y"
+getEnums'y :: ReadCtx m => Enums -> m (Maybe StructWithEnum)
+getEnums'y = readTableFieldOpt readStruct' 1
 
 getEnums'xs :: ReadCtx m => Enums -> m (Vector Word16)
-getEnums'xs = readTableField (readVector readWord16 2) 2 "xs" req
+getEnums'xs = readTableFieldReq (readVector readWord16 2) 2 "xs"
 
-getEnums'ys :: ReadCtx m => ReadMode (Vector StructWithEnum) a -> Enums -> m a
-getEnums'ys = readTableField (readVector readStruct' 6) 3 "ys"
+getEnums'ys :: ReadCtx m => Enums -> m (Maybe (Vector StructWithEnum))
+getEnums'ys = readTableFieldOpt (readVector readStruct' 6) 3
 
 
 
@@ -148,8 +148,8 @@ newtype Sword =
 sword :: Maybe Text -> WriteTable Sword
 sword x1 = writeTable [w x1]
 
-getSword'x :: ReadCtx m => ReadMode Text a -> Sword -> m a
-getSword'x = readTableField readText 0 "x"
+getSword'x :: ReadCtx m => Sword -> m (Maybe Text)
+getSword'x = readTableFieldOpt readText 0
 
 ----------------------------------
 ------------- Axe -------------
@@ -212,8 +212,8 @@ vectorOfUnions :: Maybe [WriteUnion Weapon] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
   writeTable [wType x1, wValue x1]
 
-getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector (Union Weapon)) a -> VectorOfUnions -> m a
-getVectorOfUnions'xs = readTableFieldUnionVector readWeapon 0 "xs"
+getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
+getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
 
 ----------------------------------
 ----------- ThreeBytes -----------
@@ -246,8 +246,8 @@ newtype VectorOfStructs = VectorOfStructs Table
 vectorOfStructs :: Maybe [WriteStruct ThreeBytes] -> WriteTable VectorOfStructs
 vectorOfStructs x1 = writeTable [w x1]
 
-getVectorOfStructs'xs :: ReadCtx m => ReadMode (Vector ThreeBytes) a -> VectorOfStructs -> m a
-getVectorOfStructs'xs = readTableField (readVector readStruct' 3) 0 "xs"
+getVectorOfStructs'xs :: ReadCtx m => VectorOfStructs -> m (Maybe (Vector ThreeBytes))
+getVectorOfStructs'xs = readTableFieldOpt (readVector readStruct' 3) 0
 
 
 ----------------------------------
@@ -282,15 +282,15 @@ newtype AlignT = AlignT Table
 alignT :: Maybe (WriteStruct Align1) -> Maybe (WriteStruct Align2) -> Maybe [WriteStruct Align1] -> Maybe [WriteStruct Align2] -> WriteTable AlignT
 alignT a b c d = writeTable [ w a, w b, w c, w d ]
 
-getAlignT'x :: ReadCtx m => ReadMode Align1 a ->  AlignT -> m a
-getAlignT'x = readTableField readStruct' 0 "x"
+getAlignT'x :: ReadCtx m => AlignT -> m (Maybe Align1)
+getAlignT'x = readTableFieldOpt readStruct' 0
 
-getAlignT'y :: ReadCtx m => ReadMode Align2 a ->  AlignT -> m a
-getAlignT'y = readTableField readStruct' 1 "y"
+getAlignT'y :: ReadCtx m => AlignT -> m (Maybe Align2)
+getAlignT'y = readTableFieldOpt readStruct' 1
 
-getAlignT'xs :: ReadCtx m => ReadMode (Vector Align1) a -> AlignT -> m a
-getAlignT'xs = readTableField (readVector readStruct' 4) 2 "xs"
+getAlignT'xs :: ReadCtx m => AlignT -> m (Maybe (Vector Align1))
+getAlignT'xs = readTableFieldOpt (readVector readStruct' 4) 2
 
-getAlignT'ys :: ReadCtx m => ReadMode (Vector Align2) a -> AlignT -> m a
-getAlignT'ys = readTableField (readVector readStruct' 24) 3 "ys"
+getAlignT'ys :: ReadCtx m => AlignT -> m (Maybe (Vector Align2))
+getAlignT'ys = readTableFieldOpt (readVector readStruct' 24) 3
 
