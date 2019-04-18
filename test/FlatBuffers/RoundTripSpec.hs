@@ -64,23 +64,23 @@ spec =
       let readStructWithEnum = (liftA3 . liftA3) (,,) getStructWithEnum'x (fmap toColor <$> getStructWithEnum'y) getStructWithEnum'z
       it "present" $ do
         x <- decode $ encode $ enums
-          (Just (fromColor Gray))
-          (Just (structWithEnum 11 (fromColor Red) 22))
-          [fromColor Black, fromColor Blue, fromColor Green]
-          (Just [structWithEnum 33 (fromColor Red) 44, structWithEnum 55 (fromColor Green) 66])
+          (Just (fromColor ColorGray))
+          (Just (structWithEnum 11 (fromColor ColorRed) 22))
+          [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+          (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
 
-        toColor <$> getEnums'x x `shouldBe` Just (Just Gray)
-        (getEnums'y req x >>= readStructWithEnum) `shouldBe` Just (11, Just Red, 22)
-        (getEnums'xs x >>= toList) `shouldBe` Just [fromColor Black, fromColor Blue, fromColor Green]
-        (getEnums'ys req x >>= toList >>= traverse readStructWithEnum) `shouldBe` Just [(33, Just Red, 44), (55, Just Green, 66)]
+        toColor <$> getEnums'x x `shouldBe` Just (Just ColorGray)
+        (getEnums'y req x >>= readStructWithEnum) `shouldBe` Just (11, Just ColorRed, 22)
+        (getEnums'xs x >>= toList) `shouldBe` Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+        (getEnums'ys req x >>= toList >>= traverse readStructWithEnum) `shouldBe` Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)]
 
-        (getEnums'y opt x >>= traverse readStructWithEnum) `shouldBe` Just (Just (11, Just Red, 22))
-        (getEnums'ys opt x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Just (Just [(33, Just Red, 44), (55, Just Green, 66)])
+        (getEnums'y opt x >>= traverse readStructWithEnum) `shouldBe` Just (Just (11, Just ColorRed, 22))
+        (getEnums'ys opt x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Just (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
 
       it "missing" $ do
         x <- decode @Enums $ encode $ enums Nothing Nothing [] Nothing
 
-        toColor <$> getEnums'x x `shouldBe` Just (Just Blue)
+        toColor <$> getEnums'x x `shouldBe` Just (Just ColorBlue)
         getEnums'y req x `shouldThrow` \err -> err == MissingField "y"
         (getEnums'xs x >>= toList) `shouldBe` Just []
         getEnums'ys req x `shouldThrow` \err -> err == MissingField "ys"

@@ -45,10 +45,10 @@ spec =
       test
         "Enums"
         (encode $ enums
-          (Just (fromColor Gray))
-          (Just (structWithEnum 11 (fromColor Red) 22))
-          [fromColor Black, fromColor Blue, fromColor Green]
-          (Just [structWithEnum 33 (fromColor Red) 44, structWithEnum 55 (fromColor Green) 66])
+          (Just (fromColor ColorGray))
+          (Just (structWithEnum 11 (fromColor ColorRed) 22))
+          [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+          (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
         )
         (object
           [ "x" .= String "Gray"

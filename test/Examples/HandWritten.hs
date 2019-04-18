@@ -68,11 +68,11 @@ getPrimitives'k = readTableFieldWithDef readBool    10 False
 ------------- Color --------------
 ----------------------------------
 data Color
-  = Red
-  | Green
-  | Blue
-  | Gray
-  | Black
+  = ColorRed
+  | ColorGreen
+  | ColorBlue
+  | ColorGray
+  | ColorBlack
   deriving (Eq, Show, Ord, Bounded)
 
 instance AsTableField Color where
@@ -84,22 +84,22 @@ instance AsStructField Color where
 toColor :: Word16 -> Maybe Color
 toColor n =
   case n of
-    0 -> Just Red
-    1 -> Just Green
-    2 -> Just Blue
-    5 -> Just Gray
-    8 -> Just Black
+    0 -> Just ColorRed
+    1 -> Just ColorGreen
+    2 -> Just ColorBlue
+    5 -> Just ColorGray
+    8 -> Just ColorBlack
     _ -> Nothing
     
 {-# INLINE fromColor #-}
 fromColor :: Color -> Word16
 fromColor n =
   case n of
-    Red   -> 0
-    Green -> 1
-    Blue  -> 2
-    Gray  -> 5
-    Black -> 8
+    ColorRed   -> 0
+    ColorGreen -> 1
+    ColorBlue  -> 2
+    ColorGray  -> 5
+    ColorBlack -> 8
 
 ----------------------------------
 ------------- Enums --------------
