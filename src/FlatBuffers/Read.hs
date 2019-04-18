@@ -26,6 +26,7 @@ module FlatBuffers.Read
   , PositionInfo(..)
   , Vector(..)
   , RawVector(..)
+  , Union(..)
   , decode
   , checkFileIdentifier, checkFileIdentifier'
   , readWord8, readWord16, readWord32, readWord64
@@ -103,16 +104,21 @@ data Vector a
   = Vector
       !(RawVector a)                                  -- ^ A pointer to an actual FlatBuffers vector
       !(forall m. ReadCtx m => PositionInfo -> m a)   -- ^ A function to read elements from this vector
-  | forall b. (a ~ Maybe b) => UnionVector
-      !(RawVector Word8) -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
-      !(RawVector b)     -- ^ A table vector, with the actual union values
-      !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m b) -- ^ A function to read a union value from this vector
+  | forall b. (a ~ Union b) => UnionVector
+      !(RawVector Word8)                              -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
+      !(RawVector (Union b))                          -- ^ A table vector, with the actual union values
+      !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union b)) -- ^ A function to read a union value from this vector
 
 data RawVector a = RawVector
   { rawVectorLength   :: !VectorLength
   , rawVectorPos      :: !PositionInfo
   , rawVectorElemSize :: !InlineSize
   }
+
+data Union a
+  = Union !a
+  | UnionNone
+  | UnionUnknown !Word8
 
 
 type Position = ByteString
@@ -192,23 +198,21 @@ readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
     Nothing -> pure dflt
     Just offset -> read (moveV (tablePos t) offset)
 
-readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Positive Word8 -> PositionInfo -> m a) -> TableIndex -> FieldName -> ReadMode a b -> t -> m b
-readTableFieldUnion read ix name m@(ReadMode mode) t =
+readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Positive Word8 -> PositionInfo -> m (Union a)) -> TableIndex -> t -> m (Union a)
+readTableFieldUnion read ix (coerce -> t :: Table) =
   readTableFieldWithDef readWord8 ix 0 t >>= \unionType ->
     case positive unionType of
-      Nothing         -> mode name Nothing
-      Just unionType' -> readTableField (read unionType') (ix + 1) name (unionValueReadMode m) t
-
-unionValueReadMode :: ReadMode a b -> ReadMode a b
-unionValueReadMode (ReadMode mode) = ReadMode $ \name -> \case
-  Nothing -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
-  res     -> mode name res
+      Nothing         -> pure UnionNone
+      Just unionType' -> 
+        tableIndexToVOffset t (ix + 1) >>= \case
+          Nothing     -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+          Just offset -> read unionType' (moveV (tablePos t) offset)
 
 readTableFieldUnionVector :: (Coercible t Table, ReadCtx m)
-  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m a)
+  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
   -> TableIndex
   -> FieldName
-  -> ReadMode (Vector (Maybe a)) b
+  -> ReadMode (Vector (Union a)) b
   -> t
   -> m b
 readTableFieldUnionVector read ix name (ReadMode mode) (coerce -> t :: Table) =
@@ -232,8 +236,8 @@ index v n =
     UnionVector types values readUnion -> do
       unionType <- readElemRaw readWord8 n types
       case positive unionType of
-        Nothing         -> pure Nothing
-        Just unionType' -> Just <$> readElemRaw (readUnion unionType') n values
+        Nothing         -> pure UnionNone
+        Just unionType' -> readElemRaw (readUnion unionType') n values
   where
     readElemRaw :: forall a m. ReadCtx m => (PositionInfo -> m a) -> VectorIndex -> RawVector a -> m a
     readElemRaw readElem n vec =
@@ -306,10 +310,10 @@ readVector readElem' elemSize pos =
 
 readUnionVector ::
      forall a m. ReadCtx m
-  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m a)
+  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
   -> PositionInfo
   -> PositionInfo
-  -> m (Vector (Maybe a))
+  -> m (Vector (Union a))
 readUnionVector readUnion typesPos valuesPos =
   do
     typesVec <- readRawVector word8Size typesPos
@@ -411,7 +415,6 @@ data ReadError
   | Utf8DecodingError { msg  :: !Text
                       , byte :: !(Maybe Word8) }
   | VectorIndexOutOfBounds !VectorLength !VectorIndex
-  | UnionUnknown { unionName :: !Text, unionValue :: !Word8 }
   | MalformedBuffer !Text
   deriving (Show, Eq)
 

@@ -179,12 +179,12 @@ instance EncodeWeapon Sword where
 instance EncodeWeapon Axe where
   weapon = writeUnion 2
 
-readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m Weapon
+readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)
 readWeapon n pos =
   case getPositive n of
-    1 -> Weapon'Sword <$> readTable pos
-    2 -> Weapon'Axe <$> readTable pos
-    _ -> throwM $ UnionUnknown "Weapon" (getPositive n)
+    1  -> Union . Weapon'Sword <$> readTable pos
+    2  -> Union . Weapon'Axe <$> readTable pos
+    n' -> pure $ UnionUnknown n'
 
 ----------------------------------
 ------- TableWithUnion -----------
@@ -196,8 +196,8 @@ tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteTable TableWithUnion
 tableWithUnion x1 =
   writeTable [wType x1, wValue x1]
 
-getTableWithUnion'uni :: ReadCtx m => ReadMode Weapon a -> TableWithUnion -> m a
-getTableWithUnion'uni = readTableFieldUnion readWeapon 0 "uni"
+getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m (Union Weapon)
+getTableWithUnion'uni = readTableFieldUnion readWeapon 0
 
 ----------------------------------
 ------- VectorOfUnions -----------
@@ -209,7 +209,7 @@ vectorOfUnions :: Maybe [WriteUnion Weapon] -> WriteTable VectorOfUnions
 vectorOfUnions x1 =
   writeTable [wType x1, wValue x1]
 
-getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector (Maybe Weapon)) a -> VectorOfUnions -> m a
+getVectorOfUnions'xs :: ReadCtx m => ReadMode (Vector (Union Weapon)) a -> VectorOfUnions -> m a
 getVectorOfUnions'xs = readTableFieldUnionVector readWeapon 0 "xs"
 
 ----------------------------------

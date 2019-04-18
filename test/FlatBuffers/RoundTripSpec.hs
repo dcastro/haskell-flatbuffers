@@ -89,52 +89,32 @@ spec =
         getEnums'ys opt x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "Union" $ do
-      describe "present" $ do
-        it "required mode" $ do
-          x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
-          getTableWithUnion'uni req x >>= \case
-            Weapon'Sword x -> getSword'x req x `shouldBe` Just "hi"
-            _              -> unexpectedUnionType
+      it "present" $ do
+        x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
+        getTableWithUnion'uni x >>= \case
+          Union (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
+          _                      -> unexpectedUnionType
 
-          x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
-          getTableWithUnion'uni req x >>= \case
-            Weapon'Axe x -> getAxe'y x `shouldBe` Just maxBound
-            _            -> unexpectedUnionType
+        x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
+        getTableWithUnion'uni x >>= \case
+          Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Just maxBound
+          _                    -> unexpectedUnionType
 
-          x <- decode $ encode $ tableWithUnion (Just none)
-          getTableWithUnion'uni req x `shouldThrow` \err -> err == MissingField "uni"
+        x <- decode $ encode $ tableWithUnion (Just none)
+        getTableWithUnion'uni x >>= \case
+          UnionNone -> pure ()
+          _         -> unexpectedUnionType
 
-        it "optional mode" $ do
-          x <- decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
-          getTableWithUnion'uni opt x >>= \case
-            Just (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
-            _                     -> unexpectedUnionType
-
-          x <- decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
-          getTableWithUnion'uni opt x >>= \case
-            Just (Weapon'Axe x) -> getAxe'y x `shouldBe` Just maxBound
-            _                   -> unexpectedUnionType
-
-          x <- decode $ encode $ tableWithUnion (Just none)
-          getTableWithUnion'uni opt x >>= \case
-            Nothing -> pure ()
-            _       -> unexpectedUnionType
-
-      describe "missing" $ do
-        it "required mode" $ do
-          x <- decode $ encode $ tableWithUnion Nothing
-          getTableWithUnion'uni req x `shouldThrow` \err -> err == MissingField "uni"
-
-        it "optional mode" $ do
-          x <- decode $ encode $ tableWithUnion Nothing
-          getTableWithUnion'uni opt x >>= \case
-            Nothing -> pure ()
-            _       -> unexpectedUnionType
+      it "missing" $ do
+        x <- decode $ encode $ tableWithUnion Nothing
+        getTableWithUnion'uni x >>= \case
+          UnionNone -> pure ()
+          _         -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
         let union = writeUnion 1 (writeTable [w @Text "hello"])
         x <- decode $ encode $ writeTable @TableWithUnion [wType union]
-        getTableWithUnion'uni opt x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+        getTableWithUnion'uni x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
     describe "VectorOfUnions" $ do
       it "present" $ do
@@ -146,14 +126,14 @@ spec =
         xs <- getVectorOfUnions'xs req x
         vectorLength xs `shouldBe` 3
         xs `index` 0 >>= \case
-          Just (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
-          _                     -> unexpectedUnionType
+          Union (Weapon'Sword x) -> getSword'x req x `shouldBe` Just "hi"
+          _                      -> unexpectedUnionType
         xs `index` 1 >>= \case
-          Nothing -> pure ()
-          _       -> unexpectedUnionType
+          UnionNone -> pure ()
+          _         -> unexpectedUnionType
         xs `index` 2 >>= \case
-          Just (Weapon'Axe x) -> getAxe'y x `shouldBe` Just 98
-          _                   -> unexpectedUnionType
+          Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Just 98
+          _                    -> unexpectedUnionType
         xs `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
       it "missing" $ do
