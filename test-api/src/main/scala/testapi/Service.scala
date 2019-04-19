@@ -179,6 +179,10 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     "xs" =>>
                       (0 until obj.xsLength()).map { i =>
                         readWeapon(obj)(_.xsType(i), root => union => root.xs(union, i))
+                      },
+                    "xsReq" =>>
+                      (0 until obj.xsReqLength()).map { i =>
+                        readWeapon(obj)(_.xsReqType(i), root => union => root.xsReq(union, i))
                       }
                   ).some
 

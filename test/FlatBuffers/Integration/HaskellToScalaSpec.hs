@@ -74,21 +74,32 @@ spec =
     it "VectorOfUnions" $ do
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just [weapon (sword (Just "hi"))]))
-        (object ["xs" .= [object ["x" .= String "hi"]]])
+        (encode $ vectorOfUnions (Just [weapon (sword (Just "hi"))]) [weapon (sword (Just "hi2"))])
+        (object
+          [ "xs" .= [object ["x" .= String "hi"]]
+          , "xsReq" .= [object ["x" .= String "hi2"]]
+          ]
+        )
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just [weapon (sword Nothing)]))
-        (object ["xs" .= [object ["x" .= Null]]])
+        (encode $ vectorOfUnions (Just [weapon (sword Nothing)]) [weapon (axe Nothing)])
+        (object ["xs" .= [object ["x" .= Null]], "xsReq" .= [object ["y" .= Number 0]]])
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
           (Just
-              [ weapon (sword (Just "hi"))
-              , none
-              , weapon (axe (Just maxBound))
-              , weapon (sword (Just "oi"))
-              ]))
+            [ weapon (sword (Just "hi"))
+            , none
+            , weapon (axe (Just maxBound))
+            , weapon (sword (Just "oi"))
+            ]
+          )
+          [ weapon (sword (Just "hi2"))
+          , none
+          , weapon (axe (Just minBound))
+          , weapon (sword (Just "oi2"))
+          ]
+        )
         (object
           [ "xs" .=
             [ object ["x" .= String "hi"]
@@ -96,15 +107,21 @@ spec =
             , object ["y" .= maxBound @Int32]
             , object ["x" .= String "oi"]
             ]
+          , "xsReq" .=
+            [ object ["x" .= String "hi2"]
+            , String "NONE"
+            , object ["y" .= minBound @Int32]
+            , object ["x" .= String "oi2"]
+            ]
           ])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just []))
-        (object ["xs" .= [] @Value])
+        (encode $ vectorOfUnions (Just []) [])
+        (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions Nothing)
-        (object ["xs" .= [] @Value])
+        (encode $ vectorOfUnions Nothing [])
+        (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
 
     it "Align" $ do
       test

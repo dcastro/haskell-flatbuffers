@@ -200,7 +200,7 @@ getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m (Union Weapon)
 getTableWithUnion'uni = readTableFieldUnion readWeapon 0
 
 getTableWithUnion'uniReq :: ReadCtx m => TableWithUnion -> m (Union Weapon)
-getTableWithUnion'uniReq = readTableFieldUnion readWeapon 1
+getTableWithUnion'uniReq = readTableFieldUnion readWeapon 2
 
 ----------------------------------
 ------- VectorOfUnions -----------
@@ -208,12 +208,15 @@ getTableWithUnion'uniReq = readTableFieldUnion readWeapon 1
 newtype VectorOfUnions =
   VectorOfUnions Table
 
-vectorOfUnions :: Maybe [WriteUnion Weapon] -> WriteTable VectorOfUnions
-vectorOfUnions x1 =
-  writeTable [wType x1, wValue x1]
+vectorOfUnions :: Maybe [WriteUnion Weapon] -> [WriteUnion Weapon] -> WriteTable VectorOfUnions
+vectorOfUnions x1 x2 =
+  writeTable [wType x1, wValue x1, wType x2, wValue x2]
 
 getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
 getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
+
+getVectorOfUnions'xsReq :: ReadCtx m => VectorOfUnions -> m (Vector (Union Weapon))
+getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 2 "xsReq"
 
 ----------------------------------
 ----------- ThreeBytes -----------

@@ -1,17 +1,22 @@
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.RoundTripSpec where
 
-import           Control.Applicative    (liftA3)
-import           Control.Monad          (forM)
-import           Data.Maybe             (fromJust, isNothing)
-import           Data.Text              (Text)
+import           Control.Applicative        ( liftA3 )
+import           Control.Monad              ( forM )
+
+import           Data.Maybe                 ( fromJust, isNothing )
+import           Data.Text                  ( Text )
 import           Data.Word
+
 import           Examples.HandWritten
+
+import qualified FlatBuffers.Internal.Write as W
 import           FlatBuffers.Read
 import           FlatBuffers.Write
+
 import           Test.Hspec
 
 spec :: Spec
@@ -112,11 +117,18 @@ spec =
 
     describe "VectorOfUnions" $ do
       it "present" $ do
-        x <- decode $ encode $ vectorOfUnions (Just
-          [ weapon (sword (Just "hi"))
+        x <- decode $ encode $ vectorOfUnions
+          (Just
+            [ weapon (sword (Just "hi"))
+            , none
+            , weapon (axe (Just 98))
+            ]
+          )
+          [ weapon (sword (Just "hi2"))
           , none
-          , weapon (axe (Just 98))
-          ])
+          , weapon (axe (Just 100))
+          ]
+
         Just xs <- getVectorOfUnions'xs x
         vectorLength xs `shouldBe` 3
         xs `index` 0 >>= \case
@@ -130,13 +142,33 @@ spec =
           _                    -> unexpectedUnionType
         xs `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
+        xsReq <- getVectorOfUnions'xsReq x
+        vectorLength xsReq `shouldBe` 3
+        xsReq `index` 0 >>= \case
+          Union (Weapon'Sword x) -> getSword'x x `shouldBe` Just (Just "hi2")
+          _                      -> unexpectedUnionType
+        xsReq `index` 1 >>= \case
+          UnionNone -> pure ()
+          _         -> unexpectedUnionType
+        xsReq `index` 2 >>= \case
+          Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Just 100
+          _                    -> unexpectedUnionType
+        xsReq `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
+
       it "missing" $ do
-        x <- decode $ encode $ vectorOfUnions Nothing
+        x <- decode $ encode $ vectorOfUnions Nothing []
         getVectorOfUnions'xs x >>= \mb -> isNothing mb `shouldBe` True
+        vectorLength <$> getVectorOfUnions'xsReq x `shouldBe` Just 0
 
       it "throws when union type vector is present, but union value vector is missing" $ do
-        x <- decode $ encode $ writeTable @VectorOfUnions [w @[Word8] []]
+        x <- decode $ encode $ writeTable @VectorOfUnions
+          [ w @[Word8] []
+          , W.missing
+          , w @[Word8] []
+          , W.missing
+          ]
         getVectorOfUnions'xs x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        getVectorOfUnions'xsReq x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
