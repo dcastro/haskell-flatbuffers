@@ -43,7 +43,7 @@ module FlatBuffers.Read
   , readTableFieldUnion
   , readTableFieldUnionVectorOpt
   , readTableFieldUnionVectorReq
-  , vectorLength, index, toList
+  , vectorLength, index, unsafeIndex, toList
   ) where
 
 import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
@@ -250,11 +250,30 @@ index v n =
         elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
         elemPos = move (rawVectorPos vec) elemOffset
 
+unsafeIndex :: forall a m. ReadCtx m => Vector a -> VectorIndex -> m a
+unsafeIndex v n =
+  case v of
+    Vector vec readElem' ->
+      readElemRaw readElem' n vec
+    UnionVector types values readUnion -> do
+      unionType <- readElemRaw readWord8 n types
+      case positive unionType of
+        Nothing         -> pure UnionNone
+        Just unionType' -> readElemRaw (readUnion unionType') n values
+  where
+    readElemRaw :: forall a m. ReadCtx m => (PositionInfo -> m a) -> VectorIndex -> RawVector a -> m a
+    readElemRaw readElem n vec =
+      readElem elemPos
+      where
+        elemSize = fromIntegral @InlineSize @Int64 (rawVectorElemSize vec)
+        elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
+        elemPos = move (rawVectorPos vec) elemOffset
+
 toList :: forall a m. ReadCtx m => Vector a -> m [a]
 toList vec =
   if vectorLength vec == 0
     then pure []
-    else traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
+    else traverse (\i -> vec `unsafeIndex` i) [0 .. coerce (vectorLength vec) - 1]
   
 
 vectorLength :: Vector a -> VectorLength
