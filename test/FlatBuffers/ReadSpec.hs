@@ -1,18 +1,21 @@
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE OverloadedLists            #-}
-{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.ReadSpec where
 
 import           Data.Int
-import           Data.Maybe                 (isNothing)
-import           Data.Text                  (Text)
+import           Data.Maybe                 ( isNothing )
+import           Data.Text                  ( Text )
 import           Data.Word
+
 import           FlatBuffers.Constants
-import qualified FlatBuffers.Internal.Write as F
+import qualified FlatBuffers.Internal.Write as W
 import           FlatBuffers.Read
 import           FlatBuffers.Write
+
 import           Test.Hspec
+
 
 spec :: Spec
 spec =
@@ -40,8 +43,8 @@ spec =
       myRootF s `shouldThrow` \x -> x == MissingField "f"
     
     it "throws when string is invalid utf-8" $ do
-      let text = F.vector @[] [F.inline F.word8 255]
-      let bs = F.root $ F.table [F.missing, F.missing, F.missing, text]
+      let text = W.vector @[] [inline word8 255]
+      let bs = W.root $ W.table [W.missing, W.missing, W.missing, text]
       s <- decode bs
       myRootD s `shouldThrow` \x ->
         x == Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
@@ -125,7 +128,15 @@ encodeMyRoot ::
   -> Maybe [WriteTable DeepNested]
   -> WriteTable MyRoot
 encodeMyRoot a b c d e f g =
-  writeTable [w a, w b, w c, w d, w e, w f, w g]
+  writeTable
+    [ (optionalDef 0 . inline) int32 a
+    , (optionalDef 0 . inline) int64 b
+    , optional unWriteTable c
+    , optional text d
+    , optional unWriteStruct e
+    , (optional . writeVector) text f
+    , (optional . writeVector) unWriteTable g
+    ]
 
 myRootA :: ReadCtx m => MyRoot -> m Int32
 myRootA = readTableFieldWithDef readInt32 0 0
@@ -154,7 +165,9 @@ newtype Nested =
 encodeNested :: Maybe Int32 -> Maybe (WriteTable DeepNested) -> WriteTable Nested
 encodeNested a b =
   writeTable
-    [ w a, w b ]
+    [ (optionalDef 0 . inline) int32 a
+    , optional unWriteTable b
+    ]
 
 nestedA :: ReadCtx m => Nested -> m Int32
 nestedA = readTableFieldWithDef readInt32 0 0
@@ -167,7 +180,8 @@ newtype DeepNested = DeepNested Table
 encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
 encodeDeepNested a =
   writeTable
-    [ w a ]
+    [ (optionalDef 0 . inline) int32 a
+    ]
 
 deepNestedA :: ReadCtx m => DeepNested -> m Int32
 deepNestedA = readTableFieldWithDef readInt32 0 0
@@ -178,9 +192,9 @@ newtype MyStruct =
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
   writeStruct 8
-    [ ws a
-    , padded 3 $ ws b
-    , ws c
+    [ int32 a
+    , padded 3 $ word8 b
+    , int64 c
     ]
 
 myStructA :: ReadCtx m => MyStruct -> m Int32
@@ -197,9 +211,9 @@ newtype ThreeBytes = ThreeBytes Struct
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
   writeStruct 1
-    [ ws a
-    , ws b
-    , ws c
+    [ word8 a
+    , word8 b
+    , word8 c
     ]
 
 threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
@@ -217,12 +231,12 @@ newtype SWS = SWS Struct
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
   writeStruct 8
-    [ ws myStructA
-    , padded 3 $ ws myStructB
-    , ws myStructC
-    , ws threeBytesA
-    , ws threeBytesB
-    , padded 5 $ ws threeBytesC
+    [ int32 myStructA
+    , padded 3 $ word8 myStructB
+    , int64 myStructC
+    , word8 threeBytesA
+    , word8 threeBytesB
+    , padded 5 $ word8 threeBytesC
     ]
 
 swsA :: SWS -> MyStruct

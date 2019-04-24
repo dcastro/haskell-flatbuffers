@@ -112,8 +112,8 @@ cases =
          , "f" .= minBound @Int16
          , "g" .= minBound @Int32
          , "h" .= minBound @Int64
-         , "i" .= Number 0
-         , "j" .= Number 0
+         , "i" .= Number 1
+         , "j" .= Number 1
          , "k" .= False
          ])
   , Case
@@ -134,16 +134,16 @@ cases =
          , missing
          ])
       (object
-         [ "a" .= Number 0
-         , "b" .= Number 0
-         , "c" .= Number 0
-         , "d" .= Number 0
-         , "e" .= Number 0
-         , "f" .= Number 0
-         , "g" .= Number 0
-         , "h" .= Number 0
-         , "i" .= Number 0
-         , "j" .= Number 0
+         [ "a" .= Number 1
+         , "b" .= Number 1
+         , "c" .= Number 1
+         , "d" .= Number 1
+         , "e" .= Number 1
+         , "f" .= Number 1
+         , "g" .= Number 1
+         , "h" .= Number 1
+         , "i" .= Number 1
+         , "j" .= Number 1
          , "k" .= False
          ])
   , Case

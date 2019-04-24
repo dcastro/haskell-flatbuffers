@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE BangPatterns #-}
 
 module FlatBuffers.Write
   ( WriteUnion(..)
@@ -10,14 +11,30 @@ module FlatBuffers.Write
   , encodeWithFileIdentifier
   , encodeWithFileIdentifier'
   , none
-  , AsUnion(..)
-  , AsTableField(..)
-  , AsStructField(..)
   , writeTable
   , writeUnion
   , writeStruct
-  , F.padded
-  , F.inline
+  , writeVector
+  , writeUnionType
+  , writeUnionValue
+  , writeUnionVectorOpt
+  , writeUnionVectorReq
+  , optional
+  , optionalDef
+  , W.padded
+  , W.inline
+  , W.word8
+  , W.word16
+  , W.word32
+  , W.word64
+  , W.int8
+  , W.int16
+  , W.int32
+  , W.int64
+  , W.float
+  , W.double
+  , W.bool
+  , W.text
   ) where
 
 import           Data.Bifunctor             ( bimap )
@@ -31,8 +48,7 @@ import           FlatBuffers.Constants      ( InlineSize )
 
 import           FlatBuffers.FileIdentifier ( FileIdentifier, HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Write
-
-import qualified FlatBuffers.Internal.Write as F
+import qualified FlatBuffers.Internal.Write as W
 
 encode :: WriteTable a -> BSL.ByteString
 encode (WriteTable table) = root table
@@ -43,19 +59,19 @@ encodeWithFileIdentifier = encodeWithFileIdentifier' (getFileIdentifier @a)
 encodeWithFileIdentifier' :: forall a. FileIdentifier -> WriteTable a -> BSL.ByteString
 encodeWithFileIdentifier' fi (WriteTable table) = rootWithFileIdentifier fi table
 
-newtype WriteTable a = WriteTable Field
+newtype WriteTable a = WriteTable { unWriteTable :: Field }
 
-newtype WriteStruct a = WriteStruct Field
+newtype WriteStruct a = WriteStruct { unWriteStruct :: Field }
 
 data WriteUnion a
   = None
   | Some !(Word8, Field)
 
 writeTable :: [Field] -> WriteTable a
-writeTable = WriteTable . F.table
+writeTable = WriteTable . table
 
 writeStruct :: InlineSize -> NonEmpty InlineField -> WriteStruct a
-writeStruct structAlign xs = WriteStruct (F.struct structAlign xs)
+writeStruct structAlign xs = WriteStruct (struct structAlign xs)
 
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b
 writeUnion n (WriteTable t) = Some (n, t)
@@ -63,83 +79,44 @@ writeUnion n (WriteTable t) = Some (n, t)
 none :: WriteUnion a
 none = None
 
--- | Writes a 'union-like' value to a table.
--- | Unions are a special-case in that they generate two table fields, instead of just one.
-class AsUnion a where
-  wType :: a -> Field
-  wValue :: a -> Field
+optional :: (a -> Field) -> Maybe a -> Field
+optional = maybe missing
 
-instance AsUnion (WriteUnion a) where
-  wType (Some (t, _)) = inline word8 t
-  wType None          = inline word8 0
-  wValue (Some (_, v)) = v
-  wValue None          = missing
+optionalDef :: Eq a => a -> (a -> Field) -> (Maybe a -> Field)
+optionalDef dflt write ma =
+  case ma of
+    Just a | a /= dflt -> write a
+    _                  -> missing
 
-instance AsUnion a => AsUnion (Maybe a) where
-  wType (Just a) = wType a
-  wType Nothing  = missing
-  wValue (Just a) = wValue a
-  wValue Nothing  = missing
+writeVector :: (a -> Field) -> ([a] -> Field)
+writeVector write xs =
+  vector (write <$> xs)
 
+writeUnionType :: WriteUnion a -> Field
+writeUnionType !a =
+  case a of
+    None        -> missing
+    Some (t, _) -> inline word8 t
 
--- | Writes a vector of unions to a table.
-instance a ~ WriteUnion b => AsUnion [a] where
-  wType = vector . fmap wType
-  wValue = vector . fmap f
-    where
+writeUnionValue :: WriteUnion a -> Field
+writeUnionValue !a =
+  case a of
+    None        -> missing
+    Some (_, v) -> v
+
+writeUnionVectorReq :: [WriteUnion a] -> (Field, Field)
+writeUnionVectorReq xs =
+  bimap vector vector $ foldMap writeElem xs
+  where
+  writeElem :: WriteUnion a -> ([Field], [Field])
+  writeElem u =
+    case u of
+      Some (t, v) -> ([inline word8 t], [v])
       -- in a vector of unions, a `none` value is encoded as the circular reference 0.
-      f None = inline int32 0
-      f x    = wValue x
+      None        -> ([inline word8 0], [inline word32 0])
+
+writeUnionVectorOpt :: Maybe [WriteUnion a] -> (Field, Field)
+writeUnionVectorOpt =
+  maybe (missing, missing) writeUnionVectorReq
 
 
-
--- | Writes a value to a table.
-class AsTableField a where
-  w :: a -> Field
-
-instance AsTableField Field where
-  w = id
-
-instance AsTableField (WriteTable a) where
-  w (WriteTable t) = t
-
-instance AsTableField (WriteStruct a) where
-  w (WriteStruct t) = t
-
-instance AsTableField a => AsTableField (Maybe a) where
-  w (Just x) = w x
-  w Nothing = missing
-
-instance AsTableField a => AsTableField [a] where
-  w = vector . fmap w
-  
-instance AsTableField Text where
-  w = text
-
-instance AsTableField Word8 where w = inline ws
-instance AsTableField Word16 where w = inline ws
-instance AsTableField Word32 where w = inline ws
-instance AsTableField Word64 where w = inline ws
-instance AsTableField Int8 where w = inline ws
-instance AsTableField Int16 where w = inline ws
-instance AsTableField Int32 where w = inline ws
-instance AsTableField Int64 where w = inline ws
-instance AsTableField Float where w = inline ws
-instance AsTableField Double where w = inline ws
-instance AsTableField Bool where w = inline ws
-
--- | Writes a value to a struct.
-class AsStructField a where
-  ws :: a -> InlineField
-
-instance AsStructField Word8 where ws = word8
-instance AsStructField Word16 where ws = word16
-instance AsStructField Word32 where ws = word32
-instance AsStructField Word64 where ws = word64
-instance AsStructField Int8 where ws = int8
-instance AsStructField Int16 where ws = int16
-instance AsStructField Int32 where ws = int32
-instance AsStructField Int64 where ws = int64
-instance AsStructField Float where ws = float
-instance AsStructField Double where ws = double
-instance AsStructField Bool where ws = bool

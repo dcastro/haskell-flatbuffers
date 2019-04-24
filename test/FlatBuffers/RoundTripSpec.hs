@@ -111,8 +111,7 @@ spec =
           _         -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
-        let union = writeUnion 1 (writeTable [w @Text "hello"])
-        x <- decode $ encode $ writeTable @TableWithUnion [wType union]
+        x <- decode $ encode $ writeTable @TableWithUnion [inline word8 1]
         getTableWithUnion'uni x `shouldThrow` \err -> err == MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
     describe "VectorOfUnions" $ do
@@ -162,9 +161,9 @@ spec =
 
       it "throws when union type vector is present, but union value vector is missing" $ do
         x <- decode $ encode $ writeTable @VectorOfUnions
-          [ w @[Word8] []
+          [ (writeVector . inline) word8 []
           , W.missing
-          , w @[Word8] []
+          , (writeVector . inline) word8 []
           , W.missing
           ]
         getVectorOfUnions'xs x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
