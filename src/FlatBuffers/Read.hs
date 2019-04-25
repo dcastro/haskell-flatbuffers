@@ -11,6 +11,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE BangPatterns #-}
 
 module FlatBuffers.Read
   ( ReadCtx
@@ -43,7 +44,7 @@ module FlatBuffers.Read
   , readTableFieldUnion
   , readTableFieldUnionVectorOpt
   , readTableFieldUnionVectorReq
-  , vectorLength, index, unsafeIndex, toList
+  , vectorLength, index, toList
   ) where
 
 import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
@@ -51,6 +52,7 @@ import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
 import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
 import qualified Data.ByteString               as BS
+import qualified Data.ByteString.Unsafe        as BSU
 import           Data.ByteString.Lazy          ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
@@ -105,7 +107,7 @@ data Vector a
       !(RawVector a)                                  -- ^ A pointer to an actual FlatBuffers vector
       !(forall m. ReadCtx m => PositionInfo -> m a)   -- ^ A function to read elements from this vector
   | forall b. (a ~ Union b) => UnionVector
-      !(RawVector Word8)                              -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
+      !ByteString                                     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
       !(RawVector (Union b))                          -- ^ A table vector, with the actual union values
       !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union b)) -- ^ A function to read a union value from this vector
 
@@ -229,34 +231,15 @@ readTableFieldUnionVectorReq read ix name (coerce -> t :: Table) =
 ----------------------------------
 ------- Vector functions ---------
 ----------------------------------
+
+-- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
 index :: forall a m. ReadCtx m => Vector a -> VectorIndex -> m a
 index v n =
   case v of
     Vector vec readElem' ->
       readElemRaw readElem' n vec
     UnionVector types values readUnion -> do
-      unionType <- readElemRaw readWord8 n types
-      case positive unionType of
-        Nothing         -> pure UnionNone
-        Just unionType' -> readElemRaw (readUnion unionType') n values
-  where
-    readElemRaw :: forall a m. ReadCtx m => (PositionInfo -> m a) -> VectorIndex -> RawVector a -> m a
-    readElemRaw readElem n vec =
-      if unVectorIndex n >= unVectorLength (rawVectorLength vec)
-        then throwM $ VectorIndexOutOfBounds (rawVectorLength vec) n
-        else readElem elemPos
-      where
-        elemSize = fromIntegral @InlineSize @Int64 (rawVectorElemSize vec)
-        elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
-        elemPos = move (rawVectorPos vec) elemOffset
-
-unsafeIndex :: forall a m. ReadCtx m => Vector a -> VectorIndex -> m a
-unsafeIndex v n =
-  case v of
-    Vector vec readElem' ->
-      readElemRaw readElem' n vec
-    UnionVector types values readUnion -> do
-      unionType <- readElemRaw readWord8 n types
+      unionType <- byteStringSafeIndex types (fromIntegral @VectorIndex @Int64 n)
       case positive unionType of
         Nothing         -> pure UnionNone
         Just unionType' -> readElemRaw (readUnion unionType') n values
@@ -273,12 +256,11 @@ toList :: forall a m. ReadCtx m => Vector a -> m [a]
 toList vec =
   if vectorLength vec == 0
     then pure []
-    else traverse (\i -> vec `unsafeIndex` i) [0 .. coerce (vectorLength vec) - 1]
-  
+    else traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
 
 vectorLength :: Vector a -> VectorLength
 vectorLength (Vector v _)        = rawVectorLength v
-vectorLength (UnionVector v _ _) = rawVectorLength v -- NOTE: we assume the two vectors have the same length
+vectorLength (UnionVector _ t _) = rawVectorLength t -- NOTE: we assume the two vectors have the same length
 
 ----------------------------------
 ------ Read from `Position` ------
@@ -336,7 +318,8 @@ readUnionVector ::
   -> m (Vector (Union a))
 readUnionVector readUnion typesPos valuesPos =
   do
-    typesVec <- readRawVector word8Size typesPos
+    typesVecOffset <- readWord32 typesPos
+    let typesVec = move' (posCurrent typesPos) (4 + fromIntegral @Word32 @Int64 typesVecOffset)
     valuesVec <- readRawVector tableSize valuesPos
     pure $ UnionVector typesVec valuesVec readUnion
 
@@ -434,7 +417,6 @@ data ReadError
   | MissingField { fieldName :: !FieldName }
   | Utf8DecodingError { msg  :: !Text
                       , byte :: !(Maybe Word8) }
-  | VectorIndexOutOfBounds !VectorLength !VectorIndex
   | MalformedBuffer !Text
   deriving (Show, Eq)
 
@@ -460,3 +442,14 @@ runGetM get =
         (BSL.Chunk _ lbs') -> lbs'
         _ -> BSL.Empty
         
+-- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
+-- Assumes i >= 0.
+byteStringSafeIndex :: ReadCtx m => ByteString -> Int64 -> m Word8
+byteStringSafeIndex !cs0 !i =
+  -- NOTE: this might overflow in systems where Max Int < Max Int64
+  index' cs0 i
+  where index' BSL.Empty _ = throwM $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
+        index' (BSL.Chunk c cs) n
+          | n >= fromIntegral @Int @Int64 (BS.length c) =
+              index' cs (n - fromIntegral @Int @Int64 (BS.length c))
+          | otherwise = pure $! BSU.unsafeIndex c (fromIntegral @Int64 @Int n)

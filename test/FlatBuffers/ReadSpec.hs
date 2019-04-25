@@ -100,8 +100,6 @@ spec =
       vectorLength vec `shouldBe` 2
       vec `index` 0 `shouldBe` Just "hello"
       vec `index` 1 `shouldBe` Just "world"
-      vec `index` 2 `shouldThrow` \x -> x == VectorIndexOutOfBounds 2 2
-      vec `index` 3 `shouldThrow` \x -> x == VectorIndexOutOfBounds 2 3
       toList vec `shouldBe` Just ["hello", "world"]
 
     it "decodes vectors of tables" $ do

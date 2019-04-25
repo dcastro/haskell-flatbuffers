@@ -139,7 +139,6 @@ spec =
         xs `index` 2 >>= \case
           Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Just 98
           _                    -> unexpectedUnionType
-        xs `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
         xsReq <- getVectorOfUnions'xsReq x
         vectorLength xsReq `shouldBe` 3
@@ -152,7 +151,6 @@ spec =
         xsReq `index` 2 >>= \case
           Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Just 100
           _                    -> unexpectedUnionType
-        xsReq `index` 3 `shouldThrow` \err -> err == VectorIndexOutOfBounds 3 3
 
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing []
