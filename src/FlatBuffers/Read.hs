@@ -56,7 +56,7 @@ import qualified Data.ByteString.Unsafe        as BSU
 import           Data.ByteString.Lazy          ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
-import           Data.Coerce                   ( Coercible, coerce )
+import           Data.Coerce                   ( coerce )
 import           Data.Functor                  ( (<&>) )
 import           Data.Int
 import           Data.String                   ( IsString )
@@ -95,12 +95,14 @@ newtype UOffset = UOffset { unUOffset :: Word32 }
 newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
-data Table = Table
+data Table a = Table
   { vtable   :: !ByteString
   , tablePos :: !PositionInfo
   }
 
-newtype Struct = Struct { unStruct :: Position }
+newtype Struct a = Struct
+  { structPos :: Position
+  }
 
 data Vector a
   = Vector
@@ -138,7 +140,7 @@ class HasPosition a where
 instance HasPosition ByteString   where getPosition = id
 instance HasPosition PositionInfo where getPosition = posCurrent
 
-decode :: forall t m. (ReadCtx m, Coercible Table t) => ByteString -> m t
+decode :: forall a m. ReadCtx m => ByteString -> m (Table a)
 decode root = readTable initialPos
   where
     initialPos = PositionInfo root root 0
@@ -167,30 +169,30 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 ----------------------------------
 ----- Read from Struct/Table -----
 ----------------------------------
-readStructField :: (Coercible s Struct) => (Position -> a) -> VOffset -> s -> a
-readStructField read voffset (coerce -> Struct bs) =
+readStructField :: (Position -> a) -> VOffset -> Struct s -> a
+readStructField read voffset (Struct bs) =
   read (move' bs (fromIntegral @VOffset @Int64 voffset))
 
-readTableFieldOpt :: (Coercible t Table, ReadCtx m) => (PositionInfo -> m a) -> TableIndex -> t -> m (Maybe a)
-readTableFieldOpt read ix (coerce -> t :: Table) = do
+readTableFieldOpt :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> Table t -> m (Maybe a)
+readTableFieldOpt read ix t = do
   mbOffset <- tableIndexToVOffset t ix
   traverse (\offset -> read (moveV (tablePos t) offset)) mbOffset
 
-readTableFieldReq :: (Coercible t Table, ReadCtx m) => (PositionInfo -> m a) -> TableIndex -> FieldName -> t -> m a
-readTableFieldReq read ix name (coerce -> t :: Table) = do
+readTableFieldReq :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> FieldName -> Table t -> m a
+readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
     Nothing -> throwM $ MissingField name
     Just offset -> read (moveV (tablePos t) offset)
 
-readTableFieldWithDef :: (ReadCtx m, Coercible t Table) => (PositionInfo -> m a) -> TableIndex -> a -> t -> m a
-readTableFieldWithDef read ix dflt (coerce -> t :: Table) =
+readTableFieldWithDef :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> a -> Table t -> m a
+readTableFieldWithDef read ix dflt t =
   tableIndexToVOffset t ix >>= \case
     Nothing -> pure dflt
     Just offset -> read (moveV (tablePos t) offset)
 
-readTableFieldUnion :: (Coercible t Table, ReadCtx m) => (Positive Word8 -> PositionInfo -> m (Union a)) -> TableIndex -> t -> m (Union a)
-readTableFieldUnion read ix (coerce -> t :: Table) =
+readTableFieldUnion :: ReadCtx m => (Positive Word8 -> PositionInfo -> m (Union a)) -> TableIndex -> Table t -> m (Union a)
+readTableFieldUnion read ix t =
   readTableFieldWithDef readWord8 ix 0 t >>= \unionType ->
     case positive unionType of
       Nothing         -> pure UnionNone
@@ -199,12 +201,12 @@ readTableFieldUnion read ix (coerce -> t :: Table) =
           Nothing     -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
           Just offset -> read unionType' (moveV (tablePos t) offset)
 
-readTableFieldUnionVectorOpt :: (Coercible t Table, ReadCtx m)
+readTableFieldUnionVectorOpt :: ReadCtx m
   => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
   -> TableIndex
-  -> t
+  -> Table t
   -> m (Maybe (Vector (Union a)))
-readTableFieldUnionVectorOpt read ix (coerce -> t :: Table) =
+readTableFieldUnionVectorOpt read ix t =
   tableIndexToVOffset t ix >>= \case
     Nothing -> pure Nothing
     Just typesOffset ->
@@ -213,13 +215,13 @@ readTableFieldUnionVectorOpt read ix (coerce -> t :: Table) =
         Just valuesOffset ->
           Just <$> readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
-readTableFieldUnionVectorReq :: (Coercible t Table, ReadCtx m)
+readTableFieldUnionVectorReq :: ReadCtx m
   => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
   -> TableIndex
   -> FieldName
-  -> t
+  -> Table t
   -> m (Vector (Union a))
-readTableFieldUnionVectorReq read ix name (coerce -> t :: Table) =
+readTableFieldUnionVectorReq read ix name t =
   tableIndexToVOffset t ix >>= \case
     Nothing -> throwM $ MissingField name
     Just typesOffset ->
@@ -353,13 +355,13 @@ readText PositionInfo{..} = do
     Left _ -> error "the impossible happened"
 
 -- | Convenience function for reading structs from table fields / vectors
-readStruct' :: (Applicative f, Coercible Struct t, HasPosition a) => a -> f t
+readStruct' :: (Applicative f, HasPosition a) => a -> f (Struct s)
 readStruct' = pure . readStruct
 
-readStruct :: (Coercible Struct t, HasPosition a) => a -> t
-readStruct (getPosition -> pos) = coerce (Struct pos)
+readStruct :: HasPosition a => a -> Struct s
+readStruct (getPosition -> pos) = Struct pos
 
-readTable :: forall t m. (ReadCtx m, Coercible Table t) => PositionInfo -> m t
+readTable :: forall t m. ReadCtx m => PositionInfo -> m (Table t)
 readTable pos@PositionInfo{..} =
   flip runGetM posCurrent $ do
     tableOffset <- readAndSkipUOffset
@@ -368,14 +370,14 @@ readTable pos@PositionInfo{..} =
     let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
     let tableOffsetFromRoot = tableOffset64 + fromIntegral @_ @Int64 posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
-    pure . coerce $ Table vtable (moveU pos tableOffset)
+    pure $ Table vtable (moveU pos tableOffset)
 
 
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
-tableIndexToVOffset :: (ReadCtx m, Coercible t Table) => t -> TableIndex -> m (Maybe VOffset)
-tableIndexToVOffset (coerce -> Table{..}) ix =
+tableIndexToVOffset :: ReadCtx m => Table t -> TableIndex -> m (Maybe VOffset)
+tableIndexToVOffset Table{..} ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unTableIndex ix * 2)

@@ -21,7 +21,7 @@ spec :: Spec
 spec =
   describe "read" $ do 
     it "throws when buffer is exhausted" $
-      decode @Table "" `shouldThrow` \x ->
+      decode @(Table MyRoot) "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
     let missingFields = encode $ encodeMyRoot Nothing Nothing Nothing Nothing Nothing Nothing Nothing
@@ -113,8 +113,7 @@ spec =
       traverse deepNestedA list `shouldBe` Just [11, 22]
 
 
-newtype MyRoot =
-  MyRoot Table
+data MyRoot
 
 encodeMyRoot ::
      Maybe Int32
@@ -136,29 +135,28 @@ encodeMyRoot a b c d e f g =
     , (optional . writeVector) unWriteTable g
     ]
 
-myRootA :: ReadCtx m => MyRoot -> m Int32
+myRootA :: ReadCtx m => Table MyRoot -> m Int32
 myRootA = readTableFieldWithDef readInt32 0 0
 
-myRootB :: ReadCtx m => MyRoot -> m Int64
+myRootB :: ReadCtx m => Table MyRoot -> m Int64
 myRootB = readTableFieldWithDef readInt64 1 0
 
-myRootC :: ReadCtx m => MyRoot -> m Nested
+myRootC :: ReadCtx m => Table MyRoot -> m (Table Nested)
 myRootC = readTableFieldReq readTable 2 "c"
 
-myRootD :: ReadCtx m => MyRoot -> m Text
+myRootD :: ReadCtx m => Table MyRoot -> m Text
 myRootD = readTableFieldReq readText 3 "d"
 
-myRootE :: ReadCtx m => MyRoot -> m SWS
+myRootE :: ReadCtx m => Table MyRoot -> m (Struct SWS)
 myRootE = readTableFieldReq readStruct' 4 "e"
 
-myRootF :: ReadCtx m => MyRoot -> m (Vector Text)
+myRootF :: ReadCtx m => Table MyRoot -> m (Vector Text)
 myRootF = readTableFieldReq (readVector readText textSize) 5 "f"
 
-myRootG :: ReadCtx m => MyRoot -> m (Vector DeepNested)
+myRootG :: ReadCtx m => Table MyRoot -> m (Vector (Table DeepNested))
 myRootG = readTableFieldReq (readVector readTable tableSize) 6 "g"
 
-newtype Nested =
-  Nested Table
+data Nested
 
 encodeNested :: Maybe Int32 -> Maybe (WriteTable DeepNested) -> WriteTable Nested
 encodeNested a b =
@@ -167,13 +165,13 @@ encodeNested a b =
     , optional unWriteTable b
     ]
 
-nestedA :: ReadCtx m => Nested -> m Int32
+nestedA :: ReadCtx m => Table Nested -> m Int32
 nestedA = readTableFieldWithDef readInt32 0 0
 
-nestedB :: ReadCtx m => Nested -> m DeepNested
+nestedB :: ReadCtx m => Table Nested -> m (Table DeepNested)
 nestedB = readTableFieldReq readTable 1 "b"
     
-newtype DeepNested = DeepNested Table
+data DeepNested
 
 encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
 encodeDeepNested a =
@@ -181,11 +179,10 @@ encodeDeepNested a =
     [ (optionalDef 0 . inline) int32 a
     ]
 
-deepNestedA :: ReadCtx m => DeepNested -> m Int32
+deepNestedA :: ReadCtx m => Table DeepNested -> m Int32
 deepNestedA = readTableFieldWithDef readInt32 0 0
 
-newtype MyStruct =
-  MyStruct Struct
+data MyStruct
 
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
@@ -195,16 +192,16 @@ encodeMyStruct a b c =
     , int64 c
     ]
 
-myStructA :: ReadCtx m => MyStruct -> m Int32
+myStructA :: ReadCtx m => Struct MyStruct -> m Int32
 myStructA = readStructField readInt32 0
 
-myStructB :: ReadCtx m => MyStruct -> m Word8
+myStructB :: ReadCtx m => Struct MyStruct -> m Word8
 myStructB = readStructField readWord8 4
 
-myStructC :: ReadCtx m => MyStruct -> m Int64
+myStructC :: ReadCtx m => Struct MyStruct -> m Int64
 myStructC = readStructField readInt64 8
 
-newtype ThreeBytes = ThreeBytes Struct
+data ThreeBytes
 
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
@@ -214,17 +211,17 @@ encodeThreeBytes a b c =
     , word8 c
     ]
 
-threeBytesA :: ReadCtx m => ThreeBytes -> m Word8
+threeBytesA :: ReadCtx m => Struct ThreeBytes -> m Word8
 threeBytesA = readStructField readWord8 0
 
-threeBytesB :: ReadCtx m => ThreeBytes -> m Word8
+threeBytesB :: ReadCtx m => Struct ThreeBytes -> m Word8
 threeBytesB = readStructField readWord8 1
 
-threeBytesC :: ReadCtx m => ThreeBytes -> m Word8
+threeBytesC :: ReadCtx m => Struct ThreeBytes -> m Word8
 threeBytesC = readStructField readWord8 2
 
 -- struct with structs
-newtype SWS = SWS Struct
+data SWS
 
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
@@ -237,8 +234,8 @@ encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
     , padded 5 $ word8 threeBytesC
     ]
 
-swsA :: SWS -> MyStruct
+swsA :: Struct SWS -> Struct MyStruct
 swsA = readStructField readStruct 0
 
-swsB :: SWS -> ThreeBytes
+swsB :: Struct SWS -> Struct ThreeBytes
 swsB = readStructField readStruct 16

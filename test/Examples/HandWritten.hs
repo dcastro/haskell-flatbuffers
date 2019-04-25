@@ -18,8 +18,7 @@ import           FlatBuffers.Write
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
-newtype Primitives =
-  Primitives Table
+data Primitives
 
 instance HasFileIdentifier Primitives where
   getFileIdentifier = unsafeFileIdentifier "PRIM"
@@ -52,17 +51,17 @@ primitives a b c d e f g h i j k =
     , (optionalDef False . inline) bool k
     ]
 
-getPrimitives'a :: ReadCtx m => Primitives -> m Word8
-getPrimitives'b :: ReadCtx m => Primitives -> m Word16
-getPrimitives'c :: ReadCtx m => Primitives -> m Word32
-getPrimitives'd :: ReadCtx m => Primitives -> m Word64
-getPrimitives'e :: ReadCtx m => Primitives -> m Int8
-getPrimitives'f :: ReadCtx m => Primitives -> m Int16
-getPrimitives'g :: ReadCtx m => Primitives -> m Int32
-getPrimitives'h :: ReadCtx m => Primitives -> m Int64
-getPrimitives'i :: ReadCtx m => Primitives -> m Float
-getPrimitives'j :: ReadCtx m => Primitives -> m Double
-getPrimitives'k :: ReadCtx m => Primitives -> m Bool
+getPrimitives'a :: ReadCtx m => Table Primitives -> m Word8
+getPrimitives'b :: ReadCtx m => Table Primitives -> m Word16
+getPrimitives'c :: ReadCtx m => Table Primitives -> m Word32
+getPrimitives'd :: ReadCtx m => Table Primitives -> m Word64
+getPrimitives'e :: ReadCtx m => Table Primitives -> m Int8
+getPrimitives'f :: ReadCtx m => Table Primitives -> m Int16
+getPrimitives'g :: ReadCtx m => Table Primitives -> m Int32
+getPrimitives'h :: ReadCtx m => Table Primitives -> m Int64
+getPrimitives'i :: ReadCtx m => Table Primitives -> m Float
+getPrimitives'j :: ReadCtx m => Table Primitives -> m Double
+getPrimitives'k :: ReadCtx m => Table Primitives -> m Bool
 getPrimitives'a = readTableFieldWithDef readWord8   0 1
 getPrimitives'b = readTableFieldWithDef readWord16  1 1
 getPrimitives'c = readTableFieldWithDef readWord32  2 1
@@ -110,8 +109,7 @@ fromColor n =
 ----------------------------------
 ------------- Enums --------------
 ----------------------------------
-newtype Enums =
-  Enums Table
+data Enums
 
 enums :: Maybe Word16 -> Maybe (WriteStruct StructWithEnum) -> [Word16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
 enums x1 x2 x3 x4 = writeTable
@@ -121,21 +119,21 @@ enums x1 x2 x3 x4 = writeTable
   , (optional . writeVector) unWriteStruct x4
   ]
 
-getEnums'x :: ReadCtx m => Enums -> m Word16
+getEnums'x :: ReadCtx m => Table Enums -> m Word16
 getEnums'x = readTableFieldWithDef readWord16 0 2
 
-getEnums'y :: ReadCtx m => Enums -> m (Maybe StructWithEnum)
+getEnums'y :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
 getEnums'y = readTableFieldOpt readStruct' 1
 
-getEnums'xs :: ReadCtx m => Enums -> m (Vector Word16)
+getEnums'xs :: ReadCtx m => Table Enums -> m (Vector Word16)
 getEnums'xs = readTableFieldReq (readVector readWord16 2) 2 "xs"
 
-getEnums'ys :: ReadCtx m => Enums -> m (Maybe (Vector StructWithEnum))
+getEnums'ys :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
 getEnums'ys = readTableFieldOpt (readVector readStruct' 6) 3
 
 
 
-newtype StructWithEnum = StructWithEnum Struct
+data StructWithEnum
 
 structWithEnum :: Int8 -> Word16 -> Int8 -> WriteStruct StructWithEnum
 structWithEnum x1 x2 x3 = writeStruct 2
@@ -143,46 +141,43 @@ structWithEnum x1 x2 x3 = writeStruct 2
   , word16 x2
   , padded 1 (int8 x3)]
 
-getStructWithEnum'x :: ReadCtx m => StructWithEnum -> m Int8
+getStructWithEnum'x :: ReadCtx m => Struct StructWithEnum -> m Int8
 getStructWithEnum'x = readStructField readInt8 0
 
-getStructWithEnum'y :: ReadCtx m => StructWithEnum -> m Word16
+getStructWithEnum'y :: ReadCtx m => Struct StructWithEnum -> m Word16
 getStructWithEnum'y = readStructField readWord16 2
 
-getStructWithEnum'z :: ReadCtx m => StructWithEnum -> m Int8
+getStructWithEnum'z :: ReadCtx m => Struct StructWithEnum -> m Int8
 getStructWithEnum'z = readStructField readInt8 4
 
 
 ----------------------------------
 ------------- Sword -------------
 ----------------------------------
-newtype Sword =
-  Sword Table
+data Sword
 
 sword :: Maybe Text -> WriteTable Sword
 sword x1 = writeTable [optional text x1]
 
-getSword'x :: ReadCtx m => Sword -> m (Maybe Text)
+getSword'x :: ReadCtx m => Table Sword -> m (Maybe Text)
 getSword'x = readTableFieldOpt readText 0
 
 ----------------------------------
 ------------- Axe -------------
 ----------------------------------
-newtype Axe =
-  Axe Table
+data Axe
 
 axe :: Maybe Int32 -> WriteTable Axe
 axe x1 = writeTable [(optionalDef 0 . inline) int32 x1]
 
-getAxe'y :: ReadCtx m => Axe -> m Int32
+getAxe'y :: ReadCtx m => Table Axe -> m Int32
 getAxe'y = readTableFieldWithDef readInt32 0 0
-
 ----------------------------------
 ------------- Weapon --------------
 ----------------------------------
 data Weapon
-  = Weapon'Sword !Sword
-  | Weapon'Axe !Axe
+  = Weapon'Sword !(Table Sword)
+  | Weapon'Axe !(Table Axe)
 
 class EncodeWeapon a where
   weapon :: WriteTable a -> WriteUnion Weapon
@@ -203,8 +198,7 @@ readWeapon n pos =
 ----------------------------------
 ------- TableWithUnion -----------
 ----------------------------------
-newtype TableWithUnion =
-  TableWithUnion Table
+data TableWithUnion
 
 tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteUnion Weapon -> WriteTable TableWithUnion
 tableWithUnion x1 x2 = writeTable
@@ -214,17 +208,16 @@ tableWithUnion x1 x2 = writeTable
   , writeUnionValue x2
   ]
 
-getTableWithUnion'uni :: ReadCtx m => TableWithUnion -> m (Union Weapon)
+getTableWithUnion'uni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
 getTableWithUnion'uni = readTableFieldUnion readWeapon 0
 
-getTableWithUnion'uniReq :: ReadCtx m => TableWithUnion -> m (Union Weapon)
+getTableWithUnion'uniReq :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
 getTableWithUnion'uniReq = readTableFieldUnion readWeapon 2
 
 ----------------------------------
 ------- VectorOfUnions -----------
 ----------------------------------
-newtype VectorOfUnions =
-  VectorOfUnions Table
+data VectorOfUnions
 
 vectorOfUnions :: Maybe [WriteUnion Weapon] -> [WriteUnion Weapon] -> WriteTable VectorOfUnions
 vectorOfUnions x1 x2 = writeTable
@@ -237,16 +230,16 @@ vectorOfUnions x1 x2 = writeTable
     (x1t, x1v) = writeUnionVectorOpt x1
     (x2t, x2v) = writeUnionVectorReq x2
 
-getVectorOfUnions'xs :: ReadCtx m => VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
+getVectorOfUnions'xs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
 getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
 
-getVectorOfUnions'xsReq :: ReadCtx m => VectorOfUnions -> m (Vector (Union Weapon))
+getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
 getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 2 "xsReq"
 
 ----------------------------------
 ----------- ThreeBytes -----------
 ----------------------------------
-newtype ThreeBytes = ThreeBytes Struct
+data ThreeBytes
 
 threeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 threeBytes a b c =
@@ -256,45 +249,45 @@ threeBytes a b c =
     , word8 c
     ]
 
-getThreeBytes'a :: ReadCtx m => ThreeBytes -> m Word8
+getThreeBytes'a :: ReadCtx m => Struct ThreeBytes -> m Word8
 getThreeBytes'a = readStructField readWord8 0
 
-getThreeBytes'b :: ReadCtx m => ThreeBytes -> m Word8
+getThreeBytes'b :: ReadCtx m => Struct ThreeBytes -> m Word8
 getThreeBytes'b = readStructField readWord8 1
 
-getThreeBytes'c :: ReadCtx m => ThreeBytes -> m Word8
+getThreeBytes'c :: ReadCtx m => Struct ThreeBytes -> m Word8
 getThreeBytes'c = readStructField readWord8 2
 
 ----------------------------------
 ------- VectorOfStructs ----------
 ----------------------------------
 
-newtype VectorOfStructs = VectorOfStructs Table
+data VectorOfStructs
 
 vectorOfStructs :: Maybe [WriteStruct ThreeBytes] -> WriteTable VectorOfStructs
 vectorOfStructs x1 = writeTable
   [ (optional . writeVector) unWriteStruct x1
   ]
 
-getVectorOfStructs'xs :: ReadCtx m => VectorOfStructs -> m (Maybe (Vector ThreeBytes))
+getVectorOfStructs'xs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct ThreeBytes)))
 getVectorOfStructs'xs = readTableFieldOpt (readVector readStruct' 3) 0
 
 
 ----------------------------------
 ------------- Align --------------
 ----------------------------------
-newtype Align1 = Align1 Struct
+data Align1
 
 align1 :: Int16 -> WriteStruct Align1
 align1 a = writeStruct 4
   [ padded 2 (int16 a)
   ]
 
-getAlign1'x :: ReadCtx m => Align1 -> m Int16
+getAlign1'x :: ReadCtx m => Struct Align1 -> m Int16
 getAlign1'x = readStructField readInt16 0
 
 
-newtype Align2 = Align2 Struct
+data Align2
 
 align2 :: Int16 -> Word64 -> Word8 -> WriteStruct Align2
 align2 a b c = writeStruct 8
@@ -303,17 +296,17 @@ align2 a b c = writeStruct 8
   , padded 7 (word8 c)
   ]
 
-getAlign2'x :: Align2 -> Align1
+getAlign2'x :: Struct Align2 -> Struct Align1
 getAlign2'x = readStructField readStruct 0
 
-getAlign2'y :: ReadCtx m => Align2 -> m Word64
+getAlign2'y :: ReadCtx m => Struct Align2 -> m Word64
 getAlign2'y = readStructField readWord64 8
 
-getAlign2'z :: ReadCtx m => Align2 -> m Word8
+getAlign2'z :: ReadCtx m => Struct Align2 -> m Word8
 getAlign2'z = readStructField readWord8 16
 
 
-newtype AlignT = AlignT Table
+data AlignT
 
 alignT :: Maybe (WriteStruct Align1) -> Maybe (WriteStruct Align2) -> Maybe [WriteStruct Align1] -> Maybe [WriteStruct Align2] -> WriteTable AlignT
 alignT a b c d = writeTable
@@ -323,15 +316,15 @@ alignT a b c d = writeTable
   , (optional . writeVector) unWriteStruct d
   ]
 
-getAlignT'x :: ReadCtx m => AlignT -> m (Maybe Align1)
+getAlignT'x :: ReadCtx m => Table AlignT -> m (Maybe (Struct Align1))
 getAlignT'x = readTableFieldOpt readStruct' 0
 
-getAlignT'y :: ReadCtx m => AlignT -> m (Maybe Align2)
+getAlignT'y :: ReadCtx m => Table AlignT -> m (Maybe (Struct Align2))
 getAlignT'y = readTableFieldOpt readStruct' 1
 
-getAlignT'xs :: ReadCtx m => AlignT -> m (Maybe (Vector Align1))
+getAlignT'xs :: ReadCtx m => Table AlignT -> m (Maybe (Vector (Struct Align1)))
 getAlignT'xs = readTableFieldOpt (readVector readStruct' 4) 2
 
-getAlignT'ys :: ReadCtx m => AlignT -> m (Maybe (Vector Align2))
+getAlignT'ys :: ReadCtx m => Table AlignT -> m (Maybe (Vector (Struct Align2)))
 getAlignT'ys = readTableFieldOpt (readVector readStruct' 24) 3
 
