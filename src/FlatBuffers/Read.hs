@@ -12,6 +12,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module FlatBuffers.Read
   ( ReadCtx
@@ -25,7 +26,6 @@ module FlatBuffers.Read
   , Position(..)
   , PositionInfo(..)
   , Vector(..)
-  , RawVector(..)
   , Union(..)
   , decode
   , checkFileIdentifier, checkFileIdentifier'
@@ -34,7 +34,9 @@ module FlatBuffers.Read
   , readBool, readFloat, readDouble
   , readText
   , readTable
-  , readVector
+  , readPrimVector
+  , readTableVector
+  , readStructVector
   , readStruct
   , readStruct'
   , readStructField
@@ -104,21 +106,6 @@ newtype Struct a = Struct
   { structPos :: Position
   }
 
-data Vector a
-  = Vector
-      !(RawVector a)                                  -- ^ A pointer to an actual FlatBuffers vector
-      !(forall m. ReadCtx m => PositionInfo -> m a)   -- ^ A function to read elements from this vector
-  | forall b. (a ~ Union b) => UnionVector
-      !ByteString                                     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
-      !(RawVector (Union b))                          -- ^ A table vector, with the actual union values
-      !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union b)) -- ^ A function to read a union value from this vector
-
-data RawVector a = RawVector
-  { rawVectorLength   :: !VectorLength
-  , rawVectorPos      :: !PositionInfo
-  , rawVectorElemSize :: !InlineSize
-  }
-
 data Union a
   = Union !a
   | UnionNone
@@ -165,6 +152,136 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
       BSL.take (fromIntegral @InlineSize @Int64 fileIdentifierSize) .
         BSL.drop (fromIntegral @InlineSize @Int64 uoffsetSize) $
           bs
+
+
+----------------------------------
+------------ Vectors -------------
+----------------------------------
+moveToElem :: VectorIndex -> InlineSize -> Position -> Position
+moveToElem ix elemSize pos =
+  let elemOffset =
+        4 +
+          (fromIntegral @VectorIndex @Int64 ix *
+          fromIntegral @InlineSize @Int64 elemSize)
+  in move' pos elemOffset
+
+
+class VectorElement a where
+  data Vector a
+
+  vectorLength :: Vector a -> VectorLength
+
+  -- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
+  index :: forall m. ReadCtx m => Vector a -> VectorIndex -> m a
+
+instance VectorElement Word8 where
+  data Vector Word8 = Word8Vec !VectorLength !Position
+  vectorLength (Word8Vec len' _) = len'
+  index (Word8Vec _ pos) ix = readWord8 (moveToElem ix word8Size pos)
+
+instance VectorElement Word16 where
+  data Vector Word16 = Word16Vec !VectorLength !Position
+  vectorLength (Word16Vec len' _) = len'
+  index (Word16Vec _ pos) ix = readWord16 (moveToElem ix word16Size pos)
+
+instance VectorElement Word32 where
+  data Vector Word32 = Word32Vec !VectorLength !Position
+  vectorLength (Word32Vec len' _) = len'
+  index (Word32Vec _ pos) ix = readWord32 (moveToElem ix word32Size pos)
+
+instance VectorElement Word64 where
+  data Vector Word64 = Word64Vec !VectorLength !Position
+  vectorLength (Word64Vec len' _) = len'
+  index (Word64Vec _ pos) ix = readWord64 (moveToElem ix word64Size pos)
+
+instance VectorElement Int8 where
+  data Vector Int8 = Int8Vec !VectorLength !Position
+  vectorLength (Int8Vec len' _) = len'
+  index (Int8Vec _ pos) ix = readInt8 (moveToElem ix int8Size pos)
+
+instance VectorElement Int16 where
+  data Vector Int16 = Int16Vec !VectorLength !Position
+  vectorLength (Int16Vec len' _) = len'
+  index (Int16Vec _ pos) ix = readInt16 (moveToElem ix int16Size pos)
+
+instance VectorElement Int32 where
+  data Vector Int32 = Int32Vec !VectorLength !Position
+  vectorLength (Int32Vec len' _) = len'
+  index (Int32Vec _ pos) ix = readInt32 (moveToElem ix int32Size pos)
+
+instance VectorElement Int64 where
+  data Vector Int64 = Int64Vec !VectorLength !Position
+  vectorLength (Int64Vec len' _) = len'
+  index (Int64Vec _ pos) ix = readInt64 (moveToElem ix int64Size pos)
+
+instance VectorElement Float where
+  data Vector Float = FloatVec !VectorLength !Position
+  vectorLength (FloatVec len' _) = len'
+  index (FloatVec _ pos) ix = readFloat (moveToElem ix floatSize pos)
+
+instance VectorElement Double where
+  data Vector Double = DoubleVec !VectorLength !Position
+  vectorLength (DoubleVec len' _) = len'
+  index (DoubleVec _ pos) ix = readDouble (moveToElem ix doubleSize pos)
+
+instance VectorElement Bool where
+  data Vector Bool = BoolVec !VectorLength !Position
+  vectorLength (BoolVec len' _) = len'
+  index (BoolVec _ pos) ix = readBool (moveToElem ix boolSize pos)
+
+instance VectorElement Text where
+  data Vector Text = TextVec !VectorLength !Position
+  vectorLength (TextVec len' _) = len'
+  index (TextVec _ pos) ix = readText (moveToElem ix textSize pos)
+
+instance VectorElement (Struct a) where
+  data Vector (Struct a) = StructVec
+    { structVecLength     :: !VectorLength
+    , structVecPos        :: !Position
+    , structVecStructSize :: !InlineSize
+    }
+  vectorLength = structVecLength
+  index vec ix = readStruct' (moveToElem ix (structVecStructSize vec) (structVecPos vec))
+
+instance VectorElement (Table a) where
+  data Vector (Table a) = TableVec
+    { tableVecLength :: !VectorLength
+    , tableVecPos    :: !PositionInfo
+    }
+  vectorLength = tableVecLength
+  index vec ix =
+    readTable elemPos
+    where
+      elemOffset = 4 + (fromIntegral @VectorIndex @Int64 ix * 4)
+      elemPos = move (tableVecPos vec) elemOffset
+
+
+instance VectorElement (Union a) where
+  data Vector (Union a) = UnionVec
+    { unionVecLength    :: !VectorLength
+    -- | A byte-vector, where each byte represents the type of each "union value" in the vector
+    , unionVecTypesPos  :: !Position
+    -- | A table vector, with the actual union values
+    , unionVecValuesPos :: !PositionInfo
+    -- | A function to read a union value from this vector
+    , unionVecElemRead  :: !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+    }
+  -- NOTE: we assume the two vectors have the same length 
+  vectorLength = unionVecLength
+  index vec ix = do
+    unionType <- byteStringSafeIndex (unionVecTypesPos vec) (fromIntegral @VectorIndex @Int64 ix)
+    case positive unionType of
+      Nothing         -> pure UnionNone
+      Just unionType' -> (unionVecElemRead vec) unionType' elemPos
+    where
+      elemOffset = 4 + (fromIntegral @VectorIndex @Int64 ix * 4)
+      elemPos = move (unionVecValuesPos vec) elemOffset
+
+toList :: forall a m. (VectorElement a, ReadCtx m) => Vector a -> m [a]
+toList vec =
+  if vectorLength vec == 0
+    then pure []
+    else traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
 
 ----------------------------------
 ----- Read from Struct/Table -----
@@ -231,40 +348,6 @@ readTableFieldUnionVectorReq read ix name t =
           readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
 ----------------------------------
-------- Vector functions ---------
-----------------------------------
-
--- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
-index :: forall a m. ReadCtx m => Vector a -> VectorIndex -> m a
-index v n =
-  case v of
-    Vector vec readElem' ->
-      readElemRaw readElem' n vec
-    UnionVector types values readUnion -> do
-      unionType <- byteStringSafeIndex types (fromIntegral @VectorIndex @Int64 n)
-      case positive unionType of
-        Nothing         -> pure UnionNone
-        Just unionType' -> readElemRaw (readUnion unionType') n values
-  where
-    readElemRaw :: forall a m. ReadCtx m => (PositionInfo -> m a) -> VectorIndex -> RawVector a -> m a
-    readElemRaw readElem n vec =
-      readElem elemPos
-      where
-        elemSize = fromIntegral @InlineSize @Int64 (rawVectorElemSize vec)
-        elemOffset = 4 + (fromIntegral @VectorIndex @Int64 n * elemSize)
-        elemPos = move (rawVectorPos vec) elemOffset
-
-toList :: forall a m. ReadCtx m => Vector a -> m [a]
-toList vec =
-  if vectorLength vec == 0
-    then pure []
-    else traverse (\i -> vec `index` i) [0 .. coerce (vectorLength vec) - 1]
-
-vectorLength :: Vector a -> VectorLength
-vectorLength (Vector v _)        = rawVectorLength v
-vectorLength (UnionVector _ t _) = rawVectorLength t -- NOTE: we assume the two vectors have the same length
-
-----------------------------------
 ------ Read from `Position` ------
 ----------------------------------
 readInt8 :: (ReadCtx m, HasPosition a) => a -> m Int8
@@ -303,14 +386,47 @@ readBool p = toBool <$> readWord8 p
     toBool 0 = False
     toBool _ = True
 
-readVector ::
+readPrimVector ::
      forall a m. ReadCtx m
-  => (forall m. ReadCtx m => PositionInfo -> m a)
-  -> InlineSize
+  => (VectorLength -> Position -> Vector a)
   -> PositionInfo
   -> m (Vector a)
-readVector readElem' elemSize pos =
-  fmap (\rv -> Vector rv readElem') (readRawVector elemSize pos)
+readPrimVector vecConstructor pos =
+  flip runGetM (posCurrent pos) $ do
+    uoffset <- readAndSkipUOffset
+    length <- G.getWord32le
+    pure $!
+      vecConstructor
+        (VectorLength length)
+        (move' (posCurrent pos) (fromIntegral @UOffset @Int64 uoffset))
+
+readTableVector ::
+     forall a m. ReadCtx m
+  => PositionInfo
+  -> m (Vector (Table a))
+readTableVector pos =
+  flip runGetM (posCurrent pos) $ do
+    uoffset <- readAndSkipUOffset
+    length <- G.getWord32le
+    pure $!
+      TableVec
+        (VectorLength length)
+        (move pos (fromIntegral @UOffset @Int64 uoffset))
+
+readStructVector ::
+     forall a m. ReadCtx m
+  => InlineSize
+  -> PositionInfo
+  -> m (Vector (Struct a))
+readStructVector structSize pos =
+  flip runGetM (posCurrent pos) $ do
+    uoffset <- readAndSkipUOffset
+    length <- G.getWord32le
+    pure $!
+      StructVec
+        (VectorLength length)
+        (move' (posCurrent pos) (fromIntegral @UOffset @Int64 uoffset))
+        structSize
 
 readUnionVector ::
      forall a m. ReadCtx m
@@ -322,27 +438,14 @@ readUnionVector readUnion typesPos valuesPos =
   do
     typesVecOffset <- readWord32 typesPos
     let typesVec = move' (posCurrent typesPos) (4 + fromIntegral @Word32 @Int64 typesVecOffset)
-    valuesVec <- readRawVector tableSize valuesPos
-    pure $ UnionVector typesVec valuesVec readUnion
+    flip runGetM (posCurrent valuesPos) $ do
+      uoffset <- readAndSkipUOffset
+      length <- G.getWord32le
+      pure $ UnionVec (VectorLength length) typesVec (moveU valuesPos uoffset) readUnion
 
-readRawVector ::
-     forall a m. ReadCtx m
-  => InlineSize
-  -> PositionInfo
-  -> m (RawVector a)
-readRawVector elemSize pos@PositionInfo{..} =
-  flip runGetM posCurrent $ do
-    uoffset <- readAndSkipUOffset
-    length <- G.getWord32le
-    pure $ RawVector
-      { rawVectorLength = VectorLength length
-      , rawVectorPos = moveU pos uoffset
-      , rawVectorElemSize = elemSize
-      }
-
-readText :: ReadCtx m => PositionInfo -> m Text
-readText PositionInfo{..} = do
-  bs <- flip runGetM posCurrent $ do
+readText :: (ReadCtx m, HasPosition a) => a -> m Text
+readText (getPosition -> pos) = do
+  bs <- flip runGetM pos $ do
     readAndSkipUOffset
     strLength <- G.getWord32le
     -- NOTE: this might overflow in systems where Max Int < Max Word32

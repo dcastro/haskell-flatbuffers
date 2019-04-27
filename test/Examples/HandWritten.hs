@@ -126,10 +126,10 @@ getEnums'y :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
 getEnums'y = readTableFieldOpt readStruct' 1
 
 getEnums'xs :: ReadCtx m => Table Enums -> m (Vector Word16)
-getEnums'xs = readTableFieldReq (readVector readWord16 2) 2 "xs"
+getEnums'xs = readTableFieldReq (readPrimVector Word16Vec) 2 "xs"
 
 getEnums'ys :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
-getEnums'ys = readTableFieldOpt (readVector readStruct' 6) 3
+getEnums'ys = readTableFieldOpt (readStructVector 6) 3
 
 
 
@@ -270,7 +270,7 @@ vectorOfStructs x1 = writeTable
   ]
 
 getVectorOfStructs'xs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct ThreeBytes)))
-getVectorOfStructs'xs = readTableFieldOpt (readVector readStruct' 3) 0
+getVectorOfStructs'xs = readTableFieldOpt (readStructVector 3) 0
 
 
 ----------------------------------
@@ -323,8 +323,8 @@ getAlignT'y :: ReadCtx m => Table AlignT -> m (Maybe (Struct Align2))
 getAlignT'y = readTableFieldOpt readStruct' 1
 
 getAlignT'xs :: ReadCtx m => Table AlignT -> m (Maybe (Vector (Struct Align1)))
-getAlignT'xs = readTableFieldOpt (readVector readStruct' 4) 2
+getAlignT'xs = readTableFieldOpt (readStructVector 4) 2
 
 getAlignT'ys :: ReadCtx m => Table AlignT -> m (Maybe (Vector (Struct Align2)))
-getAlignT'ys = readTableFieldOpt (readVector readStruct' 24) 3
+getAlignT'ys = readTableFieldOpt (readStructVector 24) 3
 
