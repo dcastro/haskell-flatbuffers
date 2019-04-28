@@ -154,14 +154,21 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 ----------------------------------
 ------------ Vectors -------------
 ----------------------------------
-moveToElem :: VectorIndex -> InlineSize -> Position -> Position
-moveToElem ix elemSize pos =
+moveToElem' :: VectorIndex -> InlineSize -> Position -> Position
+moveToElem' ix elemSize pos =
   let elemOffset =
         4 +
           (fromIntegral @VectorIndex @Int64 ix *
           fromIntegral @InlineSize @Int64 elemSize)
   in move' pos elemOffset
 
+moveToElem :: VectorIndex -> InlineSize -> PositionInfo -> PositionInfo
+moveToElem ix elemSize pos =
+  let elemOffset =
+        4 +
+          (fromIntegral @VectorIndex @Int64 ix *
+          fromIntegral @InlineSize @Int64 elemSize)
+  in move pos elemOffset
 
 class VectorElement a where
   data Vector a
@@ -180,57 +187,57 @@ instance VectorElement Word8 where
 instance VectorElement Word16 where
   newtype Vector Word16 = Word16Vec Position
   vectorLength (Word16Vec pos) = readWord32 pos
-  index (Word16Vec pos) ix = readWord16 (moveToElem ix word16Size pos)
+  index (Word16Vec pos) ix = readWord16 (moveToElem' ix word16Size pos)
 
 instance VectorElement Word32 where
   newtype Vector Word32 = Word32Vec Position
   vectorLength (Word32Vec pos) = readWord32 pos
-  index (Word32Vec pos) ix = readWord32 (moveToElem ix word32Size pos)
+  index (Word32Vec pos) ix = readWord32 (moveToElem' ix word32Size pos)
 
 instance VectorElement Word64 where
   newtype Vector Word64 = Word64Vec Position
   vectorLength (Word64Vec pos) = readWord32 pos
-  index (Word64Vec pos) ix = readWord64 (moveToElem ix word64Size pos)
+  index (Word64Vec pos) ix = readWord64 (moveToElem' ix word64Size pos)
 
 instance VectorElement Int8 where
   newtype Vector Int8 = Int8Vec Position
   vectorLength (Int8Vec pos) = readWord32 pos
-  index (Int8Vec pos) ix = readInt8 (moveToElem ix int8Size pos)
+  index (Int8Vec pos) ix = readInt8 (moveToElem' ix int8Size pos)
 
 instance VectorElement Int16 where
   newtype Vector Int16 = Int16Vec Position
   vectorLength (Int16Vec pos) = readWord32 pos
-  index (Int16Vec pos) ix = readInt16 (moveToElem ix int16Size pos)
+  index (Int16Vec pos) ix = readInt16 (moveToElem' ix int16Size pos)
 
 instance VectorElement Int32 where
   newtype Vector Int32 = Int32Vec Position
   vectorLength (Int32Vec pos) = readWord32 pos
-  index (Int32Vec pos) ix = readInt32 (moveToElem ix int32Size pos)
+  index (Int32Vec pos) ix = readInt32 (moveToElem' ix int32Size pos)
 
 instance VectorElement Int64 where
   newtype Vector Int64 = Int64Vec Position
   vectorLength (Int64Vec pos) = readWord32 pos
-  index (Int64Vec pos) ix = readInt64 (moveToElem ix int64Size pos)
+  index (Int64Vec pos) ix = readInt64 (moveToElem' ix int64Size pos)
 
 instance VectorElement Float where
   newtype Vector Float = FloatVec Position
   vectorLength (FloatVec pos) = readWord32 pos
-  index (FloatVec pos) ix = readFloat (moveToElem ix floatSize pos)
+  index (FloatVec pos) ix = readFloat (moveToElem' ix floatSize pos)
 
 instance VectorElement Double where
   newtype Vector Double = DoubleVec Position
   vectorLength (DoubleVec pos) = readWord32 pos
-  index (DoubleVec pos) ix = readDouble (moveToElem ix doubleSize pos)
+  index (DoubleVec pos) ix = readDouble (moveToElem' ix doubleSize pos)
 
 instance VectorElement Bool where
   newtype Vector Bool = BoolVec Position
   vectorLength (BoolVec pos) = readWord32 pos
-  index (BoolVec pos) ix = readBool (moveToElem ix boolSize pos)
+  index (BoolVec pos) ix = readBool (moveToElem' ix boolSize pos)
 
 instance VectorElement Text where
   newtype Vector Text = TextVec Position
   vectorLength (TextVec pos) = readWord32 pos
-  index (TextVec pos) ix = readText (moveToElem ix textSize pos)
+  index (TextVec pos) ix = readText (moveToElem' ix textSize pos)
 
 instance VectorElement (Struct a) where
   data Vector (Struct a) = StructVec
@@ -238,16 +245,12 @@ instance VectorElement (Struct a) where
     , structVecStructSize :: !InlineSize
     }
   vectorLength = readWord32 . structVecPos
-  index vec ix = readStruct' (moveToElem ix (structVecStructSize vec) (structVecPos vec))
+  index vec ix = readStruct' (moveToElem' ix (structVecStructSize vec) (structVecPos vec))
 
 instance VectorElement (Table a) where
   newtype Vector (Table a) = TableVec PositionInfo
   vectorLength (TableVec pos) = readWord32 pos
-  index vec ix =
-    readTable elemPos
-    where
-      elemOffset = 4 + (fromIntegral @VectorIndex @Int64 ix * 4)
-      elemPos = move (coerce vec) elemOffset
+  index vec ix = readTable (moveToElem ix tableSize (coerce vec))
 
 instance VectorElement (Union a) where
   data Vector (Union a) = UnionVec
@@ -265,10 +268,9 @@ instance VectorElement (Union a) where
     unionType <- index (unionVecTypesPos vec) ix
     case positive unionType of
       Nothing         -> pure UnionNone
-      Just unionType' -> (unionVecElemRead vec) unionType' elemPos
-    where
-      elemOffset = 4 + (fromIntegral @VectorIndex @Int64 ix * 4)
-      elemPos = move (unionVecValuesPos vec) elemOffset
+      Just unionType' ->
+        let readElem = (unionVecElemRead vec) unionType'
+        in  readElem (moveToElem ix tableSize (unionVecValuesPos vec))
 
 toList :: forall a m. (VectorElement a, ReadCtx m) => Vector a -> m [a]
 toList vec = do
