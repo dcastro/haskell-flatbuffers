@@ -251,7 +251,7 @@ instance VectorElement (Table a) where
 
 instance VectorElement (Union a) where
   data Vector (Union a) = UnionVec
-    { unionVecTypesPos  :: !Position
+    { unionVecTypesPos  :: !(Vector Word8)
     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
     , unionVecValuesPos :: !PositionInfo
     -- ^ A table vector, with the actual union values
@@ -262,7 +262,7 @@ instance VectorElement (Union a) where
   vectorLength = readWord32 . unionVecValuesPos
 
   index vec ix = do
-    unionType <- byteStringSafeIndex (unionVecTypesPos vec) (fromIntegral @VectorIndex @Int64 ix)
+    unionType <- index (unionVecTypesPos vec) ix
     case positive unionType of
       Nothing         -> pure UnionNone
       Just unionType' -> (unionVecElemRead vec) unionType' elemPos
@@ -418,10 +418,10 @@ readUnionVector ::
   -> m (Vector (Union a))
 readUnionVector readUnion typesPos valuesPos =
   do
-    typesVecUOffset <- readWord32 typesPos
+    typesVec <- readPrimVector Word8Vec typesPos
     valuesVecUOffset <- readWord32 valuesPos
     pure $! UnionVec
-      (move' (posCurrent typesPos) (4 + fromIntegral @Word32 @Int64 typesVecUOffset))
+      typesVec
       (moveU valuesPos (coerce valuesVecUOffset))
       readUnion
 
