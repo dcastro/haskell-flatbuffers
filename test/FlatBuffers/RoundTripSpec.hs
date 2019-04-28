@@ -129,7 +129,7 @@ spec =
           ]
 
         Just xs <- getVectorOfUnions'xs x
-        vectorLength xs `shouldBe` 3
+        vectorLength xs `shouldBe` Just 3
         xs `index` 0 >>= \case
           Union (Weapon'Sword x) -> getSword'x x `shouldBe` Just (Just "hi")
           _                      -> unexpectedUnionType
@@ -141,7 +141,7 @@ spec =
           _                    -> unexpectedUnionType
 
         xsReq <- getVectorOfUnions'xsReq x
-        vectorLength xsReq `shouldBe` 3
+        vectorLength xsReq `shouldBe` Just 3
         xsReq `index` 0 >>= \case
           Union (Weapon'Sword x) -> getSword'x x `shouldBe` Just (Just "hi2")
           _                      -> unexpectedUnionType
@@ -155,7 +155,7 @@ spec =
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing []
         getVectorOfUnions'xs x >>= \mb -> isNothing mb `shouldBe` True
-        vectorLength <$> getVectorOfUnions'xsReq x `shouldBe` Just 0
+        (getVectorOfUnions'xsReq x >>= vectorLength) `shouldBe` Just 0
 
       it "throws when union type vector is present, but union value vector is missing" $ do
         x <- decode $ encode $ writeTable @VectorOfUnions

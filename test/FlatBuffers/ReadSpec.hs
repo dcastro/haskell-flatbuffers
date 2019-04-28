@@ -97,7 +97,7 @@ spec =
       s <- decode bs
 
       vec <- myRootF s
-      vectorLength vec `shouldBe` 2
+      vectorLength vec `shouldBe` Just 2
       vec `index` 0 `shouldBe` Just "hello"
       vec `index` 1 `shouldBe` Just "world"
       toList vec `shouldBe` Just ["hello", "world"]
@@ -108,7 +108,7 @@ spec =
       s <- decode bs
 
       vec <- myRootG s
-      vectorLength vec `shouldBe` 2
+      vectorLength vec `shouldBe` Just 2
       list <- toList vec
       traverse deepNestedA list `shouldBe` Just [11, 22]
 
