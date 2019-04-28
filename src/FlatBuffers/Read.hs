@@ -175,7 +175,7 @@ class VectorElement a where
 instance VectorElement Word8 where
   newtype Vector Word8 = Word8Vec Position
   vectorLength (Word8Vec pos) = readWord32 pos
-  index (Word8Vec pos) ix = readWord8 (moveToElem ix word8Size pos)
+  index (Word8Vec pos) ix = byteStringSafeIndex pos (4 + fromIntegral @VectorIndex @Int64 ix)
 
 instance VectorElement Word16 where
   newtype Vector Word16 = Word16Vec Position
