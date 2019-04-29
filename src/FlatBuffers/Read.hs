@@ -46,7 +46,6 @@ module FlatBuffers.Read
   , readTableFieldUnion
   , readTableFieldUnionVectorOpt
   , readTableFieldUnionVectorReq
-  , toList
   ) where
 
 import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
@@ -54,13 +53,16 @@ import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
 import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
 import qualified Data.ByteString               as BS
-import qualified Data.ByteString.Unsafe        as BSU
+
 import           Data.ByteString.Lazy          ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
+import qualified Data.ByteString.Unsafe        as BSU
+
 import           Data.Coerce                   ( coerce )
 import           Data.Functor                  ( (<&>) )
 import           Data.Int
+import qualified Data.List                     as L
 import           Data.String                   ( IsString )
 import           Data.Text                     ( Text )
 import qualified Data.Text                     as T
@@ -170,6 +172,12 @@ moveToElem ix elemSize pos =
           fromIntegral @InlineSize @Int64 elemSize)
   in move pos elemOffset
 
+inlineVectorToList :: ReadCtx m => Get a -> ByteString -> m [a]
+inlineVectorToList get bs =
+  flip runGetM bs $ do
+    len <- G.getWord32le
+    sequence $ L.genericReplicate len get
+
 class VectorElement a where
   data Vector a
 
@@ -178,66 +186,94 @@ class VectorElement a where
   -- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
   index :: ReadCtx m => Vector a -> VectorIndex -> m a
 
+  toList :: ReadCtx m => Vector a -> m [a]
 
 instance VectorElement Word8 where
   newtype Vector Word8 = Word8Vec Position
   vectorLength (Word8Vec pos) = readWord32 pos
   index (Word8Vec pos) ix = byteStringSafeIndex pos (4 + fromIntegral @VectorIndex @Int64 ix)
+  toList vec =
+    vectorLength vec <&> \len ->
+      BSL.unpack $
+        BSL.take (fromIntegral len) $
+          BSL.drop (fromIntegral @InlineSize @Int64 word32Size)
+            (coerce vec)
 
 instance VectorElement Word16 where
   newtype Vector Word16 = Word16Vec Position
   vectorLength (Word16Vec pos) = readWord32 pos
   index (Word16Vec pos) ix = readWord16 (moveToElem' ix word16Size pos)
+  toList vec = inlineVectorToList G.getWord16le (coerce vec)
 
 instance VectorElement Word32 where
   newtype Vector Word32 = Word32Vec Position
   vectorLength (Word32Vec pos) = readWord32 pos
   index (Word32Vec pos) ix = readWord32 (moveToElem' ix word32Size pos)
+  toList vec = inlineVectorToList G.getWord32le (coerce vec)
 
 instance VectorElement Word64 where
   newtype Vector Word64 = Word64Vec Position
   vectorLength (Word64Vec pos) = readWord32 pos
   index (Word64Vec pos) ix = readWord64 (moveToElem' ix word64Size pos)
+  toList vec = inlineVectorToList G.getWord64le (coerce vec)
 
 instance VectorElement Int8 where
   newtype Vector Int8 = Int8Vec Position
   vectorLength (Int8Vec pos) = readWord32 pos
   index (Int8Vec pos) ix = readInt8 (moveToElem' ix int8Size pos)
+  toList vec = inlineVectorToList G.getInt8 (coerce vec)
 
 instance VectorElement Int16 where
   newtype Vector Int16 = Int16Vec Position
   vectorLength (Int16Vec pos) = readWord32 pos
   index (Int16Vec pos) ix = readInt16 (moveToElem' ix int16Size pos)
+  toList vec = inlineVectorToList G.getInt16le (coerce vec)
 
 instance VectorElement Int32 where
   newtype Vector Int32 = Int32Vec Position
   vectorLength (Int32Vec pos) = readWord32 pos
   index (Int32Vec pos) ix = readInt32 (moveToElem' ix int32Size pos)
+  toList vec = inlineVectorToList G.getInt32le (coerce vec)
 
 instance VectorElement Int64 where
   newtype Vector Int64 = Int64Vec Position
   vectorLength (Int64Vec pos) = readWord32 pos
   index (Int64Vec pos) ix = readInt64 (moveToElem' ix int64Size pos)
+  toList vec = inlineVectorToList G.getInt64le (coerce vec)
 
 instance VectorElement Float where
   newtype Vector Float = FloatVec Position
   vectorLength (FloatVec pos) = readWord32 pos
   index (FloatVec pos) ix = readFloat (moveToElem' ix floatSize pos)
+  toList vec = inlineVectorToList G.getFloatle (coerce vec)
 
 instance VectorElement Double where
   newtype Vector Double = DoubleVec Position
   vectorLength (DoubleVec pos) = readWord32 pos
   index (DoubleVec pos) ix = readDouble (moveToElem' ix doubleSize pos)
+  toList vec = inlineVectorToList G.getDoublele (coerce vec)
 
 instance VectorElement Bool where
   newtype Vector Bool = BoolVec Position
   vectorLength (BoolVec pos) = readWord32 pos
   index (BoolVec pos) ix = readBool (moveToElem' ix boolSize pos)
+  toList vec = inlineVectorToList (word8ToBool <$> G.getWord8) (coerce vec)
 
 instance VectorElement Text where
   newtype Vector Text = TextVec Position
   vectorLength (TextVec pos) = readWord32 pos
   index (TextVec pos) ix = readText (moveToElem' ix textSize pos)
+  toList vec = do
+    len <- vectorLength vec
+    go len (coerce vec)
+    where
+      go :: ReadCtx m => Word32 -> Position -> m [Text]
+      go 0 _ = pure []
+      go !len !pos = do
+        let pos' = move' pos 4
+        head <- readText pos'
+        tail <- go (len - 1) pos'
+        pure $! head : tail
 
 instance VectorElement (Struct a) where
   data Vector (Struct a) = StructVec
@@ -246,11 +282,36 @@ instance VectorElement (Struct a) where
     }
   vectorLength = readWord32 . structVecPos
   index vec ix = readStruct' (moveToElem' ix (structVecStructSize vec) (structVecPos vec))
+  toList vec = do
+    len <- vectorLength vec
+    if len == 0
+      then pure []
+      else pure $ go len (move' (structVecPos vec) 4)
+    where
+      go :: Word32 -> Position -> [Struct a]
+      go !len !pos =
+        let head = readStruct pos
+            tail =
+              if len == 1
+                then []
+                else go (len - 1) (move' pos (fromIntegral @InlineSize @Int64 (structVecStructSize vec)))
+        in  head : tail
 
 instance VectorElement (Table a) where
   newtype Vector (Table a) = TableVec PositionInfo
   vectorLength (TableVec pos) = readWord32 pos
   index vec ix = readTable (moveToElem ix tableSize (coerce vec))
+  toList vec = do
+    len <- vectorLength vec
+    go len (coerce vec)
+    where
+      go :: ReadCtx m => Word32 -> PositionInfo -> m [Table a]
+      go 0 _ = pure []
+      go !len !pos = do
+        let pos' = move pos 4
+        head <- readTable pos'
+        tail <- go (len - 1) pos'
+        pure $! head : tail
 
 instance VectorElement (Union a) where
   data Vector (Union a) = UnionVec
@@ -272,12 +333,22 @@ instance VectorElement (Union a) where
         let readElem = (unionVecElemRead vec) unionType'
         in  readElem (moveToElem ix tableSize (unionVecValuesPos vec))
 
-toList :: forall a m. (VectorElement a, ReadCtx m) => Vector a -> m [a]
-toList vec = do
-  len <- vectorLength vec
-  if len == 0
-    then pure []
-    else traverse (\i -> vec `index` i) [0 .. coerce len - 1]
+  toList vec = do
+    len <- vectorLength vec
+    if len == 0
+      then pure []
+      else go len (coerce unionVecTypesPos vec) (unionVecValuesPos vec)
+    where
+      go :: ReadCtx m => Word32 -> Position -> PositionInfo -> m [Union a]
+      go !len !valuesPos !typesPos = do
+        unionType <- readWord8 valuesPos
+        head <- case positive unionType of
+                  Nothing -> pure UnionNone
+                  Just unionType' ->
+                    let readElem = (unionVecElemRead vec) unionType'
+                    in  readElem typesPos
+        tail <- go (len - 1) (BSL.drop 1 valuesPos) (move typesPos 4)
+        pure $! head : tail
 
 ----------------------------------
 ----- Read from Struct/Table -----
@@ -377,10 +448,11 @@ readDouble :: (ReadCtx m, HasPosition a) => a -> m Double
 readDouble (getPosition -> pos) = runGetM G.getDoublele pos
 
 readBool :: (ReadCtx m, HasPosition a) => a -> m Bool
-readBool p = toBool <$> readWord8 p
-  where
-    toBool 0 = False
-    toBool _ = True
+readBool p = word8ToBool <$> readWord8 p
+
+word8ToBool :: Word8 -> Bool
+word8ToBool 0 = False
+word8ToBool _ = True
 
 readPrimVector ::
      forall a m. ReadCtx m
