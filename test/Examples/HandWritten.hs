@@ -99,7 +99,7 @@ toColor n =
     5 -> Just ColorGray
     8 -> Just ColorBlack
     _ -> Nothing
-    
+
 {-# INLINE fromColor #-}
 fromColor :: Color -> Word16
 fromColor n =
@@ -279,26 +279,39 @@ getVectors'k = readTableFieldOpt (readPrimVector BoolVec)    10
 getVectors'l = readTableFieldOpt (readPrimVector TextVec)    11
 
 ----------------------------------
+-------- VectorOfTables ----------
+----------------------------------
+data VectorOfTables
+
+vectorOfTables :: Maybe [WriteTable Axe] -> WriteTable VectorOfTables
+vectorOfTables x1 = writeTable
+  [ (optional . writeVector) unWriteTable x1
+  ]
+
+getVectorOfTables'xs :: ReadCtx m => Table VectorOfTables -> m (Maybe (Vector (Table Axe)))
+getVectorOfTables'xs = readTableFieldOpt readTableVector 0
+
+----------------------------------
 ------- VectorOfStructs ----------
 ----------------------------------
 data ThreeBytes
 
-threeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
+threeBytes :: Word8 -> Int8 -> Int8 -> WriteStruct ThreeBytes
 threeBytes a b c =
   writeStruct 1
     [ word8 a
-    , word8 b
-    , word8 c
+    , int8 b
+    , int8 c
     ]
 
 getThreeBytes'a :: ReadCtx m => Struct ThreeBytes -> m Word8
 getThreeBytes'a = readStructField readWord8 0
 
-getThreeBytes'b :: ReadCtx m => Struct ThreeBytes -> m Word8
-getThreeBytes'b = readStructField readWord8 1
+getThreeBytes'b :: ReadCtx m => Struct ThreeBytes -> m Int8
+getThreeBytes'b = readStructField readInt8 1
 
-getThreeBytes'c :: ReadCtx m => Struct ThreeBytes -> m Word8
-getThreeBytes'c = readStructField readWord8 2
+getThreeBytes'c :: ReadCtx m => Struct ThreeBytes -> m Int8
+getThreeBytes'c = readStructField readInt8 2
 
 data VectorOfStructs
 

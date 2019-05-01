@@ -94,7 +94,7 @@ table Structs {
 }
 
 table VectorOfTables {
-  xs: [Simple];
+  xs: [Axe];
 }
 
 struct ThreeBytes {

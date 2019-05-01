@@ -72,6 +72,117 @@ spec =
           ]
         )
 
+    it "Vectors" $ do
+      test
+        "Vectors"
+        (encode $ vectors
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [-12e9, 0, 3.33333333333333333333])
+          (Just [-12e98, 0, 3.33333333333333333333])
+          (Just [True, False, True])
+          (Just ["hi 👬 bye", "", "world"])
+        )
+        (object
+          [ "a" .= [minBound @Word8, 0, maxBound]
+          , "b" .= [minBound @Word16, 0, maxBound]
+          , "c" .= [minBound @Word32, 0, maxBound]
+          , "d" .= [minBound @Word64, 0, maxBound]
+          , "e" .= [minBound @Int8, 0, maxBound]
+          , "f" .= [minBound @Int16, 0, maxBound]
+          , "g" .= [minBound @Int32, 0, maxBound]
+          , "h" .= [minBound @Int64, 0, maxBound]
+          , "i" .= [(-12e9) :: Float, 0, 3.33333333333333333333]
+          , "j" .= [(-12e98) :: Double, 0, 3.33333333333333333333]
+          , "k" .= [True, False, True]
+          , "l" .= [String "hi 👬 bye", String "", String "world"]
+          ]
+        )
+      test
+        "Vectors"
+        (encode $ vectors
+          (Just []) (Just []) (Just []) (Just [])
+          (Just []) (Just []) (Just []) (Just [])
+          (Just []) (Just []) (Just []) (Just [])
+        )
+        (object
+          [ "a" .= [] @Value, "b" .= [] @Value, "c" .= [] @Value, "d" .= [] @Value
+          , "e" .= [] @Value, "f" .= [] @Value, "g" .= [] @Value, "h" .= [] @Value
+          , "i" .= [] @Value, "j" .= [] @Value, "k" .= [] @Value, "l" .= [] @Value
+          ]
+        )
+      test
+        "Vectors"
+        (encode $ vectors
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+        )
+        (object
+          [ "a" .= [] @Value, "b" .= [] @Value, "c" .= [] @Value, "d" .= [] @Value
+          , "e" .= [] @Value, "f" .= [] @Value, "g" .= [] @Value, "h" .= [] @Value
+          , "i" .= [] @Value, "j" .= [] @Value, "k" .= [] @Value, "l" .= [] @Value
+          ]
+        )
+
+    it "VectorOfTables" $ do
+      test
+        "VectorOfTables"
+        (encode $ vectorOfTables $ Just
+          [ axe (Just 11)
+          , axe Nothing
+          , axe (Just minBound)
+          ]
+        )
+        (object
+          [ "xs" .=
+            [ object [ "y" .= Number 11 ]
+            , object [ "y" .= Number 0 ]
+            , object [ "y" .= minBound @Int32 ]
+            ]
+          ]
+        )
+      test
+        "VectorOfTables"
+        (encode $ vectorOfTables $ Just [])
+        (object [ "xs" .= [] @Value ])
+      test
+        "VectorOfTables"
+        (encode $ vectorOfTables $ Nothing)
+        (object [ "xs" .= [] @Value ])
+
+    it "VectorOfStructs" $ do
+      test
+        "VectorOfStructs"
+        (encode $ vectorOfStructs $ Just
+          [ threeBytes 11 22 33
+          , threeBytes maxBound 0 minBound
+          , threeBytes 44 55 66
+          ]
+        )
+        (object
+          [ "xs" .=
+            [ object [ "x" .= Number 11, "y" .= Number 22, "z" .= Number 33 ]
+            , object [ "x" .= maxBound @Word8, "y" .= Number 0, "z" .= minBound @Int8 ]
+            , object [ "x" .= Number 44, "y" .= Number 55, "z" .= Number 66 ]
+            ]
+          ]
+        )
+      test
+        "VectorOfStructs"
+        (encode $ vectorOfStructs $ Just [])
+        (object [ "xs" .= [] @Value ])
+      test
+        "VectorOfStructs"
+        (encode $ vectorOfStructs $ Nothing)
+        (object [ "xs" .= [] @Value ])
+
     it "VectorOfUnions" $ do
       test
         "VectorOfUnions"

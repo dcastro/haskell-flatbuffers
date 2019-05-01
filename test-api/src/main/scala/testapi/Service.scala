@@ -42,7 +42,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                       "a" =>> obj.a,
                       "b" =>> obj.b,
                       "c" =>> obj.c,
-                      "d" =>> JsonNumber.fromIntegralStringUnsafe(java.lang.Long.toUnsignedString(obj.d)),
+                      "d" =>> asWord64(obj.d),
                       "e" =>> obj.e,
                       "f" =>> obj.f,
                       "g" =>> obj.g,
@@ -106,7 +106,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     "a" =>> (0 until obj.aLength()).map(obj.a),
                     "b" =>> (0 until obj.bLength()).map(obj.b),
                     "c" =>> (0 until obj.cLength()).map(obj.c),
-                    "d" =>> (0 until obj.dLength()).map(obj.d),
+                    "d" =>> (0 until obj.dLength()).map(obj.d _ >>> asWord64),
                     "e" =>> (0 until obj.eLength()).map(obj.e),
                     "f" =>> (0 until obj.fLength()).map(obj.f),
                     "g" =>> (0 until obj.gLength()).map(obj.g),
@@ -162,10 +162,9 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                 case "VectorOfTables" =>
                   val obj = VectorOfTables.getRootAsVectorOfTables(bb)
                   Json.obj(
-                    "xs" =>> (0 until obj.xsLength()).map(obj.xs).map { simple =>
+                    "xs" =>> (0 until obj.xsLength()).map(obj.xs).map { axe =>
                       Json.obj(
-                        "n" =>> simple.n,
-                        "s" =>> simple.s
+                        "y" =>> axe.y
                       )
                     }
                   ).some
@@ -204,7 +203,7 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                   def printAlign2(a: Align2): Json =
                     Json.obj(
                       "x" =>> inside(a.x)(printAlign1),
-                      "y" =>> a.y(),
+                      "y" =>> asWord64(a.y()),
                       "z" =>> a.z()
                     )
 
@@ -260,6 +259,9 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
         val uni = weapon(obj)(new Axe()).asInstanceOf[Axe]
         Json.obj("y" =>> uni.y)
     }
+
+  val asWord64: Long => JsonNumber =
+    l => JsonNumber.fromIntegralStringUnsafe(java.lang.Long.toUnsignedString(l))
 }
 
 

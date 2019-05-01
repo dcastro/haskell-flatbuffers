@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeApplications  #-}
 
 module FlatBuffers.Integration.IntegrationSpec where
-  
+
 import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Encode.Pretty
@@ -241,24 +241,6 @@ cases =
                  , "z" .= True
                  ]
              ]
-         ])
-  , Case
-      "VectorOfTables"
-      "VectorOfTables"
-      (root $
-       table
-         [ vector @[]
-             [ table [inline int32 1, text "a"]
-             , table [inline int32 2, text "b"]
-             , table [inline int32 minBound, text "c"]
-             ]
-         ])
-      (object
-         [ "xs" .= array
-           [ object ["n" .= Number 1, "s" .= String "a"]
-           , object ["n" .= Number 2, "s" .= String "b"]
-           , object ["n" .= minBound @Int32, "s" .= String "c"]
-           ]
          ])
   , Case
       "VectorOfStructs"

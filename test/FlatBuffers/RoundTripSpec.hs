@@ -32,7 +32,7 @@ spec =
               (Just 1234.56) (Just 2873242.82782) (Just True) (Just "hi 👬 bye")
 
         checkFileIdentifier @Primitives bs `shouldBe` True
-        
+
       it "present" $ do
         x <- decode @Primitives $ encodeWithFileIdentifier $ primitives
           (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
@@ -201,6 +201,31 @@ spec =
         it "empty"     $ getVectors'l emptyVecs    >>= testPrimVector [] . fromJust
         it "missing"   $ (getVectors'l missingVecs >>= traverse toList) `shouldBe` Just Nothing
 
+    describe "VectorOfTables" $ do
+      -- let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
+      it "non empty" $ do
+        x <- decode $ encode $ vectorOfTables (Just
+          [ axe (Just minBound)
+          , axe (Just 0)
+          , axe (Just maxBound)
+          ])
+
+        Just xs <- getVectorOfTables'xs x
+        vectorLength xs `shouldBe` Just 3
+        (toList xs >>= traverse getAxe'y) `shouldBe` Just [minBound, 0, maxBound]
+        (traverse (index xs) [0..2] >>= traverse getAxe'y) `shouldBe` Just [minBound, 0, maxBound]
+
+      it "empty" $ do
+        x <- decode $ encode $ vectorOfTables (Just [])
+
+        Just xs <- getVectorOfTables'xs x
+        vectorLength xs `shouldBe` Just 0
+        (toList xs >>= traverse getAxe'y) `shouldBe` Just []
+
+      it "missing" $ do
+        x <- decode $ encode $ vectorOfTables Nothing
+        getVectorOfTables'xs x >>= \mb -> isNothing mb `shouldBe` True
+
     describe "VectorOfStructs" $ do
       let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
       it "non empty" $ do
@@ -279,7 +304,7 @@ spec =
         xsReq <- getVectorOfUnions'xsReq x
         vectorLength xsReq `shouldBe` Just 0
         length <$> toList xsReq `shouldBe` Just 0
-        
+
       it "missing" $ do
         x <- decode $ encode $ vectorOfUnions Nothing []
         getVectorOfUnions'xs x >>= \mb -> isNothing mb `shouldBe` True
