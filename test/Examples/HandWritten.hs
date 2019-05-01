@@ -279,29 +279,7 @@ getVectors'k = readTableFieldOpt (readPrimVector BoolVec)    10
 getVectors'l = readTableFieldOpt (readPrimVector TextVec)    11
 
 ----------------------------------
-------- VectorOfUnions -----------
-----------------------------------
-data VectorOfUnions
-
-vectorOfUnions :: Maybe [WriteUnion Weapon] -> [WriteUnion Weapon] -> WriteTable VectorOfUnions
-vectorOfUnions x1 x2 = writeTable
-  [ x1t
-  , x1v
-  , x2t
-  , x2v
-  ]
-  where
-    (x1t, x1v) = writeUnionVectorOpt x1
-    (x2t, x2v) = writeUnionVectorReq x2
-
-getVectorOfUnions'xs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
-getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
-
-getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
-getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 2 "xsReq"
-
-----------------------------------
------------ ThreeBytes -----------
+------- VectorOfStructs ----------
 ----------------------------------
 data ThreeBytes
 
@@ -322,10 +300,6 @@ getThreeBytes'b = readStructField readWord8 1
 getThreeBytes'c :: ReadCtx m => Struct ThreeBytes -> m Word8
 getThreeBytes'c = readStructField readWord8 2
 
-----------------------------------
-------- VectorOfStructs ----------
-----------------------------------
-
 data VectorOfStructs
 
 vectorOfStructs :: Maybe [WriteStruct ThreeBytes] -> WriteTable VectorOfStructs
@@ -336,6 +310,27 @@ vectorOfStructs x1 = writeTable
 getVectorOfStructs'xs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct ThreeBytes)))
 getVectorOfStructs'xs = readTableFieldOpt (readStructVector 3) 0
 
+----------------------------------
+------- VectorOfUnions -----------
+----------------------------------
+data VectorOfUnions
+
+vectorOfUnions :: Maybe [WriteUnion Weapon] -> [WriteUnion Weapon] -> WriteTable VectorOfUnions
+vectorOfUnions x1 x2 = writeTable
+  [ x1t
+  , x1v
+  , x2t
+  , x2v
+  ]
+  where
+    (x1t, x1v) = writeUnionVectorOpt x1
+    (x2t, x2v) = writeUnionVectorReq x2
+
+getVectorOfUnions'xs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
+getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
+
+getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
+getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 2 "xsReq"
 
 ----------------------------------
 ------------- Align --------------

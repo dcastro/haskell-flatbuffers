@@ -201,6 +201,30 @@ spec =
         it "empty"     $ getVectors'l emptyVecs    >>= testPrimVector [] . fromJust
         it "missing"   $ (getVectors'l missingVecs >>= traverse toList) `shouldBe` Just Nothing
 
+    describe "VectorOfStructs" $ do
+      let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
+      it "non empty" $ do
+        x <- decode $ encode $ vectorOfStructs (Just
+          [ threeBytes 1 2 3
+          , threeBytes 4 5 6
+          ])
+
+        Just xs <- getVectorOfStructs'xs x
+        vectorLength xs `shouldBe` Just 2
+        (toList xs >>= traverse getBytes) `shouldBe` Just [(1,2,3), (4,5,6)]
+        (traverse (index xs) [0..1] >>= traverse getBytes) `shouldBe` Just [(1,2,3), (4,5,6)]
+
+      it "empty" $ do
+        x <- decode $ encode $ vectorOfStructs (Just [])
+
+        Just xs <- getVectorOfStructs'xs x
+        vectorLength xs `shouldBe` Just 0
+        (toList xs >>= traverse getBytes) `shouldBe` Just []
+
+      it "missing" $ do
+        x <- decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
+        getVectorOfStructs'xs x >>= \mb -> isNothing mb `shouldBe` True
+
     describe "VectorOfUnions" $ do
       it "non empty" $ do
         let
@@ -270,30 +294,6 @@ spec =
           ]
         getVectorOfUnions'xs x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         getVectorOfUnions'xsReq x `shouldThrow` \err -> err == MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
-
-    describe "VectorOfStructs" $ do
-      let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
-      it "non empty" $ do
-        x <- decode $ encode $ vectorOfStructs (Just
-          [ threeBytes 1 2 3
-          , threeBytes 4 5 6
-          ])
-
-        Just xs <- getVectorOfStructs'xs x
-        vectorLength xs `shouldBe` Just 2
-        (toList xs >>= traverse getBytes) `shouldBe` Just [(1,2,3), (4,5,6)]
-        (traverse (index xs) [0..1] >>= traverse getBytes) `shouldBe` Just [(1,2,3), (4,5,6)]
-
-      it "empty" $ do
-        x <- decode $ encode $ vectorOfStructs (Just [])
-
-        Just xs <- getVectorOfStructs'xs x
-        vectorLength xs `shouldBe` Just 0
-        (toList xs >>= traverse getBytes) `shouldBe` Just []
-
-      it "missing" $ do
-        x <- decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
-        getVectorOfStructs'xs x >>= \mb -> isNothing mb `shouldBe` True
 
     describe "Align" $ do
       it "present" $ do
