@@ -72,6 +72,7 @@ cases =
          , inline float 2873242.8
          , inline double 2873242.82782
          , inline bool True
+         , text "hello"
          ])
       (object
          [ "a" .= maxBound @Word8
@@ -85,6 +86,7 @@ cases =
          , "i" .= Number 2873242.8
          , "j" .= Number 2873242.82782
          , "k" .= True
+         , "l" .= String "hello"
          ])
   , Case
       "Primitives - minBound"
@@ -102,6 +104,7 @@ cases =
          , missing
          , missing
          , inline bool False
+         , text ""
          ])
       (object
          [ "a" .= minBound @Word8
@@ -115,6 +118,7 @@ cases =
          , "i" .= Number 1
          , "j" .= Number 1
          , "k" .= False
+         , "l" .= String ""
          ])
   , Case
       "Primitives - missing fields"
@@ -122,6 +126,7 @@ cases =
       (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
        table
          [ missing
+         , missing
          , missing
          , missing
          , missing
@@ -145,6 +150,7 @@ cases =
          , "i" .= Number 1
          , "j" .= Number 1
          , "k" .= False
+         , "l" .= Null
          ])
   , Case
       "ManyTables"
@@ -192,22 +198,6 @@ cases =
       "TableWithUnion"
       (root $ table [missing, missing])
       (object ["uni" .= String "NONE"])
-  , Case
-      "Vectors"
-      "Vectors"
-      (root $
-       table
-         [ missing
-         , vector @[] [inline int32 1, inline int32 2]
-         , vector @[] [text "", text "hi", text "hi 👬"]
-         , vector @[] [inline int64 3, inline int64 4]
-         ])
-      (object
-         [ "w" .= array []
-         , "x" .= array [Number 1, Number 2]
-         , "y" .= array [String "", String "hi", String "hi 👬"]
-         , "z" .= array [Number 3, Number 4]
-         ])
   , Case
       "Structs"
       "Structs"

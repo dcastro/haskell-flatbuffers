@@ -49,7 +49,8 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                       "h" =>> obj.h,
                       "i" =>> obj.i,
                       "j" =>> obj.j,
-                      "k" =>> obj.k
+                      "k" =>> obj.k,
+                      "l" =>> obj.l,
                     ).some
                   }
 
@@ -102,10 +103,18 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                 case "Vectors" =>
                   val obj = Vectors.getRootAsVectors(bb)
                   Json.obj(
-                    "w" =>> (0 until obj.wLength()).map(obj.w),
-                    "x" =>> (0 until obj.xLength()).map(obj.x),
-                    "y" =>> (0 until obj.yLength()).map(obj.y),
-                    "z" =>> (0 until obj.zLength()).map(obj.z)
+                    "a" =>> (0 until obj.aLength()).map(obj.a),
+                    "b" =>> (0 until obj.bLength()).map(obj.b),
+                    "c" =>> (0 until obj.cLength()).map(obj.c),
+                    "d" =>> (0 until obj.dLength()).map(obj.d),
+                    "e" =>> (0 until obj.eLength()).map(obj.e),
+                    "f" =>> (0 until obj.fLength()).map(obj.f),
+                    "g" =>> (0 until obj.gLength()).map(obj.g),
+                    "h" =>> (0 until obj.hLength()).map(obj.h),
+                    "i" =>> (0 until obj.iLength()).map(obj.i),
+                    "j" =>> (0 until obj.jLength()).map(obj.j),
+                    "k" =>> (0 until obj.kLength()).map(obj.k),
+                    "l" =>> (0 until obj.lLength()).map(obj.l),
                   ).some
 
                 case "Structs" =>

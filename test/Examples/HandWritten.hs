@@ -35,8 +35,9 @@ primitives ::
   -> Maybe Float
   -> Maybe Double
   -> Maybe Bool
+  -> Maybe Text
   -> WriteTable Primitives
-primitives a b c d e f g h i j k =
+primitives a b c d e f g h i j k l =
   writeTable
     [ (optionalDef 1 . inline) word8    a
     , (optionalDef 1 . inline) word16   b
@@ -49,6 +50,7 @@ primitives a b c d e f g h i j k =
     , (optionalDef 1 . inline) float    i
     , (optionalDef 1 . inline) double   j
     , (optionalDef False . inline) bool k
+    , optional text                     l
     ]
 
 getPrimitives'a :: ReadCtx m => Table Primitives -> m Word8
@@ -62,6 +64,7 @@ getPrimitives'h :: ReadCtx m => Table Primitives -> m Int64
 getPrimitives'i :: ReadCtx m => Table Primitives -> m Float
 getPrimitives'j :: ReadCtx m => Table Primitives -> m Double
 getPrimitives'k :: ReadCtx m => Table Primitives -> m Bool
+getPrimitives'l :: ReadCtx m => Table Primitives -> m (Maybe Text)
 getPrimitives'a = readTableFieldWithDef readWord8   0 1
 getPrimitives'b = readTableFieldWithDef readWord16  1 1
 getPrimitives'c = readTableFieldWithDef readWord32  2 1
@@ -73,6 +76,7 @@ getPrimitives'h = readTableFieldWithDef readInt64   7 1
 getPrimitives'i = readTableFieldWithDef readFloat   8 1
 getPrimitives'j = readTableFieldWithDef readDouble  9 1
 getPrimitives'k = readTableFieldWithDef readBool    10 False
+getPrimitives'l = readTableFieldOpt     readText    11
 
 ----------------------------------
 ------------- Color --------------
@@ -213,6 +217,66 @@ getTableWithUnion'uni = readTableFieldUnion readWeapon 0
 
 getTableWithUnion'uniReq :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
 getTableWithUnion'uniReq = readTableFieldUnion readWeapon 2
+
+----------------------------------
+------------ Vectors -------------
+----------------------------------
+data Vectors
+
+vectors ::
+     Maybe [Word8]
+  -> Maybe [Word16]
+  -> Maybe [Word32]
+  -> Maybe [Word64]
+  -> Maybe [Int8]
+  -> Maybe [Int16]
+  -> Maybe [Int32]
+  -> Maybe [Int64]
+  -> Maybe [Float]
+  -> Maybe [Double]
+  -> Maybe [Bool]
+  -> Maybe [Text]
+  -> WriteTable Vectors
+vectors a b c d e f g h i j k l =
+  writeTable
+    [ (optional . writeVector . inline) word8    a
+    , (optional . writeVector . inline) word16   b
+    , (optional . writeVector . inline) word32   c
+    , (optional . writeVector . inline) word64   d
+    , (optional . writeVector . inline) int8     e
+    , (optional . writeVector . inline) int16    f
+    , (optional . writeVector . inline) int32    g
+    , (optional . writeVector . inline) int64    h
+    , (optional . writeVector . inline) float    i
+    , (optional . writeVector . inline) double   j
+    , (optional . writeVector . inline) bool     k
+    , (optional . writeVector)          text     l
+    ]
+
+getVectors'a :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word8))
+getVectors'b :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word16))
+getVectors'c :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word32))
+getVectors'd :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word64))
+getVectors'e :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int8))
+getVectors'f :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int16))
+getVectors'g :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int32))
+getVectors'h :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int64))
+getVectors'i :: ReadCtx m => Table Vectors -> m (Maybe (Vector Float))
+getVectors'j :: ReadCtx m => Table Vectors -> m (Maybe (Vector Double))
+getVectors'k :: ReadCtx m => Table Vectors -> m (Maybe (Vector Bool))
+getVectors'l :: ReadCtx m => Table Vectors -> m (Maybe (Vector Text))
+getVectors'a = readTableFieldOpt (readPrimVector Word8Vec)   0
+getVectors'b = readTableFieldOpt (readPrimVector Word16Vec)  1
+getVectors'c = readTableFieldOpt (readPrimVector Word32Vec)  2
+getVectors'd = readTableFieldOpt (readPrimVector Word64Vec)  3
+getVectors'e = readTableFieldOpt (readPrimVector Int8Vec)    4
+getVectors'f = readTableFieldOpt (readPrimVector Int16Vec)   5
+getVectors'g = readTableFieldOpt (readPrimVector Int32Vec)   6
+getVectors'h = readTableFieldOpt (readPrimVector Int64Vec)   7
+getVectors'i = readTableFieldOpt (readPrimVector FloatVec)   8
+getVectors'j = readTableFieldOpt (readPrimVector DoubleVec)  9
+getVectors'k = readTableFieldOpt (readPrimVector BoolVec)    10
+getVectors'l = readTableFieldOpt (readPrimVector TextVec)    11
 
 ----------------------------------
 ------- VectorOfUnions -----------

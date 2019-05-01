@@ -1,6 +1,7 @@
 {
   "language": "Haskell2010",
   "extensions": [
+    "FlexibleContexts",
     "LambdaCase",
     "ScopedTypeVariables",
     "TypeApplications"

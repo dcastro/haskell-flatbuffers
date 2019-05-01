@@ -337,7 +337,10 @@ instance VectorElement (Union a) where
     len <- vectorLength vec
     if len == 0
       then pure []
-      else go len (coerce unionVecTypesPos vec) (unionVecValuesPos vec)
+      else go
+            len
+            (move' (coerce unionVecTypesPos vec) 4)
+            (move (unionVecValuesPos vec) 4)
     where
       go :: ReadCtx m => Word32 -> Position -> PositionInfo -> m [Union a]
       go !len !valuesPos !typesPos = do
@@ -347,7 +350,9 @@ instance VectorElement (Union a) where
                   Just unionType' ->
                     let readElem = (unionVecElemRead vec) unionType'
                     in  readElem typesPos
-        tail <- go (len - 1) (BSL.drop 1 valuesPos) (move typesPos 4)
+        tail <- if len == 1
+                  then pure []
+                  else go (len - 1) (BSL.drop 1 valuesPos) (move typesPos 4)
         pure $! head : tail
 
 ----------------------------------

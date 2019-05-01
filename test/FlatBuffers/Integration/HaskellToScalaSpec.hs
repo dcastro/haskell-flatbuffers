@@ -26,7 +26,7 @@ spec =
         (encodeWithFileIdentifier $ primitives
           (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
           (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
-          (Just 1234.56) (Just 2873242.82782) (Just True))
+          (Just 1234.56) (Just 2873242.82782) (Just True) (Just "hi 👬 bye"))
         (object
           [ "a" .= maxBound @Word8
           , "b" .= maxBound @Word16
@@ -39,6 +39,7 @@ spec =
           , "i" .= Number 1234.56
           , "j" .= Number 2873242.82782
           , "k" .= True
+          , "l" .= String "hi 👬 bye"
           ])
 
     it "Enums" $ do
