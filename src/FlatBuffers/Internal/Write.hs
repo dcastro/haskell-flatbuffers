@@ -184,7 +184,7 @@ rootWithFileIdentifier fi table =
     )
     (FBState mempty 0 1 mempty)
 
--- | Fields are added to the buffer in reverse order.
+-- | Fields should be provided in the reverse order as in the schema.
 struct :: InlineSize -> NonEmpty InlineField -> Field
 struct structAlign fields =
   let structSize = getSum $ foldMap (Sum . size) fields
@@ -197,6 +197,7 @@ padded n field = InlineField (size field + fromIntegral n) (align field + fromIn
   sequence_ $ L.genericReplicate n (write $ word8 0)
   write field
 
+-- | Fields should be provided in the same order as in the schema.
 table :: [Field] -> Field
 table fields = Field $
   traverse dump fields >>= table'
@@ -216,7 +217,7 @@ table' fields = do
   -- table
   tableEnd <- uses bytesWritten getSum
   locations <-
-    coerce $ forM (Reverse fields) $ \f ->
+    coerce $ forM fields $ \f ->
       if size f == 0
         then pure 0
         else prep (coerce (align f)) 0 >> write f >> use bytesWritten
