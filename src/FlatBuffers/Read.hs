@@ -16,7 +16,7 @@
 
 module FlatBuffers.Read
   ( ReadCtx
-  , TableIndex(..), VectorIndex(..)
+  , TableIndex(..)
   , FieldName(..)
   , VOffset(..)
   , ReadError(..)
@@ -83,9 +83,6 @@ newtype FieldName = FieldName Text
 
 newtype TableIndex = TableIndex { unTableIndex :: Word16 }
   deriving newtype (Show, Num)
-
-newtype VectorIndex = VectorIndex { unVectorIndex :: Word32 }
-  deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 newtype VOffset = VOffset { unVOffset :: Word16 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
@@ -156,19 +153,19 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 ----------------------------------
 ------------ Vectors -------------
 ----------------------------------
-moveToElem' :: VectorIndex -> InlineSize -> Position -> Position
+moveToElem' :: Word32 -> InlineSize -> Position -> Position
 moveToElem' ix elemSize pos =
   let elemOffset =
         4 +
-          (fromIntegral @VectorIndex @Int64 ix *
+          (fromIntegral @Word32 @Int64 ix *
           fromIntegral @InlineSize @Int64 elemSize)
   in move' pos elemOffset
 
-moveToElem :: VectorIndex -> InlineSize -> PositionInfo -> PositionInfo
+moveToElem :: Word32 -> InlineSize -> PositionInfo -> PositionInfo
 moveToElem ix elemSize pos =
   let elemOffset =
         4 +
-          (fromIntegral @VectorIndex @Int64 ix *
+          (fromIntegral @Word32 @Int64 ix *
           fromIntegral @InlineSize @Int64 elemSize)
   in move pos elemOffset
 
@@ -184,14 +181,14 @@ class VectorElement a where
   vectorLength :: ReadCtx m => Vector a -> m Word32
 
   -- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
-  index :: ReadCtx m => Vector a -> VectorIndex -> m a
+  index :: ReadCtx m => Vector a -> Word32 -> m a
 
   toList :: ReadCtx m => Vector a -> m [a]
 
 instance VectorElement Word8 where
   newtype Vector Word8 = Word8Vec Position
   vectorLength (Word8Vec pos) = readWord32 pos
-  index (Word8Vec pos) ix = byteStringSafeIndex pos (4 + fromIntegral @VectorIndex @Int64 ix)
+  index (Word8Vec pos) ix = byteStringSafeIndex pos (4 + fromIntegral @Word32 @Int64 ix)
   toList vec =
     vectorLength vec <&> \len ->
       BSL.unpack $
