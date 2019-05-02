@@ -8,5 +8,6 @@ module FlatBuffers.Internal.Positive
 newtype Positive a = Positive { getPositive :: a }
   deriving (Eq, Show) via a
 
+{-# INLINE positive #-}
 positive :: (Num a, Ord a) => a -> Maybe (Positive a)
 positive n = if n > 0 then Just (Positive n) else Nothing
