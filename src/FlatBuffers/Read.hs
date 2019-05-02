@@ -134,7 +134,7 @@ decode root = readTable initialPos
 -- | Checks if a buffer contains the file identifier for a root table @a@, to see if it's
 -- safe to decode it to a table @a@.
 -- It should be used in conjunction with @-XTypeApplications@.
--- 
+--
 -- > {-# LANGUAGE TypeApplications #-}
 -- >
 -- > if checkFileIdentifier @Monster bs
@@ -322,7 +322,7 @@ instance VectorElement (Union a) where
     , unionVecElemRead  :: !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
     -- ^ A function to read a union value from this vector
     }
-  -- NOTE: we assume the two vectors have the same length 
+  -- NOTE: we assume the two vectors have the same length
   vectorLength = readWord32 . unionVecValuesPos
 
   index vec ix = do
@@ -385,7 +385,7 @@ readTableFieldUnion read ix t =
   readTableFieldWithDef readWord8 ix 0 t >>= \unionType ->
     case positive unionType of
       Nothing         -> pure UnionNone
-      Just unionType' -> 
+      Just unionType' ->
         tableIndexToVOffset t (ix + 1) >>= \case
           Nothing     -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
           Just offset -> read unionType' (moveV (tablePos t) offset)
@@ -607,7 +607,7 @@ runGetM get =
       case lbs of
         (BSL.Chunk _ lbs') -> lbs'
         _ -> BSL.Empty
-        
+
 -- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
 -- Assumes i >= 0.
 byteStringSafeIndex :: ReadCtx m => ByteString -> Int64 -> m Word8

@@ -19,13 +19,13 @@ import           Test.Hspec
 
 spec :: Spec
 spec =
-  describe "read" $ do 
+  describe "read" $ do
     it "throws when buffer is exhausted" $
       decode @(Table MyRoot) "" `shouldThrow` \x ->
         x == ParsingError 0 "not enough bytes"
 
     let missingFields = encode $ encodeMyRoot Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-    
+
     it "throws when string is missing" $ do
       s <- decode missingFields
       myRootD s `shouldThrow` \x -> x == MissingField "d"
@@ -41,7 +41,7 @@ spec =
     it "throws when vector is missing" $ do
       s <- decode missingFields
       myRootF s `shouldThrow` \x -> x == MissingField "f"
-    
+
     it "throws when string is invalid utf-8" $ do
       let text = W.vector @[] [inline word8 255]
       let bs = W.root $ W.table [W.missing, W.missing, W.missing, text]
@@ -56,11 +56,11 @@ spec =
       myRootA s `shouldBe` Just minBound
       myRootB s `shouldBe` Just maxBound
       myRootD s `shouldBe` Just "hello"
-      
+
     it "decodes missing fields" $ do
       let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just []) Nothing
       s <- decode bs
-      
+
       myRootA s `shouldBe` Just 0
       myRootB s `shouldBe` Just 0
 
@@ -170,7 +170,7 @@ nestedA = readTableFieldWithDef readInt32 0 0
 
 nestedB :: ReadCtx m => Table Nested -> m (Table DeepNested)
 nestedB = readTableFieldReq readTable 1 "b"
-    
+
 data DeepNested
 
 encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
@@ -187,9 +187,9 @@ data MyStruct
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
   writeStruct 8
-    [ int32 a
+    [ int64 c
     , padded 3 $ word8 b
-    , int64 c
+    , int32 a
     ]
 
 myStructA :: ReadCtx m => Struct MyStruct -> m Int32
@@ -206,9 +206,9 @@ data ThreeBytes
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
   writeStruct 1
-    [ word8 a
+    [ word8 c
     , word8 b
-    , word8 c
+    , word8 a
     ]
 
 threeBytesA :: ReadCtx m => Struct ThreeBytes -> m Word8
@@ -226,12 +226,12 @@ data SWS
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
   writeStruct 8
-    [ int32 myStructA
-    , padded 3 $ word8 myStructB
-    , int64 myStructC
-    , word8 threeBytesA
+    [ padded 5 $ word8 threeBytesC
     , word8 threeBytesB
-    , padded 5 $ word8 threeBytesC
+    , word8 threeBytesA
+    , int64 myStructC
+    , padded 3 $ word8 myStructB
+    , int32 myStructA
     ]
 
 swsA :: Struct SWS -> Struct MyStruct

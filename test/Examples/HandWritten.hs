@@ -141,9 +141,10 @@ data StructWithEnum
 
 structWithEnum :: Int8 -> Word16 -> Int8 -> WriteStruct StructWithEnum
 structWithEnum x1 x2 x3 = writeStruct 2
-  [ padded 1 (int8 x1)
+  [ padded 1 (int8 x3)
   , word16 x2
-  , padded 1 (int8 x3)]
+  , padded 1 (int8 x1)
+  ]
 
 getStructWithEnum'x :: ReadCtx m => Struct StructWithEnum -> m Int8
 getStructWithEnum'x = readStructField readInt8 0
@@ -299,9 +300,9 @@ data ThreeBytes
 threeBytes :: Word8 -> Int8 -> Int8 -> WriteStruct ThreeBytes
 threeBytes a b c =
   writeStruct 1
-    [ word8 a
+    [ int8 c
     , int8 b
-    , int8 c
+    , word8 a
     ]
 
 getThreeBytes'a :: ReadCtx m => Struct ThreeBytes -> m Word8
@@ -363,9 +364,9 @@ data Align2
 
 align2 :: Int16 -> Word64 -> Word8 -> WriteStruct Align2
 align2 a b c = writeStruct 8
-  [ padded 6 (int16 a)
+  [ padded 7 (word8 c)
   , word64 b
-  , padded 7 (word8 c)
+  , padded 6 (int16 a)
   ]
 
 getAlign2'x :: Struct Align2 -> Struct Align1

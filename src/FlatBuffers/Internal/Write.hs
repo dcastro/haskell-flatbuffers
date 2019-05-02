@@ -129,7 +129,7 @@ bool = primitive boolSize $ \case
 
 -- | A missing field.
 -- Use this when serializing a deprecated field, or to tell clients to use the default value.
-missing :: Field  
+missing :: Field
 missing = Field . pure . InlineField 0 0 $ pure ()
 
 text :: Text -> Field
@@ -184,11 +184,12 @@ rootWithFileIdentifier fi table =
     )
     (FBState mempty 0 1 mempty)
 
+-- | Fields are added to the buffer in reverse order.
 struct :: InlineSize -> NonEmpty InlineField -> Field
 struct structAlign fields =
   let structSize = getSum $ foldMap (Sum . size) fields
   in Field . pure . InlineField structSize structAlign $
-      traverse_ write (Reverse fields)
+      traverse_ write fields
 
 -- | Adds zero padding AFTER this field.
 padded :: Word8 -> InlineField -> InlineField
@@ -240,7 +241,7 @@ table' fields = do
 
       -- pointer to vtable
       write $ int32 (fromIntegral newVtableSize)
-      
+
       -- vtable
       builder %= mappend (B.lazyByteString newVtable)
       bytesWritten <>= Sum newVtableSize
@@ -261,7 +262,7 @@ vector fields = Field $ do
 
   prep (coerce uoffsetSize)   (coerce elemSize * fromIntegral @Int @Word16 elemCount)
   prep (coerce elemAlign)     (coerce elemSize * fromIntegral @Int @Word16 elemCount)
-  
+
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
   bw <- uses bytesWritten getSum
