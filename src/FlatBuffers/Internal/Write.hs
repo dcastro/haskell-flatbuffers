@@ -154,8 +154,8 @@ prep n additionalBytes =
     else do
       maxAlign <>= Max n
       bw <- uses bytesWritten getSum
-      let remainder = (fromIntegral bw + additionalBytes) `rem` n
-      let needed = if remainder == 0 then 0 else n - remainder
+      let remainder = (bw + fromIntegral @Word16 @Int32 additionalBytes) `rem` fromIntegral @Word16 @Int32 n
+      let needed = if remainder == 0 then 0 else fromIntegral @Word16 @Int32 n - remainder
       sequence_ $ L.genericReplicate needed (write $ word8 0)
 
 
