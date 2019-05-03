@@ -73,6 +73,7 @@ import           Data.Word
 import           FlatBuffers.Constants
 import           FlatBuffers.FileIdentifier    ( FileIdentifier(..), HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Positive ( Positive(getPositive), positive )
+import           FlatBuffers.Types
 
 import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 

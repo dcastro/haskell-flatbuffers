@@ -15,10 +15,11 @@ import           Data.Semigroup              (Max (..))
 import           Data.WithShow               (WithShow (WS))
 import qualified Data.WithShow               as WS
 import           Data.Word                   (Word8)
-import           FlatBuffers.Constants       (InlineSize (..), uoffsetSize)
+import           FlatBuffers.Constants
 import qualified FlatBuffers.Gen             as FG
 import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
+import           FlatBuffers.Types
 import           HaskellWorks.Hspec.Hedgehog
 import           Hedgehog
 import qualified Hedgehog.Gen                as G

@@ -40,6 +40,7 @@ import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Display                  ( Display(..) )
 import           FlatBuffers.Internal.Util                     ( isPowerOfTwo, roundUpToNearestMultipleOf )
+import           FlatBuffers.Types
 
 import           Text.Read                                     ( readMaybe )
 
@@ -475,7 +476,7 @@ validateTable symbolTables (currentNamespace, table) =
                 findDecl currentNamespace symbolTables typeRef <&> \case
                   MatchE (ns, enum) ->
                     VEnum (TypeRef ns (getIdent enum))
-                          (fromIntegral @Word8 @InlineSize. enumSize $ enumType enum)
+                          (fromIntegral @Word8 @InlineSize . enumSize $ enumType enum)
                   MatchS (ns, struct) ->
                     VStruct (TypeRef ns (getIdent struct))
                             (structSize struct)

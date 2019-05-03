@@ -6,12 +6,11 @@ import           Data.Int
 import           Data.List.NonEmpty                       ( NonEmpty )
 import           Data.Scientific                          ( Scientific )
 import           Data.String                              ( IsString(..) )
-
 import           Data.Text                                ( Text )
 import           Data.Word
 
-import           FlatBuffers.Constants                    ( InlineSize(..) )
 import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident, Namespace, TypeRef )
+import           FlatBuffers.Types                        ( InlineSize(..) )
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
 instance HasIdent EnumVal     where getIdent = enumValIdent
