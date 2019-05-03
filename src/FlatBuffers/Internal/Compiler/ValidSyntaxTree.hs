@@ -10,7 +10,7 @@ import           Data.Text                                ( Text )
 import           Data.Word
 
 import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident, Namespace, TypeRef )
-import           FlatBuffers.Types                        ( InlineSize(..) )
+import           FlatBuffers.Types
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
 instance HasIdent EnumVal     where getIdent = enumValIdent
@@ -51,7 +51,7 @@ data EnumType
 ----------------------------------
 data StructDecl = StructDecl
   { structIdent      :: !Ident
-  , structAlignment  :: !Word8 -- [1, 16]
+  , structAlignment  :: !Alignment
   , structFields     :: !(NonEmpty StructField)
   } deriving (Show, Eq)
 

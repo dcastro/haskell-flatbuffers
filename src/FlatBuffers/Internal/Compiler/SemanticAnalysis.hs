@@ -680,7 +680,7 @@ validateStruct symbolTables (currentNamespace, struct) =
   where
     invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
 
-    addFieldPadding :: Word8 -> NonEmpty UnpaddedStructField -> NonEmpty StructField
+    addFieldPadding :: Alignment -> NonEmpty UnpaddedStructField -> NonEmpty StructField
     addFieldPadding structAlignment =
       NE.fromList . go 0 . NE.toList
       where
@@ -688,14 +688,14 @@ validateStruct symbolTables (currentNamespace, struct) =
         go sizeAccum [] = []
         go sizeAccum (x : y : tail) =
           let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
-              nextFieldsAlignment = fromIntegral @Word8 @InlineSize (structFieldAlignment y)
+              nextFieldsAlignment = fromIntegral @Alignment @InlineSize (structFieldAlignment y)
               paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` nextFieldsAlignment) - sizeAccum'
               sizeAccum'' = sizeAccum' + paddingNeeded
               paddedField = StructField (unpaddedStructFieldIdent x) (fromIntegral @InlineSize @Word8 paddingNeeded) (unpaddedStructFieldType x)
           in  paddedField : go sizeAccum'' (y : tail)
         go sizeAccum [x] =
           let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
-              structAlignment' = fromIntegral @Word8 @InlineSize structAlignment
+              structAlignment' = fromIntegral @Alignment @InlineSize structAlignment
               paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` structAlignment') - sizeAccum'
           in  [StructField (unpaddedStructFieldIdent x) (fromIntegral @InlineSize @Word8 paddingNeeded) (unpaddedStructFieldType x)]
 
@@ -747,11 +747,11 @@ validateStruct symbolTables (currentNamespace, struct) =
     getForceAlignAttr :: m (Maybe Integer)
     getForceAlignAttr = findIntAttr forceAlignAttr (ST.structMetadata struct)
 
-    validateForceAlign :: Word8 -> Integer -> m Word8
+    validateForceAlign :: Alignment -> Integer -> m Alignment
     validateForceAlign naturalAlignment forceAlign =
       if isPowerOfTwo forceAlign
-        && inRange (fromIntegral @Word8 @Integer naturalAlignment, 16) forceAlign
-        then pure (fromIntegral @Integer @Word8 forceAlign)
+        && inRange (fromIntegral @Alignment @Integer naturalAlignment, 16) forceAlign
+        then pure (fromIntegral @Integer @Alignment forceAlign)
         else throwErrorMsg $
               "force_align must be a power of two integer ranging from the struct's natural alignment (in this case, "
               <> T.pack (show naturalAlignment)
@@ -765,7 +765,7 @@ validateStruct symbolTables (currentNamespace, struct) =
 ----------------------------------
 ------------ Helpers -------------
 ----------------------------------
-structFieldAlignment :: UnpaddedStructField -> Word8
+structFieldAlignment :: UnpaddedStructField -> Alignment
 structFieldAlignment usf =
   case unpaddedStructFieldType usf of
     SInt8 -> int8Size
@@ -782,8 +782,8 @@ structFieldAlignment usf =
     SEnum _ enumType -> enumAlignment enumType
     SStruct (_, nestedStruct) -> structAlignment nestedStruct
 
-enumAlignment :: EnumType -> Word8
-enumAlignment = enumSize
+enumAlignment :: EnumType -> Alignment
+enumAlignment = Alignment . enumSize
 
 -- | The size of an enum is either 1, 2, 4 or 8 bytes, so its size fits in a Word8
 enumSize :: EnumType -> Word8
