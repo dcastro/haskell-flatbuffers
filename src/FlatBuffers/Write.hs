@@ -70,7 +70,7 @@ data WriteUnion a
 writeTable :: [Field] -> WriteTable a
 writeTable = WriteTable . table
 
-writeStruct :: InlineSize -> NonEmpty InlineField -> WriteStruct a
+writeStruct :: Word8 -> NonEmpty InlineField -> WriteStruct a
 writeStruct structAlign xs = WriteStruct (struct structAlign xs)
 
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b

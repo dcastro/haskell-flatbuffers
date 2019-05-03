@@ -65,7 +65,7 @@ type BytesWritten = Int32
 data FBState = FBState
   { _builder      :: !Builder
   , _bytesWritten :: !(Sum BytesWritten)
-  , _maxAlign     :: !(Max Word16)
+  , _maxAlign     :: !(Max Word8)
   , _cache        :: !(M.Map BSL.ByteString Offset)
   }
 
@@ -75,55 +75,55 @@ newtype Field = Field { dump :: State FBState InlineField }
 
 data InlineField = InlineField
   { size :: !InlineSize
-  , align :: !InlineSize
+  , align :: !Word8
   , write :: !(State FBState ())
   }
 
 inline :: (a -> InlineField) -> (a -> Field)
 inline f = Field . pure . f
 
-primitive :: InlineSize -> (a -> Builder) -> a -> InlineField
+primitive :: Word8 -> (a -> Builder) -> a -> InlineField
 primitive size f a =
-  InlineField size size $ do
+  InlineField (fromIntegral @Word8 @InlineSize size) size $ do
     builder %= mappend (f a)
     bytesWritten += fromIntegral size
 
 fileIdentifier :: FileIdentifier -> InlineField
-fileIdentifier (unFileIdentifier -> bs) = primitive fileIdentifierSize B.byteString bs
+fileIdentifier (unFileIdentifier -> bs) = primitive (fromIntegral fileIdentifierSize) B.byteString bs
 
 int8 :: Int8 -> InlineField
-int8 = primitive int8Size B.int8
+int8 = primitive (fromIntegral int8Size) B.int8
 
 int16 :: Int16 -> InlineField
-int16 = primitive int16Size B.int16LE
+int16 = primitive (fromIntegral int16Size) B.int16LE
 
 int32 :: Int32 -> InlineField
-int32 = primitive int32Size B.int32LE
+int32 = primitive (fromIntegral int32Size) B.int32LE
 
 int64 :: Int64 -> InlineField
-int64 = primitive int64Size B.int64LE
+int64 = primitive (fromIntegral int64Size) B.int64LE
 
 word8 :: Word8 -> InlineField
-word8 = primitive word8Size B.word8
+word8 = primitive (fromIntegral word8Size) B.word8
 
 word16 :: Word16 -> InlineField
-word16 = primitive word16Size B.word16LE
+word16 = primitive (fromIntegral word16Size) B.word16LE
 
 word32 :: Word32 -> InlineField
-word32 = primitive word32Size B.word32LE
+word32 = primitive (fromIntegral word32Size) B.word32LE
 
 word64 :: Word64 -> InlineField
-word64 = primitive word64Size B.word64LE
+word64 = primitive (fromIntegral word64Size) B.word64LE
 
 
 float :: Float -> InlineField
-float = primitive floatSize B.floatLE
+float = primitive (fromIntegral floatSize) B.floatLE
 
 double :: Double -> InlineField
-double = primitive doubleSize B.doubleLE
+double = primitive (fromIntegral doubleSize) B.doubleLE
 
 bool :: Bool -> InlineField
-bool = primitive boolSize $ \case
+bool = primitive (fromIntegral boolSize) $ \case
   True  -> B.word8 1
   False -> B.word8 0
 
@@ -141,21 +141,21 @@ byteString bs = Field $ do
   write $ word8 0 -- trailing zero
   let length = BS.length bs
 
-  prep (coerce uoffsetSize) (fromIntegral length)
+  prep (fromIntegral @InlineSize @Word8 uoffsetSize) (fromIntegral length)
   builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
   Sum bw <- bytesWritten <<>= Sum (fromIntegral @InlineSize @Int32 uoffsetSize + fromIntegral length)
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
-prep :: Word16 -> Word16 {- ^ additionalBytes -} -> State FBState ()
+prep :: Word8 -> Word16 {- ^ additionalBytes -} -> State FBState ()
 prep n additionalBytes =
   if n == 0
     then pure ()
     else do
       maxAlign <>= Max n
       bw <- uses bytesWritten getSum
-      let remainder = (bw + fromIntegral @Word16 @Int32 additionalBytes) `rem` fromIntegral @Word16 @Int32 n
-      let needed = if remainder == 0 then 0 else fromIntegral @Word16 @Int32 n - remainder
+      let remainder = (bw + fromIntegral @Word16 @Int32 additionalBytes) `rem` fromIntegral @Word8 @Int32 n
+      let needed = if remainder == 0 then 0 else fromIntegral @Word8 @Int32 n - remainder
       sequence_ $ L.genericReplicate needed (write $ word8 0)
 
 
@@ -185,7 +185,7 @@ rootWithFileIdentifier fi table =
     (FBState mempty 0 1 mempty)
 
 -- | Fields should be provided in the reverse order as in the schema.
-struct :: InlineSize -> NonEmpty InlineField -> Field
+struct :: Word8 -> NonEmpty InlineField -> Field
 struct structAlign fields =
   let structSize = getSum $ foldMap (Sum . size) fields
   in Field . pure . InlineField structSize structAlign $
@@ -211,7 +211,7 @@ vtable fieldOffsets tableSize = bytestring
       <> B.word16LE (coerce tableSize)
       <> foldMap (B.word16LE . coerce) fieldOffsets
       )
-      
+
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
   -- table
@@ -221,7 +221,7 @@ table' fields = do
       if size f == 0
         then pure 0
         else prep (coerce (align f)) 0 >> write f >> use bytesWritten
-  prep (coerce soffsetSize) 0
+  prep (fromIntegral @InlineSize @Word8 soffsetSize) 0
   tableStart <- uses bytesWritten getSum
 
   let tableLocation = tableStart + fromIntegral @InlineSize @Int32 4
@@ -261,8 +261,8 @@ vector fields = Field $ do
   let elemAlign = maybe 0 align $ headF inlineFields
   let elemCount = Foldable.length inlineFields
 
-  prep (coerce uoffsetSize)   (coerce elemSize * fromIntegral @Int @Word16 elemCount)
-  prep (coerce elemAlign)     (coerce elemSize * fromIntegral @Int @Word16 elemCount)
+  prep (fromIntegral @InlineSize @Word8 uoffsetSize) (coerce elemSize * fromIntegral @Int @Word16 elemCount)
+  prep (coerce elemAlign)                            (coerce elemSize * fromIntegral @Int @Word16 elemCount)
 
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
@@ -270,6 +270,6 @@ vector fields = Field $ do
   pure $ uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
-uoffsetFrom bw = InlineField uoffsetSize uoffsetSize $ do
+uoffsetFrom bw = InlineField uoffsetSize (fromIntegral @InlineSize @Word8 uoffsetSize) $ do
   bw2 <- uses bytesWritten getSum
   write (int32 (bw2 - bw + fromIntegral @InlineSize @Int32 uoffsetSize))
