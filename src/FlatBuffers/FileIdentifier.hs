@@ -16,7 +16,7 @@ import           FlatBuffers.Constants ( fileIdentifierSize )
 -- | An identifier that's used to "mark" a buffer.
 -- To add this mark to a buffer, use `FlatBuffers.Write.encodeWithFileIdentifier`.
 -- To check whether a buffer contains the marker before decoding it, use `FlatBuffers.Read.checkFileIdentifier`.
--- 
+--
 -- For more information on file identifiers, see section "File identification and extension"
 -- here: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html.
 newtype FileIdentifier = FileIdentifier { unFileIdentifier :: ByteString }
@@ -31,7 +31,7 @@ fileIdentifier = fileIdentifier' . T.encodeUtf8
 -- otherwise `Nothing`.
 fileIdentifier' :: ByteString -> Maybe FileIdentifier
 fileIdentifier' bs =
-  if BS.length bs /= fromIntegral fileIdentifierSize
+  if BS.length bs /= fileIdentifierSize
     then Nothing
     else Just (FileIdentifier bs)
 
@@ -45,7 +45,7 @@ unsafeFileIdentifier' = FileIdentifier
 
 -- | Associates a type with a file identifier.
 -- To create an association, declare a @root_type@ and @file_identifier@ in your schema.
--- 
+--
 -- > table Player {}
 -- > root_type Player;
 -- > file_identifier "PLYR";

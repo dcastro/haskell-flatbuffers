@@ -64,7 +64,7 @@ parseSchemas rootFilePath = do
 
 -- | Roughly based on: https://google.github.io/flatbuffers/flatbuffers_grammar.html.
 -- Differences between this parser and the above grammar:
--- 
+--
 --   * Unions members now support aliases.
 --   * An enum's underlying type used to be optional (defaulting to @short@), but now it's mandatory.
 --   * Attributes can be reffered to either as an identifier or as a string literal (e.g. @attr@ or @"attr"@).
@@ -249,7 +249,7 @@ intLiteral =
     L.signed sc L.decimal
 
 attributeVal :: Parser AttributeVal
-attributeVal = 
+attributeVal =
   choice
     [ AttrI . unIntLiteral <$> intLiteral
     , AttrS . unStringLiteral <$> stringLiteral
@@ -294,7 +294,7 @@ fileIdentifierDecl = do
   let byteCount = BS.length (T.encodeUtf8 fi)
   let codePointCount = T.length fi
 
-  when (byteCount /= fromIntegral fileIdentifierSize) $
+  when (byteCount /= fileIdentifierSize) $
     if codePointCount == byteCount
       -- if the user is using ASCII characters
       then fail $ "file_identifier must be exactly " <> show fileIdentifierSize <> " characters"

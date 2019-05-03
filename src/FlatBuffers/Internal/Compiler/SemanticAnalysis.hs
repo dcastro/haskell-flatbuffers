@@ -476,7 +476,7 @@ validateTable symbolTables (currentNamespace, table) =
                 findDecl currentNamespace symbolTables typeRef <&> \case
                   MatchE (ns, enum) ->
                     VEnum (TypeRef ns (getIdent enum))
-                          (fromIntegral @Word8 @InlineSize . enumSize $ enumType enum)
+                          (enumSize $ enumType enum)
                   MatchS (ns, struct) ->
                     VStruct (TypeRef ns (getIdent struct))
                             (structSize struct)
