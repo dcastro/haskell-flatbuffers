@@ -47,6 +47,7 @@ import           Data.Word
 import           FlatBuffers.FileIdentifier ( FileIdentifier, HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Write
 import qualified FlatBuffers.Internal.Write as W
+import           FlatBuffers.Types
 
 encode :: WriteTable a -> BSL.ByteString
 encode (WriteTable table) = root table
@@ -68,7 +69,7 @@ data WriteUnion a
 writeTable :: [Field] -> WriteTable a
 writeTable = WriteTable . table
 
-writeStruct :: Word8 -> NonEmpty InlineField -> WriteStruct a
+writeStruct :: Alignment -> NonEmpty InlineField -> WriteStruct a
 writeStruct structAlign xs = WriteStruct (struct structAlign xs)
 
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b

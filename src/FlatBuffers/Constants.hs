@@ -5,7 +5,6 @@ module FlatBuffers.Constants where
 
 import Data.Word (Word16)
 
-
 voffsetSize, uoffsetSize, soffsetSize :: Num a => a
 voffsetSize = word16Size
 uoffsetSize = word32Size

@@ -58,6 +58,7 @@ import           Data.Word
 import           FlatBuffers.Constants
 import           FlatBuffers.FileIdentifier ( FileIdentifier(..) )
 import           FlatBuffers.Internal.Util  ( headF )
+import           FlatBuffers.Types
 
 type Offset = BytesWritten
 type BytesWritten = Int32
@@ -75,7 +76,7 @@ newtype Field = Field { dump :: State FBState InlineField }
 
 data InlineField = InlineField
   { size :: !InlineSize
-  , align :: !Word8
+  , align :: !Alignment
   , write :: !(State FBState ())
   }
 
@@ -84,7 +85,7 @@ inline f = Field . pure . f
 
 primitive :: Word8 -> (a -> Builder) -> a -> InlineField
 primitive size f a =
-  InlineField (fromIntegral @Word8 @InlineSize size) size $ do
+  InlineField (fromIntegral @Word8 @InlineSize size) (Alignment size) $ do
     builder %= mappend (f a)
     bytesWritten += fromIntegral @Word8 @(Sum BytesWritten) size
 
@@ -186,7 +187,7 @@ rootWithFileIdentifier fi table =
     (FBState mempty 0 1 mempty)
 
 -- | Fields should be provided in the reverse order as in the schema.
-struct :: Word8 -> NonEmpty InlineField -> Field
+struct :: Alignment -> NonEmpty InlineField -> Field
 struct structAlign fields =
   let structSize = getSum $ foldMap (Sum . size) fields
   in Field . pure . InlineField structSize structAlign $
@@ -194,7 +195,7 @@ struct structAlign fields =
 
 -- | Adds zero padding AFTER this field.
 padded :: Word8 -> InlineField -> InlineField
-padded n field = InlineField (size field + fromIntegral @Word8 @InlineSize n) (align field + n) $ do
+padded n field = InlineField (size field + fromIntegral @Word8 @InlineSize n) (align field + Alignment n) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)
   write field
 
@@ -221,7 +222,7 @@ table' fields = do
     coerce $ forM fields $ \f ->
       if size f == 0
         then pure 0
-        else prep (align f) 0 >> write f >> use bytesWritten
+        else prep (coerce align f) 0 >> write f >> use bytesWritten
   prep soffsetSize 0
   tableStart <- uses bytesWritten getSum
 
@@ -259,7 +260,7 @@ vector fields = Field $ do
   inlineFields <- traverse dump fields
 
   let elemSize = maybe 0 size $ headF inlineFields
-  let elemAlign = maybe 0 align $ headF inlineFields
+  let elemAlign = coerce (maybe 0 align $ headF inlineFields)
   let elemCount = Foldable.length inlineFields
 
   prep uoffsetSize (coerce elemSize * fromIntegral @Int @Word16 elemCount)
