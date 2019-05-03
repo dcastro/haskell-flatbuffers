@@ -91,7 +91,8 @@ newtype VOffset = VOffset { unVOffset :: Word16 }
 newtype UOffset = UOffset { unUOffset :: Word32 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
-newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Word64 }
+-- NOTE: this is an Int64 to avoid conversions when calling BSL.drop
+newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Int64 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table a = Table
@@ -528,7 +529,7 @@ readTable pos@PositionInfo{..} =
     soffset <- G.getInt32le
 
     let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
-    let tableOffsetFromRoot = tableOffset64 + fromIntegral @OffsetFromRoot @Int64 posOffsetFromRoot
+    let tableOffsetFromRoot = tableOffset64 + coerce posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
     pure $ Table vtable (moveU pos tableOffset)
 
@@ -560,7 +561,7 @@ move PositionInfo{..} offset =
   PositionInfo
   { posRoot = posRoot
   , posCurrent = move' posCurrent offset
-  , posOffsetFromRoot = posOffsetFromRoot + fromIntegral @Int64 @OffsetFromRoot offset
+  , posOffsetFromRoot = posOffsetFromRoot + OffsetFromRoot offset
   }
 
 move' :: Position -> Int64 -> ByteString
