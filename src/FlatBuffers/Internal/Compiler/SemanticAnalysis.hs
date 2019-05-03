@@ -34,7 +34,7 @@ import qualified Data.Text                                     as T
 import           Data.Traversable                              ( for )
 import           Data.Word
 
-import           FlatBuffers.Constants                         ( InlineSize(..) )
+import           FlatBuffers.Constants
 import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasIdent(..), HasMetadata(..), Ident, Namespace, Schema, TypeRef(..), qualify )
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
@@ -120,7 +120,7 @@ validateSchemas schemas =
     declaredAttributes =
       flip concatMap schemas $ \schema ->
         [ attr | ST.DeclA attr <- ST.decls schema ]
-    
+
     allAttributes = Set.fromList $ declaredAttributes <> knownAttributes
 
 ----------------------------------
@@ -236,7 +236,7 @@ findDecl currentNamespace symbolTables typeRef@(TypeRef refNamespace refIdent) =
                 , MatchU <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allUnions symbolTable)
                 ]
         pure $ asum $ fmap searchSymbolTable symbolTables
-  in 
+  in
     case asum results of
       Just match -> pure match
       Nothing    ->
@@ -250,7 +250,7 @@ findDecl currentNamespace symbolTables typeRef@(TypeRef refNamespace refIdent) =
 -- | Returns a list of all the namespaces "between" the current namespace
 -- and the root namespace, in that order.
 -- See: https://github.com/google/flatbuffers/issues/5234#issuecomment-471680403
--- 
+--
 -- > parentNamespaces "A.B.C" == ["A.B.C", "A.B", "A", ""]
 parentNamespaces :: ST.Namespace -> NonEmpty ST.Namespace
 parentNamespaces (ST.Namespace ns) =
@@ -375,7 +375,7 @@ validateTable symbolTables (currentNamespace, table) =
 
     let fields = ST.tableFields table
     let fieldsMetadata = ST.tableFieldMetadata <$> fields
-    
+
     checkDuplicateFields
     checkUndeclaredAttributes table
     validFields <- traverse validateTableField fields
@@ -403,7 +403,7 @@ validateTable symbolTables (currentNamespace, table) =
           let fieldsWithIds = List.sortOn snd $ zip fields ids
           void $ foldlM checkFieldId (-1) fieldsWithIds
           pure (fst <$> fieldsWithIds)
-          
+
     checkFieldId :: Integer -> (TableField, Integer) -> m Integer
     checkFieldId lastId (field, id) =
       modifyContext (\context -> context <> "." <> getIdent field) $ do
@@ -418,8 +418,8 @@ validateTable symbolTables (currentNamespace, table) =
             when (id /= lastId + 1) $
               throwErrorMsg $ "field ids must be consecutive from 0; id " <> display (lastId + 1) <> " is missing"
         pure id
-            
-          
+
+
     validateTableField :: ST.TableField -> m TableField
     validateTableField tf =
       modifyContext (\context -> context <> "." <> getIdent tf) $ do
@@ -539,7 +539,7 @@ validateDefaultAsEnum dflt enum =
       Just (ST.DefaultNum n) ->
         case Scientific.floatingOrInteger n of
           Left _double -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
-          Right i -> 
+          Right i ->
             case find (\val -> enumValInt val == i) (enumVals enum) of
               Just matchingVal -> pure (enumValInt matchingVal)
               Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
@@ -547,7 +547,7 @@ validateDefaultAsEnum dflt enum =
         case find (\val -> getIdent val == ref) (enumVals enum) of
           Just matchingVal ->  pure (enumValInt matchingVal)
           Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
-      
+
       Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
 
 
@@ -767,17 +767,17 @@ validateStruct symbolTables (currentNamespace, struct) =
 structFieldAlignment :: UnpaddedStructField -> Word8
 structFieldAlignment usf =
   case unpaddedStructFieldType usf of
-    SInt8 -> 1
-    SInt16 -> 2
-    SInt32 -> 4
-    SInt64 -> 8
-    SWord8 -> 1
-    SWord16 -> 2
-    SWord32 -> 4
-    SWord64 -> 8
-    SFloat -> 4
-    SDouble -> 8
-    SBool -> 1
+    SInt8 -> int8Size
+    SInt16 -> int16Size
+    SInt32 -> int32Size
+    SInt64 -> int64Size
+    SWord8 -> word8Size
+    SWord16 -> word16Size
+    SWord32 -> word32Size
+    SWord64 -> word64Size
+    SFloat -> floatSize
+    SDouble -> doubleSize
+    SBool -> boolSize
     SEnum _ enumType -> enumAlignment enumType
     SStruct (_, nestedStruct) -> structAlignment nestedStruct
 
@@ -788,29 +788,29 @@ enumAlignment = enumSize
 enumSize :: EnumType -> Word8
 enumSize e =
   case e of
-    EInt8 -> 1
-    EInt16 -> 2
-    EInt32 -> 3
-    EInt64 -> 4
-    EWord8 -> 1
-    EWord16 -> 2
-    EWord32 -> 3
-    EWord64 -> 4
+    EInt8 -> int8Size
+    EInt16 -> int16Size
+    EInt32 -> int32Size
+    EInt64 -> int64Size
+    EWord8 -> word8Size
+    EWord16 -> word16Size
+    EWord32 -> word32Size
+    EWord64 -> word64Size
 
 structFieldTypeSize :: StructFieldType -> InlineSize
 structFieldTypeSize sft =
   case sft of
-    SInt8 -> 1
-    SInt16 -> 2
-    SInt32 -> 4
-    SInt64 -> 8
-    SWord8 -> 1
-    SWord16 -> 2
-    SWord32 -> 4
-    SWord64 -> 8
-    SFloat -> 4
-    SDouble -> 8
-    SBool -> 1
+    SInt8 -> int8Size
+    SInt16 -> int16Size
+    SInt32 -> int32Size
+    SInt64 -> int64Size
+    SWord8 -> word8Size
+    SWord16 -> word16Size
+    SWord32 -> word32Size
+    SWord64 -> word64Size
+    SFloat -> floatSize
+    SDouble -> doubleSize
+    SBool -> boolSize
     SEnum _ enumType -> fromIntegral @Word8 @InlineSize (enumSize enumType)
     SStruct (_, nestedStruct) -> structSize nestedStruct
 
@@ -858,7 +858,7 @@ findIntAttr name (ST.Metadata attrs) =
         Just i  -> pure (Just i)
         Nothing -> err
   where
-    err = 
+    err =
       throwErrorMsg $
         "expected attribute '"
         <> name

@@ -41,7 +41,7 @@ testRoot initialBuffer table =
 root' :: InlineField -> State FBState ()
 root' ref = do
   align <- gets (getMax . _maxAlign)
-  prep align (coerce uoffsetSize)
+  prep align uoffsetSize
   write ref
 
 newtype PrettyBuffer = PrettyBuffer BSL.ByteString

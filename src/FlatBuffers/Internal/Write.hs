@@ -86,44 +86,44 @@ primitive :: Word8 -> (a -> Builder) -> a -> InlineField
 primitive size f a =
   InlineField (fromIntegral @Word8 @InlineSize size) size $ do
     builder %= mappend (f a)
-    bytesWritten += fromIntegral size
+    bytesWritten += fromIntegral @Word8 @(Sum BytesWritten) size
 
 fileIdentifier :: FileIdentifier -> InlineField
-fileIdentifier (unFileIdentifier -> bs) = primitive (fromIntegral fileIdentifierSize) B.byteString bs
+fileIdentifier (unFileIdentifier -> bs) = primitive fileIdentifierSize B.byteString bs
 
 int8 :: Int8 -> InlineField
-int8 = primitive (fromIntegral int8Size) B.int8
+int8 = primitive int8Size B.int8
 
 int16 :: Int16 -> InlineField
-int16 = primitive (fromIntegral int16Size) B.int16LE
+int16 = primitive int16Size B.int16LE
 
 int32 :: Int32 -> InlineField
-int32 = primitive (fromIntegral int32Size) B.int32LE
+int32 = primitive int32Size B.int32LE
 
 int64 :: Int64 -> InlineField
-int64 = primitive (fromIntegral int64Size) B.int64LE
+int64 = primitive int64Size B.int64LE
 
 word8 :: Word8 -> InlineField
-word8 = primitive (fromIntegral word8Size) B.word8
+word8 = primitive word8Size B.word8
 
 word16 :: Word16 -> InlineField
-word16 = primitive (fromIntegral word16Size) B.word16LE
+word16 = primitive word16Size B.word16LE
 
 word32 :: Word32 -> InlineField
-word32 = primitive (fromIntegral word32Size) B.word32LE
+word32 = primitive word32Size B.word32LE
 
 word64 :: Word64 -> InlineField
-word64 = primitive (fromIntegral word64Size) B.word64LE
+word64 = primitive word64Size B.word64LE
 
 
 float :: Float -> InlineField
-float = primitive (fromIntegral floatSize) B.floatLE
+float = primitive floatSize B.floatLE
 
 double :: Double -> InlineField
-double = primitive (fromIntegral doubleSize) B.doubleLE
+double = primitive doubleSize B.doubleLE
 
 bool :: Bool -> InlineField
-bool = primitive (fromIntegral boolSize) $ \case
+bool = primitive boolSize $ \case
   True  -> B.word8 1
   False -> B.word8 0
 
@@ -141,13 +141,14 @@ byteString bs = Field $ do
   write $ word8 0 -- trailing zero
   let length = BS.length bs
 
-  prep (fromIntegral @InlineSize @Word8 uoffsetSize) (fromIntegral length)
-  builder %= mappend (B.int32LE (fromIntegral length) <> B.byteString bs)
-  Sum bw <- bytesWritten <<>= Sum (fromIntegral @InlineSize @Int32 uoffsetSize + fromIntegral length)
+  prep uoffsetSize (fromIntegral @Int @Word16 length)
+  builder %= mappend (B.int32LE (fromIntegral @Int @Int32 length) <> B.byteString bs)
+  Sum bw <- bytesWritten <<>= Sum (uoffsetSize + fromIntegral @Int @Int32 length)
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
-prep :: Word8 -> Word16 {- ^ additionalBytes -} -> State FBState ()
+-- | In other words: add enough padding so that the buffer becomes aligned to @n@ after writing @additionalBytes@.
+prep :: Word8 {- ^ n -} -> Word16 {- ^ additionalBytes -} -> State FBState ()
 prep n additionalBytes =
   if n == 0
     then pure ()
@@ -166,7 +167,7 @@ root table =
   execState
     (do ref <- dump table
         align <- uses maxAlign getMax
-        prep align (coerce uoffsetSize)
+        prep align uoffsetSize
         write ref
     )
     (FBState mempty 0 1 mempty)
@@ -178,7 +179,7 @@ rootWithFileIdentifier fi table =
   execState
     (do ref <- dump table
         align <- uses maxAlign getMax
-        prep align (coerce (uoffsetSize + fileIdentifierSize))
+        prep align (uoffsetSize + fileIdentifierSize)
         write $ fileIdentifier fi
         write ref
     )
@@ -193,7 +194,7 @@ struct structAlign fields =
 
 -- | Adds zero padding AFTER this field.
 padded :: Word8 -> InlineField -> InlineField
-padded n field = InlineField (size field + fromIntegral n) (align field + fromIntegral n) $ do
+padded n field = InlineField (size field + fromIntegral @Word8 @InlineSize n) (align field + n) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)
   write field
 
@@ -207,7 +208,7 @@ vtable fieldOffsets tableSize = bytestring
   where
     vtableSize = voffsetSize + voffsetSize + voffsetSize * L.genericLength fieldOffsets
     bytestring = B.toLazyByteString
-      (  B.word16LE (coerce vtableSize)
+      (  B.word16LE vtableSize
       <> B.word16LE (coerce tableSize)
       <> foldMap (B.word16LE . coerce) fieldOffsets
       )
@@ -220,18 +221,18 @@ table' fields = do
     coerce $ forM fields $ \f ->
       if size f == 0
         then pure 0
-        else prep (coerce (align f)) 0 >> write f >> use bytesWritten
-  prep (fromIntegral @InlineSize @Word8 soffsetSize) 0
+        else prep (align f) 0 >> write f >> use bytesWritten
+  prep soffsetSize 0
   tableStart <- uses bytesWritten getSum
 
   let tableLocation = tableStart + fromIntegral @InlineSize @Int32 4
   let tableSize = tableLocation - tableEnd
   let fieldOffsets = flip fmap locations $ \case
                   0 -> 0
-                  loc -> fromIntegral (tableLocation - loc)
+                  loc -> fromIntegral @BytesWritten @InlineSize (tableLocation - loc)
 
-  let newVtable = vtable fieldOffsets (fromIntegral tableSize)
-  let newVtableSize = fromIntegral (BSL.length newVtable)
+  let newVtable = vtable fieldOffsets (fromIntegral @BytesWritten @InlineSize tableSize)
+  let newVtableSize = fromIntegral @Int64 @BytesWritten (BSL.length newVtable)
   let newVtableLocation = tableLocation + newVtableSize
 
   map <- gets _cache
@@ -241,14 +242,14 @@ table' fields = do
       cache .= map'
 
       -- pointer to vtable
-      write $ int32 (fromIntegral newVtableSize)
+      write $ int32 newVtableSize
 
       -- vtable
       builder %= mappend (B.lazyByteString newVtable)
       bytesWritten <>= Sum newVtableSize
     (Just oldVtableLocation, _) ->
       -- pointer to vtable
-      write $ int32 $ negate $ fromIntegral (tableLocation - oldVtableLocation)
+      write $ int32 $ negate $ tableLocation - oldVtableLocation
 
   pure $ uoffsetFrom tableLocation
 
@@ -261,8 +262,8 @@ vector fields = Field $ do
   let elemAlign = maybe 0 align $ headF inlineFields
   let elemCount = Foldable.length inlineFields
 
-  prep (fromIntegral @InlineSize @Word8 uoffsetSize) (coerce elemSize * fromIntegral @Int @Word16 elemCount)
-  prep (coerce elemAlign)                            (coerce elemSize * fromIntegral @Int @Word16 elemCount)
+  prep uoffsetSize (coerce elemSize * fromIntegral @Int @Word16 elemCount)
+  prep elemAlign   (coerce elemSize * fromIntegral @Int @Word16 elemCount)
 
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
@@ -270,6 +271,6 @@ vector fields = Field $ do
   pure $ uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
-uoffsetFrom bw = InlineField uoffsetSize (fromIntegral @InlineSize @Word8 uoffsetSize) $ do
+uoffsetFrom bw = InlineField uoffsetSize uoffsetSize $ do
   bw2 <- uses bytesWritten getSum
-  write (int32 (bw2 - bw + fromIntegral @InlineSize @Int32 uoffsetSize))
+  write (int32 (bw2 - bw + uoffsetSize))

@@ -145,28 +145,26 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
   actualFileIdent == BSL.fromStrict fileIdent
   where
     actualFileIdent =
-      BSL.take (fromIntegral @InlineSize @Int64 fileIdentifierSize) .
-        BSL.drop (fromIntegral @InlineSize @Int64 uoffsetSize) $
+      BSL.take fileIdentifierSize .
+        BSL.drop uoffsetSize $
           bs
 
 
 ----------------------------------
 ------------ Vectors -------------
 ----------------------------------
-moveToElem' :: Word32 -> InlineSize -> Position -> Position
+moveToElem' :: Word32 -> Int64 -> Position -> Position
 moveToElem' ix elemSize pos =
   let elemOffset =
-        4 +
-          (fromIntegral @Word32 @Int64 ix *
-          fromIntegral @InlineSize @Int64 elemSize)
+        word32Size +
+          (fromIntegral @Word32 @Int64 ix * elemSize)
   in move' pos elemOffset
 
-moveToElem :: Word32 -> InlineSize -> PositionInfo -> PositionInfo
+moveToElem :: Word32 -> Int64 -> PositionInfo -> PositionInfo
 moveToElem ix elemSize pos =
   let elemOffset =
-        4 +
-          (fromIntegral @Word32 @Int64 ix *
-          fromIntegral @InlineSize @Int64 elemSize)
+        word32Size +
+          (fromIntegral @Word32 @Int64 ix * elemSize)
   in move pos elemOffset
 
 inlineVectorToList :: ReadCtx m => Get a -> ByteString -> m [a]
@@ -188,12 +186,12 @@ class VectorElement a where
 instance VectorElement Word8 where
   newtype Vector Word8 = Word8Vec Position
   vectorLength (Word8Vec pos) = readWord32 pos
-  index (Word8Vec pos) ix = byteStringSafeIndex pos (4 + fromIntegral @Word32 @Int64 ix)
+  index (Word8Vec pos) ix = byteStringSafeIndex pos (word32Size + fromIntegral @Word32 @Int64 ix)
   toList vec =
     vectorLength vec <&> \len ->
       BSL.unpack $
-        BSL.take (fromIntegral len) $
-          BSL.drop (fromIntegral @InlineSize @Int64 word32Size)
+        BSL.take (fromIntegral @Word32 @Int64 len) $
+          BSL.drop word32Size
             (coerce vec)
 
 instance VectorElement Word16 where
@@ -259,7 +257,7 @@ instance VectorElement Bool where
 instance VectorElement Text where
   newtype Vector Text = TextVec Position
   vectorLength (TextVec pos) = readWord32 pos
-  index (TextVec pos) ix = readText (moveToElem' ix textSize pos)
+  index (TextVec pos) ix = readText (moveToElem' ix textRefSize pos)
   toList vec = do
     len <- vectorLength vec
     go len (coerce vec)
@@ -278,7 +276,7 @@ instance VectorElement (Struct a) where
     , structVecStructSize :: !InlineSize
     }
   vectorLength = readWord32 . structVecPos
-  index vec ix = readStruct' (moveToElem' ix (structVecStructSize vec) (structVecPos vec))
+  index vec ix = readStruct' (moveToElem' ix (fromIntegral @InlineSize @Int64 (structVecStructSize vec)) (structVecPos vec))
   toList vec = do
     len <- vectorLength vec
     if len == 0
@@ -297,7 +295,7 @@ instance VectorElement (Struct a) where
 instance VectorElement (Table a) where
   newtype Vector (Table a) = TableVec PositionInfo
   vectorLength (TableVec pos) = readWord32 pos
-  index vec ix = readTable (moveToElem ix tableSize (coerce vec))
+  index vec ix = readTable (moveToElem ix tableRefSize (coerce vec))
   toList vec = do
     len <- vectorLength vec
     go len (coerce vec)
@@ -328,7 +326,7 @@ instance VectorElement (Union a) where
       Nothing         -> pure UnionNone
       Just unionType' ->
         let readElem = (unionVecElemRead vec) unionType'
-        in  readElem (moveToElem ix tableSize (unionVecValuesPos vec))
+        in  readElem (moveToElem ix tableRefSize (unionVecValuesPos vec))
 
   toList vec = do
     len <- vectorLength vec
@@ -473,7 +471,7 @@ readTableVector ::
 readTableVector pos = do
   uoffset <- readWord32 pos
   pure $! TableVec
-    (move pos (fromIntegral @Word32 @Int64 uoffset))
+    (moveU pos (coerce uoffset))
 
 readStructVector ::
      forall a m. ReadCtx m
@@ -529,7 +527,7 @@ readTable pos@PositionInfo{..} =
     soffset <- G.getInt32le
 
     let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
-    let tableOffsetFromRoot = tableOffset64 + fromIntegral @_ @Int64 posOffsetFromRoot
+    let tableOffsetFromRoot = tableOffset64 + fromIntegral @OffsetFromRoot @Int64 posOffsetFromRoot
     let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
     pure $ Table vtable (moveU pos tableOffset)
 

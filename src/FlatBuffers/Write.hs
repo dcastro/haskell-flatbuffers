@@ -44,8 +44,6 @@ import           Data.List.NonEmpty         ( NonEmpty )
 import           Data.Text                  ( Text )
 import           Data.Word
 
-import           FlatBuffers.Constants      ( InlineSize )
-
 import           FlatBuffers.FileIdentifier ( FileIdentifier, HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Write
 import qualified FlatBuffers.Internal.Write as W
