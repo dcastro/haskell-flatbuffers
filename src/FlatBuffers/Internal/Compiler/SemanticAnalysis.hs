@@ -691,12 +691,14 @@ validateStruct symbolTables (currentNamespace, struct) =
               nextFieldsAlignment = fromIntegral @Alignment @InlineSize (structFieldAlignment y)
               paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` nextFieldsAlignment) - sizeAccum'
               sizeAccum'' = sizeAccum' + paddingNeeded
+              -- NOTE: it is safe to narrow `paddingNeeded` to a word8 here because it's always smaller than `nextFieldsAlignment`
               paddedField = StructField (unpaddedStructFieldIdent x) (fromIntegral @InlineSize @Word8 paddingNeeded) (unpaddedStructFieldType x)
           in  paddedField : go sizeAccum'' (y : tail)
         go sizeAccum [x] =
           let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
               structAlignment' = fromIntegral @Alignment @InlineSize structAlignment
               paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` structAlignment') - sizeAccum'
+              -- NOTE: it is safe to narrow `paddingNeeded` to a word8 here because it's always smaller than `nextFieldsAlignment`
           in  [StructField (unpaddedStructFieldIdent x) (fromIntegral @InlineSize @Word8 paddingNeeded) (unpaddedStructFieldType x)]
 
     validateStructField :: ST.StructField -> m UnpaddedStructField

@@ -195,7 +195,7 @@ struct structAlign fields =
 
 -- | Adds zero padding AFTER this field.
 padded :: Word8 -> InlineField -> InlineField
-padded n field = InlineField (size field + fromIntegral @Word8 @InlineSize n) (align field + Alignment n) $ do
+padded n field = InlineField (size field + fromIntegral @Word8 @InlineSize n) (align field) $ do
   sequence_ $ L.genericReplicate n (write $ word8 0)
   write field
 
@@ -226,7 +226,7 @@ table' fields = do
   prep soffsetSize 0
   tableStart <- uses bytesWritten getSum
 
-  let tableLocation = tableStart + fromIntegral @InlineSize @Int32 4
+  let tableLocation = tableStart + soffsetSize
   let tableSize = tableLocation - tableEnd
   let fieldOffsets = flip fmap locations $ \case
                   0 -> 0
