@@ -88,15 +88,16 @@ newtype TableIndex = TableIndex { unTableIndex :: Word16 }
 newtype VOffset = VOffset { unVOffset :: Word16 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
-newtype UOffset = UOffset { unUOffset :: Word32 }
+-- NOTE: a uoffset should really be a Word32, but because buffers should not exceed 2^31 - 1, we use a Int32 instead.
+newtype UOffset = UOffset { unUOffset :: Int32 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
--- NOTE: this is an Int64 to avoid conversions when calling BSL.drop
-newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Int64 }
+-- NOTE: this is an Int32 because a buffer is assumed to respect the size limit of 2^31 - 1.
+newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Int32 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table a = Table
-  { vtable   :: !ByteString
+  { vtable   :: !Position
   , tablePos :: !PositionInfo
   }
 
@@ -114,7 +115,7 @@ type Position = ByteString
 
 -- | Current position in the buffer
 data PositionInfo = PositionInfo
-  { posRoot           :: !ByteString      -- ^ Pointer to the buffer root
+  { posRoot           :: !Position        -- ^ Pointer to the buffer root
   , posCurrent        :: !Position        -- ^ Pointer to current position
   , posOffsetFromRoot :: !OffsetFromRoot  -- ^ Number of bytes between current position and root
   }
@@ -155,119 +156,121 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 ----------------------------------
 ------------ Vectors -------------
 ----------------------------------
-moveToElem' :: Word32 -> Int64 -> Position -> Position
+moveToElem' :: Int32 -> Int32 -> Position -> Position
 moveToElem' ix elemSize pos =
-  let elemOffset =
-        word32Size +
-          (fromIntegral @Word32 @Int64 ix * elemSize)
-  in move' pos elemOffset
+  let elemOffset = int32Size + (ix * elemSize)
+  in move' pos (fromIntegral @Int32 @Int64 elemOffset)
 
-moveToElem :: Word32 -> Int64 -> PositionInfo -> PositionInfo
+moveToElem :: Int32 -> Int32 -> PositionInfo -> PositionInfo
 moveToElem ix elemSize pos =
-  let elemOffset =
-        word32Size +
-          (fromIntegral @Word32 @Int64 ix * elemSize)
+  let elemOffset = int32Size + (ix * elemSize)
   in move pos elemOffset
+
+checkNegIndex :: Int32 -> Int32
+checkNegIndex !n
+  | n < 0     = error ("FlatBuffers.Read.index: negative index: " <> show n)
+  | otherwise = n
 
 inlineVectorToList :: ReadCtx m => Get a -> ByteString -> m [a]
 inlineVectorToList get bs =
   flip runGetM bs $ do
-    len <- G.getWord32le
+    len <- G.getInt32le
     sequence $ L.genericReplicate len get
 
 class VectorElement a where
   data Vector a
 
-  vectorLength :: ReadCtx m => Vector a -> m Word32
+  vectorLength :: ReadCtx m => Vector a -> m Int32
 
   -- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
-  index :: ReadCtx m => Vector a -> Word32 -> m a
+  -- If the index is negative, an exception will be thrown.
+  index :: ReadCtx m => Vector a -> Int32 -> m a
 
   toList :: ReadCtx m => Vector a -> m [a]
 
 instance VectorElement Word8 where
   newtype Vector Word8 = Word8Vec Position
-  vectorLength (Word8Vec pos) = readWord32 pos
-  index (Word8Vec pos) ix = byteStringSafeIndex pos (word32Size + fromIntegral @Word32 @Int64 ix)
+  vectorLength (Word8Vec pos) = readInt32 pos
+  index (Word8Vec pos) ix = byteStringSafeIndex pos (int32Size + checkNegIndex ix)
   toList vec =
     vectorLength vec <&> \len ->
       BSL.unpack $
-        BSL.take (fromIntegral @Word32 @Int64 len) $
-          BSL.drop word32Size
+        BSL.take (fromIntegral @Int32 @Int64 len) $
+          BSL.drop int32Size
             (coerce vec)
 
 instance VectorElement Word16 where
   newtype Vector Word16 = Word16Vec Position
-  vectorLength (Word16Vec pos) = readWord32 pos
-  index (Word16Vec pos) ix = readWord16 (moveToElem' ix word16Size pos)
+  vectorLength (Word16Vec pos) = readInt32 pos
+  index (Word16Vec pos) ix = readWord16 (moveToElem' (checkNegIndex ix) word16Size pos)
   toList vec = inlineVectorToList G.getWord16le (coerce vec)
 
 instance VectorElement Word32 where
   newtype Vector Word32 = Word32Vec Position
-  vectorLength (Word32Vec pos) = readWord32 pos
-  index (Word32Vec pos) ix = readWord32 (moveToElem' ix word32Size pos)
+  vectorLength (Word32Vec pos) = readInt32 pos
+  index (Word32Vec pos) ix = readWord32 (moveToElem' (checkNegIndex ix) word32Size pos)
   toList vec = inlineVectorToList G.getWord32le (coerce vec)
 
 instance VectorElement Word64 where
   newtype Vector Word64 = Word64Vec Position
-  vectorLength (Word64Vec pos) = readWord32 pos
-  index (Word64Vec pos) ix = readWord64 (moveToElem' ix word64Size pos)
+  vectorLength (Word64Vec pos) = readInt32 pos
+  index (Word64Vec pos) ix = readWord64 (moveToElem' (checkNegIndex ix) word64Size pos)
   toList vec = inlineVectorToList G.getWord64le (coerce vec)
 
 instance VectorElement Int8 where
   newtype Vector Int8 = Int8Vec Position
-  vectorLength (Int8Vec pos) = readWord32 pos
-  index (Int8Vec pos) ix = readInt8 (moveToElem' ix int8Size pos)
+  vectorLength (Int8Vec pos) = readInt32 pos
+  index (Int8Vec pos) ix = readInt8 (moveToElem' (checkNegIndex ix) int8Size pos)
   toList vec = inlineVectorToList G.getInt8 (coerce vec)
 
 instance VectorElement Int16 where
   newtype Vector Int16 = Int16Vec Position
-  vectorLength (Int16Vec pos) = readWord32 pos
-  index (Int16Vec pos) ix = readInt16 (moveToElem' ix int16Size pos)
+  vectorLength (Int16Vec pos) = readInt32 pos
+  index (Int16Vec pos) ix = readInt16 (moveToElem' (checkNegIndex ix) int16Size pos)
   toList vec = inlineVectorToList G.getInt16le (coerce vec)
 
 instance VectorElement Int32 where
   newtype Vector Int32 = Int32Vec Position
-  vectorLength (Int32Vec pos) = readWord32 pos
-  index (Int32Vec pos) ix = readInt32 (moveToElem' ix int32Size pos)
+  vectorLength (Int32Vec pos) = readInt32 pos
+  index (Int32Vec pos) ix = readInt32 (moveToElem' (checkNegIndex ix) int32Size pos)
   toList vec = inlineVectorToList G.getInt32le (coerce vec)
 
 instance VectorElement Int64 where
   newtype Vector Int64 = Int64Vec Position
-  vectorLength (Int64Vec pos) = readWord32 pos
-  index (Int64Vec pos) ix = readInt64 (moveToElem' ix int64Size pos)
+  vectorLength (Int64Vec pos) = readInt32 pos
+  index (Int64Vec pos) ix = readInt64 (moveToElem' (checkNegIndex ix) int64Size pos)
   toList vec = inlineVectorToList G.getInt64le (coerce vec)
 
 instance VectorElement Float where
   newtype Vector Float = FloatVec Position
-  vectorLength (FloatVec pos) = readWord32 pos
-  index (FloatVec pos) ix = readFloat (moveToElem' ix floatSize pos)
+  vectorLength (FloatVec pos) = readInt32 pos
+  index (FloatVec pos) ix = readFloat (moveToElem' (checkNegIndex ix) floatSize pos)
   toList vec = inlineVectorToList G.getFloatle (coerce vec)
 
 instance VectorElement Double where
   newtype Vector Double = DoubleVec Position
-  vectorLength (DoubleVec pos) = readWord32 pos
-  index (DoubleVec pos) ix = readDouble (moveToElem' ix doubleSize pos)
+  vectorLength (DoubleVec pos) = readInt32 pos
+  index (DoubleVec pos) ix = readDouble (moveToElem' (checkNegIndex ix) doubleSize pos)
   toList vec = inlineVectorToList G.getDoublele (coerce vec)
 
 instance VectorElement Bool where
   newtype Vector Bool = BoolVec Position
-  vectorLength (BoolVec pos) = readWord32 pos
-  index (BoolVec pos) ix = readBool (moveToElem' ix boolSize pos)
+  vectorLength (BoolVec pos) = readInt32 pos
+  index (BoolVec pos) ix = readBool (moveToElem' (checkNegIndex ix) boolSize pos)
   toList vec = inlineVectorToList (word8ToBool <$> G.getWord8) (coerce vec)
 
 instance VectorElement Text where
   newtype Vector Text = TextVec Position
-  vectorLength (TextVec pos) = readWord32 pos
-  index (TextVec pos) ix = readText (moveToElem' ix textRefSize pos)
+  vectorLength (TextVec pos) = readInt32 pos
+  index (TextVec pos) ix = readText (moveToElem' (checkNegIndex ix) textRefSize pos)
   toList vec = do
     len <- vectorLength vec
     go len (coerce vec)
     where
-      go :: ReadCtx m => Word32 -> Position -> m [Text]
+      go :: ReadCtx m => Int32 -> Position -> m [Text]
       go 0 _ = pure []
       go !len !pos = do
-        let pos' = move' pos 4
+        let pos' = move' pos textRefSize
         head <- readText pos'
         tail <- go (len - 1) pos'
         pure $! head : tail
@@ -277,15 +280,17 @@ instance VectorElement (Struct a) where
     { structVecPos        :: !Position
     , structVecStructSize :: !InlineSize
     }
-  vectorLength = readWord32 . structVecPos
-  index vec ix = readStruct' (moveToElem' ix (fromIntegral @InlineSize @Int64 (structVecStructSize vec)) (structVecPos vec))
+  vectorLength = readInt32 . structVecPos
+  index vec ix =
+    let elemSize = fromIntegral @InlineSize @Int32 (structVecStructSize vec)
+    in readStruct' (moveToElem' (checkNegIndex ix) elemSize (structVecPos vec))
   toList vec = do
     len <- vectorLength vec
     if len == 0
       then pure []
-      else pure $ go len (move' (structVecPos vec) 4)
+      else pure $ go len (move' (structVecPos vec) int32Size)
     where
-      go :: Word32 -> Position -> [Struct a]
+      go :: Int32 -> Position -> [Struct a]
       go !len !pos =
         let head = readStruct pos
             tail =
@@ -296,16 +301,16 @@ instance VectorElement (Struct a) where
 
 instance VectorElement (Table a) where
   newtype Vector (Table a) = TableVec PositionInfo
-  vectorLength (TableVec pos) = readWord32 pos
-  index vec ix = readTable (moveToElem ix tableRefSize (coerce vec))
+  vectorLength (TableVec pos) = readInt32 pos
+  index vec ix = readTable (moveToElem (checkNegIndex ix) tableRefSize (coerce vec))
   toList vec = do
     len <- vectorLength vec
     go len (coerce vec)
     where
-      go :: ReadCtx m => Word32 -> PositionInfo -> m [Table a]
+      go :: ReadCtx m => Int32 -> PositionInfo -> m [Table a]
       go 0 _ = pure []
       go !len !pos = do
-        let pos' = move pos 4
+        let pos' = move pos tableRefSize
         head <- readTable pos'
         tail <- go (len - 1) pos'
         pure $! head : tail
@@ -320,7 +325,7 @@ instance VectorElement (Union a) where
     -- ^ A function to read a union value from this vector
     }
   -- NOTE: we assume the two vectors have the same length
-  vectorLength = readWord32 . unionVecValuesPos
+  vectorLength = readInt32 . unionVecValuesPos
 
   index vec ix = do
     unionType <- index (unionVecTypesPos vec) ix
@@ -339,7 +344,7 @@ instance VectorElement (Union a) where
             (move' (coerce unionVecTypesPos vec) 4)
             (move (unionVecValuesPos vec) 4)
     where
-      go :: ReadCtx m => Word32 -> Position -> PositionInfo -> m [Union a]
+      go :: ReadCtx m => Int32 -> Position -> PositionInfo -> m [Union a]
       go !len !valuesPos !typesPos = do
         unionType <- readWord8 valuesPos
         head <- case positive unionType of
@@ -462,18 +467,18 @@ readPrimVector ::
   -> PositionInfo
   -> m (Vector a)
 readPrimVector vecConstructor (posCurrent -> pos) = do
-  uoffset <- readWord32 pos
+  uoffset <- readInt32 pos
   pure $! vecConstructor
-    (move' pos (fromIntegral @Word32 @Int64 uoffset))
+    (move' pos (fromIntegral @Int32 @Int64 uoffset))
 
 readTableVector ::
      forall a m. ReadCtx m
   => PositionInfo
   -> m (Vector (Table a))
 readTableVector pos = do
-  uoffset <- readWord32 pos
+  uoffset <- readInt32 pos
   pure $! TableVec
-    (moveU pos (coerce uoffset))
+    (move pos (coerce uoffset))
 
 readStructVector ::
      forall a m. ReadCtx m
@@ -481,9 +486,9 @@ readStructVector ::
   -> PositionInfo
   -> m (Vector (Struct a))
 readStructVector structSize (posCurrent -> pos) = do
-  uoffset <- readWord32 pos
+  uoffset <- readInt32 pos
   pure $! StructVec
-    (move' pos (fromIntegral @Word32 @Int64 uoffset))
+    (move' pos (fromIntegral @Int32 @Int64 uoffset))
     structSize
 
 readUnionVector ::
@@ -495,19 +500,19 @@ readUnionVector ::
 readUnionVector readUnion typesPos valuesPos =
   do
     typesVec <- readPrimVector Word8Vec typesPos
-    valuesVecUOffset <- readWord32 valuesPos
+    valuesVecUOffset <- readInt32 valuesPos
     pure $! UnionVec
       typesVec
-      (moveU valuesPos (coerce valuesVecUOffset))
+      (move valuesPos valuesVecUOffset)
       readUnion
 
 readText :: (ReadCtx m, HasPosition a) => a -> m Text
 readText (getPosition -> pos) = do
   bs <- flip runGetM pos $ do
     readAndSkipUOffset
-    strLength <- G.getWord32le
-    -- NOTE: this might overflow in systems where Max Int < Max Word32
-    G.getByteString $ fromIntegral @Word32 @Int strLength
+    strLength <- G.getInt32le
+    -- NOTE: this might overflow in systems where Int has less than 32 bytes
+    G.getByteString $ fromIntegral @Int32 @Int strLength
   case T.decodeUtf8' bs of
     Right t -> pure t
     Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError (T.pack msg) b
@@ -528,10 +533,9 @@ readTable pos@PositionInfo{..} =
     tableOffset <- readAndSkipUOffset
     soffset <- G.getInt32le
 
-    let tableOffset64 = fromIntegral @UOffset @Int64 tableOffset
-    let tableOffsetFromRoot = tableOffset64 + coerce posOffsetFromRoot
-    let vtable = BSL.drop (tableOffsetFromRoot - widen64 soffset) posRoot
-    pure $ Table vtable (moveU pos tableOffset)
+    let vtableOffsetFromRoot = coerce posOffsetFromRoot + coerce tableOffset - widen32 soffset
+    let vtable = move' posRoot (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
+    pure $ Table vtable (move pos (coerce tableOffset))
 
 
 ----------------------------------
@@ -551,16 +555,13 @@ tableIndexToVOffset Table{..} ix =
           word16 -> Just (VOffset word16)
 
 moveV :: PositionInfo -> VOffset -> PositionInfo
-moveV pos offset = move pos (fromIntegral @VOffset @Int64 offset)
+moveV pos offset = move pos (fromIntegral @VOffset @Int32 offset)
 
-moveU :: PositionInfo -> UOffset -> PositionInfo
-moveU pos offset = move pos (fromIntegral @UOffset @Int64 offset)
-
-move :: PositionInfo -> Int64 -> PositionInfo
+move :: PositionInfo -> Int32 -> PositionInfo
 move PositionInfo{..} offset =
   PositionInfo
   { posRoot = posRoot
-  , posCurrent = move' posCurrent offset
+  , posCurrent = move' posCurrent (fromIntegral @Int32 @Int64 offset)
   , posOffsetFromRoot = posOffsetFromRoot + OffsetFromRoot offset
   }
 
@@ -569,9 +570,9 @@ move' bs offset = BSL.drop offset bs
 
 readAndSkipUOffset :: Get UOffset
 readAndSkipUOffset = do
-  uoffset <- G.getWord32le
-  -- NOTE: this might overflow in systems where Max Int < Max Word32
-  G.skip (fromIntegral @Word32 @Int uoffset - 4)
+  uoffset <- G.getInt32le
+  -- NOTE: this might overflow in systems where Int has less than 32 bytes
+  G.skip (fromIntegral @Int32 @Int (uoffset - uoffsetSize))
   pure (UOffset uoffset)
 
 data ReadError
@@ -607,12 +608,13 @@ runGetM get =
 
 -- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
 -- Assumes i >= 0.
-byteStringSafeIndex :: ReadCtx m => ByteString -> Int64 -> m Word8
+byteStringSafeIndex :: ReadCtx m => ByteString -> Int32 -> m Word8
 byteStringSafeIndex !cs0 !i =
-  -- NOTE: this might overflow in systems where Max Int < Max Int64
   index' cs0 i
   where index' BSL.Empty _ = throwM $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
         index' (BSL.Chunk c cs) n
-          | n >= fromIntegral @Int @Int64 (BS.length c) =
-              index' cs (n - fromIntegral @Int @Int64 (BS.length c))
-          | otherwise = pure $! BSU.unsafeIndex c (fromIntegral @Int64 @Int n)
+          -- NOTE: this might overflow in systems where Int has less than 32 bytes
+          | fromIntegral @Int32 @Int n >= BS.length c =
+              -- Note: it's safe to narrow `BS.length` to an int32 here, the line above proves it.
+              index' cs (n - fromIntegral @Int @Int32 (BS.length c))
+          | otherwise = pure $! BSU.unsafeIndex c (fromIntegral @Int32 @Int n)

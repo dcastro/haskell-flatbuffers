@@ -27,7 +27,6 @@ module FlatBuffers.Internal.Write
   , double
   , bool
   , text
-  , byteString
   , prep
   ) where
 
@@ -133,30 +132,32 @@ bool = primitive boolSize $ \case
 missing :: Field
 missing = Field . pure . InlineField 0 0 $ pure ()
 
+-- | The input is assumed not to exceed the buffer size limit of 2^31 - 1 bytes.
 text :: Text -> Field
 text = byteString . T.encodeUtf8
 
 -- | Encodes a bytestring as text.
+-- The input is assumed not to exceed the buffer size limit of 2^31 - 1bytes.
 byteString :: BS.ByteString -> Field
 byteString bs = Field $ do
-  write $ word8 0 -- trailing zero
-  let length = BS.length bs
+  write $ word8 0 -- strings must have a trailing zero
+  let length = fromIntegral @Int @Int32 (BS.length bs)
 
-  prep uoffsetSize (fromIntegral @Int @Word16 length)
-  builder %= mappend (B.int32LE (fromIntegral @Int @Int32 length) <> B.byteString bs)
-  Sum bw <- bytesWritten <<>= Sum (uoffsetSize + fromIntegral @Int @Int32 length)
+  prep uoffsetSize length
+  builder %= mappend (B.int32LE length <> B.byteString bs)
+  Sum bw <- bytesWritten <<>= Sum (uoffsetSize + length)
   pure $ uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
 -- | In other words: add enough padding so that the buffer becomes aligned to @n@ after writing @additionalBytes@.
-prep :: Word8 {- ^ n -} -> Word16 {- ^ additionalBytes -} -> State FBState ()
+prep :: Word8 {- ^ n -} -> Int32 {- ^ additionalBytes -} -> State FBState ()
 prep n additionalBytes =
   if n == 0
     then pure ()
     else do
       maxAlign <>= Max n
       bw <- uses bytesWritten getSum
-      let remainder = (bw + fromIntegral @Word16 @Int32 additionalBytes) `rem` fromIntegral @Word8 @Int32 n
+      let remainder = (bw + additionalBytes) `rem` fromIntegral @Word8 @Int32 n
       let needed = if remainder == 0 then 0 else fromIntegral @Word8 @Int32 n - remainder
       sequence_ $ L.genericReplicate needed (write $ word8 0)
 
@@ -255,6 +256,7 @@ table' fields = do
   pure $ uoffsetFrom tableLocation
 
 -- | NOTE: Assumes all elemenets have the same size and alignment.
+-- The input is assumed not to exceed the buffer size limit of 2^31 - 1bytes.
 vector :: Traversable t => t Field -> Field
 vector fields = Field $ do
   inlineFields <- traverse dump fields
@@ -263,8 +265,8 @@ vector fields = Field $ do
   let elemAlign = coerce (maybe 0 align $ headF inlineFields)
   let elemCount = Foldable.length inlineFields
 
-  prep uoffsetSize (coerce elemSize * fromIntegral @Int @Word16 elemCount)
-  prep elemAlign   (coerce elemSize * fromIntegral @Int @Word16 elemCount)
+  prep uoffsetSize (fromIntegral @InlineSize @Int32 elemSize * fromIntegral @Int @Int32 elemCount)
+  prep elemAlign   (fromIntegral @InlineSize @Int32 elemSize * fromIntegral @Int @Int32 elemCount)
 
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
