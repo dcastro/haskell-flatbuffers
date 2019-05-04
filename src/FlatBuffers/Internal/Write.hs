@@ -205,21 +205,21 @@ table :: [Field] -> Field
 table fields = Field $
   traverse dump fields >>= table'
 
-vtable :: [InlineSize] -> InlineSize -> BSL.ByteString
-vtable fieldOffsets tableSize = bytestring
+vtable :: [Word16] -> Word16 -> BSL.ByteString
+vtable fieldVOffsets tableSize = bytestring
   where
-    vtableSize = voffsetSize + voffsetSize + voffsetSize * L.genericLength fieldOffsets
+    vtableSize = voffsetSize + voffsetSize + voffsetSize * L.genericLength fieldVOffsets
     bytestring = B.toLazyByteString
       (  B.word16LE vtableSize
       <> B.word16LE (coerce tableSize)
-      <> foldMap (B.word16LE . coerce) fieldOffsets
+      <> foldMap (B.word16LE . coerce) fieldVOffsets
       )
 
 table' :: [InlineField] -> State FBState InlineField
 table' fields = do
   -- table
   tableEnd <- uses bytesWritten getSum
-  locations <-
+  fieldLocations <-
     coerce $ forM fields $ \f ->
       if size f == 0
         then pure 0
@@ -229,11 +229,13 @@ table' fields = do
 
   let tableLocation = tableStart + soffsetSize
   let tableSize = tableLocation - tableEnd
-  let fieldOffsets = flip fmap locations $ \case
+  let fieldVOffsets = flip fmap fieldLocations $ \case
                   0 -> 0
-                  loc -> fromIntegral @BytesWritten @InlineSize (tableLocation - loc)
+                  -- Note: This might overflow if the table has too many fields
+                  fieldLocation -> fromIntegral @BytesWritten @Word16 (tableLocation - fieldLocation)
 
-  let newVtable = vtable fieldOffsets (fromIntegral @BytesWritten @InlineSize tableSize)
+  -- Note: This might overflow if the table has too many fields
+  let newVtable = vtable fieldVOffsets (fromIntegral @BytesWritten @Word16 tableSize)
   let newVtableSize = fromIntegral @Int64 @BytesWritten (BSL.length newVtable)
   let newVtableLocation = tableLocation + newVtableSize
 
