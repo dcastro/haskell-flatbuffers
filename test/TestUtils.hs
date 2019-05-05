@@ -10,19 +10,19 @@ shouldBeLeft ea expected = case ea of
     Left e  -> e `shouldBe` expected
     Right _ -> expectationFailure "Expected 'Left', got 'Right'"
 
-shouldBeRightAnd :: Either e a -> (a -> Bool) -> Expectation
+shouldBeRightAnd :: Show e => Either e a -> (a -> Bool) -> Expectation
 shouldBeRightAnd ea pred = case ea of
-    Left _  -> expectationFailure "Expected 'Right', got 'Left'"
+    Left e  -> expectationFailure $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> pred a `shouldBe` True
 
-shouldBeRightAndExpect :: Either e a -> (a -> Expectation) -> Expectation
+shouldBeRightAndExpect :: Show e => Either e a -> (a -> Expectation) -> Expectation
 shouldBeRightAndExpect ea expect = case ea of
-    Left _  -> expectationFailure "Expected 'Right', got 'Left'"
+    Left e  -> expectationFailure $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> expect a
 
-fromRight :: Either e a -> IO a
+fromRight :: Show e => Either e a -> IO a
 fromRight ea = case ea of
-    Left _  -> expectationFailure' "Expected 'Right', got 'Left'"
+    Left e  -> expectationFailure' $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> pure a
 
 -- | Like `expectationFailure`, but returns @IO a@ instead of @IO ()@.

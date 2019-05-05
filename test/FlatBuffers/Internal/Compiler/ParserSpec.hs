@@ -24,7 +24,7 @@ spec =
         parseEof include [r|include "abc \" " ;|] `shouldParse` "abc \" "
         parseEof include [r|include "abc \" escaped \" rest" ;|] `shouldParse` "abc \" escaped \" rest"
       describe "fails to parse" $ do
-        it "unmatched quotes" $ 
+        it "unmatched quotes" $
           parseEof include "include \"abc;" `shouldFailWithError` "unexpected end of input\nexpecting '\"' or literal character\n"
         it "more than one string constant" $
           parseEof include "include \"abc\" \"def\";" `shouldFailWithError` "unexpected '\"'\nexpecting ';'\n"
@@ -68,7 +68,7 @@ spec =
       it "table declarations" $
         [r|
           table T {}
-          
+
           table ATable {
             abc : bool;
             b1 : bool = true;
@@ -249,8 +249,8 @@ shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> Stri
 shouldFailWithError p s =
   case p of
     Left (ParseErrorBundle [x] _) -> parseErrorTextPretty x `shouldBe` s
-    Left (ParseErrorBundle xs _)        -> fail $ "Expected one parsing error, but got more:\n" ++ show xs
-    Right a                             -> fail $ "Expected parsing to fail, but succeeded with:\n" ++ show a
+    Left (ParseErrorBundle xs _)  -> expectationFailure $ "Expected one parsing error, but got more:\n" ++ show xs
+    Right a                       -> expectationFailure $ "Expected parsing to fail, but succeeded with:\n" ++ show a
 
 parseEof :: Parser a -> String -> Either (ParseErrorBundle String Void) a
 parseEof p = parse (p <* eof) ""
