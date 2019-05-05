@@ -48,7 +48,8 @@ module FlatBuffers.Read
   , readTableFieldUnionVectorReq
   ) where
 
-import           Control.Exception.Safe        ( Exception, MonadThrow, throwM )
+import           Control.Exception             ( Exception )
+import           Control.Monad.Except          ( MonadError(..) )
 
 import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
@@ -77,7 +78,7 @@ import           FlatBuffers.Types
 
 import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 
-type ReadCtx m = MonadThrow m
+type ReadCtx = MonadError ReadError
 
 newtype FieldName = FieldName Text
   deriving newtype (Show, Eq, IsString)
@@ -373,7 +374,7 @@ readTableFieldReq :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> FieldNa
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
-    Nothing -> throwM $ MissingField name
+    Nothing -> throwError $ MissingField name
     Just offset -> read (moveV (tablePos t) offset)
 
 readTableFieldWithDef :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> a -> Table t -> m a
@@ -389,7 +390,7 @@ readTableFieldUnion read ix t =
       Nothing         -> pure UnionNone
       Just unionType' ->
         tableIndexToVOffset t (ix + 1) >>= \case
-          Nothing     -> throwM $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+          Nothing     -> throwError $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
           Just offset -> read unionType' (moveV (tablePos t) offset)
 
 readTableFieldUnionVectorOpt :: ReadCtx m
@@ -402,7 +403,7 @@ readTableFieldUnionVectorOpt read ix t =
     Nothing -> pure Nothing
     Just typesOffset ->
       tableIndexToVOffset t (ix + 1) >>= \case
-        Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Nothing -> throwError $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           Just <$> readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
@@ -414,10 +415,10 @@ readTableFieldUnionVectorReq :: ReadCtx m
   -> m (Vector (Union a))
 readTableFieldUnionVectorReq read ix name t =
   tableIndexToVOffset t ix >>= \case
-    Nothing -> throwM $ MissingField name
+    Nothing -> throwError $ MissingField name
     Just typesOffset ->
       tableIndexToVOffset t (ix + 1) >>= \case
-        Nothing -> throwM $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Nothing -> throwError $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
@@ -515,7 +516,7 @@ readText (getPosition -> pos) = do
     G.getByteString $ fromIntegral @Int32 @Int strLength
   case T.decodeUtf8' bs of
     Right t -> pure t
-    Left (T.DecodeError msg b) -> throwM $ Utf8DecodingError (T.pack msg) b
+    Left (T.DecodeError msg b) -> throwError $ Utf8DecodingError (T.pack msg) b
     -- The `EncodeError` constructor is deprecated and not used
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
@@ -592,7 +593,7 @@ runGetM get =
   where
     feedAll (G.Done _ _ x) _ = pure x
     feedAll (G.Partial k) lbs = feedAll (k (takeHeadChunk lbs)) (dropHeadChunk lbs)
-    feedAll (G.Fail _ pos msg) _ = throwM $ ParsingError pos (T.pack msg)
+    feedAll (G.Fail _ pos msg) _ = throwError $ ParsingError pos (T.pack msg)
 
     takeHeadChunk :: BSL.ByteString -> Maybe BS.ByteString
     takeHeadChunk lbs =
@@ -611,7 +612,7 @@ runGetM get =
 byteStringSafeIndex :: ReadCtx m => ByteString -> Int32 -> m Word8
 byteStringSafeIndex !cs0 !i =
   index' cs0 i
-  where index' BSL.Empty _ = throwM $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
+  where index' BSL.Empty _ = throwError $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
         index' (BSL.Chunk c cs) n
           -- NOTE: this might overflow in systems where Int has less than 32 bytes
           | fromIntegral @Int32 @Int n >= BS.length c =

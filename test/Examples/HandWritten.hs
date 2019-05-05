@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Examples.HandWritten where
-
-import           Control.Exception.Safe        ( throwM )
 
 import           Data.Int
 import           Data.Text                     ( Text )

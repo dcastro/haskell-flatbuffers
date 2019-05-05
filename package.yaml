@@ -32,7 +32,6 @@ dependencies:
   - parser-combinators
   - binary
   - hw-int
-  - safe-exceptions
   - scientific
 
 library:
@@ -45,6 +44,7 @@ tests:
     dependencies:
     - flatbuffers
     - hspec
+    - HUnit
     - hspec-megaparsec
     - hedgehog
     - hw-hspec-hedgehog
