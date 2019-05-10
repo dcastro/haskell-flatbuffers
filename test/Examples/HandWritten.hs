@@ -89,23 +89,23 @@ data Color
   deriving (Eq, Show, Read, Ord, Bounded)
 
 {-# INLINE toColor #-}
-toColor :: Word16 -> Maybe Color
+toColor :: Int16 -> Maybe Color
 toColor n =
   case n of
-    0 -> Just ColorRed
-    1 -> Just ColorGreen
-    2 -> Just ColorBlue
+    -2 -> Just ColorRed
+    0 -> Just ColorGreen
+    1 -> Just ColorBlue
     5 -> Just ColorGray
     8 -> Just ColorBlack
     _ -> Nothing
 
 {-# INLINE fromColor #-}
-fromColor :: Color -> Word16
+fromColor :: Color -> Int16
 fromColor n =
   case n of
-    ColorRed   -> 0
-    ColorGreen -> 1
-    ColorBlue  -> 2
+    ColorRed   -> -2
+    ColorGreen -> 0
+    ColorBlue  -> 1
     ColorGray  -> 5
     ColorBlack -> 8
 
@@ -114,22 +114,22 @@ fromColor n =
 ----------------------------------
 data Enums
 
-enums :: Maybe Word16 -> Maybe (WriteStruct StructWithEnum) -> [Word16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
+enums :: Maybe Int16 -> Maybe (WriteStruct StructWithEnum) -> [Int16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
 enums x1 x2 x3 x4 = writeTable
-  [ (optionalDef 2 . inline) word16 x1
+  [ (optionalDef 2 . inline) int16 x1
   , optional unWriteStruct x2
-  , (writeVector . inline) word16 x3
+  , (writeVector . inline) int16 x3
   , (optional . writeVector) unWriteStruct x4
   ]
 
-getEnums'x :: ReadCtx m => Table Enums -> m Word16
-getEnums'x = readTableFieldWithDef readWord16 0 2
+getEnums'x :: ReadCtx m => Table Enums -> m Int16
+getEnums'x = readTableFieldWithDef readInt16 0 1
 
 getEnums'y :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
 getEnums'y = readTableFieldOpt readStruct' 1
 
-getEnums'xs :: ReadCtx m => Table Enums -> m (Vector Word16)
-getEnums'xs = readTableFieldReq (readPrimVector Word16Vec) 2 "xs"
+getEnums'xs :: ReadCtx m => Table Enums -> m (Vector Int16)
+getEnums'xs = readTableFieldReq (readPrimVector Int16Vec) 2 "xs"
 
 getEnums'ys :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
 getEnums'ys = readTableFieldOpt (readStructVector 6) 3
@@ -138,18 +138,18 @@ getEnums'ys = readTableFieldOpt (readStructVector 6) 3
 
 data StructWithEnum
 
-structWithEnum :: Int8 -> Word16 -> Int8 -> WriteStruct StructWithEnum
+structWithEnum :: Int8 -> Int16 -> Int8 -> WriteStruct StructWithEnum
 structWithEnum x1 x2 x3 = writeStruct 2
   [ padded 1 (int8 x3)
-  , word16 x2
+  , int16 x2
   , padded 1 (int8 x1)
   ]
 
 getStructWithEnum'x :: ReadCtx m => Struct StructWithEnum -> m Int8
 getStructWithEnum'x = readStructField readInt8 0
 
-getStructWithEnum'y :: ReadCtx m => Struct StructWithEnum -> m Word16
-getStructWithEnum'y = readStructField readWord16 2
+getStructWithEnum'y :: ReadCtx m => Struct StructWithEnum -> m Int16
+getStructWithEnum'y = readStructField readInt16 2
 
 getStructWithEnum'z :: ReadCtx m => Struct StructWithEnum -> m Int8
 getStructWithEnum'z = readStructField readInt8 4

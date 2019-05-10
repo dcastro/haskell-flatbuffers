@@ -18,7 +18,7 @@ table Primitives {
 root_type Primitives;
 file_identifier "PRIM";
 
-enum Color:ushort { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
+enum Color: short { Red = -2, Green = 0, Blue, Gray = 5, Black = 8 }
 
 struct StructWithEnum {
   x: byte;
