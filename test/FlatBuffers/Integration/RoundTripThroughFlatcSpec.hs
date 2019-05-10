@@ -244,6 +244,46 @@ spec =
         getStructs'c decoded `shouldBeRightAnd` isNothing
         getStructs'd decoded `shouldBeRightAnd` isNothing
 
+    describe "Nested tables" $ do
+      it "present" $ do
+        (json, decoded) <- flatc $ nestedTables (Just (table1 (Just (table2 (Just 11))) (Just 22)))
+
+        json `shouldBeJson` object
+          [ "x" .= object
+            [ "x" .= object
+              [ "x" .= Number 11
+              ]
+            , "y" .= Number 22
+            ]
+          ]
+
+        t1 <- fromRightJust $ getNestedTables'x decoded
+        t2 <- fromRightJust $ getTable1'x t1
+
+        getTable1'y t1 `shouldBe` Right 22
+        getTable2'x t2 `shouldBe` Right 11
+
+      it "missing table2" $ do
+        (json, decoded) <- flatc $ nestedTables (Just (table1 Nothing (Just 22)))
+
+        json `shouldBeJson` object
+          [ "x" .= object
+            [ "y" .= Number 22
+            ]
+          ]
+
+        t1 <- fromRightJust $ getNestedTables'x decoded
+        getTable1'x t1 `shouldBeRightAnd` isNothing
+        getTable1'y t1 `shouldBe` Right 22
+
+      it "missing table1" $ do
+        (json, decoded) <- flatc $ nestedTables Nothing
+
+        json `shouldBeJson` object []
+
+        getNestedTables'x decoded `shouldBeRightAnd` isNothing
+
+
     describe "Union" $ do
       describe "present" $ do
         it "with sword" $ do

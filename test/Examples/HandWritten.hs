@@ -259,7 +259,44 @@ getStructs'd = readTableFieldOpt readStruct' 3
 
 
 ----------------------------------
-------------- Sword -------------
+--------- Nested Tables ----------
+----------------------------------
+data NestedTables
+
+nestedTables :: Maybe (WriteTable Table1) -> WriteTable NestedTables
+nestedTables x0 = writeTable
+  [ optional unWriteTable x0
+  ]
+
+getNestedTables'x :: ReadCtx m => Table NestedTables -> m (Maybe (Table Table1))
+getNestedTables'x = readTableFieldOpt readTable 0
+
+
+data Table1
+
+table1 :: Maybe (WriteTable Table2) -> Maybe Int32 -> WriteTable Table1
+table1 x0 x1 = writeTable
+  [ optional unWriteTable x0
+  , (optionalDef 0 . inline) int32 x1
+  ]
+
+getTable1'x :: ReadCtx m => Table Table1 -> m (Maybe (Table Table2))
+getTable1'x = readTableFieldOpt readTable 0
+
+getTable1'y :: ReadCtx m => Table Table1 -> m Int16
+getTable1'y = readTableFieldWithDef readInt16 1 0
+
+
+data Table2
+
+table2 :: Maybe Int16 -> WriteTable Table2
+table2 x0 = writeTable [ (optionalDef 0 . inline) int16 x0 ]
+
+getTable2'x :: ReadCtx m => Table Table2 -> m Int16
+getTable2'x = readTableFieldWithDef readInt16 0 0
+
+----------------------------------
+------------- Sword --------------
 ----------------------------------
 data Sword
 
@@ -270,7 +307,7 @@ getSword'x :: ReadCtx m => Table Sword -> m (Maybe Text)
 getSword'x = readTableFieldOpt readText 0
 
 ----------------------------------
-------------- Axe -------------
+------------- Axe ----------------
 ----------------------------------
 data Axe
 

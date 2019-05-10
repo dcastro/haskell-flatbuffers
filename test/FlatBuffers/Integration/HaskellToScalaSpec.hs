@@ -19,7 +19,6 @@ import           TestUtils
 spec :: Spec
 spec =
   describe "Haskell encoders should be consistent with Scala decoders" $
-  parallel $ do
     it "VectorOfUnions" $ do
       test
         "VectorOfUnions"

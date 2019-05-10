@@ -126,6 +126,28 @@ spec =
         getStructs'c root `shouldBeRightAnd` isNothing
         getStructs'd root `shouldBeRightAnd` isNothing
 
+    describe "Nested tables" $ do
+      it "present" $ do
+        root <- fromRight $ decode $ encode $ nestedTables (Just (table1 (Just (table2 (Just 11))) (Just 22)))
+
+        t1 <- fromRightJust $ getNestedTables'x root
+        t2 <- fromRightJust $ getTable1'x t1
+
+        getTable1'y t1 `shouldBe` Right 22
+        getTable2'x t2 `shouldBe` Right 11
+
+      it "missing table2" $ do
+        root <- fromRight $ decode $ encode $ nestedTables (Just (table1 Nothing (Just 22)))
+
+        t1 <- fromRightJust $ getNestedTables'x root
+        getTable1'x t1 `shouldBeRightAnd` isNothing
+        getTable1'y t1 `shouldBe` Right 22
+
+      it "missing table1" $ do
+        root <- fromRight $ decode $ encode $ nestedTables Nothing
+
+        getNestedTables'x root `shouldBeRightAnd` isNothing
+
     describe "Union" $ do
       it "present" $ do
         x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))

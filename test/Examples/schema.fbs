@@ -1,10 +1,5 @@
 namespace testapi . flatbuffers;
 
-table Simple {
-  n: int;
-  s: string;
-}
-
 table Primitives {
   // scalars (excluding enums) + string
   a: uint8 = 1;
@@ -22,13 +17,6 @@ table Primitives {
 }
 root_type Primitives;
 file_identifier "PRIM";
-
-table ManyTables {
-  n: int;
-  x: Simple;
-  y: Simple;
-  z: Simple;
-}
 
 enum Color:ushort { Red = 0, Green, Blue = 2, Gray = 5, Black = 8 }
 
@@ -73,6 +61,19 @@ table Structs {
   b: Struct2;
   c: Struct3;
   d: Struct4;
+}
+
+table NestedTables {
+  x: Table1;
+}
+
+table Table1 {
+  x: Table2;
+  y: int;
+}
+
+table Table2 {
+  x: short;
 }
 
 union Weapon { Sword, Axe }
