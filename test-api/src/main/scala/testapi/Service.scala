@@ -24,30 +24,6 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
           val json: Try[Option[Json]] =
             Try {
               flatBufferName match {
-                case "ManyTables" =>
-                  val obj = ManyTables.getRootAsManyTables(bb)
-                  Json.obj(
-                    "n" =>> obj.n,
-                    "x" =>> inside(obj.x) { x =>
-                      Json.obj(
-                        "n" =>> x.n,
-                        "s" =>> x.s
-                      )
-                    },
-                    "y" =>> inside(obj.y) { y =>
-                      Json.obj(
-                        "n" =>> y.n,
-                        "s" =>> y.s
-                      )
-                    },
-                    "z" =>> inside(obj.z) { z =>
-                      Json.obj(
-                        "n" =>> z.n,
-                        "s" =>> z.s
-                      )
-                    }
-                  ).some
-
 
                 case "VectorOfUnions" =>
                   val obj = VectorOfUnions.getRootAsVectorOfUnions(bb)
