@@ -204,19 +204,14 @@ readWeapon n pos =
 ----------------------------------
 data TableWithUnion
 
-tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteUnion Weapon -> WriteTable TableWithUnion
-tableWithUnion x1 x2 = writeTable
+tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteTable TableWithUnion
+tableWithUnion x1 = writeTable
   [ optional writeUnionType x1
   , optional writeUnionValue x1
-  , writeUnionType x2
-  , writeUnionValue x2
   ]
 
 getTableWithUnion'uni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
 getTableWithUnion'uni = readTableFieldUnion readWeapon 0
-
-getTableWithUnion'uniReq :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
-getTableWithUnion'uniReq = readTableFieldUnion readWeapon 2
 
 ----------------------------------
 ------------ Vectors -------------

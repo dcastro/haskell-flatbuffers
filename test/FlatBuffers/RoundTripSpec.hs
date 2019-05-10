@@ -9,7 +9,7 @@ import           Control.Monad              ( forM, when )
 
 import           Data.Functor               ( (<&>) )
 import qualified Data.List                  as L
-import           Data.Maybe                 ( fromJust, isNothing )
+import           Data.Maybe                 ( isNothing )
 import           Data.Text                  ( Text )
 import           Data.Word
 
@@ -96,23 +96,23 @@ spec =
 
     describe "Union" $ do
       it "present" $ do
-        x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi")))) none
+        x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "hi")
           _                      -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound)))) none
+        x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Right maxBound
           _                    -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion (Just none) none
+        x <- fromRight $ decode $ encode $ tableWithUnion (Just none)
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
 
       it "missing" $ do
-        x <- fromRight $ decode $ encode $ tableWithUnion Nothing none
+        x <- fromRight $ decode $ encode $ tableWithUnion Nothing
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
@@ -122,15 +122,6 @@ spec =
         getTableWithUnion'uni x `shouldBeLeft` MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
     describe "Vectors" $ do
-      let
-        testPrimVector :: (VectorElement a, Show a, Eq a) => [a] -> Maybe (Vector a) -> Expectation
-        testPrimVector list Nothing = expectationFailure "Expected 'Just', got 'Nothing'"
-        testPrimVector list (Just vec) = do
-          vectorLength vec `shouldBe` Right (L.genericLength list)
-          toList vec `shouldBe` Right list
-          when (not $ null list) $
-            traverse (\i -> vec `index` i) [0 .. L.genericLength list - 1] `shouldBe` Right list
-
       let Right nonEmptyVecs = decode $ encode $ vectors
             (Just [minBound, 0, maxBound])
             (Just [minBound, 0, maxBound])
@@ -155,55 +146,38 @@ spec =
             Nothing Nothing Nothing Nothing
             Nothing Nothing Nothing Nothing
 
+      let
+        testPrimVector :: (VectorElement a, Show a, Eq a)
+          => (Table Vectors -> Either ReadError (Maybe (Vector a)))
+          -> [a]
+          -> Spec
+        testPrimVector getVec expectedList = do
+          it "non empty" $ do
+            vec <- fromRightJust (getVec nonEmptyVecs)
+            vectorLength vec `shouldBe` Right (L.genericLength expectedList)
+            toList vec       `shouldBe` Right expectedList
+            traverse (\i -> vec `index` i) [0 .. L.genericLength expectedList - 1] `shouldBe` Right expectedList
 
-      describe "word8 vector"  $ do
-        it "non empty" $ getVectors'a nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'a emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'a missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "word16 vector" $ do
-        it "non empty" $ getVectors'b nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'b emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'b missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "word32 vector" $ do
-        it "non empty" $ getVectors'c nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'c emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'c missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "word64 vector" $ do
-        it "non empty" $ getVectors'd nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'd emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'd missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "int8 vector"   $ do
-        it "non empty" $ getVectors'e nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'e emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'e missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "int16 vector"  $ do
-        it "non empty" $ getVectors'f nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'f emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'f missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "int32 vector"  $ do
-        it "non empty" $ getVectors'g nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'g emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'g missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "int64 vector"  $ do
-        it "non empty" $ getVectors'h nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [minBound, 0, maxBound]
-        it "empty"     $ getVectors'h emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'h missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "float vector"  $ do
-        it "non empty" $ getVectors'i nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [-12e9, 0, 3.33333333333333333333]
-        it "empty"     $ getVectors'i emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'i missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "double vector" $ do
-        it "non empty" $ getVectors'j nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [-12e98, 0, 3.33333333333333333333]
-        it "empty"     $ getVectors'j emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'j missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "bool vector"   $ do
-        it "non empty" $ getVectors'k nonEmptyVecs `shouldBeRightAndExpect` testPrimVector [True, False, True]
-        it "empty"     $ getVectors'k emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'k missingVecs >>= traverse toList) `shouldBe` Right Nothing
-      describe "string vector" $ do
-        it "non empty" $ getVectors'l nonEmptyVecs `shouldBeRightAndExpect` testPrimVector ["hi 👬 bye", "", "world"]
-        it "empty"     $ getVectors'l emptyVecs    `shouldBeRightAndExpect` testPrimVector []
-        it "missing"   $ (getVectors'l missingVecs >>= traverse toList) `shouldBe` Right Nothing
+          it "empty" $ do
+            vec <- fromRightJust (getVec emptyVecs)
+            vectorLength vec `shouldBe` Right 0
+            toList vec       `shouldBe` Right []
+
+          it "missing" $
+            getVec missingVecs `shouldBeRightAnd` isNothing
+
+      describe "word8 vector"  $ testPrimVector getVectors'a [minBound, 0, maxBound]
+      describe "word16 vector" $ testPrimVector getVectors'b [minBound, 0, maxBound]
+      describe "word32 vector" $ testPrimVector getVectors'c [minBound, 0, maxBound]
+      describe "word64 vector" $ testPrimVector getVectors'd [minBound, 0, maxBound]
+      describe "int8 vector"   $ testPrimVector getVectors'e [minBound, 0, maxBound]
+      describe "int16 vector"  $ testPrimVector getVectors'f [minBound, 0, maxBound]
+      describe "int32 vector"  $ testPrimVector getVectors'g [minBound, 0, maxBound]
+      describe "int64 vector"  $ testPrimVector getVectors'h [minBound, 0, maxBound]
+      describe "float vector"  $ testPrimVector getVectors'i [-12e9, 0, 3.33333333333333333333]
+      describe "double vector" $ testPrimVector getVectors'j [-12e98, 0, 3.33333333333333333333]
+      describe "bool vector"   $ testPrimVector getVectors'k [True, False, True]
+      describe "string vector" $ testPrimVector getVectors'l ["hi 👬 bye", "", "world"]
 
     describe "VectorOfTables" $ do
       it "non empty" $ do
@@ -221,7 +195,7 @@ spec =
       it "empty" $ do
         x <- fromRight $ decode $ encode $ vectorOfTables (Just [])
 
-        Just xs <- fromRight $ getVectorOfTables'xs x
+        xs <- fromRightJust $ getVectorOfTables'xs x
         vectorLength xs `shouldBe` Right 0
         (toList xs >>= traverse getAxe'y) `shouldBe` Right []
 
@@ -237,7 +211,7 @@ spec =
           , threeBytes 4 5 6
           ])
 
-        Just xs <- fromRight $ getVectorOfStructs'xs x
+        xs <- fromRightJust $ getVectorOfStructs'xs x
         vectorLength xs `shouldBe` Right 2
         (toList xs >>= traverse getBytes) `shouldBe` Right [(1,2,3), (4,5,6)]
         (traverse (index xs) [0..1] >>= traverse getBytes) `shouldBe` Right [(1,2,3), (4,5,6)]
@@ -245,7 +219,7 @@ spec =
       it "empty" $ do
         x <- fromRight $ decode $ encode $ vectorOfStructs (Just [])
 
-        Just xs <- fromRight $ getVectorOfStructs'xs x
+        xs <- fromRightJust $ getVectorOfStructs'xs x
         vectorLength xs `shouldBe` Right 0
         (toList xs >>= traverse getBytes) `shouldBe` Right []
 
@@ -331,10 +305,10 @@ spec =
                 (Just [align1 101, align1 102, align1 103])
                 (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
 
-        Just a1 <- fromRight $ getAlignT'x root
-        Just a2 <- fromRight $ getAlignT'y root
-        a1s <- fromRight $ getAlignT'xs root >>= toList . fromJust
-        a2s <- fromRight $ getAlignT'ys root >>= toList . fromJust
+        a1 <- fromRightJust $ getAlignT'x root
+        a2 <- fromRightJust $ getAlignT'y root
+        a1s <- fromRightJust (getAlignT'xs root) >>= (fromRight . toList)
+        a2s <- fromRightJust (getAlignT'ys root) >>= (fromRight . toList)
 
         getAlign1'x a1 `shouldBe` Right 11
 

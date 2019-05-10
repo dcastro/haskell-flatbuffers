@@ -52,107 +52,6 @@ data Case = Case
 cases :: [Case]
 cases =
   [ Case
-      "Simple"
-      "Simple"
-      (root $ table [inline int32 12, text "hi"])
-      (object ["n" .= Number 12, "s" .= String "hi"])
-  , Case
-      "Primitives - maxBound"
-      "Primitives"
-      (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
-       table
-         [ inline word8 maxBound
-         , inline word16 maxBound
-         , inline word32 maxBound
-         , inline word64 maxBound
-         , inline int8 maxBound
-         , inline int16 maxBound
-         , inline int32 maxBound
-         , inline int64 maxBound
-         , inline float 2873242.8
-         , inline double 2873242.82782
-         , inline bool True
-         , text "hello"
-         ])
-      (object
-         [ "a" .= maxBound @Word8
-         , "b" .= maxBound @Word16
-         , "c" .= maxBound @Word32
-         , "d" .= maxBound @Word64
-         , "e" .= maxBound @Int8
-         , "f" .= maxBound @Int16
-         , "g" .= maxBound @Int32
-         , "h" .= maxBound @Int64
-         , "i" .= Number 2873242.8
-         , "j" .= Number 2873242.82782
-         , "k" .= True
-         , "l" .= String "hello"
-         ])
-  , Case
-      "Primitives - minBound"
-      "Primitives"
-      (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
-       table
-         [ inline word8 minBound
-         , inline word16 minBound
-         , inline word32 minBound
-         , inline word64 minBound
-         , inline int8 minBound
-         , inline int16 minBound
-         , inline int32 minBound
-         , inline int64 minBound
-         , missing
-         , missing
-         , inline bool False
-         , text ""
-         ])
-      (object
-         [ "a" .= minBound @Word8
-         , "b" .= minBound @Word16
-         , "c" .= minBound @Word32
-         , "d" .= minBound @Word64
-         , "e" .= minBound @Int8
-         , "f" .= minBound @Int16
-         , "g" .= minBound @Int32
-         , "h" .= minBound @Int64
-         , "i" .= Number 1
-         , "j" .= Number 1
-         , "k" .= False
-         , "l" .= String ""
-         ])
-  , Case
-      "Primitives - missing fields"
-      "Primitives"
-      (rootWithFileIdentifier (unsafeFileIdentifier "PRIM") $
-       table
-         [ missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         , missing
-         ])
-      (object
-         [ "a" .= Number 1
-         , "b" .= Number 1
-         , "c" .= Number 1
-         , "d" .= Number 1
-         , "e" .= Number 1
-         , "f" .= Number 1
-         , "g" .= Number 1
-         , "h" .= Number 1
-         , "i" .= Number 1
-         , "j" .= Number 1
-         , "k" .= False
-         , "l" .= Null
-         ])
-  , Case
       "ManyTables"
       "ManyTables"
       (root $
@@ -168,36 +67,6 @@ cases =
          , "y" .= Null
          , "z" .= object ["n" .= Number 34, "s" .= String "bye"]
          ])
-  , Case
-      "Enums"
-      "Enums"
-      (root $ table [inline word16 5])
-      (object ["x" .= String "Gray", "y" .= Null, "xs" .= array [], "ys" .= array []])
-  , Case
-      "Enums - missing"
-      "Enums"
-      (root $ table [missing])
-      (object ["x" .= String "Blue", "y" .= Null, "xs" .= array [], "ys" .= array []])
-  , Case
-      "TableWithUnion with UnionA"
-      "TableWithUnion"
-      (root $ table [inline word8 1, table [text "hi"]])
-      (object ["uni" .= object ["x" .= String "hi"]])
-  , Case
-      "TableWithUnion with UnionB"
-      "TableWithUnion"
-      (root $ table [inline word8 2, table [inline int32 99]])
-      (object ["uni" .= object ["y" .= Number 99]])
-  , Case
-      "TableWithUnion with union type = None"
-      "TableWithUnion"
-      (root $ table [inline word8 0, missing])
-      (object ["uni" .= String "NONE"])
-  , Case
-      "TableWithUnion with missing union type"
-      "TableWithUnion"
-      (root $ table [missing, missing])
-      (object ["uni" .= String "NONE"])
   , Case
       "Structs"
       "Structs"
@@ -241,24 +110,6 @@ cases =
                  , "z" .= True
                  ]
              ]
-         ])
-  , Case
-      "VectorOfStructs"
-      "VectorOfStructs"
-      (root $
-       table
-         [ vector @[]
-             [ struct 1 [word8 3, word8 2, word8 1]
-             , struct 1 [word8 6, word8 5, word8 4]
-             , struct 1 [word8 9, word8 8, word8 7]
-             ]
-         ])
-      (object
-         [ "xs" .= array
-           [ object ["x" .= Number 1, "y" .= Number 2, "z" .= Number 3]
-           , object ["x" .= Number 4, "y" .= Number 5, "z" .= Number 6]
-           , object ["x" .= Number 7, "y" .= Number 8, "z" .= Number 9]
-           ]
          ])
   ]
 

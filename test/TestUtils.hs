@@ -1,6 +1,12 @@
 module TestUtils where
 
-import           Test.HUnit ( assertFailure )
+import           Control.Monad             ( (>=>) )
+
+import qualified Data.Aeson                as J
+import           Data.Aeson.Encode.Pretty  ( encodePretty )
+import qualified Data.ByteString.Lazy.UTF8 as BSLU
+
+import           Test.HUnit                ( assertFailure )
 import           Test.Hspec
 
 
@@ -25,8 +31,24 @@ fromRight ea = case ea of
     Left e  -> expectationFailure' $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> pure a
 
+fromJust :: Maybe a -> IO a
+fromJust mb = case mb of
+  Nothing -> expectationFailure' $ "Expected 'Just', got 'Nothing'"
+  Just a  -> pure a
+
+fromRightJust :: Show e => Either e (Maybe a) -> IO a
+fromRightJust = fromRight >=> fromJust
+
 -- | Like `expectationFailure`, but returns @IO a@ instead of @IO ()@.
 expectationFailure' :: HasCallStack => String -> IO a
 expectationFailure' = Test.HUnit.assertFailure
 
+-- | Allows Json documents to be compared (using e.g. `shouldBe`) and pretty-printed in case the comparison fails.
+newtype Pretty = Pretty J.Value
+  deriving Eq
 
+instance Show Pretty where
+  show (Pretty v) = BSLU.toString (encodePretty v)
+
+shouldBeJson :: J.Value -> J.Value -> Expectation
+shouldBeJson x y = Pretty x `shouldBe` Pretty y

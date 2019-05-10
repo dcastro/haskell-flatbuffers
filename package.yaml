@@ -33,6 +33,7 @@ dependencies:
   - binary
   - hw-int
   - scientific
+  - process
 
 library:
   source-dirs:      src

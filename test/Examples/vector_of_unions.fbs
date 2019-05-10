@@ -1,0 +1,16 @@
+include "schema.fbs";
+
+namespace testapi.flatbuffers;
+
+table VectorOfUnions {
+  xs: [Weapon];
+  xsReq: [Weapon] (required);
+}
+
+table DeprecatedVectorOfUnions {
+  x: byte;
+  vec: [Weapon] (required); // should leave 2 vtable entries empty
+  y: byte;
+}
+
+

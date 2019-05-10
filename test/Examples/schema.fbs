@@ -51,7 +51,6 @@ table Axe { y: int; }
 
 table TableWithUnion {
   uni: Weapon;
-  uniReq: Weapon (required);
 }
 
 table Vectors {
@@ -105,11 +104,6 @@ struct ThreeBytes {
 
 table VectorOfStructs {
   xs: [ThreeBytes];
-}
-
-table VectorOfUnions {
-  xs: [Weapon];
-  xsReq: [Weapon] (required);
 }
 
 // These are used for testing padding and alignment of structs / struct fields

@@ -1,0 +1,496 @@
+{-# LANGUAGE LambdaCase #-}
+
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+
+module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
+
+import           Control.Exception          ( throwIO )
+import           Control.Applicative        ( liftA3 )
+import           Control.Monad              ( forM )
+import           Data.Aeson                 ( Value(..), object, (.=) )
+import qualified Data.Aeson                 as J
+import qualified Data.ByteString.Lazy       as BSL
+import           Data.Int
+import           Data.Proxy
+import           Data.Typeable              ( Typeable, typeRep )
+import           Data.Word
+import           Data.Maybe (isNothing)
+import           Examples.HandWritten
+import           FlatBuffers.FileIdentifier ( HasFileIdentifier )
+import           FlatBuffers.Read
+import           FlatBuffers.Write
+import qualified System.Process             as Sys
+import           Test.Hspec
+import           TestUtils
+
+{-
+
+These tests ensure our encoders/decoders are consistent with flatc's.
+Each test:
+ - creates a flatbuffer using haskell's encoders
+ - saves it to a .bin file
+ - asks flatc to convert it to a .json file
+ - reads the json into memory, checks it against the expected json
+ - asks flatc to convert that .json file back to .bin
+ - reads the flatbuffer created by flatc into memory, checks that it contains the same data as we started with.
+
+See "Using flatc as a Conversion Tool" at the bottom:
+  https://google.github.io/flatbuffers/flatbuffers_guide_tutorial.html
+
+Note that flatc is not yet able to convert vector of unions from binary to json (even though
+json -> binary works), so we can't use flatc to test this.
+Instead, we check our encoders against java's decoders by
+sending requests to a Scala server: FlatBuffers.Integration.HaskellToScalaSpec.
+
+-}
+
+spec :: Spec
+spec =
+  describe "Haskell encoders/decoders should be consistent with flatc" $ do
+    describe "Primitives" $ do
+      it "present with maxBound" $ do
+        (json, decoded) <- flatcWithFileIdentifier $ primitives
+          (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+          (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
+          (Just 1234.56) (Just 2873242.82782) (Just True) (Just "hi 👬 bye")
+
+        json `shouldBeJson` object
+          [ "a" .= maxBound @Word8
+          , "b" .= maxBound @Word16
+          , "c" .= maxBound @Word32
+          , "d" .= maxBound @Word64
+          , "e" .= maxBound @Int8
+          , "f" .= maxBound @Int16
+          , "g" .= maxBound @Int32
+          , "h" .= maxBound @Int64
+          , "i" .= Number 1234.560059
+          , "j" .= Number 2873242.827819999773
+          , "k" .= True
+          , "l" .= String "hi 👬 bye"
+          ]
+
+        getPrimitives'a decoded `shouldBe` Right maxBound
+        getPrimitives'b decoded `shouldBe` Right maxBound
+        getPrimitives'c decoded `shouldBe` Right maxBound
+        getPrimitives'd decoded `shouldBe` Right maxBound
+        getPrimitives'e decoded `shouldBe` Right maxBound
+        getPrimitives'f decoded `shouldBe` Right maxBound
+        getPrimitives'g decoded `shouldBe` Right maxBound
+        getPrimitives'h decoded `shouldBe` Right maxBound
+        getPrimitives'i decoded `shouldBe` Right 1234.56
+        getPrimitives'j decoded `shouldBe` Right 2873242.82782
+        getPrimitives'k decoded `shouldBe` Right True
+        getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
+
+      it "present with minBound" $ do
+        (json, decoded) <- flatcWithFileIdentifier $ primitives
+          (Just minBound) (Just minBound) (Just minBound) (Just minBound)
+          (Just minBound) (Just minBound) (Just minBound) (Just minBound)
+          (Just 1234.56) (Just 2873242.82782) (Just False) (Just "hi 👬 bye")
+
+        json `shouldBeJson` object
+          [ "a" .= minBound @Word8
+          , "b" .= minBound @Word16
+          , "c" .= minBound @Word32
+          , "d" .= minBound @Word64
+          , "e" .= minBound @Int8
+          , "f" .= minBound @Int16
+          , "g" .= minBound @Int32
+          , "h" .= minBound @Int64
+          , "i" .= Number 1234.560059
+          , "j" .= Number 2873242.827819999773
+          , "l" .= String "hi 👬 bye"
+          ]
+
+        getPrimitives'a decoded `shouldBe` Right minBound
+        getPrimitives'b decoded `shouldBe` Right minBound
+        getPrimitives'c decoded `shouldBe` Right minBound
+        getPrimitives'd decoded `shouldBe` Right minBound
+        getPrimitives'e decoded `shouldBe` Right minBound
+        getPrimitives'f decoded `shouldBe` Right minBound
+        getPrimitives'g decoded `shouldBe` Right minBound
+        getPrimitives'h decoded `shouldBe` Right minBound
+        getPrimitives'i decoded `shouldBe` Right 1234.56
+        getPrimitives'j decoded `shouldBe` Right 2873242.82782
+        getPrimitives'k decoded `shouldBe` Right False
+        getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
+
+      it "present with defaults" $ do
+        (json, decoded) <- flatcWithFileIdentifier $ primitives
+          (Just 1) (Just 1) (Just 1) (Just 1)
+          (Just 1) (Just 1) (Just 1) (Just 1)
+          (Just 1) (Just 1) (Just False) (Just "hi 👬 bye")
+
+        json `shouldBeJson` object
+          [ "l" .= String "hi 👬 bye"
+          ]
+
+        getPrimitives'a decoded `shouldBe` Right 1
+        getPrimitives'b decoded `shouldBe` Right 1
+        getPrimitives'c decoded `shouldBe` Right 1
+        getPrimitives'd decoded `shouldBe` Right 1
+        getPrimitives'e decoded `shouldBe` Right 1
+        getPrimitives'f decoded `shouldBe` Right 1
+        getPrimitives'g decoded `shouldBe` Right 1
+        getPrimitives'h decoded `shouldBe` Right 1
+        getPrimitives'i decoded `shouldBe` Right 1
+        getPrimitives'j decoded `shouldBe` Right 1
+        getPrimitives'k decoded `shouldBe` Right False
+        getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
+
+      it "missing" $ do
+        (json, decoded) <- flatcWithFileIdentifier $ primitives
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+
+        json `shouldBeJson` object []
+
+        getPrimitives'a decoded `shouldBe` Right 1
+        getPrimitives'b decoded `shouldBe` Right 1
+        getPrimitives'c decoded `shouldBe` Right 1
+        getPrimitives'd decoded `shouldBe` Right 1
+        getPrimitives'e decoded `shouldBe` Right 1
+        getPrimitives'f decoded `shouldBe` Right 1
+        getPrimitives'g decoded `shouldBe` Right 1
+        getPrimitives'h decoded `shouldBe` Right 1
+        getPrimitives'i decoded `shouldBe` Right 1
+        getPrimitives'j decoded `shouldBe` Right 1
+        getPrimitives'k decoded `shouldBe` Right False
+        getPrimitives'l decoded `shouldBe` Right Nothing
+
+    describe "Enums" $ do
+      let readStructWithEnum = (liftA3 . liftA3) (,,) getStructWithEnum'x (fmap toColor <$> getStructWithEnum'y) getStructWithEnum'z
+      it "present" $ do
+        (json, decoded) <- flatc $ enums
+          (Just (fromColor ColorGray))
+          (Just (structWithEnum 11 (fromColor ColorRed) 22))
+          [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+          (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
+
+        json `shouldBeJson` object
+          [ "x" .= String "Gray"
+          , "y" .= object [ "x" .= Number 11, "y" .= String "Red", "z" .= Number 22 ]
+          , "xs" .= [ String "Black", String "Blue", String "Green" ]
+          , "ys" .=
+            [ object [ "x" .= Number 33, "y" .= String "Red", "z" .= Number 44 ]
+            , object [ "x" .= Number 55, "y" .= String "Green", "z" .= Number 66 ]
+            ]
+          ]
+
+        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGray)
+        (getEnums'y decoded >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
+        (getEnums'xs decoded >>= toList) `shouldBe` Right [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+        (getEnums'ys decoded >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe`
+          Right (Just
+            [ (33, Just ColorRed, 44)
+            , (55, Just ColorGreen, 66)
+            ])
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ enums Nothing Nothing [] Nothing
+
+        json `shouldBeJson` object [ "xs" .= [] @Value ]
+
+        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorBlue)
+        getEnums'y decoded `shouldBeRightAnd` isNothing
+        (getEnums'xs decoded >>= toList) `shouldBe` Right []
+        getEnums'ys decoded `shouldBeRightAnd` isNothing
+
+    describe "Union" $ do
+      describe "present" $ do
+        it "with sword" $ do
+          (json, decoded) <- flatc $ tableWithUnion (Just (weapon (sword (Just "hi"))))
+
+          json `shouldBeJson` object
+            [ "uni"      .= object [ "x" .= String "hi" ]
+            , "uni_type" .= String "Sword"
+            ]
+
+          getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
+            Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "hi")
+            _                      -> unexpectedUnionType
+
+        it "with axe" $ do
+          (json, decoded) <- flatc $ tableWithUnion (Just (weapon (axe (Just maxBound))))
+
+          json `shouldBeJson` object
+            [ "uni"      .= object [ "y" .= maxBound @Int32 ]
+            , "uni_type" .= String "Axe"
+            ]
+
+          getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
+            Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Right maxBound
+            _                    -> unexpectedUnionType
+
+        it "with none" $ do
+          (json, decoded) <- flatc $ tableWithUnion (Just none)
+
+          json `shouldBeJson` object []
+
+          getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
+            UnionNone -> pure ()
+            _         -> unexpectedUnionType
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ tableWithUnion Nothing
+
+        json `shouldBeJson` object []
+
+        getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
+          UnionNone -> pure ()
+          _         -> unexpectedUnionType
+
+    describe "Vectors" $ do
+      it "non-empty" $ do
+        (json, decoded) <- flatc $ vectors
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [minBound, 0, maxBound])
+          (Just [-12e9, 0, 3.333333])
+          (Just [-12e98, 0, 3.33333333333333333333])
+          (Just [True, False, True])
+          (Just ["hi 👬 bye", "", "world"])
+
+        json `shouldBeJson` object
+          [ "a" .= [ minBound @Word8, 0, maxBound @Word8 ]
+          , "b" .= [ minBound @Word16, 0, maxBound @Word16 ]
+          , "c" .= [ minBound @Word32, 0, maxBound @Word32 ]
+          , "d" .= [ minBound @Word64, 0, maxBound @Word64 ]
+          , "e" .= [ minBound @Int8, 0, maxBound @Int8 ]
+          , "f" .= [ minBound @Int16, 0, maxBound @Int16 ]
+          , "g" .= [ minBound @Int32, 0, maxBound @Int32 ]
+          , "h" .= [ minBound @Int64, 0, maxBound @Int64 ]
+          , "i" .= [ Number (-12e9), Number 0, Number 3.333333 ]
+          , "j" .= [ Number (-1.200000000000000057936847176226483074592535164143811899621896087972531077696693922075702102406987776e99), Number 0.0, Number 3.333333333333 ]
+          , "k" .= [ True, False, True ]
+          , "l" .= [ String "hi 👬 bye", String "", String "world"]
+          ]
+
+        (getVectors'a decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'b decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'c decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'd decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'e decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'f decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'g decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'h decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (getVectors'i decoded >>= traverse toList) `shouldBe` Right (Just [-12e9, 0, 3.333333])
+        (getVectors'j decoded >>= traverse toList) `shouldBe` Right (Just [-12e98, 0, 3.333333333333])
+        (getVectors'k decoded >>= traverse toList) `shouldBe` Right (Just [True, False, True])
+        (getVectors'l decoded >>= traverse toList) `shouldBe` Right (Just ["hi 👬 bye", "", "world"])
+
+      it "empty" $ do
+        (json, decoded) <- flatc $ vectors
+          (Just []) (Just []) (Just []) (Just [])
+          (Just []) (Just []) (Just []) (Just [])
+          (Just []) (Just []) (Just []) (Just [])
+
+        json `shouldBeJson` object
+          [ "a" .= [] @Value
+          , "b" .= [] @Value
+          , "c" .= [] @Value
+          , "d" .= [] @Value
+          , "e" .= [] @Value
+          , "f" .= [] @Value
+          , "g" .= [] @Value
+          , "h" .= [] @Value
+          , "i" .= [] @Value
+          , "j" .= [] @Value
+          , "k" .= [] @Value
+          , "l" .= [] @Value
+          ]
+
+        (getVectors'a decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'b decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'c decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'd decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'e decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'f decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'g decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'h decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'i decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'j decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'k decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (getVectors'l decoded >>= traverse toList) `shouldBe` Right (Just [])
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ vectors
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+          Nothing Nothing Nothing Nothing
+
+        json `shouldBeJson` object []
+
+        getVectors'a decoded `shouldBeRightAnd` isNothing
+        getVectors'b decoded `shouldBeRightAnd` isNothing
+        getVectors'c decoded `shouldBeRightAnd` isNothing
+        getVectors'd decoded `shouldBeRightAnd` isNothing
+        getVectors'e decoded `shouldBeRightAnd` isNothing
+        getVectors'f decoded `shouldBeRightAnd` isNothing
+        getVectors'g decoded `shouldBeRightAnd` isNothing
+        getVectors'h decoded `shouldBeRightAnd` isNothing
+        getVectors'i decoded `shouldBeRightAnd` isNothing
+        getVectors'j decoded `shouldBeRightAnd` isNothing
+        getVectors'k decoded `shouldBeRightAnd` isNothing
+        getVectors'l decoded `shouldBeRightAnd` isNothing
+
+    describe "VectorOfTables" $ do
+      it "non empty" $ do
+        (json, decoded) <- flatc $ vectorOfTables (Just
+          [ axe (Just minBound)
+          , axe (Just 0)
+          , axe (Just maxBound)
+          ])
+
+        json `shouldBeJson` object
+          [ "xs" .=
+            [ object [ "y" .= minBound @Int32 ]
+            , object [ ]
+            , object [ "y" .= maxBound @Int32 ]
+            ]
+          ]
+
+        xs <- fromRightJust $ getVectorOfTables'xs decoded
+        (toList xs >>= traverse getAxe'y) `shouldBe` Right [minBound, 0, maxBound]
+
+      it "empty" $ do
+        (json, decoded) <- flatc $ vectorOfTables (Just [])
+
+        json `shouldBeJson` object [ "xs" .= [] @Value]
+
+        xs <- fromRightJust $ getVectorOfTables'xs decoded
+        (toList xs >>= traverse getAxe'y) `shouldBe` Right []
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ vectorOfTables Nothing
+
+        json `shouldBeJson` object []
+
+        getVectorOfTables'xs decoded `shouldBeRightAnd` isNothing
+
+    describe "VectorOfStructs" $ do
+      let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
+      it "non empty" $ do
+        (json, decoded) <- flatc $ vectorOfStructs (Just
+          [ threeBytes 1 2 3
+          , threeBytes 4 5 6
+          ])
+
+        json `shouldBeJson` object
+          [ "xs" .=
+            [ object [ "x" .= Number 1, "y" .= Number 2, "z" .= Number 3]
+            , object [ "x" .= Number 4, "y" .= Number 5, "z" .= Number 6]
+            ]
+          ]
+
+        xs <- fromRightJust $ getVectorOfStructs'xs decoded
+        (toList xs >>= traverse getBytes) `shouldBe` Right [(1,2,3), (4,5,6)]
+
+      it "empty" $ do
+        (json, decoded) <- flatc $ vectorOfStructs (Just [])
+
+        json `shouldBeJson` object [ "xs" .= [] @Value]
+
+        xs <- fromRightJust $ getVectorOfStructs'xs decoded
+        (toList xs >>= traverse getBytes) `shouldBe` Right []
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ vectorOfStructs Nothing
+
+        json `shouldBeJson` object []
+
+        getVectorOfStructs'xs decoded `shouldBeRightAnd` isNothing
+
+    it "Align" $ do
+      (json, decoded) <- flatc $ alignT
+        (Just (align1 11))
+        (Just (align2 22 33 44))
+        (Just [align1 101, align1 102, align1 103])
+        (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
+
+      json `shouldBeJson` object
+        [ "x" .= object ["x" .= Number 11]
+        , "y" .= object ["x" .= object ["x" .= Number 22], "y" .= Number 33, "z" .= Number 44 ]
+        , "xs" .=
+          [ object ["x" .= Number 101]
+          , object ["x" .= Number 102]
+          , object ["x" .= Number 103]
+          ]
+        , "ys" .=
+          [ object ["x" .= object ["x" .= Number 104], "y" .= Number 105, "z" .= Number 106 ]
+          , object ["x" .= object ["x" .= Number 107], "y" .= Number 108, "z" .= Number 109 ]
+          , object ["x" .= object ["x" .= Number 110], "y" .= Number 111, "z" .= Number 112 ]
+          ]
+        ]
+
+      a1 <- fromRightJust $ getAlignT'x decoded
+      a2 <- fromRightJust $ getAlignT'y decoded
+      a1s <- fromRightJust (getAlignT'xs decoded) >>= (fromRight . toList)
+      a2s <- fromRightJust (getAlignT'ys decoded) >>= (fromRight . toList)
+
+      getAlign1'x a1 `shouldBe` Right 11
+
+      getAlign1'x (getAlign2'x a2) `shouldBe` Right 22
+      getAlign2'y a2 `shouldBe` Right 33
+      getAlign2'z a2 `shouldBe` Right 44
+
+      traverse getAlign1'x a1s `shouldBe` Right [101, 102, 103]
+
+      forM a2s (\a2 -> (,,) <$> getAlign1'x (getAlign2'x a2) <*> getAlign2'y a2 <*> getAlign2'z a2)
+        `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
+
+
+unexpectedUnionType = expectationFailure "Unexpected union type"
+
+flatc :: forall a. Typeable a => WriteTable a -> IO (J.Value, Table a)
+flatc table = flatcAux False (encode table)
+
+flatcWithFileIdentifier :: forall a. (HasFileIdentifier a, Typeable a) => WriteTable a -> IO (J.Value, Table a)
+flatcWithFileIdentifier table = flatcAux True (encodeWithFileIdentifier table)
+
+flatcAux :: forall a. Typeable a => Bool -> BSL.ByteString -> IO (J.Value, Table a)
+flatcAux withFileIdentifier bs = do
+  let tableName = show $ typeRep (Proxy @a)
+
+  BSL.writeFile "temp/a.bin" bs
+
+  Sys.callProcess "flatc" $
+    (if not withFileIdentifier then ["--raw-binary"] else [])
+    <>
+    [ "-o", "./temp"
+    , "./test/Examples/schema.fbs"
+    , "--root-type", "testapi.flatbuffers." <> tableName
+    , "--json"
+    , "--strict-json"
+    , "--"
+    , "temp/a.bin"
+    ]
+
+  json <- J.eitherDecodeFileStrict' "temp/a.json" >>= \case
+    Left err  -> fail $ "Failed to decode flatc's json:\n" <> err
+    Right val -> pure val
+
+  Sys.callProcess "cp" ["temp/a.json", "temp/b.json"]
+
+  Sys.callProcess "flatc"
+    [ "-o", "./temp"
+    , "./test/Examples/schema.fbs"
+    , "--root-type", "testapi.flatbuffers." <> tableName
+    , "--binary"
+    , "--strict-json"
+    , "temp/b.json"
+    ]
+
+  bs' <- BSL.readFile "temp/b.bin"
+
+  case decode bs' of
+    Right table -> pure (json, table)
+    Left err    -> throwIO err

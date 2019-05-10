@@ -28,3 +28,6 @@ flatbuffers.cabal
 # End of https://www.gitignore.io/api/haskell
 
 .metals
+
+temp/*.bin
+temp/*.json

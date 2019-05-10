@@ -24,36 +24,6 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
           val json: Try[Option[Json]] =
             Try {
               flatBufferName match {
-                case "Simple" =>
-                  val obj = Simple.getRootAsSimple(bb)
-                  Json.obj(
-                    "n" =>> obj.n,
-                    "s" =>> obj.s
-                  ).some
-
-                case "Primitives" =>
-
-                  if (!Primitives.PrimitivesBufferHasIdentifier(bb)) {
-                    throw new Exception("buffer did not have expected identifier")
-                  }
-                  else {
-                    val obj = Primitives.getRootAsPrimitives(bb)
-                    Json.obj(
-                      "a" =>> obj.a,
-                      "b" =>> obj.b,
-                      "c" =>> obj.c,
-                      "d" =>> asWord64(obj.d),
-                      "e" =>> obj.e,
-                      "f" =>> obj.f,
-                      "g" =>> obj.g,
-                      "h" =>> obj.h,
-                      "i" =>> obj.i,
-                      "j" =>> obj.j,
-                      "k" =>> obj.k,
-                      "l" =>> obj.l,
-                    ).some
-                  }
-
                 case "ManyTables" =>
                   val obj = ManyTables.getRootAsManyTables(bb)
                   Json.obj(
@@ -76,45 +46,6 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                         "s" =>> z.s
                       )
                     }
-                  ).some
-
-                case "Enums" =>
-                  def printStructWithEnum(a: StructWithEnum): Json =
-                    Json.obj(
-                      "x" =>> a.x(),
-                      "y" =>> Color.name(a.y()),
-                      "z" =>> a.z()
-                    )
-
-                  val obj = Enums.getRootAsEnums(bb)
-                  Json.obj(
-                    "x" =>> Color.name(obj.x),
-                    "y" =>> inside(obj.y)(printStructWithEnum),
-                    "xs" =>> (0 until obj.xsLength()).map(obj.xs).map(Color.name),
-                    "ys" =>> (0 until obj.ysLength()).map(obj.ys).map(printStructWithEnum)
-                  ).some
-
-                case "TableWithUnion" =>
-                  val obj = TableWithUnion.getRootAsTableWithUnion(bb)
-                  Json.obj(
-                    "uni" =>> readWeapon(obj)(_.uniType, _.uni),
-                  ).some
-
-                case "Vectors" =>
-                  val obj = Vectors.getRootAsVectors(bb)
-                  Json.obj(
-                    "a" =>> (0 until obj.aLength()).map(obj.a),
-                    "b" =>> (0 until obj.bLength()).map(obj.b),
-                    "c" =>> (0 until obj.cLength()).map(obj.c),
-                    "d" =>> (0 until obj.dLength()).map(obj.d _ >>> asWord64),
-                    "e" =>> (0 until obj.eLength()).map(obj.e),
-                    "f" =>> (0 until obj.fLength()).map(obj.f),
-                    "g" =>> (0 until obj.gLength()).map(obj.g),
-                    "h" =>> (0 until obj.hLength()).map(obj.h),
-                    "i" =>> (0 until obj.iLength()).map(obj.i),
-                    "j" =>> (0 until obj.jLength()).map(obj.j),
-                    "k" =>> (0 until obj.kLength()).map(obj.k),
-                    "l" =>> (0 until obj.lLength()).map(obj.l),
                   ).some
 
                 case "Structs" =>
@@ -159,27 +90,6 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                       )
                     }
                   ).some
-                case "VectorOfTables" =>
-                  val obj = VectorOfTables.getRootAsVectorOfTables(bb)
-                  Json.obj(
-                    "xs" =>> (0 until obj.xsLength()).map(obj.xs).map { axe =>
-                      Json.obj(
-                        "y" =>> axe.y
-                      )
-                    }
-                  ).some
-
-                case "VectorOfStructs" =>
-                  val obj = VectorOfStructs.getRootAsVectorOfStructs(bb)
-                  Json.obj(
-                    "xs" =>> (0 until obj.xsLength()).map(obj.xs).map { threeBytes =>
-                      Json.obj(
-                        "x" =>> threeBytes.x,
-                        "y" =>> threeBytes.y,
-                        "z" =>> threeBytes.z
-                      )
-                    }
-                  ).some
 
                 case "VectorOfUnions" =>
                   val obj = VectorOfUnions.getRootAsVectorOfUnions(bb)
@@ -192,27 +102,6 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                       (0 until obj.xsReqLength()).map { i =>
                         readWeapon(obj)(_.xsReqType(i), root => union => root.xsReq(union, i))
                       }
-                  ).some
-
-                case "AlignT" =>
-                  def printAlign1(a: Align1): Json =
-                    Json.obj(
-                      "x" =>> a.x()
-                    )
-
-                  def printAlign2(a: Align2): Json =
-                    Json.obj(
-                      "x" =>> inside(a.x)(printAlign1),
-                      "y" =>> asWord64(a.y()),
-                      "z" =>> a.z()
-                    )
-
-                  val obj = AlignT.getRootAsAlignT(bb)
-                  Json.obj(
-                    "x" =>> inside(obj.x)(printAlign1),
-                    "y" =>> inside(obj.y)(printAlign2),
-                    "xs" =>> (0 until obj.xsLength()).map(obj.xs).map(printAlign1),
-                    "ys" =>> (0 until obj.ysLength()).map(obj.ys).map(printAlign2)
                   ).some
 
                 case _ => none
