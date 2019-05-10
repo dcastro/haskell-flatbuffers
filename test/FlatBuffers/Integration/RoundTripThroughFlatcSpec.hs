@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
-
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -8,7 +9,6 @@ module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
 import           Control.Exception          ( throwIO )
 import           Control.Applicative        ( liftA3 )
-import           Control.Monad              ( forM )
 import           Data.Aeson                 ( Value(..), object, (.=) )
 import qualified Data.Aeson                 as J
 import qualified Data.ByteString.Lazy       as BSL
@@ -201,6 +201,49 @@ spec =
         (getEnums'xs decoded >>= toList) `shouldBe` Right []
         getEnums'ys decoded `shouldBeRightAnd` isNothing
 
+    describe "Structs" $ do
+      it "present" $ do
+        let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+        let readStruct2 = getStruct2'x
+        let readStruct3 = (liftA3 . liftA3) (,,) (getStruct2'x . getStruct3'x) getStruct3'y getStruct3'z
+        let readStruct4 = (liftA4 . liftA4) (,,,) (getStruct2'x . getStruct4'w) getStruct4'x getStruct4'y getStruct4'z
+        (json, decoded) <- flatc $ structs
+          (Just (struct1 1 2 3))
+          (Just (struct2 11))
+          (Just (struct3 22 33 44))
+          (Just (struct4 55 66 77 True))
+
+        json `shouldBeJson` object
+          [ "a" .= object ["x" .= Number 1, "y" .= Number 2, "z" .= Number 3]
+          , "b" .= object ["x" .= Number 11]
+          , "c" .= object ["x" .= object ["x" .= Number 22], "y" .= Number 33, "z" .= Number 44 ]
+          , "d" .= object ["w" .= object ["x" .= Number 55], "x" .= Number 66, "y" .= Number 77, "z" .= True ]
+          ]
+
+        s1 <- fromRightJust $ getStructs'a decoded
+        s2 <- fromRightJust $ getStructs'b decoded
+        s3 <- fromRightJust $ getStructs'c decoded
+        s4 <- fromRightJust $ getStructs'd decoded
+
+        readStruct1 s1 `shouldBe` Right (1, 2, 3)
+        readStruct2 s2 `shouldBe` Right 11
+        readStruct3 s3 `shouldBe` Right (22, 33, 44)
+        readStruct4 s4 `shouldBe` Right (55, 66, 77, True)
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ structs
+          Nothing
+          Nothing
+          Nothing
+          Nothing
+
+        json `shouldBeJson` object [ ]
+
+        getStructs'a decoded `shouldBeRightAnd` isNothing
+        getStructs'b decoded `shouldBeRightAnd` isNothing
+        getStructs'c decoded `shouldBeRightAnd` isNothing
+        getStructs'd decoded `shouldBeRightAnd` isNothing
+
     describe "Union" $ do
       describe "present" $ do
         it "with sword" $ do
@@ -369,7 +412,7 @@ spec =
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
         xs <- fromRightJust $ getVectorOfTables'xs decoded
-        (toList xs >>= traverse getAxe'y) `shouldBe` Right []
+        vectorLength xs `shouldBe` Right 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfTables Nothing
@@ -379,75 +422,74 @@ spec =
         getVectorOfTables'xs decoded `shouldBeRightAnd` isNothing
 
     describe "VectorOfStructs" $ do
-      let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
+      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+      let readStruct2 = getStruct2'x
+      let readStruct3 = (liftA3 . liftA3) (,,) (getStruct2'x . getStruct3'x) getStruct3'y getStruct3'z
+      let readStruct4 = (liftA4 . liftA4) (,,,) (getStruct2'x . getStruct4'w) getStruct4'x getStruct4'y getStruct4'z
+
       it "non empty" $ do
-        (json, decoded) <- flatc $ vectorOfStructs (Just
-          [ threeBytes 1 2 3
-          , threeBytes 4 5 6
-          ])
+        (json, decoded) <- flatc $ vectorOfStructs
+          (Just [struct1 1 2 3, struct1 4 5 6])
+          (Just [struct2 101, struct2 102, struct2 103])
+          (Just [struct3 104 105 106, struct3 107 108 109, struct3 110 111 112])
+          (Just [struct4 120 121 122 True, struct4 123 124 125 False, struct4 126 127 128 True])
 
         json `shouldBeJson` object
-          [ "xs" .=
+          [ "as" .=
             [ object [ "x" .= Number 1, "y" .= Number 2, "z" .= Number 3]
             , object [ "x" .= Number 4, "y" .= Number 5, "z" .= Number 6]
             ]
+          , "bs" .=
+            [ object ["x" .= Number 101]
+            , object ["x" .= Number 102]
+            , object ["x" .= Number 103]
+            ]
+          , "cs" .=
+            [ object ["x" .= object ["x" .= Number 104], "y" .= Number 105, "z" .= Number 106 ]
+            , object ["x" .= object ["x" .= Number 107], "y" .= Number 108, "z" .= Number 109 ]
+            , object ["x" .= object ["x" .= Number 110], "y" .= Number 111, "z" .= Number 112 ]
+            ]
+          , "ds" .=
+            [ object ["w" .= object ["x" .= Number 120], "x" .= Number 121, "y" .= Number 122, "z" .= True ]
+            , object ["w" .= object ["x" .= Number 123], "x" .= Number 124, "y" .= Number 125, "z" .= False ]
+            , object ["w" .= object ["x" .= Number 126], "x" .= Number 127, "y" .= Number 128, "z" .= True ]
+            ]
           ]
 
-        xs <- fromRightJust $ getVectorOfStructs'xs decoded
-        (toList xs >>= traverse getBytes) `shouldBe` Right [(1,2,3), (4,5,6)]
+        as <- fromRightJust (getVectorOfStructs'as decoded) >>= (fromRight . toList)
+        bs <- fromRightJust (getVectorOfStructs'bs decoded) >>= (fromRight . toList)
+        cs <- fromRightJust (getVectorOfStructs'cs decoded) >>= (fromRight . toList)
+        ds <- fromRightJust (getVectorOfStructs'ds decoded) >>= (fromRight . toList)
+
+        traverse readStruct1 as `shouldBe` Right [(1,2,3), (4,5,6)]
+        traverse readStruct2 bs `shouldBe` Right [101, 102, 103]
+        traverse readStruct3 cs `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
+        traverse readStruct4 ds `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
       it "empty" $ do
-        (json, decoded) <- flatc $ vectorOfStructs (Just [])
+        (json, decoded) <- flatc $ vectorOfStructs (Just []) (Just []) (Just []) (Just [])
 
-        json `shouldBeJson` object [ "xs" .= [] @Value]
+        json `shouldBeJson` object [ "as" .= [] @Value, "bs" .= [] @Value, "cs" .= [] @Value, "ds" .= [] @Value ]
 
-        xs <- fromRightJust $ getVectorOfStructs'xs decoded
-        (toList xs >>= traverse getBytes) `shouldBe` Right []
+        as <- fromRightJust $ getVectorOfStructs'as decoded
+        bs <- fromRightJust $ getVectorOfStructs'bs decoded
+        cs <- fromRightJust $ getVectorOfStructs'cs decoded
+        ds <- fromRightJust $ getVectorOfStructs'cs decoded
+        vectorLength as `shouldBe` Right 0
+        vectorLength bs `shouldBe` Right 0
+        vectorLength cs `shouldBe` Right 0
+        vectorLength ds `shouldBe` Right 0
 
       it "missing" $ do
-        (json, decoded) <- flatc $ vectorOfStructs Nothing
+        (json, decoded) <- flatc $ vectorOfStructs Nothing Nothing Nothing Nothing
 
         json `shouldBeJson` object []
 
-        getVectorOfStructs'xs decoded `shouldBeRightAnd` isNothing
+        getVectorOfStructs'as decoded `shouldBeRightAnd` isNothing
+        getVectorOfStructs'bs decoded `shouldBeRightAnd` isNothing
+        getVectorOfStructs'cs decoded `shouldBeRightAnd` isNothing
+        getVectorOfStructs'ds decoded `shouldBeRightAnd` isNothing
 
-    it "Align" $ do
-      (json, decoded) <- flatc $ alignT
-        (Just (align1 11))
-        (Just (align2 22 33 44))
-        (Just [align1 101, align1 102, align1 103])
-        (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
-
-      json `shouldBeJson` object
-        [ "x" .= object ["x" .= Number 11]
-        , "y" .= object ["x" .= object ["x" .= Number 22], "y" .= Number 33, "z" .= Number 44 ]
-        , "xs" .=
-          [ object ["x" .= Number 101]
-          , object ["x" .= Number 102]
-          , object ["x" .= Number 103]
-          ]
-        , "ys" .=
-          [ object ["x" .= object ["x" .= Number 104], "y" .= Number 105, "z" .= Number 106 ]
-          , object ["x" .= object ["x" .= Number 107], "y" .= Number 108, "z" .= Number 109 ]
-          , object ["x" .= object ["x" .= Number 110], "y" .= Number 111, "z" .= Number 112 ]
-          ]
-        ]
-
-      a1 <- fromRightJust $ getAlignT'x decoded
-      a2 <- fromRightJust $ getAlignT'y decoded
-      a1s <- fromRightJust (getAlignT'xs decoded) >>= (fromRight . toList)
-      a2s <- fromRightJust (getAlignT'ys decoded) >>= (fromRight . toList)
-
-      getAlign1'x a1 `shouldBe` Right 11
-
-      getAlign1'x (getAlign2'x a2) `shouldBe` Right 22
-      getAlign2'y a2 `shouldBe` Right 33
-      getAlign2'z a2 `shouldBe` Right 44
-
-      traverse getAlign1'x a1s `shouldBe` Right [101, 102, 103]
-
-      forM a2s (\a2 -> (,,) <$> getAlign1'x (getAlign2'x a2) <*> getAlign2'y a2 <*> getAlign2'z a2)
-        `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
 
 
 unexpectedUnionType = expectationFailure "Unexpected union type"

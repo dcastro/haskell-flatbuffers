@@ -1,11 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative        ( liftA3 )
-import           Control.Monad              ( forM, when )
+import           Control.Monad              ( when )
 
 import           Data.Functor               ( (<&>) )
 import qualified Data.List                  as L
@@ -93,6 +95,36 @@ spec =
         getEnums'y x `shouldBeRightAnd` isNothing
         (getEnums'xs x >>= toList) `shouldBe` Right []
         getEnums'ys x `shouldBeRightAnd` isNothing
+
+    describe "Structs" $ do
+      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+      let readStruct2 = getStruct2'x
+      let readStruct3 = (liftA3 . liftA3) (,,) (getStruct2'x . getStruct3'x) getStruct3'y getStruct3'z
+      let readStruct4 = (liftA4 . liftA4) (,,,) (getStruct2'x . getStruct4'w) getStruct4'x getStruct4'y getStruct4'z
+      it "present" $ do
+        root <- fromRight $ decode $ encode $ structs
+                (Just (struct1 1 2 3))
+                (Just (struct2 11))
+                (Just (struct3 22 33 44))
+                (Just (struct4 55 66 77 True))
+
+        s1 <- fromRightJust $ getStructs'a root
+        s2 <- fromRightJust $ getStructs'b root
+        s3 <- fromRightJust $ getStructs'c root
+        s4 <- fromRightJust $ getStructs'd root
+
+        readStruct1 s1 `shouldBe` Right (1, 2, 3)
+        readStruct2 s2 `shouldBe` Right 11
+        readStruct3 s3 `shouldBe` Right (22, 33, 44)
+        readStruct4 s4 `shouldBe` Right (55, 66, 77, True)
+
+      it "missing" $ do
+        root <- fromRight $ decode $ encode $ structs Nothing Nothing Nothing Nothing
+
+        getStructs'a root `shouldBeRightAnd` isNothing
+        getStructs'b root `shouldBeRightAnd` isNothing
+        getStructs'c root `shouldBeRightAnd` isNothing
+        getStructs'd root `shouldBeRightAnd` isNothing
 
     describe "Union" $ do
       it "present" $ do
@@ -204,28 +236,65 @@ spec =
         getVectorOfTables'xs x `shouldBeRightAnd` isNothing
 
     describe "VectorOfStructs" $ do
-      let getBytes = (liftA3 . liftA3) (,,) getThreeBytes'a getThreeBytes'b getThreeBytes'c
-      it "non empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfStructs (Just
-          [ threeBytes 1 2 3
-          , threeBytes 4 5 6
-          ])
+      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+      let readStruct2 = getStruct2'x
+      let readStruct3 = (liftA3 . liftA3) (,,) (getStruct2'x . getStruct3'x) getStruct3'y getStruct3'z
+      let readStruct4 = (liftA4 . liftA4) (,,,) (getStruct2'x . getStruct4'w) getStruct4'x getStruct4'y getStruct4'z
 
-        xs <- fromRightJust $ getVectorOfStructs'xs x
-        vectorLength xs `shouldBe` Right 2
-        (toList xs >>= traverse getBytes) `shouldBe` Right [(1,2,3), (4,5,6)]
-        (traverse (index xs) [0..1] >>= traverse getBytes) `shouldBe` Right [(1,2,3), (4,5,6)]
+      it "non empty" $ do
+        x <- fromRight $ decode $ encode $ vectorOfStructs
+          (Just [struct1 1 2 3, struct1 4 5 6])
+          (Just [struct2 101, struct2 102, struct2 103])
+          (Just [struct3 104 105 106, struct3 107 108 109, struct3 110 111 112])
+          (Just [struct4 120 121 122 True, struct4 123 124 125 False, struct4 126 127 128 True])
+
+        as <- fromRightJust $ getVectorOfStructs'as x
+        bs <- fromRightJust $ getVectorOfStructs'bs x
+        cs <- fromRightJust $ getVectorOfStructs'cs x
+        ds <- fromRightJust $ getVectorOfStructs'ds x
+
+        vectorLength as `shouldBe` Right 2
+        (toList as >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
+        (traverse (index as) [0..1] >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
+
+        vectorLength bs `shouldBe` Right 3
+        (toList bs >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
+        (traverse (index bs) [0..2] >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
+
+        vectorLength cs `shouldBe` Right 3
+        (toList cs >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
+        (traverse (index cs) [0..2] >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
+
+        vectorLength ds `shouldBe` Right 3
+        (toList ds >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
+        (traverse (index ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfStructs (Just [])
+        x <- fromRight $ decode $ encode $ vectorOfStructs (Just []) (Just []) (Just []) (Just [])
 
-        xs <- fromRightJust $ getVectorOfStructs'xs x
-        vectorLength xs `shouldBe` Right 0
-        (toList xs >>= traverse getBytes) `shouldBe` Right []
+        as <- fromRightJust $ getVectorOfStructs'as x
+        bs <- fromRightJust $ getVectorOfStructs'bs x
+        cs <- fromRightJust $ getVectorOfStructs'cs x
+        ds <- fromRightJust $ getVectorOfStructs'ds x
+
+        vectorLength as `shouldBe` Right 0
+        (toList as >>= traverse readStruct1) `shouldBe` Right []
+
+        vectorLength bs `shouldBe` Right 0
+        (toList bs >>= traverse readStruct2) `shouldBe` Right []
+
+        vectorLength cs `shouldBe` Right 0
+        (toList cs >>= traverse readStruct3) `shouldBe` Right []
+
+        vectorLength ds `shouldBe` Right 0
+        (toList ds >>= traverse readStruct4) `shouldBe` Right []
 
       it "missing" $ do
-        x <- fromRight $ decode @VectorOfStructs $ encode $ vectorOfStructs Nothing
-        getVectorOfStructs'xs x `shouldBeRightAnd` isNothing
+        x <- fromRight $ decode @VectorOfStructs $ encode $ vectorOfStructs Nothing Nothing Nothing Nothing
+        getVectorOfStructs'as x `shouldBeRightAnd` isNothing
+        getVectorOfStructs'bs x `shouldBeRightAnd` isNothing
+        getVectorOfStructs'cs x `shouldBeRightAnd` isNothing
+        getVectorOfStructs'ds x `shouldBeRightAnd` isNothing
 
     describe "VectorOfUnions" $ do
       it "non empty" $ do
@@ -297,37 +366,5 @@ spec =
         getVectorOfUnions'xs x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         getVectorOfUnions'xsReq x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
-    describe "Align" $ do
-      it "present" $ do
-        root <- fromRight $ decode $ encode $ alignT
-                (Just (align1 11))
-                (Just (align2 22 33 44))
-                (Just [align1 101, align1 102, align1 103])
-                (Just [align2 104 105 106, align2 107 108 109, align2 110 111 112])
-
-        a1 <- fromRightJust $ getAlignT'x root
-        a2 <- fromRightJust $ getAlignT'y root
-        a1s <- fromRightJust (getAlignT'xs root) >>= (fromRight . toList)
-        a2s <- fromRightJust (getAlignT'ys root) >>= (fromRight . toList)
-
-        getAlign1'x a1 `shouldBe` Right 11
-
-        getAlign1'x (getAlign2'x a2) `shouldBe` Right 22
-        getAlign2'y a2 `shouldBe` Right 33
-        getAlign2'z a2 `shouldBe` Right 44
-
-        traverse getAlign1'x a1s `shouldBe` Right [101, 102, 103]
-
-        forM a2s (\a2 -> (,,) <$> getAlign1'x (getAlign2'x a2) <*> getAlign2'y a2 <*> getAlign2'z a2)
-          `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
-
-
-      it "missing" $ do
-        root <- fromRight $ decode $ encode $ alignT Nothing Nothing Nothing Nothing
-
-        getAlignT'x root `shouldBeRightAnd` isNothing
-        getAlignT'y root `shouldBeRightAnd` isNothing
-        getAlignT'xs root `shouldBeRightAnd` isNothing
-        getAlignT'ys root `shouldBeRightAnd` isNothing
 
 unexpectedUnionType = expectationFailure "Unexpected union type"

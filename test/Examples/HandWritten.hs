@@ -154,6 +154,109 @@ getStructWithEnum'y = readStructField readWord16 2
 getStructWithEnum'z :: ReadCtx m => Struct StructWithEnum -> m Int8
 getStructWithEnum'z = readStructField readInt8 4
 
+----------------------------------
+------------- Structs ------------
+----------------------------------
+data Struct1
+
+struct1 :: Word8 -> Int8 -> Int8 -> WriteStruct Struct1
+struct1 a b c =
+  writeStruct 1
+    [ int8 c
+    , int8 b
+    , word8 a
+    ]
+
+getStruct1'x :: ReadCtx m => Struct Struct1 -> m Word8
+getStruct1'x = readStructField readWord8 0
+
+getStruct1'y :: ReadCtx m => Struct Struct1 -> m Int8
+getStruct1'y = readStructField readInt8 1
+
+getStruct1'z :: ReadCtx m => Struct Struct1 -> m Int8
+getStruct1'z = readStructField readInt8 2
+
+
+data Struct2
+
+struct2 :: Int16 -> WriteStruct Struct2
+struct2 a = writeStruct 4
+  [ padded 2 (int16 a)
+  ]
+
+getStruct2'x :: ReadCtx m => Struct Struct2 -> m Int16
+getStruct2'x = readStructField readInt16 0
+
+
+data Struct3
+
+struct3 :: Int16 -> Word64 -> Word8 -> WriteStruct Struct3
+struct3 a b c = writeStruct 8
+  [ padded 7 (word8 c)
+  , word64 b
+  , padded 6 (int16 a)
+  ]
+
+getStruct3'x :: Struct Struct3 -> Struct Struct2
+getStruct3'x = readStructField readStruct 0
+
+getStruct3'y :: ReadCtx m => Struct Struct3 -> m Word64
+getStruct3'y = readStructField readWord64 8
+
+getStruct3'z :: ReadCtx m => Struct Struct3 -> m Word8
+getStruct3'z = readStructField readWord8 16
+
+
+data Struct4
+
+struct4 :: Int16 -> Int8 -> Int64 -> Bool -> WriteStruct Struct4
+struct4 a b c d = writeStruct 8
+  [ padded 7 (bool d)
+  , int64 c
+  , padded 3 (int8 b)
+  , padded 2 (int16 a)
+  ]
+
+getStruct4'w :: Struct Struct4 -> Struct Struct2
+getStruct4'w = readStructField readStruct 0
+
+getStruct4'x :: ReadCtx m => Struct Struct4 -> m Int8
+getStruct4'x = readStructField readInt8 4
+
+getStruct4'y :: ReadCtx m => Struct Struct4 -> m Int64
+getStruct4'y = readStructField readInt64 8
+
+getStruct4'z :: ReadCtx m => Struct Struct4 -> m Bool
+getStruct4'z = readStructField readBool 16
+
+
+data Structs
+
+structs ::
+     Maybe (WriteStruct Struct1)
+  -> Maybe (WriteStruct Struct2)
+  -> Maybe (WriteStruct Struct3)
+  -> Maybe (WriteStruct Struct4)
+  -> WriteTable Structs
+structs x1 x2 x3 x4 = writeTable
+  [ optional unWriteStruct x1
+  , optional unWriteStruct x2
+  , optional unWriteStruct x3
+  , optional unWriteStruct x4
+  ]
+
+getStructs'a :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct1))
+getStructs'a = readTableFieldOpt readStruct' 0
+
+getStructs'b :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct2))
+getStructs'b = readTableFieldOpt readStruct' 1
+
+getStructs'c :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct3))
+getStructs'c = readTableFieldOpt readStruct' 2
+
+getStructs'd :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct4))
+getStructs'd = readTableFieldOpt readStruct' 3
+
 
 ----------------------------------
 ------------- Sword -------------
@@ -289,34 +392,33 @@ getVectorOfTables'xs = readTableFieldOpt readTableVector 0
 ----------------------------------
 ------- VectorOfStructs ----------
 ----------------------------------
-data ThreeBytes
-
-threeBytes :: Word8 -> Int8 -> Int8 -> WriteStruct ThreeBytes
-threeBytes a b c =
-  writeStruct 1
-    [ int8 c
-    , int8 b
-    , word8 a
-    ]
-
-getThreeBytes'a :: ReadCtx m => Struct ThreeBytes -> m Word8
-getThreeBytes'a = readStructField readWord8 0
-
-getThreeBytes'b :: ReadCtx m => Struct ThreeBytes -> m Int8
-getThreeBytes'b = readStructField readInt8 1
-
-getThreeBytes'c :: ReadCtx m => Struct ThreeBytes -> m Int8
-getThreeBytes'c = readStructField readInt8 2
-
 data VectorOfStructs
 
-vectorOfStructs :: Maybe [WriteStruct ThreeBytes] -> WriteTable VectorOfStructs
-vectorOfStructs x1 = writeTable
+vectorOfStructs ::
+     Maybe [WriteStruct Struct1]
+  -> Maybe [WriteStruct Struct2]
+  -> Maybe [WriteStruct Struct3]
+  -> Maybe [WriteStruct Struct4]
+  -> WriteTable VectorOfStructs
+vectorOfStructs x1 x2 x3 x4 = writeTable
   [ (optional . writeVector) unWriteStruct x1
+  , (optional . writeVector) unWriteStruct x2
+  , (optional . writeVector) unWriteStruct x3
+  , (optional . writeVector) unWriteStruct x4
   ]
 
-getVectorOfStructs'xs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct ThreeBytes)))
-getVectorOfStructs'xs = readTableFieldOpt (readStructVector 3) 0
+getVectorOfStructs'as :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct1)))
+getVectorOfStructs'as = readTableFieldOpt (readStructVector 3) 0
+
+getVectorOfStructs'bs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct2)))
+getVectorOfStructs'bs = readTableFieldOpt (readStructVector 4) 1
+
+getVectorOfStructs'cs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct3)))
+getVectorOfStructs'cs = readTableFieldOpt (readStructVector 24) 2
+
+getVectorOfStructs'ds :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct4)))
+getVectorOfStructs'ds = readTableFieldOpt (readStructVector 24) 3
+
 
 ----------------------------------
 ------- VectorOfUnions -----------
@@ -339,59 +441,3 @@ getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
 
 getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
 getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 2 "xsReq"
-
-----------------------------------
-------------- Align --------------
-----------------------------------
-data Align1
-
-align1 :: Int16 -> WriteStruct Align1
-align1 a = writeStruct 4
-  [ padded 2 (int16 a)
-  ]
-
-getAlign1'x :: ReadCtx m => Struct Align1 -> m Int16
-getAlign1'x = readStructField readInt16 0
-
-
-data Align2
-
-align2 :: Int16 -> Word64 -> Word8 -> WriteStruct Align2
-align2 a b c = writeStruct 8
-  [ padded 7 (word8 c)
-  , word64 b
-  , padded 6 (int16 a)
-  ]
-
-getAlign2'x :: Struct Align2 -> Struct Align1
-getAlign2'x = readStructField readStruct 0
-
-getAlign2'y :: ReadCtx m => Struct Align2 -> m Word64
-getAlign2'y = readStructField readWord64 8
-
-getAlign2'z :: ReadCtx m => Struct Align2 -> m Word8
-getAlign2'z = readStructField readWord8 16
-
-
-data AlignT
-
-alignT :: Maybe (WriteStruct Align1) -> Maybe (WriteStruct Align2) -> Maybe [WriteStruct Align1] -> Maybe [WriteStruct Align2] -> WriteTable AlignT
-alignT a b c d = writeTable
-  [ optional unWriteStruct a
-  , optional unWriteStruct b
-  , (optional . writeVector) unWriteStruct c
-  , (optional . writeVector) unWriteStruct d
-  ]
-
-getAlignT'x :: ReadCtx m => Table AlignT -> m (Maybe (Struct Align1))
-getAlignT'x = readTableFieldOpt readStruct' 0
-
-getAlignT'y :: ReadCtx m => Table AlignT -> m (Maybe (Struct Align2))
-getAlignT'y = readTableFieldOpt readStruct' 1
-
-getAlignT'xs :: ReadCtx m => Table AlignT -> m (Maybe (Vector (Struct Align1)))
-getAlignT'xs = readTableFieldOpt (readStructVector 4) 2
-
-getAlignT'ys :: ReadCtx m => Table AlignT -> m (Maybe (Vector (Struct Align2)))
-getAlignT'ys = readTableFieldOpt (readStructVector 24) 3
-

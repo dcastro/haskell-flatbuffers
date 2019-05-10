@@ -67,50 +67,6 @@ cases =
          , "y" .= Null
          , "z" .= object ["n" .= Number 34, "s" .= String "bye"]
          ])
-  , Case
-      "Structs"
-      "Structs"
-      (root $
-       table
-         [ struct 4 [word32 maxBound, int32 maxBound]
-         , missing
-         , struct 8
-             [ padded 7 $ bool True
-             , int64 maxBound
-             , padded 3 $ word8 maxBound
-             , int32 maxBound
-             ]
-         , struct 8
-             [ padded 7 $ bool True
-             , int64 maxBound
-             , padded 3 $ word8 maxBound
-             , int32 maxBound
-             , word32 maxBound
-             , int32 maxBound
-             ]
-         ])
-      (object
-         [ "w" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
-         , "x" .= Null
-         , "y" .=
-           object
-             [ "w" .= maxBound @Int32
-             , "x" .= maxBound @Word8
-             , "y" .= maxBound @Int64
-             , "z" .= True
-             ]
-         , "z" .=
-           object
-             [ "x" .= object ["x" .= maxBound @Int32, "y" .= maxBound @Word32]
-             , "y" .=
-               object
-                 [ "w" .= maxBound @Int32
-                 , "x" .= maxBound @Word8
-                 , "y" .= maxBound @Int64
-                 , "z" .= True
-                 ]
-             ]
-         ])
   ]
 
 -- In the presence of OverloadedLists, [] can sometimes be ambiguous, so

@@ -50,5 +50,11 @@ newtype Pretty = Pretty J.Value
 instance Show Pretty where
   show (Pretty v) = BSLU.toString (encodePretty v)
 
-shouldBeJson :: J.Value -> J.Value -> Expectation
+shouldBeJson :: HasCallStack => J.Value -> J.Value -> Expectation
 shouldBeJson x y = Pretty x `shouldBe` Pretty y
+
+liftA4 ::
+   Applicative m =>
+   (a -> b -> c -> d -> r) -> m a -> m b -> m c -> m d -> m r
+liftA4 fn a b c d = fn <$> a <*> b <*> c <*> d
+

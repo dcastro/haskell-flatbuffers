@@ -45,6 +45,36 @@ table Enums {
   ys: [StructWithEnum];
 }
 
+struct Struct1 {
+  x: ubyte;
+  y: byte;
+  z: byte;
+}
+
+struct Struct2 (force_align: 4) {
+  x: short;
+}
+
+struct Struct3 {
+  x: Struct2;
+  y: ulong;
+  z: ubyte;
+}
+
+struct Struct4 {
+  w: Struct2;
+  x: byte;
+  y: long;
+  z: bool;
+}
+
+table Structs {
+  a: Struct1;
+  b: Struct2;
+  c: Struct3;
+  d: Struct4;
+}
+
 union Weapon { Sword, Axe }
 table Sword { x: string; }
 table Axe { y: int; }
@@ -68,61 +98,17 @@ table Vectors {
   l: [string];
 }
 
-struct RegularStruct {
-  x: int;
-  y: uint;
-}
-
-struct IrregularStruct {
-  w: int;
-  x: ubyte;
-  y: long;
-  z: bool;
-}
-
-struct WithNestedStruct {
-  x: RegularStruct;
-  y: IrregularStruct;
-}
-
-table Structs {
-  w: RegularStruct;
-  x: RegularStruct;
-  y: IrregularStruct;
-  z: WithNestedStruct;
-}
-
 table VectorOfTables {
   xs: [Axe];
 }
 
-struct ThreeBytes {
-  x: ubyte;
-  y: byte;
-  z: byte;
-}
-
 table VectorOfStructs {
-  xs: [ThreeBytes];
+  as: [Struct1];
+  bs: [Struct2];
+  cs: [Struct3];
+  ds: [Struct4];
 }
 
-// These are used for testing padding and alignment of structs / struct fields
-struct Align1 (force_align: 4) {
-  x: short;
-}
-
-struct Align2 {
-  x: Align1;
-  y: ulong;
-  z: ubyte;
-}
-
-table AlignT {
-  x: Align1;
-  y: Align2;
-  xs: [Align1];
-  ys: [Align2];
-}
 
 
 // TODO: add support

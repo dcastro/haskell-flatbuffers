@@ -48,48 +48,6 @@ class Service[F[_]: Effect] extends Http4sDsl[F] {
                     }
                   ).some
 
-                case "Structs" =>
-                  val obj = Structs.getRootAsStructs(bb)
-                  Json.obj(
-                    "w" =>> inside(obj.w) { w =>
-                      Json.obj(
-                        "x" =>> w.x,
-                        "y" =>> w.y
-                      )
-                    },
-                    "x" =>> inside(obj.x) { x =>
-                      Json.obj(
-                        "x" =>> x.x,
-                        "y" =>> x.y
-                      )
-                    },
-                    "y" =>> inside(obj.y) { y =>
-                      Json.obj(
-                        "w" =>> y.w,
-                        "x" =>> y.x,
-                        "y" =>> y.y,
-                        "z" =>> y.z,
-                      )
-                    },
-                    "z" =>> inside(obj.z) { z =>
-                      Json.obj(
-                        "x" =>> inside(z.x) { x =>
-                          Json.obj(
-                            "x" =>> x.x,
-                            "y" =>> x.y
-                          )
-                        },
-                        "y" =>> inside(z.y) { y =>
-                          Json.obj(
-                            "w" =>> y.w,
-                            "x" =>> y.x,
-                            "y" =>> y.y,
-                            "z" =>> y.z,
-                          )
-                        }
-                      )
-                    }
-                  ).some
 
                 case "VectorOfUnions" =>
                   val obj = VectorOfUnions.getRootAsVectorOfUnions(bb)
