@@ -91,7 +91,7 @@ spec =
       it "missing" $ do
         x <- fromRight $ decode @Enums $ encode $ enums Nothing Nothing [] Nothing
 
-        toColor <$> getEnums'x x `shouldBe` Right (Just ColorBlue)
+        toColor <$> getEnums'x x `shouldBe` Right (Just ColorGreen)
         getEnums'y x `shouldBeRightAnd` isNothing
         (getEnums'xs x >>= toList) `shouldBe` Right []
         getEnums'ys x `shouldBeRightAnd` isNothing

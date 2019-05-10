@@ -27,7 +27,7 @@ struct StructWithEnum {
 }
 
 table Enums {
-  x: Color = Blue;
+  x: Color;
   y: StructWithEnum;
   xs: [Color] (required);
   ys: [StructWithEnum];

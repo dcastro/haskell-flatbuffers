@@ -116,14 +116,14 @@ data Enums
 
 enums :: Maybe Int16 -> Maybe (WriteStruct StructWithEnum) -> [Int16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
 enums x1 x2 x3 x4 = writeTable
-  [ (optionalDef 2 . inline) int16 x1
+  [ (optionalDef 0 . inline) int16 x1
   , optional unWriteStruct x2
   , (writeVector . inline) int16 x3
   , (optional . writeVector) unWriteStruct x4
   ]
 
 getEnums'x :: ReadCtx m => Table Enums -> m Int16
-getEnums'x = readTableFieldWithDef readInt16 0 1
+getEnums'x = readTableFieldWithDef readInt16 0 0
 
 getEnums'y :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
 getEnums'y = readTableFieldOpt readStruct' 1

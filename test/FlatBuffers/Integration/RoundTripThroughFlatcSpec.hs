@@ -192,7 +192,7 @@ spec =
 
         json `shouldBeJson` object [ "xs" .= [] @Value ]
 
-        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorBlue)
+        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGreen)
         getEnums'y decoded `shouldBeRightAnd` isNothing
         (getEnums'xs decoded >>= toList) `shouldBe` Right []
         getEnums'ys decoded `shouldBeRightAnd` isNothing
