@@ -22,6 +22,7 @@ import           FlatBuffers.FileIdentifier ( HasFileIdentifier )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 import qualified System.Process             as Sys
+import qualified System.Directory           as Dir
 import           Test.Hspec
 import           TestUtils
 
@@ -48,7 +49,8 @@ sending requests to a Scala server: FlatBuffers.Integration.HaskellToScalaSpec.
 
 spec :: Spec
 spec =
-  describe "Haskell encoders/decoders should be consistent with flatc" $ do
+  describe "Haskell encoders/decoders should be consistent with flatc" $
+    beforeAll_ (Dir.createDirectoryIfMissing True "temp") $ do
     describe "Primitives" $ do
       it "present with maxBound" $ do
         (json, decoded) <- flatcWithFileIdentifier $ primitives

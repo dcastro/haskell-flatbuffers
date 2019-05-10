@@ -33,7 +33,6 @@ dependencies:
   - binary
   - hw-int
   - scientific
-  - process
 
 library:
   source-dirs:      src
@@ -54,3 +53,6 @@ tests:
     - aeson
     - aeson-pretty
     - raw-strings-qq
+    - process
+    - directory
+
