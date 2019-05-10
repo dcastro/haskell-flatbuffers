@@ -93,11 +93,7 @@ spec =
           (Just 1234.56) (Just 2873242.82782) (Just False) (Just "hi 👬 bye")
 
         json `shouldBeJson` object
-          [ "a" .= minBound @Word8
-          , "b" .= minBound @Word16
-          , "c" .= minBound @Word32
-          , "d" .= minBound @Word64
-          , "e" .= minBound @Int8
+          [ "e" .= minBound @Int8
           , "f" .= minBound @Int16
           , "g" .= minBound @Int32
           , "h" .= minBound @Int64
@@ -121,24 +117,24 @@ spec =
 
       it "present with defaults" $ do
         (json, decoded) <- flatcWithFileIdentifier $ primitives
-          (Just 1) (Just 1) (Just 1) (Just 1)
-          (Just 1) (Just 1) (Just 1) (Just 1)
-          (Just 1) (Just 1) (Just False) (Just "hi 👬 bye")
+          (Just 0) (Just 0) (Just 0) (Just 0)
+          (Just 0) (Just 0) (Just 0) (Just 0)
+          (Just 0) (Just 0) (Just False) (Just "hi 👬 bye")
 
         json `shouldBeJson` object
           [ "l" .= String "hi 👬 bye"
           ]
 
-        getPrimitives'a decoded `shouldBe` Right 1
-        getPrimitives'b decoded `shouldBe` Right 1
-        getPrimitives'c decoded `shouldBe` Right 1
-        getPrimitives'd decoded `shouldBe` Right 1
-        getPrimitives'e decoded `shouldBe` Right 1
-        getPrimitives'f decoded `shouldBe` Right 1
-        getPrimitives'g decoded `shouldBe` Right 1
-        getPrimitives'h decoded `shouldBe` Right 1
-        getPrimitives'i decoded `shouldBe` Right 1
-        getPrimitives'j decoded `shouldBe` Right 1
+        getPrimitives'a decoded `shouldBe` Right 0
+        getPrimitives'b decoded `shouldBe` Right 0
+        getPrimitives'c decoded `shouldBe` Right 0
+        getPrimitives'd decoded `shouldBe` Right 0
+        getPrimitives'e decoded `shouldBe` Right 0
+        getPrimitives'f decoded `shouldBe` Right 0
+        getPrimitives'g decoded `shouldBe` Right 0
+        getPrimitives'h decoded `shouldBe` Right 0
+        getPrimitives'i decoded `shouldBe` Right 0
+        getPrimitives'j decoded `shouldBe` Right 0
         getPrimitives'k decoded `shouldBe` Right False
         getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
 
@@ -150,16 +146,16 @@ spec =
 
         json `shouldBeJson` object []
 
-        getPrimitives'a decoded `shouldBe` Right 1
-        getPrimitives'b decoded `shouldBe` Right 1
-        getPrimitives'c decoded `shouldBe` Right 1
-        getPrimitives'd decoded `shouldBe` Right 1
-        getPrimitives'e decoded `shouldBe` Right 1
-        getPrimitives'f decoded `shouldBe` Right 1
-        getPrimitives'g decoded `shouldBe` Right 1
-        getPrimitives'h decoded `shouldBe` Right 1
-        getPrimitives'i decoded `shouldBe` Right 1
-        getPrimitives'j decoded `shouldBe` Right 1
+        getPrimitives'a decoded `shouldBe` Right 0
+        getPrimitives'b decoded `shouldBe` Right 0
+        getPrimitives'c decoded `shouldBe` Right 0
+        getPrimitives'd decoded `shouldBe` Right 0
+        getPrimitives'e decoded `shouldBe` Right 0
+        getPrimitives'f decoded `shouldBe` Right 0
+        getPrimitives'g decoded `shouldBe` Right 0
+        getPrimitives'h decoded `shouldBe` Right 0
+        getPrimitives'i decoded `shouldBe` Right 0
+        getPrimitives'j decoded `shouldBe` Right 0
         getPrimitives'k decoded `shouldBe` Right False
         getPrimitives'l decoded `shouldBe` Right Nothing
 

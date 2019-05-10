@@ -2,16 +2,16 @@ namespace testapi . flatbuffers;
 
 table Primitives {
   // scalars (excluding enums) + string
-  a: uint8 = 1;
-  b: uint16 = 1;
-  c: uint32 = 1;
-  d: uint64 = 1;
-  e: int8 = 1;
-  f: int16 = 1;
-  g: int32 = 1;
-  h: int64 = 1;
-  i: float32 = 1;
-  j: float64 = 1;
+  a: uint8;
+  b: uint16;
+  c: uint32;
+  d: uint64;
+  e: int8;
+  f: int16;
+  g: int32;
+  h: int64;
+  i: float32;
+  j: float64;
   k: bool;
   l: string;
 }

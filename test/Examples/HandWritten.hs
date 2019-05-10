@@ -38,16 +38,16 @@ primitives ::
   -> WriteTable Primitives
 primitives a b c d e f g h i j k l =
   writeTable
-    [ (optionalDef 1 . inline) word8    a
-    , (optionalDef 1 . inline) word16   b
-    , (optionalDef 1 . inline) word32   c
-    , (optionalDef 1 . inline) word64   d
-    , (optionalDef 1 . inline) int8     e
-    , (optionalDef 1 . inline) int16    f
-    , (optionalDef 1 . inline) int32    g
-    , (optionalDef 1 . inline) int64    h
-    , (optionalDef 1 . inline) float    i
-    , (optionalDef 1 . inline) double   j
+    [ (optionalDef 0 . inline) word8    a
+    , (optionalDef 0 . inline) word16   b
+    , (optionalDef 0 . inline) word32   c
+    , (optionalDef 0 . inline) word64   d
+    , (optionalDef 0 . inline) int8     e
+    , (optionalDef 0 . inline) int16    f
+    , (optionalDef 0 . inline) int32    g
+    , (optionalDef 0 . inline) int64    h
+    , (optionalDef 0 . inline) float    i
+    , (optionalDef 0 . inline) double   j
     , (optionalDef False . inline) bool k
     , optional text                     l
     ]
@@ -64,16 +64,16 @@ getPrimitives'i :: ReadCtx m => Table Primitives -> m Float
 getPrimitives'j :: ReadCtx m => Table Primitives -> m Double
 getPrimitives'k :: ReadCtx m => Table Primitives -> m Bool
 getPrimitives'l :: ReadCtx m => Table Primitives -> m (Maybe Text)
-getPrimitives'a = readTableFieldWithDef readWord8   0 1
-getPrimitives'b = readTableFieldWithDef readWord16  1 1
-getPrimitives'c = readTableFieldWithDef readWord32  2 1
-getPrimitives'd = readTableFieldWithDef readWord64  3 1
-getPrimitives'e = readTableFieldWithDef readInt8    4 1
-getPrimitives'f = readTableFieldWithDef readInt16   5 1
-getPrimitives'g = readTableFieldWithDef readInt32   6 1
-getPrimitives'h = readTableFieldWithDef readInt64   7 1
-getPrimitives'i = readTableFieldWithDef readFloat   8 1
-getPrimitives'j = readTableFieldWithDef readDouble  9 1
+getPrimitives'a = readTableFieldWithDef readWord8   0 0
+getPrimitives'b = readTableFieldWithDef readWord16  1 0
+getPrimitives'c = readTableFieldWithDef readWord32  2 0
+getPrimitives'd = readTableFieldWithDef readWord64  3 0
+getPrimitives'e = readTableFieldWithDef readInt8    4 0
+getPrimitives'f = readTableFieldWithDef readInt16   5 0
+getPrimitives'g = readTableFieldWithDef readInt32   6 0
+getPrimitives'h = readTableFieldWithDef readInt64   7 0
+getPrimitives'i = readTableFieldWithDef readFloat   8 0
+getPrimitives'j = readTableFieldWithDef readDouble  9 0
 getPrimitives'k = readTableFieldWithDef readBool    10 False
 getPrimitives'l = readTableFieldOpt     readText    11
 

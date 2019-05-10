@@ -61,16 +61,16 @@ spec =
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing Nothing
-        getPrimitives'a x `shouldBe` Right 1
-        getPrimitives'b x `shouldBe` Right 1
-        getPrimitives'c x `shouldBe` Right 1
-        getPrimitives'd x `shouldBe` Right 1
-        getPrimitives'e x `shouldBe` Right 1
-        getPrimitives'f x `shouldBe` Right 1
-        getPrimitives'g x `shouldBe` Right 1
-        getPrimitives'h x `shouldBe` Right 1
-        getPrimitives'i x `shouldBe` Right 1
-        getPrimitives'j x `shouldBe` Right 1
+        getPrimitives'a x `shouldBe` Right 0
+        getPrimitives'b x `shouldBe` Right 0
+        getPrimitives'c x `shouldBe` Right 0
+        getPrimitives'd x `shouldBe` Right 0
+        getPrimitives'e x `shouldBe` Right 0
+        getPrimitives'f x `shouldBe` Right 0
+        getPrimitives'g x `shouldBe` Right 0
+        getPrimitives'h x `shouldBe` Right 0
+        getPrimitives'i x `shouldBe` Right 0
+        getPrimitives'j x `shouldBe` Right 0
         getPrimitives'k x `shouldBe` Right False
         getPrimitives'l x `shouldBe` Right Nothing
 
