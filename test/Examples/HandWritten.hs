@@ -478,3 +478,73 @@ getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
 
 getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
 getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 2 "xsReq"
+
+
+----------------------------------
+---- Scalars with defaults -------
+----------------------------------
+data ScalarsWithDefaults
+
+scalarsWithDefaults ::
+     Maybe Word8
+  -> Maybe Word16
+  -> Maybe Word32
+  -> Maybe Word64
+  -> Maybe Int8
+  -> Maybe Int16
+  -> Maybe Int32
+  -> Maybe Int64
+  -> Maybe Float
+  -> Maybe Double
+  -> Maybe Bool
+  -> Maybe Bool
+  -> Maybe Int16
+  -> Maybe Int16
+  -> WriteTable ScalarsWithDefaults
+scalarsWithDefaults a b c d e f g h i j k l m n =
+  writeTable
+    [ (optionalDef 8 . inline) word8          a
+    , (optionalDef 16 . inline) word16        b
+    , (optionalDef 32 . inline) word32        c
+    , (optionalDef 64 . inline) word64        d
+    , (optionalDef (-1) . inline) int8        e
+    , (optionalDef (-2) . inline) int16       f
+    , (optionalDef (-4) . inline) int32       g
+    , (optionalDef (-8) . inline) int64       h
+    , (optionalDef 3.9 . inline) float        i
+    , (optionalDef (-2.3e10) . inline) double j
+    , (optionalDef True . inline) bool        k
+    , (optionalDef False . inline) bool       l
+    , (optionalDef 1 . inline) int16          m
+    , (optionalDef 5 . inline) int16          n
+    ]
+
+getScalarsWithDefaults'a :: ReadCtx m => Table ScalarsWithDefaults -> m Word8
+getScalarsWithDefaults'b :: ReadCtx m => Table ScalarsWithDefaults -> m Word16
+getScalarsWithDefaults'c :: ReadCtx m => Table ScalarsWithDefaults -> m Word32
+getScalarsWithDefaults'd :: ReadCtx m => Table ScalarsWithDefaults -> m Word64
+getScalarsWithDefaults'e :: ReadCtx m => Table ScalarsWithDefaults -> m Int8
+getScalarsWithDefaults'f :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+getScalarsWithDefaults'g :: ReadCtx m => Table ScalarsWithDefaults -> m Int32
+getScalarsWithDefaults'h :: ReadCtx m => Table ScalarsWithDefaults -> m Int64
+getScalarsWithDefaults'i :: ReadCtx m => Table ScalarsWithDefaults -> m Float
+getScalarsWithDefaults'j :: ReadCtx m => Table ScalarsWithDefaults -> m Double
+getScalarsWithDefaults'k :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
+getScalarsWithDefaults'l :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
+getScalarsWithDefaults'm :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+getScalarsWithDefaults'n :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+getScalarsWithDefaults'a = readTableFieldWithDef readWord8   0 8
+getScalarsWithDefaults'b = readTableFieldWithDef readWord16  1 16
+getScalarsWithDefaults'c = readTableFieldWithDef readWord32  2 32
+getScalarsWithDefaults'd = readTableFieldWithDef readWord64  3 64
+getScalarsWithDefaults'e = readTableFieldWithDef readInt8    4 (-1)
+getScalarsWithDefaults'f = readTableFieldWithDef readInt16   5 (-2)
+getScalarsWithDefaults'g = readTableFieldWithDef readInt32   6 (-4)
+getScalarsWithDefaults'h = readTableFieldWithDef readInt64   7 (-8)
+getScalarsWithDefaults'i = readTableFieldWithDef readFloat   8 3.9
+getScalarsWithDefaults'j = readTableFieldWithDef readDouble  9 (-2.3e10)
+getScalarsWithDefaults'k = readTableFieldWithDef readBool    10 True
+getScalarsWithDefaults'l = readTableFieldWithDef readBool    11 False
+getScalarsWithDefaults'm = readTableFieldWithDef readInt16   12 1
+getScalarsWithDefaults'n = readTableFieldWithDef readInt16   13 5
+

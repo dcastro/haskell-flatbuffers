@@ -88,6 +88,14 @@ spec =
         (getEnums'xs x >>= toList) `shouldBe` Right [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
         (getEnums'ys x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Right (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
 
+      it "present with defaults" $ do
+        x <- fromRight $ decode @Enums $ encode $ enums (Just (fromColor ColorGreen)) Nothing [] Nothing
+
+        toColor <$> getEnums'x x `shouldBe` Right (Just ColorGreen)
+        getEnums'y x `shouldBeRightAnd` isNothing
+        (getEnums'xs x >>= toList) `shouldBe` Right []
+        getEnums'ys x `shouldBeRightAnd` isNothing
+
       it "missing" $ do
         x <- fromRight $ decode @Enums $ encode $ enums Nothing Nothing [] Nothing
 
@@ -388,5 +396,35 @@ spec =
         getVectorOfUnions'xs x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         getVectorOfUnions'xsReq x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
+    describe "ScalarsWithDefaults" $ do
+      let runTest buffer = do
+            x <- fromRight $ decode $ encode $ buffer
+
+            getScalarsWithDefaults'a x `shouldBe` Right 8
+            getScalarsWithDefaults'b x `shouldBe` Right 16
+            getScalarsWithDefaults'c x `shouldBe` Right 32
+            getScalarsWithDefaults'd x `shouldBe` Right 64
+            getScalarsWithDefaults'e x `shouldBe` Right (-1)
+            getScalarsWithDefaults'f x `shouldBe` Right (-2)
+            getScalarsWithDefaults'g x `shouldBe` Right (-4)
+            getScalarsWithDefaults'h x `shouldBe` Right (-8)
+            getScalarsWithDefaults'i x `shouldBe` Right 3.9
+            getScalarsWithDefaults'j x `shouldBe` Right (-2.3e10)
+            getScalarsWithDefaults'k x `shouldBe` Right True
+            getScalarsWithDefaults'l x `shouldBe` Right False
+            toColor <$> getScalarsWithDefaults'm x `shouldBe` Right (Just ColorBlue)
+            toColor <$> getScalarsWithDefaults'n x `shouldBe` Right (Just ColorGray)
+
+      it "present with defaults" $ runTest $ scalarsWithDefaults
+        (Just 8) (Just 16) (Just 32) (Just 64)
+        (Just (-1)) (Just (-2)) (Just (-4)) (Just (-8))
+        (Just 3.9) (Just (-2.3e10)) (Just True) (Just False)
+        (Just (fromColor ColorBlue)) (Just (fromColor ColorGray))
+
+      it "missing" $ runTest $ scalarsWithDefaults
+        Nothing Nothing Nothing Nothing
+        Nothing Nothing Nothing Nothing
+        Nothing Nothing Nothing Nothing
+        Nothing Nothing
 
 unexpectedUnionType = expectationFailure "Unexpected union type"

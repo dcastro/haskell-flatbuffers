@@ -187,6 +187,20 @@ spec =
             , (55, Just ColorGreen, 66)
             ])
 
+      it "present with defaults" $ do
+        (json, decoded) <- flatc $ enums
+          (Just (fromColor ColorGreen))
+          Nothing
+          []
+          Nothing
+
+        json `shouldBeJson` object [ "xs" .= [] @Value ]
+
+        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGreen)
+        getEnums'y decoded `shouldBeRightAnd` isNothing
+        (getEnums'xs decoded >>= toList) `shouldBe` Right []
+        getEnums'ys decoded `shouldBeRightAnd` isNothing
+
       it "missing" $ do
         (json, decoded) <- flatc $ enums Nothing Nothing [] Nothing
 
@@ -526,6 +540,39 @@ spec =
         getVectorOfStructs'cs decoded `shouldBeRightAnd` isNothing
         getVectorOfStructs'ds decoded `shouldBeRightAnd` isNothing
 
+
+    describe "ScalarsWithDefaults" $ do
+      let runTest buffer = do
+            (json, decoded) <- flatc $ buffer
+
+            json `shouldBeJson` object [ ]
+
+            getScalarsWithDefaults'a decoded `shouldBe` Right 8
+            getScalarsWithDefaults'b decoded `shouldBe` Right 16
+            getScalarsWithDefaults'c decoded `shouldBe` Right 32
+            getScalarsWithDefaults'd decoded `shouldBe` Right 64
+            getScalarsWithDefaults'e decoded `shouldBe` Right (-1)
+            getScalarsWithDefaults'f decoded `shouldBe` Right (-2)
+            getScalarsWithDefaults'g decoded `shouldBe` Right (-4)
+            getScalarsWithDefaults'h decoded `shouldBe` Right (-8)
+            getScalarsWithDefaults'i decoded `shouldBe` Right 3.9
+            getScalarsWithDefaults'j decoded `shouldBe` Right (-2.3e10)
+            getScalarsWithDefaults'k decoded `shouldBe` Right True
+            getScalarsWithDefaults'l decoded `shouldBe` Right False
+            toColor <$> getScalarsWithDefaults'm decoded `shouldBe` Right (Just ColorBlue)
+            toColor <$> getScalarsWithDefaults'n decoded `shouldBe` Right (Just ColorGray)
+
+      it "present with defaults" $ runTest $ scalarsWithDefaults
+        (Just 8) (Just 16) (Just 32) (Just 64)
+        (Just (-1)) (Just (-2)) (Just (-4)) (Just (-8))
+        (Just 3.9) (Just (-2.3e10)) (Just True) (Just False)
+        (Just (fromColor ColorBlue)) (Just (fromColor ColorGray))
+
+      it "missing" $ runTest $ scalarsWithDefaults
+        Nothing Nothing Nothing Nothing
+        Nothing Nothing Nothing Nothing
+        Nothing Nothing Nothing Nothing
+        Nothing Nothing
 
 
 unexpectedUnionType = expectationFailure "Unexpected union type"
