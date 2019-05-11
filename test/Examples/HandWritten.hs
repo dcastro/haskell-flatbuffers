@@ -548,3 +548,34 @@ getScalarsWithDefaults'l = readTableFieldWithDef readBool    11 False
 getScalarsWithDefaults'm = readTableFieldWithDef readInt16   12 1
 getScalarsWithDefaults'n = readTableFieldWithDef readInt16   13 5
 
+
+----------------------------------
+------ Deprecated fields ---------
+----------------------------------
+data DeprecatedFields
+
+deprecatedFields :: Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> WriteTable DeprecatedFields
+deprecatedFields x0 x1 x2 x3 = writeTable
+  [ (optionalDef 0 . inline) int8 x0
+  , deprecated
+  , (optionalDef 0 . inline) int8 x1
+  , deprecated
+  , (optionalDef 0 . inline) int8 x2
+  , deprecated
+  , deprecated
+  , (optionalDef 0 . inline) int8 x3
+  ]
+
+getDeprecatedFields'a :: ReadCtx m => Table DeprecatedFields -> m Int8
+getDeprecatedFields'a = readTableFieldWithDef readInt8 0 0
+
+getDeprecatedFields'c :: ReadCtx m => Table DeprecatedFields -> m Int8
+getDeprecatedFields'c = readTableFieldWithDef readInt8 2 0
+
+getDeprecatedFields'e :: ReadCtx m => Table DeprecatedFields -> m Int8
+getDeprecatedFields'e = readTableFieldWithDef readInt8 4 0
+
+getDeprecatedFields'g :: ReadCtx m => Table DeprecatedFields -> m Int8
+getDeprecatedFields'g = readTableFieldWithDef readInt8 7 0
+
+

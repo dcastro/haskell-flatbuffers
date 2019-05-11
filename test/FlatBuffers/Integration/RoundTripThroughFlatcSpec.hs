@@ -574,6 +574,23 @@ spec =
         Nothing Nothing Nothing Nothing
         Nothing Nothing
 
+    it "DeprecatedFields" $ do
+      (json, decoded) <- flatc $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4)
+
+      json `shouldBeJson` object
+        [ "a" .= Number 1
+        , "c" .= Number 2
+        , "e" .= Number 3
+        , "g" .= Number 4
+        ]
+
+      getDeprecatedFields'a decoded `shouldBe` Right 1
+      getDeprecatedFields'c decoded `shouldBe` Right 2
+      getDeprecatedFields'e decoded `shouldBe` Right 3
+      getDeprecatedFields'g decoded `shouldBe` Right 4
+
+
+
 
 unexpectedUnionType = expectationFailure "Unexpected union type"
 

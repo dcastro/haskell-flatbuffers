@@ -127,6 +127,15 @@ table ScalarsWithDefaults {
   n: Color = 5;
 }
 
+table DeprecatedFields {
+  a: byte;
+  b: int (deprecated);
+  c: byte;
+  d: string (deprecated);
+  e: byte;
+  f: Weapon (deprecated); // deprecated union, should leave 2 vtable entries empty
+  g: byte;
+}
 
 // TODO: add support
 

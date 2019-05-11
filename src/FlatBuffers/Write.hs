@@ -19,6 +19,7 @@ module FlatBuffers.Write
   , writeUnionValue
   , writeUnionVectorOpt
   , writeUnionVectorReq
+  , deprecated
   , optional
   , optionalDef
   , W.padded
@@ -77,6 +78,9 @@ writeUnion n (WriteTable t) = Some (n, t)
 
 none :: WriteUnion a
 none = None
+
+deprecated :: Field
+deprecated = missing
 
 optional :: (a -> Field) -> Maybe a -> Field
 optional = maybe missing

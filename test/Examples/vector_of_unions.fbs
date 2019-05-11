@@ -9,7 +9,7 @@ table VectorOfUnions {
 
 table DeprecatedVectorOfUnions {
   x: byte;
-  vec: [Weapon] (required); // should leave 2 vtable entries empty
+  xs: [Weapon] (deprecated); // should leave 2 vtable entries empty
   y: byte;
 }
 

@@ -427,4 +427,13 @@ spec =
         Nothing Nothing Nothing Nothing
         Nothing Nothing
 
+    it "DeprecatedFields" $ do
+      x <- fromRight $ decode $ encode $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4)
+
+      getDeprecatedFields'a x `shouldBe` Right 1
+      getDeprecatedFields'c x `shouldBe` Right 2
+      getDeprecatedFields'e x `shouldBe` Right 3
+      getDeprecatedFields'g x `shouldBe` Right 4
+
+
 unexpectedUnionType = expectationFailure "Unexpected union type"
