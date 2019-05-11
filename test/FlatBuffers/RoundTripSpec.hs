@@ -29,12 +29,19 @@ spec =
   describe "Round Trip" $ do
     describe "Primitives" $ do
       it "writes file identifier to buffer" $ do
-        let bs = encodeWithFileIdentifier $ primitives
-              (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
-              (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
-              (Just 1234.56) (Just 2873242.82782) (Just True) (Just "hi 👬 bye")
+        let bs1 = encodeWithFileIdentifier $ primitives
+              Nothing Nothing Nothing Nothing
+              Nothing Nothing Nothing Nothing
+              Nothing Nothing Nothing Nothing
 
-        checkFileIdentifier @Primitives bs `shouldBe` True
+        checkFileIdentifier @Primitives bs1 `shouldBe` True
+
+        let bs2 = encode $ primitives
+              Nothing Nothing Nothing Nothing
+              Nothing Nothing Nothing Nothing
+              Nothing Nothing Nothing Nothing
+
+        checkFileIdentifier @Primitives bs2 `shouldBe` False
 
       it "present" $ do
         x <- fromRight $ decode @Primitives $ encodeWithFileIdentifier $ primitives
@@ -434,6 +441,12 @@ spec =
       getDeprecatedFields'c x `shouldBe` Right 2
       getDeprecatedFields'e x `shouldBe` Right 3
       getDeprecatedFields'g x `shouldBe` Right 4
+
+    it "DeprecatedVectorOfUnions" $ do
+      x <- fromRight $ decode $ encode $ deprecatedVectorOfUnions (Just 101) (Just 102)
+
+      getDeprecatedVectorOfUnions'a x `shouldBe` Right 101
+      getDeprecatedVectorOfUnions'c x `shouldBe` Right 102
 
 
 unexpectedUnionType = expectationFailure "Unexpected union type"

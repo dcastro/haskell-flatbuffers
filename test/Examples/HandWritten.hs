@@ -579,3 +579,22 @@ getDeprecatedFields'g :: ReadCtx m => Table DeprecatedFields -> m Int8
 getDeprecatedFields'g = readTableFieldWithDef readInt8 7 0
 
 
+----------------------------------
+-- Deprecated vector of unions ---
+----------------------------------
+data DeprecatedVectorOfUnions
+
+deprecatedVectorOfUnions :: Maybe Int8 -> Maybe Int8 -> WriteTable DeprecatedVectorOfUnions
+deprecatedVectorOfUnions x0 x1 = writeTable
+  [ (optionalDef 0 . inline) int8 x0
+  , deprecated
+  , deprecated
+  , (optionalDef 0 . inline) int8 x1
+  ]
+
+getDeprecatedVectorOfUnions'a :: ReadCtx m => Table DeprecatedVectorOfUnions -> m Int8
+getDeprecatedVectorOfUnions'a = readTableFieldWithDef readInt8 0 0
+
+getDeprecatedVectorOfUnions'c :: ReadCtx m => Table DeprecatedVectorOfUnions -> m Int8
+getDeprecatedVectorOfUnions'c = readTableFieldWithDef readInt8 3 0
+
