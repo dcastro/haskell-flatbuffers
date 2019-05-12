@@ -87,28 +87,28 @@ spec =
         x <- fromRight $ decode $ encode $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+          (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
           (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
 
         toColor <$> getEnums'x x `shouldBe` Right (Just ColorGray)
         (getEnums'y x >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
-        (getEnums'xs x >>= toList) `shouldBe` Right [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+        (getEnums'xs x >>= traverse toList) `shouldBe` Right (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
         (getEnums'ys x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Right (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
 
       it "present with defaults" $ do
-        x <- fromRight $ decode @Enums $ encode $ enums (Just (fromColor ColorGreen)) Nothing [] Nothing
+        x <- fromRight $ decode @Enums $ encode $ enums (Just (fromColor ColorGreen)) Nothing Nothing Nothing
 
         toColor <$> getEnums'x x `shouldBe` Right (Just ColorGreen)
         getEnums'y x `shouldBeRightAnd` isNothing
-        (getEnums'xs x >>= toList) `shouldBe` Right []
+        getEnums'xs x `shouldBeRightAnd` isNothing
         getEnums'ys x `shouldBeRightAnd` isNothing
 
       it "missing" $ do
-        x <- fromRight $ decode @Enums $ encode $ enums Nothing Nothing [] Nothing
+        x <- fromRight $ decode @Enums $ encode $ enums Nothing Nothing Nothing Nothing
 
         toColor <$> getEnums'x x `shouldBe` Right (Just ColorGreen)
         getEnums'y x `shouldBeRightAnd` isNothing
-        (getEnums'xs x >>= toList) `shouldBe` Right []
+        getEnums'xs x `shouldBeRightAnd` isNothing
         getEnums'ys x `shouldBeRightAnd` isNothing
 
     describe "Structs" $ do

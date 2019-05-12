@@ -114,11 +114,11 @@ fromColor n =
 ----------------------------------
 data Enums
 
-enums :: Maybe Int16 -> Maybe (WriteStruct StructWithEnum) -> [Int16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
+enums :: Maybe Int16 -> Maybe (WriteStruct StructWithEnum) -> Maybe [Int16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
 enums x1 x2 x3 x4 = writeTable
   [ (optionalDef 0 . inline) int16 x1
   , optional unWriteStruct x2
-  , (writeVector . inline) int16 x3
+  , (optional . writeVector . inline) int16 x3
   , (optional . writeVector) unWriteStruct x4
   ]
 
@@ -128,8 +128,8 @@ getEnums'x = readTableFieldWithDef readInt16 0 0
 getEnums'y :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
 getEnums'y = readTableFieldOpt readStruct' 1
 
-getEnums'xs :: ReadCtx m => Table Enums -> m (Vector Int16)
-getEnums'xs = readTableFieldReq (readPrimVector Int16Vec) 2 "xs"
+getEnums'xs :: ReadCtx m => Table Enums -> m (Maybe (Vector Int16))
+getEnums'xs = readTableFieldOpt (readPrimVector Int16Vec) 2
 
 getEnums'ys :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
 getEnums'ys = readTableFieldOpt (readStructVector 6) 3

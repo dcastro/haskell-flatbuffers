@@ -165,7 +165,7 @@ spec =
         (json, decoded) <- flatc $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+          (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
           (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
 
         json `shouldBeJson` object
@@ -180,7 +180,7 @@ spec =
 
         toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGray)
         (getEnums'y decoded >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
-        (getEnums'xs decoded >>= toList) `shouldBe` Right [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]
+        (getEnums'xs decoded >>= traverse toList) `shouldBe` Right (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
         (getEnums'ys decoded >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe`
           Right (Just
             [ (33, Just ColorRed, 44)
@@ -191,24 +191,24 @@ spec =
         (json, decoded) <- flatc $ enums
           (Just (fromColor ColorGreen))
           Nothing
-          []
+          Nothing
           Nothing
 
-        json `shouldBeJson` object [ "xs" .= [] @Value ]
+        json `shouldBeJson` object [ ]
 
         toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGreen)
         getEnums'y decoded `shouldBeRightAnd` isNothing
-        (getEnums'xs decoded >>= toList) `shouldBe` Right []
+        getEnums'xs decoded `shouldBeRightAnd` isNothing
         getEnums'ys decoded `shouldBeRightAnd` isNothing
 
       it "missing" $ do
-        (json, decoded) <- flatc $ enums Nothing Nothing [] Nothing
+        (json, decoded) <- flatc $ enums Nothing Nothing Nothing Nothing
 
-        json `shouldBeJson` object [ "xs" .= [] @Value ]
+        json `shouldBeJson` object [ ]
 
         toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGreen)
         getEnums'y decoded `shouldBeRightAnd` isNothing
-        (getEnums'xs decoded >>= toList) `shouldBe` Right []
+        getEnums'xs decoded `shouldBeRightAnd` isNothing
         getEnums'ys decoded `shouldBeRightAnd` isNothing
 
     describe "Structs" $ do
