@@ -11,32 +11,32 @@ import           Test.Hspec
 
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
-shouldBeLeft :: Show e => Eq e => Either e a -> e -> Expectation
+shouldBeLeft :: HasCallStack => Show e => Eq e => Either e a -> e -> Expectation
 shouldBeLeft ea expected = case ea of
     Left e  -> e `shouldBe` expected
     Right _ -> expectationFailure "Expected 'Left', got 'Right'"
 
-shouldBeRightAnd :: Show e => Either e a -> (a -> Bool) -> Expectation
+shouldBeRightAnd :: HasCallStack => Show e => Either e a -> (a -> Bool) -> Expectation
 shouldBeRightAnd ea pred = case ea of
     Left e  -> expectationFailure $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> pred a `shouldBe` True
 
-shouldBeRightAndExpect :: Show e => Either e a -> (a -> Expectation) -> Expectation
+shouldBeRightAndExpect :: HasCallStack => Show e => Either e a -> (a -> Expectation) -> Expectation
 shouldBeRightAndExpect ea expect = case ea of
     Left e  -> expectationFailure $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> expect a
 
-fromRight :: Show e => Either e a -> IO a
+fromRight :: HasCallStack => Show e => Either e a -> IO a
 fromRight ea = case ea of
     Left e  -> expectationFailure' $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> pure a
 
-fromJust :: Maybe a -> IO a
+fromJust :: HasCallStack => Maybe a -> IO a
 fromJust mb = case mb of
   Nothing -> expectationFailure' $ "Expected 'Just', got 'Nothing'"
   Just a  -> pure a
 
-fromRightJust :: Show e => Either e (Maybe a) -> IO a
+fromRightJust :: HasCallStack => Show e => Either e (Maybe a) -> IO a
 fromRightJust = fromRight >=> fromJust
 
 -- | Like `expectationFailure`, but returns @IO a@ instead of @IO ()@.

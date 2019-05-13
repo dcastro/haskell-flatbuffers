@@ -4,13 +4,6 @@ namespace testapi.flatbuffers;
 
 table VectorOfUnions {
   xs: [Weapon];
+  xsDepr: [Weapon] (deprecated); // should leave 2 vtable entries empty
   xsReq: [Weapon] (required);
 }
-
-table DeprecatedVectorOfUnions {
-  a: byte;
-  b: [Weapon] (deprecated); // should leave 2 vtable entries empty
-  c: byte;
-}
-
-

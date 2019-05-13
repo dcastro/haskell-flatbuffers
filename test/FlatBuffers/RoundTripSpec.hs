@@ -397,6 +397,8 @@ spec =
         x <- fromRight $ decode $ encode $ writeTable @VectorOfUnions
           [ (writeVector . inline) word8 []
           , W.missing
+          , W.missing
+          , W.missing
           , (writeVector . inline) word8 []
           , W.missing
           ]
@@ -441,12 +443,6 @@ spec =
       getDeprecatedFields'c x `shouldBe` Right 2
       getDeprecatedFields'e x `shouldBe` Right 3
       getDeprecatedFields'g x `shouldBe` Right 4
-
-    it "DeprecatedVectorOfUnions" $ do
-      x <- fromRight $ decode $ encode $ deprecatedVectorOfUnions (Just 101) (Just 102)
-
-      getDeprecatedVectorOfUnions'a x `shouldBe` Right 101
-      getDeprecatedVectorOfUnions'c x `shouldBe` Right 102
 
     it "RequiredFields" $ do
       let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
