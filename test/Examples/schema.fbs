@@ -137,6 +137,14 @@ table DeprecatedFields {
   g: byte;
 }
 
+table RequiredFields {
+  a: string (required);
+  b: Struct1 (required);
+  c: Axe (required);
+  d: Weapon (required);
+  e: [int] (required);
+}
+
 // TODO: add support
 
 // union UnionOfStructs { UOS_A, UOS_B }

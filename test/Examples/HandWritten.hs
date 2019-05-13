@@ -598,3 +598,40 @@ getDeprecatedVectorOfUnions'a = readTableFieldWithDef readInt8 0 0
 getDeprecatedVectorOfUnions'c :: ReadCtx m => Table DeprecatedVectorOfUnions -> m Int8
 getDeprecatedVectorOfUnions'c = readTableFieldWithDef readInt8 3 0
 
+
+----------------------------------
+-------- Required fields ---------
+----------------------------------
+data RequiredFields
+
+requiredFields ::
+     Text
+  -> WriteStruct Struct1
+  -> WriteTable Axe
+  -> WriteUnion Weapon
+  -> [Int32]
+  -> WriteTable RequiredFields
+requiredFields x0 x1 x2 x3 x4 = writeTable
+  [ text x0
+  , unWriteStruct x1
+  , unWriteTable x2
+  , writeUnionType x3
+  , writeUnionValue x3
+  , (writeVector . inline) int32 x4
+  ]
+
+getRequiredFields'a :: ReadCtx m => Table RequiredFields -> m Text
+getRequiredFields'a = readTableFieldReq readText 0 "a"
+
+getRequiredFields'b :: ReadCtx m => Table RequiredFields -> m (Struct Struct1)
+getRequiredFields'b = readTableFieldReq readStruct' 1 "b"
+
+getRequiredFields'c :: ReadCtx m => Table RequiredFields -> m (Table Axe)
+getRequiredFields'c = readTableFieldReq readTable 2 "c"
+
+getRequiredFields'd :: ReadCtx m => Table RequiredFields -> m (Union Weapon)
+getRequiredFields'd = readTableFieldUnion readWeapon 3
+
+getRequiredFields'e :: ReadCtx m => Table RequiredFields -> m (Vector Int32)
+getRequiredFields'e = readTableFieldReq (readPrimVector Int32Vec) 5 "d"
+

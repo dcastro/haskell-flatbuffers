@@ -589,6 +589,31 @@ spec =
       getDeprecatedFields'e decoded `shouldBe` Right 3
       getDeprecatedFields'g decoded `shouldBe` Right 4
 
+    it "RequiredFields" $ do
+      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+      (json, decoded) <- flatc $ requiredFields
+        "hello"
+        (struct1 11 22 33)
+        (axe (Just 44))
+        (weapon (sword (Just "a")))
+        [55, 66]
+
+      json `shouldBeJson` object
+        [ "a" .= String "hello"
+        , "b" .= object ["x" .= Number 11, "y" .= Number 22, "z" .= Number 33]
+        , "c" .= object ["y" .= Number 44]
+        , "d" .= object ["x" .= String "a"]
+        , "d_type" .= String "Sword"
+        , "e" .= [Number 55, Number 66]
+        ]
+
+      getRequiredFields'a decoded `shouldBe` Right "hello"
+      (getRequiredFields'b decoded >>= readStruct1) `shouldBe` Right (11, 22, 33)
+      (getRequiredFields'c decoded >>= getAxe'y) `shouldBe` Right 44
+      getRequiredFields'd decoded `shouldBeRightAndExpect` \case
+        Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "a")
+        _                      -> unexpectedUnionType
+      (getRequiredFields'e decoded >>= toList) `shouldBe` Right [55, 66]
 
 
 

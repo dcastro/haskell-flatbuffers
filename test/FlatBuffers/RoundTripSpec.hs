@@ -448,5 +448,23 @@ spec =
       getDeprecatedVectorOfUnions'a x `shouldBe` Right 101
       getDeprecatedVectorOfUnions'c x `shouldBe` Right 102
 
+    it "RequiredFields" $ do
+      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+      x <- fromRight $ decode $ encode $ requiredFields
+        "hello"
+        (struct1 11 22 33)
+        (axe (Just 44))
+        (weapon (sword (Just "a")))
+        [55, 66]
+
+      getRequiredFields'a x `shouldBe` Right "hello"
+      (getRequiredFields'b x >>= readStruct1) `shouldBe` Right (11, 22, 33)
+      (getRequiredFields'c x >>= getAxe'y) `shouldBe` Right 44
+      getRequiredFields'd x `shouldBeRightAndExpect` \case
+        Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "a")
+        _                      -> unexpectedUnionType
+      (getRequiredFields'e x >>= toList) `shouldBe` Right [55, 66]
+
+
 
 unexpectedUnionType = expectationFailure "Unexpected union type"
