@@ -33,6 +33,7 @@ dependencies:
   - binary
   - hw-int
   - scientific
+  - template-haskell
 
 library:
   source-dirs:      src
@@ -56,4 +57,5 @@ tests:
     - process
     - directory
     - pretty-simple
+    - th-pprint
 

@@ -53,7 +53,7 @@ spec =
         [r| table T (x) {}            |] `shouldFail` "[T]: user defined attributes must be declared before use: x"
         [r| table T { y: int (x); }   |] `shouldFail` "[T.y]: user defined attributes must be declared before use: x"
         [r| union U (x) {Y} table Y{} |] `shouldFail` "[U]: user defined attributes must be declared before use: x"
-      
+
       it "user defined attributes can be used when declared" $ do
         shouldSucceed [r| attribute x; enum E : int (x) {Y}      |]
         shouldSucceed [r| attribute x; struct S (x) { y: int;}   |]
@@ -117,7 +117,7 @@ spec =
         [r| root_type S; struct S{x:int;}     |] `shouldFail` "root type must be a table"
         [r| root_type U; union U{T} table T{} |] `shouldFail` "root type must be a table"
         [r| root_type string;                 |] `shouldFail` "type 'string' does not exist (checked in these namespaces: '')"
-        
+
       it "can reference tables in other namespaces" $
         [r|
           namespace A;
@@ -146,7 +146,7 @@ spec =
             , EnumVal "Green" 1
             , EnumVal "Blue" 2
             ])
-      
+
       it "multiple enums in different namespaces" $
         [r|
           namespace A;
@@ -177,7 +177,7 @@ spec =
         [r| enum Color : int8 { Red = -128, Green, Blue = 127 } |] `shouldValidate`
           enum ("", EnumDecl "Color" EInt8
           [ EnumVal "Red" (toInteger (minBound :: Int8))
-          , EnumVal "Green" (-127) 
+          , EnumVal "Green" (-127)
           , EnumVal "Blue" (toInteger (maxBound :: Int8))
           ])
 
@@ -354,7 +354,7 @@ spec =
         [r|
           namespace A;
           table T {}
-          
+
           struct S {
             x: A.T;
           }
@@ -365,7 +365,7 @@ spec =
         [r|
           namespace A.B;
           union U { X }
-          
+
           struct S {
             x: U;
           }
@@ -432,15 +432,15 @@ spec =
         [r| struct S (force_align: "hello") { x: byte; } |] `shouldFail`
           "[S]: expected attribute 'force_align' to have an integer value, e.g. 'force_align: 123'"
 
-      it "with deprecated field" $ 
+      it "with deprecated field" $
         [r| struct S { x: byte (deprecated); } |] `shouldFail`
           "[S.x]: can't deprecate fields in a struct"
 
-      it "with required field" $ 
+      it "with required field" $
         [r| struct S { x: byte (required); } |] `shouldFail`
           "[S.x]: struct fields are already required, the 'required' attribute is redundant"
 
-      it "with id field" $ 
+      it "with id field" $
         [r| struct S { x: byte (id: 0); } |] `shouldFail`
           "[S.x]: struct fields cannot be reordered using the 'id' attribute"
 
@@ -588,7 +588,7 @@ spec =
 
         it "with identifier default values" $
           [r| table T { a: byte = Red; } |] `shouldFail` errorMsg
-          
+
       describe "with floating point fields" $ do
         it "with integer default values" $
           [r|
@@ -635,7 +635,7 @@ spec =
       describe "with boolean fields" $ do
         it "with integer default values" $
           [r| table T { a: bool = 1; } |] `shouldFail` "[T.a]: default value must be a boolean"
-          
+
         it "with decimal default values" $
           [r| table T { a: bool = 1.1; } |] `shouldFail` "[T.a]: default value must be a boolean"
 
@@ -1005,7 +1005,7 @@ spec =
               , UnionVal "B_T2"   (TypeRef "A.B" "T2")
               ])
           ]
-      
+
       it "with alias" $
         [r|
           namespace A.B;
@@ -1136,7 +1136,7 @@ shouldFail input expectedErrorMsg =
       let schemas = FileTree "" schema []
       in  validateSchemas schemas `shouldBe` Left expectedErrorMsg
 
-showBundle :: ( ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
+showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
   where
     indent x = if null x
