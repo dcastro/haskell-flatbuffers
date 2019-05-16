@@ -55,4 +55,5 @@ tests:
     - raw-strings-qq
     - process
     - directory
+    - pretty-simple
 

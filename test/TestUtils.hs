@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module TestUtils where
 
 import           Control.Monad             ( (>=>) )
@@ -6,8 +9,12 @@ import qualified Data.Aeson                as J
 import           Data.Aeson.Encode.Pretty  ( encodePretty )
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
 
+import qualified Data.Text.Lazy            as TL
+
 import           Test.HUnit                ( assertFailure )
 import           Test.Hspec
+
+import qualified Text.Pretty.Simple        as PP
 
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
@@ -43,15 +50,29 @@ fromRightJust = fromRight >=> fromJust
 expectationFailure' :: HasCallStack => String -> IO a
 expectationFailure' = Test.HUnit.assertFailure
 
+
+-- | Pretty-prints objects when a test fails.
+newtype Pretty a = Pretty a
+  deriving newtype Eq
+
+instance Show a => Show (Pretty a) where
+  show (Pretty a) = TL.unpack (PP.pShowOpt opt a)
+    where
+      opt = PP.defaultOutputOptionsNoColor { PP.outputOptionsIndentAmount = 2 }
+
+pshouldBe :: (Show a, Eq a, HasCallStack) => a -> a -> Expectation
+pshouldBe x y = Pretty x `shouldBe` Pretty y
+
+
 -- | Allows Json documents to be compared (using e.g. `shouldBe`) and pretty-printed in case the comparison fails.
-newtype Pretty = Pretty J.Value
+newtype PrettyJson = PrettyJson J.Value
   deriving Eq
 
-instance Show Pretty where
-  show (Pretty v) = BSLU.toString (encodePretty v)
+instance Show PrettyJson where
+  show (PrettyJson v) = BSLU.toString (encodePretty v)
 
 shouldBeJson :: HasCallStack => J.Value -> J.Value -> Expectation
-shouldBeJson x y = Pretty x `shouldBe` Pretty y
+shouldBeJson x y = PrettyJson x `shouldBe` PrettyJson y
 
 liftA4 ::
    Applicative m =>

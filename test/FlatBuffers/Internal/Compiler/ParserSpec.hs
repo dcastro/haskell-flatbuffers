@@ -1,16 +1,21 @@
-{-# LANGUAGE OverloadedLists   #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module FlatBuffers.Internal.Compiler.ParserSpec where
 
-import           Data.Void                                (Void)
+import           Data.Void                                ( Void )
+
 import           FlatBuffers.Internal.Compiler.Parser
 import           FlatBuffers.Internal.Compiler.SyntaxTree
+
 import           Test.Hspec
 import           Test.Hspec.Megaparsec
+
+import           TestUtils
+
 import           Text.Megaparsec
-import           Text.RawString.QQ                        (r)
+import           Text.RawString.QQ                        ( r )
 
 spec :: Spec
 spec =
@@ -259,6 +264,6 @@ parses :: String -> Schema -> Expectation
 parses input expectedSchema =
   case parse schema "" input of
     l@(Left _) -> l `shouldParse` expectedSchema
-    Right result -> result `shouldBe` expectedSchema
+    Right result -> result `pshouldBe` expectedSchema
 
 

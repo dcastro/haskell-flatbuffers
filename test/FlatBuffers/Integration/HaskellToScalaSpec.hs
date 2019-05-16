@@ -80,6 +80,6 @@ test flatbufferName bs expectedJson = do
   rsp <- httpLbs req' man
   case statusCode $ responseStatus rsp of
     200 ->
-      (Pretty <$> J.decode @J.Value (responseBody rsp)) `shouldBe`
-      Just (Pretty expectedJson)
+      (PrettyJson <$> J.decode @J.Value (responseBody rsp)) `shouldBe`
+      Just (PrettyJson expectedJson)
     _ -> expectationFailure ("Failed: " ++ BSLU.toString (responseBody rsp))
