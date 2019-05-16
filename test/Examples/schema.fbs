@@ -1,5 +1,7 @@
 namespace testapi . flatbuffers;
 
+table EmptyTable {}
+
 table Primitives {
   // scalars (excluding enums) + string
   a: uint8;

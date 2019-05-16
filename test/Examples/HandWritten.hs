@@ -13,6 +13,13 @@ import           FlatBuffers.Internal.Positive ( Positive(getPositive) )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
+----------------------------------
+---------- Empty table -----------
+----------------------------------
+data EmptyTable
+
+emptyTable :: WriteTable EmptyTable
+emptyTable = writeTable []
 
 ----------------------------------
 ---------- Primitives ------------
