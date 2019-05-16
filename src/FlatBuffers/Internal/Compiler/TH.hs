@@ -34,11 +34,10 @@ genTable (_, table) = do
 
 genTableConstructor :: Name -> TableDecl -> Q (Dec, Dec)
 genTableConstructor tableName table = do
-  (types, pats, exps, whereBindings) <- mconcat <$> traverse (uncurry genTableContructorField) (tableFields table `zip` [0..])
+  (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse genTableContructorField (tableFields table)
 
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
-  let sig = foldr (\t accum -> AppT (AppT ArrowT t) accum) retType types
-
+  let sig = foldr (\t accum -> ArrowT `AppT` t `AppT` accum) retType argTypes
 
   let consName = mkNameFor dataTypeConstructor table
   let consSig = SigD consName sig
@@ -53,8 +52,8 @@ genTableConstructor tableName table = do
   pure (consSig, cons)
 
 
-genTableContructorField :: TableField -> Int -> Q ([Type], [Pat], [Exp], [Dec])
-genTableContructorField tf ix =
+genTableContructorField :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
+genTableContructorField tf =
   if tableFieldDeprecated tf
     then
       case tableFieldType tf of
@@ -105,7 +104,7 @@ genTableContructorField tf ix =
   where
     expForScalar :: Exp -> Exp -> Exp -> Q [Exp]
     expForScalar defaultValExp writeExp varExp = pure
-      [ AppE (AppE (AppE (VarE 'optionalDef) defaultValExp) (AppE (VarE 'inline) writeExp)) varExp
+      [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
       ]
 
 requiredExp :: Required -> Exp -> Exp

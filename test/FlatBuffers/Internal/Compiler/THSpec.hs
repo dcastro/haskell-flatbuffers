@@ -6,7 +6,8 @@
 module FlatBuffers.Internal.Compiler.THSpec where
 
 import           Data.Int
-import qualified Data.Text                                      as T
+import           Data.Text ( Text )
+import qualified Data.Text as T
 import           Data.Word
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
@@ -28,7 +29,7 @@ import           Text.RawString.QQ                              ( r )
 
 spec :: Spec
 spec =
-  fdescribe "TH" $ do
+  describe "TH" $ do
     describe "naming coventions" $ do
       it "table datatype name is uppercased" $
         [r| table t {}|] `shouldCompileTo`
@@ -181,6 +182,33 @@ spec =
                 , optionalDef True (inline bool)        k
                 ]
           |]
+
+    describe "string fields" $ do
+      it "normal field" $
+        [r| table T {s: string;} |] `shouldCompileTo`
+          [d|
+            data T
+
+            t :: Maybe Text -> WriteTable T
+            t s = writeTable [optional text s]
+          |]
+      it "deprecated" $
+        [r| table T {s: string (deprecated);} |] `shouldCompileTo`
+          [d|
+            data T
+
+            t :: WriteTable T
+            t = writeTable [deprecated]
+          |]
+      it "required" $
+        [r| table T {s: string (required);} |] `shouldCompileTo`
+          [d|
+            data T
+
+            t :: Text -> WriteTable T
+            t s = writeTable [text s]
+          |]
+
 
 
 shouldCompileTo :: HasCallStack => String -> Q [Dec] -> Expectation
