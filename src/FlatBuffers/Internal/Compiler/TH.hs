@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module FlatBuffers.Internal.Compiler.TH where
 
@@ -9,9 +10,9 @@ import           Data.Text                                       ( Text )
 import qualified Data.Text                                       as T
 import           Data.Word
 
-import           FlatBuffers.Internal.Compiler.NamingConventions
+import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
-import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Write
 
@@ -24,7 +25,7 @@ compileSymbolTable symbols =
 
 genTable :: (Namespace, TableDecl) -> Q [Dec]
 genTable (_, table) = do
-  let tableName = mkNameFor dataTypeName table
+  let tableName = mkNameFor NC.dataTypeName table
   (consSig, cons) <- genTableConstructor tableName table
   pure
     [ DataD [] tableName [] Nothing [] []
@@ -39,7 +40,7 @@ genTableConstructor tableName table = do
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
   let sig = foldr (\t accum -> ArrowT `AppT` t `AppT` accum) retType argTypes
 
-  let consName = mkNameFor dataTypeConstructor table
+  let consName = mkNameFor NC.dataTypeConstructor table
   let consSig = SigD consName sig
 
   let body = NormalB $ AppE (VarE 'writeTable) (ListE exps)
@@ -61,9 +62,10 @@ genTableContructorField tf =
         TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
         _                    -> pure ([], [], [VarE 'deprecated], [])
     else do
-      let name = mkNameFor term tf
+      let name = mkNameFor NC.term tf
 
-      let pat = VarP name
+      let arg = VarP name
+      let argRef = VarE name
 
       typ <-
         case tableFieldType tf of
@@ -78,34 +80,43 @@ genTableContructorField tf =
           TFloat  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Float)
           TDouble _   -> pure $ AppT (ConT ''Maybe) (ConT ''Double)
           TBool   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Bool)
-          TString req -> pure $ requiredType req (ConT ''Text)
+          TString req        -> pure $ requiredType req (ConT ''Text)
+          TTable typeRef req -> pure $ requiredType req (ConT ''WriteTable `AppT` typeRefAsType typeRef)
 
           _ -> undefined
 
       exps <-
         case tableFieldType tf of
-          TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) (VarE name)
-          TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) (VarE name)
-          TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) (VarE name)
-          TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) (VarE name)
-          TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) (VarE name)
-          TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) (VarE name)
-          TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) (VarE name)
-          TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) (VarE name)
-          TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) (VarE name)
-          TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) (VarE name)
-          TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) (VarE name)
-          TString req            -> pure . pure $ AppE (requiredExp req (VarE 'text)) (VarE name)
+          TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) argRef
+          TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) argRef
+          TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) argRef
+          TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) argRef
+          TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) argRef
+          TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) argRef
+          TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) argRef
+          TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) argRef
+          TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
+          TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
+          TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
+          TString req            -> pure . pure $ AppE (requiredExp req (VarE 'text)) argRef
+          TTable _ req           -> pure . pure $ AppE (requiredExp req (VarE 'unWriteTable)) argRef
 
           _ -> undefined
 
-      pure $ ([typ], [pat], exps, [])
+      pure $ ([typ], [arg], exps, [])
 
   where
     expForScalar :: Exp -> Exp -> Exp -> Q [Exp]
     expForScalar defaultValExp writeExp varExp = pure
       [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
       ]
+
+
+typeRefAsType :: TypeRef -> Type
+typeRefAsType (TypeRef "" ident) =
+  ConT (mkNameFor NC.dataTypeName ident)
+typeRefAsType (TypeRef ns (Ident ident)) =
+  ConT . mkName . T.unpack $ NC.namespace ns <> "." <> NC.dataTypeName ident
 
 requiredExp :: Required -> Exp -> Exp
 requiredExp Req exp = exp
