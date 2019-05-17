@@ -29,185 +29,221 @@ import           Text.RawString.QQ                              ( r )
 
 spec :: Spec
 spec =
-  describe "TH" $ do
-    describe "naming coventions" $ do
-      it "table datatype name is uppercased" $
-        [r| table t {}|] `shouldCompileTo`
-          [d|
-            data T
+  describe "TH" $
+    describe "Tables" $ do
+      describe "naming coventions" $ do
+        it "table datatype name is uppercased" $
+          [r| table t {}|] `shouldCompileTo`
+            [d|
+              data T
 
-            t :: WriteTable T
-            t = writeTable []
-          |]
+              t :: WriteTable T
+              t = writeTable []
+            |]
 
-      it "table constructor name is lowercased" $
-        [r| table T {}|] `shouldCompileTo`
-          [d|
-            data T
+        it "table constructor name is lowercased" $
+          [r| table T {}|] `shouldCompileTo`
+            [d|
+              data T
 
-            t :: WriteTable T
-            t = writeTable []
-          |]
+              t :: WriteTable T
+              t = writeTable []
+            |]
 
-      it "table field names are lowercased" $
-        [r| table T { X: int; }|] `shouldCompileTo`
-          [d|
-            data T
+        it "table field names are lowercased" $
+          [r| table T { X: int; }|] `shouldCompileTo`
+            [d|
+              data T
 
-            t :: Maybe Int32 -> WriteTable T
-            t x = writeTable [ optionalDef 0 (inline int32) x ]
-          |]
+              t :: Maybe Int32 -> WriteTable T
+              t x = writeTable [ optionalDef 0 (inline int32) x ]
+            |]
 
-    describe "numeric fields + boolean" $ do
-      it "normal fields" $
-        [r|
-          table Scalars {
-            // scalars
-            a: uint8;
-            b: uint16;
-            c: uint32;
-            d: uint64;
-            e: int8;
-            f: int16;
-            g: int32;
-            h: int64;
-            i: float32;
-            j: float64;
-            k: bool;
-          }
-        |] `shouldCompileTo`
-          [d|
-            data Scalars
+      describe "numeric fields + boolean" $ do
+        it "normal fields" $
+          [r|
+            table Scalars {
+              // scalars
+              a: uint8;
+              b: uint16;
+              c: uint32;
+              d: uint64;
+              e: int8;
+              f: int16;
+              g: int32;
+              h: int64;
+              i: float32;
+              j: float64;
+              k: bool;
+            }
+          |] `shouldCompileTo`
+            [d|
+              data Scalars
 
-            scalars ::
-                Maybe Word8
-              -> Maybe Word16
-              -> Maybe Word32
-              -> Maybe Word64
-              -> Maybe Int8
-              -> Maybe Int16
-              -> Maybe Int32
-              -> Maybe Int64
-              -> Maybe Float
-              -> Maybe Double
-              -> Maybe Bool
-              -> WriteTable Scalars
-            scalars a b c d e f g h i j k =
-              writeTable
-                [ optionalDef 0 (inline word8)    a
-                , optionalDef 0 (inline word16)   b
-                , optionalDef 0 (inline word32)   c
-                , optionalDef 0 (inline word64)   d
-                , optionalDef 0 (inline int8)     e
-                , optionalDef 0 (inline int16)    f
-                , optionalDef 0 (inline int32)    g
-                , optionalDef 0 (inline int64)    h
-                , optionalDef 0.0 (inline float)  i
-                , optionalDef 0.0 (inline double) j
-                , optionalDef False (inline bool) k
-                ]
-          |]
+              scalars ::
+                  Maybe Word8
+                -> Maybe Word16
+                -> Maybe Word32
+                -> Maybe Word64
+                -> Maybe Int8
+                -> Maybe Int16
+                -> Maybe Int32
+                -> Maybe Int64
+                -> Maybe Float
+                -> Maybe Double
+                -> Maybe Bool
+                -> WriteTable Scalars
+              scalars a b c d e f g h i j k =
+                writeTable
+                  [ optionalDef 0 (inline word8)    a
+                  , optionalDef 0 (inline word16)   b
+                  , optionalDef 0 (inline word32)   c
+                  , optionalDef 0 (inline word64)   d
+                  , optionalDef 0 (inline int8)     e
+                  , optionalDef 0 (inline int16)    f
+                  , optionalDef 0 (inline int32)    g
+                  , optionalDef 0 (inline int64)    h
+                  , optionalDef 0.0 (inline float)  i
+                  , optionalDef 0.0 (inline double) j
+                  , optionalDef False (inline bool) k
+                  ]
+            |]
 
-      it "deprecated fields" $
-        [r|
-          table Scalars {
-            a: uint8 (deprecated);
-            b: uint16 (deprecated);
-            c: uint32 (deprecated);
-            d: uint64 (deprecated);
-            e: int8 (deprecated);
-            f: int16 (deprecated);
-            g: int32 (deprecated);
-            h: int64 (deprecated);
-            i: float32 (deprecated);
-            j: float64 (deprecated);
-            k: bool (deprecated);
-          }
-        |] `shouldCompileTo`
-          [d|
-            data Scalars
+        it "deprecated fields" $
+          [r|
+            table Scalars {
+              a: uint8 (deprecated);
+              b: uint16 (deprecated);
+              c: uint32 (deprecated);
+              d: uint64 (deprecated);
+              e: int8 (deprecated);
+              f: int16 (deprecated);
+              g: int32 (deprecated);
+              h: int64 (deprecated);
+              i: float32 (deprecated);
+              j: float64 (deprecated);
+              k: bool (deprecated);
+            }
+          |] `shouldCompileTo`
+            [d|
+              data Scalars
 
-            scalars :: WriteTable Scalars
-            scalars =
-              writeTable
-                [ deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated
-                ]
-          |]
+              scalars :: WriteTable Scalars
+              scalars =
+                writeTable
+                  [ deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated, deprecated
+                  ]
+            |]
 
-      it "with default values" $
-        [r|
-          table Scalars {
-            // scalars
-            a: uint8 = 8;
-            b: uint16 = 16;
-            c: uint32 = 32;
-            d: uint64 = 64;
-            e: int8 = -1;
-            f: int16 = -2;
-            g: int32 = -4;
-            h: int64 = -8;
-            i: float32 = 3.9;
-            j: float64 = -2.3e10;
-            k: bool = true;
-          }
-        |] `shouldCompileTo`
-          [d|
-            data Scalars
+        it "with default values" $
+          [r|
+            table Scalars {
+              // scalars
+              a: uint8 = 8;
+              b: uint16 = 16;
+              c: uint32 = 32;
+              d: uint64 = 64;
+              e: int8 = -1;
+              f: int16 = -2;
+              g: int32 = -4;
+              h: int64 = -8;
+              i: float32 = 3.9;
+              j: float64 = -2.3e10;
+              k: bool = true;
+            }
+          |] `shouldCompileTo`
+            [d|
+              data Scalars
 
-            scalars ::
-                Maybe Word8
-              -> Maybe Word16
-              -> Maybe Word32
-              -> Maybe Word64
-              -> Maybe Int8
-              -> Maybe Int16
-              -> Maybe Int32
-              -> Maybe Int64
-              -> Maybe Float
-              -> Maybe Double
-              -> Maybe Bool
-              -> WriteTable Scalars
-            scalars a b c d e f g h i j k =
-              writeTable
-                [ optionalDef 8 (inline word8)          a
-                , optionalDef 16 (inline word16)        b
-                , optionalDef 32 (inline word32)        c
-                , optionalDef 64 (inline word64)        d
-                , optionalDef (-1) (inline int8)        e
-                , optionalDef (-2) (inline int16)       f
-                , optionalDef (-4) (inline int32)       g
-                , optionalDef (-8) (inline int64)       h
-                , optionalDef 3.9 (inline float)        i
-                , optionalDef (-2.3e10) (inline double) j
-                , optionalDef True (inline bool)        k
-                ]
-          |]
+              scalars ::
+                  Maybe Word8
+                -> Maybe Word16
+                -> Maybe Word32
+                -> Maybe Word64
+                -> Maybe Int8
+                -> Maybe Int16
+                -> Maybe Int32
+                -> Maybe Int64
+                -> Maybe Float
+                -> Maybe Double
+                -> Maybe Bool
+                -> WriteTable Scalars
+              scalars a b c d e f g h i j k =
+                writeTable
+                  [ optionalDef 8 (inline word8)          a
+                  , optionalDef 16 (inline word16)        b
+                  , optionalDef 32 (inline word32)        c
+                  , optionalDef 64 (inline word64)        d
+                  , optionalDef (-1) (inline int8)        e
+                  , optionalDef (-2) (inline int16)       f
+                  , optionalDef (-4) (inline int32)       g
+                  , optionalDef (-8) (inline int64)       h
+                  , optionalDef 3.9 (inline float)        i
+                  , optionalDef (-2.3e10) (inline double) j
+                  , optionalDef True (inline bool)        k
+                  ]
+            |]
 
-    describe "string fields" $ do
-      it "normal field" $
-        [r| table T {s: string;} |] `shouldCompileTo`
-          [d|
-            data T
+      describe "string fields" $ do
+        it "normal field" $
+          [r| table T {s: string;} |] `shouldCompileTo`
+            [d|
+              data T
 
-            t :: Maybe Text -> WriteTable T
-            t s = writeTable [optional text s]
-          |]
-      it "deprecated" $
-        [r| table T {s: string (deprecated);} |] `shouldCompileTo`
-          [d|
-            data T
+              t :: Maybe Text -> WriteTable T
+              t s = writeTable [optional text s]
+            |]
+        it "deprecated" $
+          [r| table T {s: string (deprecated);} |] `shouldCompileTo`
+            [d|
+              data T
 
-            t :: WriteTable T
-            t = writeTable [deprecated]
-          |]
-      it "required" $
-        [r| table T {s: string (required);} |] `shouldCompileTo`
-          [d|
-            data T
+              t :: WriteTable T
+              t = writeTable [deprecated]
+            |]
+        it "required" $
+          [r| table T {s: string (required);} |] `shouldCompileTo`
+            [d|
+              data T
 
-            t :: Text -> WriteTable T
-            t s = writeTable [text s]
-          |]
+              t :: Text -> WriteTable T
+              t s = writeTable [text s]
+            |]
+
+      describe "table fields" $ do
+        it "normal field" $
+          [r| table T1 {x: t2;} table t2{}|] `shouldCompileTo`
+            [d|
+              data T1
+              t1 :: Maybe (WriteTable T2) -> WriteTable T1
+              t1 x = writeTable [optional unWriteTable x]
+
+              data T2
+              t2 :: WriteTable T2
+              t2 = writeTable []
+            |]
+        it "deprecated" $
+          [r| table T1 {x: t2 (deprecated) ;} table t2{}|] `shouldCompileTo`
+            [d|
+              data T1
+              t1 :: WriteTable T1
+              t1 = writeTable [deprecated]
+
+              data T2
+              t2 :: WriteTable T2
+              t2 = writeTable []
+            |]
+        it "required" $
+          [r| table T1 {x: t2 (required) ;} table t2{}|] `shouldCompileTo`
+            [d|
+              data T1
+              t1 :: WriteTable T2 -> WriteTable T1
+              t1 x = writeTable [unWriteTable x]
+
+              data T2
+              t2 :: WriteTable T2
+              t2 = writeTable []
+            |]
 
 
 
