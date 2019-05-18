@@ -17,6 +17,7 @@ import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Write
 
+import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
 
 import           Test.Hspec
@@ -258,7 +259,13 @@ shouldCompileTo input expectedQ =
         Right (FileTree _ root _) -> do
           ast <- runQ (compileSymbolTable root)
           expected <- runQ expectedQ
-          ast `pshouldBe` fmap normalizeDec expected
+          PrettyAst ast `shouldBe` PrettyAst (fmap normalizeDec expected)
+
+newtype PrettyAst a = PrettyAst a
+  deriving Eq
+
+instance Ppr a => Show (PrettyAst a) where
+  show (PrettyAst a) = pprint a
 
 showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
@@ -268,7 +275,7 @@ showBundle = unlines . fmap indent . lines . errorBundlePretty
       else "  " ++ x
 
 -- | This function normalize ASTs to make them comparable.
---   * AST obtained from quasiquotes (like what we're doing in these tests) use `newName`, whereas we often use `mkName`.
+--   * ASTs obtained from quasiquotes (like what we're doing in these tests) use `newName`, whereas we often use `mkName`.
 --     So we have to normalize names here.
 --   * Declarations like `x = 5` are interpreted as a value declaration, but they're equivalent to a
 --     function declaration with a single clause and a single pattern.
