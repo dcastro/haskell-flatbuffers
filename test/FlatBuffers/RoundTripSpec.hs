@@ -462,5 +462,5 @@ spec =
       (getRequiredFields'e x >>= toList) `shouldBe` Right [55, 66]
 
 
-
+unexpectedUnionType :: HasCallStack => Expectation
 unexpectedUnionType = expectationFailure "Unexpected union type"

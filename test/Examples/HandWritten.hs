@@ -358,7 +358,7 @@ tableWithUnion x1 = writeTable
   ]
 
 getTableWithUnion'uni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
-getTableWithUnion'uni = readTableFieldUnion readWeapon 0
+getTableWithUnion'uni = readTableFieldUnion readWeapon 1
 
 ----------------------------------
 ------------ Vectors -------------
@@ -483,10 +483,10 @@ vectorOfUnions x1 x2 = writeTable
     (x2t, x2v) = writeUnionVectorReq x2
 
 getVectorOfUnions'xs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
-getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 0
+getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 1
 
 getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
-getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 4 "xsReq"
+getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 5 "xsReq"
 
 
 ----------------------------------
@@ -619,7 +619,7 @@ getRequiredFields'c :: ReadCtx m => Table RequiredFields -> m (Table Axe)
 getRequiredFields'c = readTableFieldReq readTable 2 "c"
 
 getRequiredFields'd :: ReadCtx m => Table RequiredFields -> m (Union Weapon)
-getRequiredFields'd = readTableFieldUnion readWeapon 3
+getRequiredFields'd = readTableFieldUnion readWeapon 4
 
 getRequiredFields'e :: ReadCtx m => Table RequiredFields -> m (Vector Int32)
 getRequiredFields'e = readTableFieldReq (readPrimVector Int32Vec) 5 "d"

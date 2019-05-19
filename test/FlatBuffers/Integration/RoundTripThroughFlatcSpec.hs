@@ -616,7 +616,7 @@ spec =
       (getRequiredFields'e decoded >>= toList) `shouldBe` Right [55, 66]
 
 
-
+unexpectedUnionType :: HasCallStack => Expectation
 unexpectedUnionType = expectationFailure "Unexpected union type"
 
 flatc :: forall a. Typeable a => WriteTable a -> IO (J.Value, Table a)

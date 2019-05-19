@@ -385,11 +385,11 @@ readTableFieldWithDef read ix dflt t =
 
 readTableFieldUnion :: ReadCtx m => (Positive Word8 -> PositionInfo -> m (Union a)) -> TableIndex -> Table t -> m (Union a)
 readTableFieldUnion read ix t =
-  readTableFieldWithDef readWord8 ix 0 t >>= \unionType ->
+  readTableFieldWithDef readWord8 (ix - 1) 0 t >>= \unionType ->
     case positive unionType of
       Nothing         -> pure UnionNone
       Just unionType' ->
-        tableIndexToVOffset t (ix + 1) >>= \case
+        tableIndexToVOffset t ix >>= \case
           Nothing     -> throwError $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
           Just offset -> read unionType' (moveV (tablePos t) offset)
 
@@ -399,10 +399,10 @@ readTableFieldUnionVectorOpt :: ReadCtx m
   -> Table t
   -> m (Maybe (Vector (Union a)))
 readTableFieldUnionVectorOpt read ix t =
-  tableIndexToVOffset t ix >>= \case
+  tableIndexToVOffset t (ix - 1) >>= \case
     Nothing -> pure Nothing
     Just typesOffset ->
-      tableIndexToVOffset t (ix + 1) >>= \case
+      tableIndexToVOffset t ix >>= \case
         Nothing -> throwError $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           Just <$> readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
@@ -414,10 +414,10 @@ readTableFieldUnionVectorReq :: ReadCtx m
   -> Table t
   -> m (Vector (Union a))
 readTableFieldUnionVectorReq read ix name t =
-  tableIndexToVOffset t ix >>= \case
+  tableIndexToVOffset t (ix - 1) >>= \case
     Nothing -> throwError $ MissingField name
     Just typesOffset ->
-      tableIndexToVOffset t (ix + 1) >>= \case
+      tableIndexToVOffset t ix >>= \case
         Nothing -> throwError $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
