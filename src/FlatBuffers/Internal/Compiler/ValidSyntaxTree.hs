@@ -100,7 +100,8 @@ data TableDecl = TableDecl
   } deriving (Eq, Show)
 
 data TableField = TableField
-  { tableFieldIdent      :: !Ident
+  { tableFieldId         :: !Integer
+  , tableFieldIdent      :: !Ident
   , tableFieldType       :: !TableFieldType
   , tableFieldDeprecated :: !Bool
   } deriving (Eq, Show)

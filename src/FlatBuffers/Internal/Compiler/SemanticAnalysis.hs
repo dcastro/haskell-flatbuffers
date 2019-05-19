@@ -11,7 +11,7 @@ module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 import           Control.Monad                                 ( forM_, join, void, when )
 import           Control.Monad.Except                          ( MonadError, throwError )
 import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
-import           Control.Monad.State                           ( MonadState, State, evalState, evalStateT, get, modify, put )
+import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, modify, put )
 
 import           Data.Coerce                                   ( coerce )
 import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
@@ -360,6 +360,8 @@ validateEnum (currentNamespace, enum) =
 ----------------------------------
 ------------ Tables --------------
 ----------------------------------
+data TableFieldWithoutId = TableFieldWithoutId !Ident !TableFieldType !Bool
+
 validateTables :: ValidationCtx m => FileTree Stage3 -> m (FileTree Stage4)
 validateTables symbolTables =
   for symbolTables $ \symbolTable -> do
@@ -377,60 +379,73 @@ validateTable symbolTables (currentNamespace, table) =
     let fields = ST.tableFields table
     let fieldsMetadata = ST.tableFieldMetadata <$> fields
 
-    checkDuplicateFields
+    checkDuplicateFields fields
     checkUndeclaredAttributes table
-    validFields <- traverse validateTableField fields
-    sortedFields <- sortFields fieldsMetadata validFields
+
+    validFieldsWithoutIds <- traverse validateTableField fields
+    validFields <- assignFieldIds fieldsMetadata validFieldsWithoutIds
 
     pure TableDecl
       { tableIdent = getIdent table
       , tableIsRoot = NotRoot
-      , tableFields = sortedFields
+      , tableFields = validFields
       }
 
   where
-    checkDuplicateFields :: m ()
-    checkDuplicateFields = checkDuplicateIdentifiers (ST.tableFields table)
+    checkDuplicateFields :: [ST.TableField] -> m ()
+    checkDuplicateFields = checkDuplicateIdentifiers
 
-    sortFields :: [ST.Metadata] -> [TableField] -> m [TableField]
-    sortFields metadata fields = do
+    assignFieldIds :: [ST.Metadata] -> [TableFieldWithoutId] -> m [TableField]
+    assignFieldIds metadata fieldsWithoutIds = do
       ids <- catMaybes <$> traverse (findIntAttr idAttr) metadata
       if null ids
-        then pure fields
-        else do
-          when (length ids /= length fields) $
+        then pure $ evalState (traverse assignFieldId fieldsWithoutIds) (-1)
+        else if length ids == length fieldsWithoutIds
+          then do
+            let fields = zipWith (\(TableFieldWithoutId ident typ depr) id -> TableField id ident typ depr) fieldsWithoutIds ids
+            let sorted = List.sortOn tableFieldId fields
+            evalStateT (traverse_ checkFieldId sorted) (-1)
+            pure sorted
+          else
             throwErrorMsg "either all fields or no fields must have an 'id' attribute"
 
-          let fieldsWithIds = List.sortOn snd $ zip fields ids
-          void $ foldlM checkFieldId (-1) fieldsWithIds
-          pure (fst <$> fieldsWithIds)
+    assignFieldId :: TableFieldWithoutId -> State Integer TableField
+    assignFieldId (TableFieldWithoutId ident typ depr) = do
+      lastId <- get
+      let fieldId =
+            case typ of
+              TUnion _ _           -> lastId + 2
+              TVector _ (VUnion _) -> lastId + 2
+              _                    -> lastId + 1
+      put fieldId
+      pure (TableField fieldId ident typ depr)
 
-    checkFieldId :: Integer -> (TableField, Integer) -> m Integer
-    checkFieldId lastId (field, id) =
+    checkFieldId :: TableField -> StateT Integer m ()
+    checkFieldId field = do
+      lastId <- get
       modifyContext (\context -> context <> "." <> getIdent field) $ do
         case tableFieldType field of
           TUnion _ _ ->
-            when (id /= lastId + 2) $
+            when (tableFieldId field /= lastId + 2) $
               throwErrorMsg "the id of an union field must be the last field's id + 2"
           TVector _ (VUnion _) ->
-            when (id /= lastId + 2) $
+            when (tableFieldId field /= lastId + 2) $
               throwErrorMsg "the id of a vector of unions field must be the last field's id + 2"
           _ ->
-            when (id /= lastId + 1) $
+            when (tableFieldId field /= lastId + 1) $
               throwErrorMsg $ "field ids must be consecutive from 0; id " <> display (lastId + 1) <> " is missing"
-        pure id
+        put (tableFieldId field)
 
-
-    validateTableField :: ST.TableField -> m TableField
+    validateTableField :: ST.TableField -> m TableFieldWithoutId
     validateTableField tf =
       modifyContext (\context -> context <> "." <> getIdent tf) $ do
         checkUndeclaredAttributes tf
         validFieldType <- validateTableFieldType (ST.tableFieldMetadata tf) (ST.tableFieldDefault tf) (ST.tableFieldType tf)
-        pure TableField
-          { tableFieldIdent = getIdent tf
-          , tableFieldType = validFieldType
-          , tableFieldDeprecated = hasAttribute deprecatedAttr (ST.tableFieldMetadata tf)
-          }
+
+        pure $ TableFieldWithoutId
+          (getIdent tf)
+          validFieldType
+          (hasAttribute deprecatedAttr (ST.tableFieldMetadata tf))
 
     validateTableFieldType :: ST.Metadata -> Maybe ST.DefaultVal -> ST.Type -> m TableFieldType
     validateTableFieldType md dflt tableFieldType =

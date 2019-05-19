@@ -17,6 +17,7 @@ import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), 
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 
 import           Test.Hspec
+import           TestUtils
 
 import           Text.Megaparsec
 import           Text.RawString.QQ                              ( r )
@@ -461,7 +462,7 @@ spec =
       it "with cyclic reference" $
         [r| table T{x: T;} |] `shouldValidate`
           table ("", TableDecl "T" NotRoot
-            [ TableField "x" (TTable (TypeRef "" "T") Opt) False
+            [ TableField 0 "x" (TTable (TypeRef "" "T") Opt) False
             ])
 
       it "with invalid reference" $ do
@@ -491,17 +492,17 @@ spec =
             }
           |] `shouldValidate`
             table ("A.B", TableDecl "T" NotRoot
-              [ TableField "a" (TInt8 0) False
-              , TableField "b" (TInt16 0) False
-              , TableField "c" (TInt32 0) False
-              , TableField "d" (TInt64 0) False
-              , TableField "e" (TWord8 0) False
-              , TableField "f" (TWord16 0) False
-              , TableField "g" (TWord32 0) False
-              , TableField "h" (TWord64 0) False
-              , TableField "i" (TFloat 0) False
-              , TableField "j" (TDouble 0) False
-              , TableField "k" (TBool (DefaultVal False)) False
+              [ TableField 0 "a" (TInt8 0) False
+              , TableField 1 "b" (TInt16 0) False
+              , TableField 2 "c" (TInt32 0) False
+              , TableField 3 "d" (TInt64 0) False
+              , TableField 4 "e" (TWord8 0) False
+              , TableField 5 "f" (TWord16 0) False
+              , TableField 6 "g" (TWord32 0) False
+              , TableField 7 "h" (TWord64 0) False
+              , TableField 8 "i" (TFloat 0) False
+              , TableField 9 "j" (TDouble 0) False
+              , TableField 10"k" (TBool (DefaultVal False)) False
               ]
             )
 
@@ -537,17 +538,17 @@ spec =
             }
           |] `shouldValidate`
             table ("A.B", TableDecl "T" NotRoot
-              [ TableField "a" (TInt8 0) True
-              , TableField "b" (TInt16 0) True
-              , TableField "c" (TInt32 0) True
-              , TableField "d" (TInt64 0) True
-              , TableField "e" (TWord8 0) True
-              , TableField "f" (TWord16 0) True
-              , TableField "g" (TWord32 0) True
-              , TableField "h" (TWord64 0) True
-              , TableField "i" (TFloat 0) True
-              , TableField "j" (TDouble 0) True
-              , TableField "k" (TBool (DefaultVal False)) True
+              [ TableField 0 "a" (TInt8 0) True
+              , TableField 1 "b" (TInt16 0) True
+              , TableField 2 "c" (TInt32 0) True
+              , TableField 3 "d" (TInt64 0) True
+              , TableField 4 "e" (TWord8 0) True
+              , TableField 5 "f" (TWord16 0) True
+              , TableField 6 "g" (TWord32 0) True
+              , TableField 7 "h" (TWord64 0) True
+              , TableField 8 "i" (TFloat 0) True
+              , TableField 9 "j" (TDouble 0) True
+              , TableField 10 "k" (TBool (DefaultVal False)) True
               ]
             )
 
@@ -564,12 +565,12 @@ spec =
             }
           |] `shouldValidate`
             table ("", TableDecl "T" NotRoot
-              [ TableField "a" (TInt8 127) False
-              , TableField "b" (TInt16 (-32768)) False
-              , TableField "c" (TInt32 1) False
-              , TableField "d" (TInt64 1) False
-              , TableField "e" (TWord8 20) False
-              , TableField "f" (TWord16 20) False
+              [ TableField 0 "a" (TInt8 127) False
+              , TableField 1 "b" (TInt16 (-32768)) False
+              , TableField 2 "c" (TInt32 1) False
+              , TableField 3 "d" (TInt64 1) False
+              , TableField 4 "e" (TWord8 20) False
+              , TableField 5 "f" (TWord16 20) False
               ]
             )
 
@@ -602,12 +603,12 @@ spec =
             }
           |] `shouldValidate`
             table ("", TableDecl "T" NotRoot
-              [ TableField "a" (TFloat 127) False
-              , TableField "b" (TFloat (-32768)) False
-              , TableField "c" (TFloat 1) False
-              , TableField "d" (TDouble 1) False
-              , TableField "e" (TDouble 20) False
-              , TableField "f" (TDouble 20) False
+              [ TableField 0 "a" (TFloat 127) False
+              , TableField 1 "b" (TFloat (-32768)) False
+              , TableField 2 "c" (TFloat 1) False
+              , TableField 3 "d" (TDouble 1) False
+              , TableField 4 "e" (TDouble 20) False
+              , TableField 5 "f" (TDouble 20) False
               ]
             )
 
@@ -620,9 +621,9 @@ spec =
             }
           |] `shouldValidate`
             table ("", TableDecl "T" NotRoot
-              [ TableField "a" (TDouble 1.1) False
-              , TableField "b" (TDouble 0.2) False
-              , TableField "c" (TDouble 22.2) False
+              [ TableField 0 "a" (TDouble 1.1) False
+              , TableField 1 "b" (TDouble 0.2) False
+              , TableField 2 "c" (TDouble 22.2) False
               ]
             )
 
@@ -647,8 +648,8 @@ spec =
             }
           |] `shouldValidate`
             table ("", TableDecl "T" NotRoot
-              [ TableField "a" (TBool (DefaultVal True)) False
-              , TableField "b" (TBool (DefaultVal False)) False
+              [ TableField 0 "a" (TBool (DefaultVal True)) False
+              , TableField 1 "b" (TBool (DefaultVal False)) False
               ]
             )
 
@@ -658,13 +659,13 @@ spec =
       describe "with string fields" $ do
         it "simple" $
           [r| table T { x: string; } |] `shouldValidate`
-            table ("", TableDecl "T" NotRoot [ TableField "x" (TString Opt) False ])
+            table ("", TableDecl "T" NotRoot [ TableField 0 "x" (TString Opt) False ])
         it "with `required` attribute" $
           [r| table T { x: string (required); } |] `shouldValidate`
-            table ("", TableDecl "T" NotRoot [ TableField "x" (TString Req) False ])
+            table ("", TableDecl "T" NotRoot [ TableField 0 "x" (TString Req) False ])
         it "with `deprecated` attribute" $
           [r| table T { x: string (deprecated); } |] `shouldValidate`
-            table ("", TableDecl "T" NotRoot [ TableField "x" (TString Opt) True ])
+            table ("", TableDecl "T" NotRoot [ TableField 0 "x" (TString Opt) True ])
         it "with default value" $ do
           let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
           [r| table T { x: string = a;   } |] `shouldFail` errorMsg
@@ -682,7 +683,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ enum ("A.B", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
             , table ("A.B", TableDecl "T" NotRoot
-                [ TableField "x" (TEnum (TypeRef "A.B" "E") 0) False ]
+                [ TableField 0 "x" (TEnum (TypeRef "A.B" "E") 0) False ]
               )
             ]
 
@@ -694,7 +695,7 @@ spec =
           [r| table T { x: E (deprecated); } enum E : short{A} |] `shouldValidate` foldDecls
             [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
             , table ("", TableDecl "T" NotRoot
-                [ TableField "x" (TEnum (TypeRef "" "E") 0) True ]
+                [ TableField 0 "x" (TEnum (TypeRef "" "E") 0) True ]
               )
             ]
 
@@ -702,7 +703,7 @@ spec =
           [r| table T { x: E; } enum E : short{ A = -1, B = 0, C = 1} |] `shouldValidate` foldDecls
             [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" (-1), EnumVal "B" 0, EnumVal "C" 1 ])
             , table ("", TableDecl "T" NotRoot
-                [ TableField "x" (TEnum (TypeRef "" "E") 0) False ]
+                [ TableField 0 "x" (TEnum (TypeRef "" "E") 0) False ]
               )
             ]
 
@@ -715,7 +716,7 @@ spec =
             [r| table T { x: E = 1; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
               [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
               , table ("", TableDecl "T" NotRoot
-                  [ TableField "x" (TEnum (TypeRef "" "E") 1) False ]
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") 1) False ]
                 )
               ]
 
@@ -727,7 +728,7 @@ spec =
             [r| table T { x: E = B; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
               [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
               , table ("", TableDecl "T" NotRoot
-                  [ TableField "x" (TEnum (TypeRef "" "E") 1) False ]
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") 1) False ]
                 )
               ]
 
@@ -760,9 +761,9 @@ spec =
             , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table" NotRoot
-                [ TableField "x" (TStruct (TypeRef "A" "S") Opt) False
-                , TableField "y" (TTable (TypeRef "A" "T") Opt) False
-                , TableField "z" (TUnion (TypeRef "A" "U") Opt) False
+                [ TableField 0 "x" (TStruct (TypeRef "A" "S") Opt) False
+                , TableField 1 "y" (TTable (TypeRef "A" "T") Opt) False
+                , TableField 3 "z" (TUnion (TypeRef "A" "U") Opt) False
                 ]
               )
             ]
@@ -783,9 +784,9 @@ spec =
             , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table" NotRoot
-                [ TableField "x" (TStruct (TypeRef "A" "S") Req) False
-                , TableField "y" (TTable (TypeRef "A" "T") Req) False
-                , TableField "z" (TUnion (TypeRef "A" "U") Req) False
+                [ TableField 0 "x" (TStruct (TypeRef "A" "S") Req) False
+                , TableField 1 "y" (TTable (TypeRef "A" "T") Req) False
+                , TableField 3 "z" (TUnion (TypeRef "A" "U") Req) False
                 ]
               )
             ]
@@ -806,9 +807,9 @@ spec =
             , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table" NotRoot
-                [ TableField "x" (TStruct (TypeRef "A" "S") Opt) True
-                , TableField "y" (TTable (TypeRef "A" "T") Opt) True
-                , TableField "z" (TUnion (TypeRef "A" "U") Opt) True
+                [ TableField 0 "x" (TStruct (TypeRef "A" "S") Opt) True
+                , TableField 1 "y" (TTable (TypeRef "A" "T") Opt) True
+                , TableField 3 "z" (TUnion (TypeRef "A" "U") Opt) True
                 ]
               )
             ]
@@ -823,9 +824,9 @@ spec =
         it "simple" $
           [r| table T { x: [string]; y: [int]; z: [bool]; } |] `shouldValidate`
             table ("", TableDecl "T" NotRoot
-              [ TableField "x" (TVector Opt VString) False
-              , TableField "y" (TVector Opt VInt32) False
-              , TableField "z" (TVector Opt VBool) False
+              [ TableField 0 "x" (TVector Opt VString) False
+              , TableField 1 "y" (TVector Opt VInt32) False
+              , TableField 2 "z" (TVector Opt VBool) False
               ])
 
         it "where the elements are references" $
@@ -840,10 +841,10 @@ spec =
             union  U { T }
           |] `shouldValidate` foldDecls
             [ table ("A", TableDecl "Table" NotRoot
-                [ TableField "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") 2)) False
-                , TableField "x" (TVector Opt (VStruct (TypeRef "A.B" "S") 16)) False
-                , TableField "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
-                , TableField "z" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False
+                [ TableField 0 "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") 2)) False
+                , TableField 1 "x" (TVector Opt (VStruct (TypeRef "A.B" "S") 16)) False
+                , TableField 2 "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
+                , TableField 4 "z" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False
                 ])
             , enum   ("A.B", EnumDecl "E" EInt16 [EnumVal "EA" 0])
             , struct ("A.B", StructDecl "S" 8 [StructField "x" 7 SWord8, StructField "y" 0 SInt64])
@@ -853,11 +854,11 @@ spec =
 
         it "with `required` attribute" $
           [r| table T { x: [byte] (required); } |] `shouldValidate`
-            table ("", TableDecl "T" NotRoot [ TableField "x" (TVector Req VInt8) False ])
+            table ("", TableDecl "T" NotRoot [ TableField 0 "x" (TVector Req VInt8) False ])
 
         it "with `deprecated` attribute" $
           [r| table T { x: [string] (deprecated); } |] `shouldValidate`
-            table ("", TableDecl "T" NotRoot [ TableField "x" (TVector Opt VString) True ])
+            table ("", TableDecl "T" NotRoot [ TableField 0 "x" (TVector Opt VString) True ])
 
         it "with default value" $ do
           let errorMsg = "[T.x]: default values currently only supported for scalar fields (integers, floating point, bool, enums)"
@@ -876,10 +877,10 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ table ("", TableDecl "T" NotRoot
-                [ TableField "z" (TInt8 0) False
-                , TableField "x" (TInt8 0) False
-                , TableField "w" (TInt8 0) False
-                , TableField "y" (TInt8 0) False
+                [ TableField 0 "z" (TInt8 0) False
+                , TableField 1 "x" (TInt8 0) False
+                , TableField 2 "w" (TInt8 0) False
+                , TableField 3 "y" (TInt8 0) False
                 ]
               )
             ]
@@ -894,9 +895,9 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ table ("", TableDecl "T" NotRoot
-                [ TableField "z" (TInt8 0) False
-                , TableField "x" (TUnion (TypeRef "" "U") Opt) False
-                , TableField "y" (TInt8 0) False
+                [ TableField 0 "z" (TInt8 0) False
+                , TableField 2 "x" (TUnion (TypeRef "" "U") Opt) False
+                , TableField 3 "y" (TInt8 0) False
                 ]
               )
             , union ("", UnionDecl "U" [UnionVal "T" (TypeRef "" "T")])
@@ -921,9 +922,9 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ table ("", TableDecl "T" NotRoot
-                [ TableField "z" (TInt8 0) False
-                , TableField "x" (TVector Opt (VUnion (TypeRef "" "U"))) False
-                , TableField "y" (TInt8 0) False
+                [ TableField 0 "z" (TInt8 0) False
+                , TableField 2 "x" (TVector Opt (VUnion (TypeRef "" "U"))) False
+                , TableField 3 "y" (TInt8 0) False
                 ]
               )
             , union ("", UnionDecl "U" [UnionVal "T" (TypeRef "" "T")])
@@ -947,9 +948,9 @@ spec =
             }
           |] `shouldValidate` foldDecls
             [ table ("", TableDecl "T" NotRoot
-                [ TableField "z" (TInt8 0) False
-                , TableField "x" (TInt8 0) False
-                , TableField "y" (TInt8 0) False
+                [ TableField 0 "z" (TInt8 0) False
+                , TableField 1 "x" (TInt8 0) False
+                , TableField 2 "y" (TInt8 0) False
                 ]
               )
             ]
@@ -1095,6 +1096,13 @@ spec =
           ]
 
 
+
+
+
+
+--           -- property: struct size (including paddings) = multiple of alignment
+--           -- property: alignment max alignment ???
+
 foldDecls :: [ValidDecls] -> ValidDecls
 foldDecls = fold
 
@@ -1110,7 +1118,7 @@ table t = SymbolTable [] [] [t] []
 union :: (Namespace, UnionDecl) -> ValidDecls
 union u = SymbolTable [] [] [] [u]
 
-shouldSucceed :: String -> Expectation
+shouldSucceed :: HasCallStack => String -> Expectation
 shouldSucceed input =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
@@ -1120,13 +1128,13 @@ shouldSucceed input =
             Right _ -> pure ()
             Left err -> expectationFailure (T.unpack err)
 
-shouldValidate :: String -> ValidDecls -> Expectation
+shouldValidate :: HasCallStack => String -> ValidDecls -> Expectation
 shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = FileTree "" schema []
-      in  validateSchemas schemas `shouldBe` Right (FileTree "" expectation [])
+      in  validateSchemas schemas `pshouldBe` Right (FileTree "" expectation [])
 
 shouldFail :: String -> Text -> Expectation
 shouldFail input expectedErrorMsg =
@@ -1134,7 +1142,7 @@ shouldFail input expectedErrorMsg =
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = FileTree "" schema []
-      in  validateSchemas schemas `shouldBe` Left expectedErrorMsg
+      in  validateSchemas schemas `pshouldBe` Left expectedErrorMsg
 
 showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty

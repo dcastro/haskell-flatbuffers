@@ -9,7 +9,7 @@
 import Text.Pretty.Simple (pPrint)
 
 :set -package th-pprint
-:set -XTemplateHaskell
+:set -XTemplateHaskell -XTypeApplications -XFlexibleContexts
 import Language.Haskell.TH
 import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
