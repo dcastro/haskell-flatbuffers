@@ -83,6 +83,10 @@ genGetter tableName table tf =
           [ mkSig $ requiredType req $ ConT ''Text
           , fun (bodyForNonScalar req (VarE 'readText))
           ]
+        TTable tref req ->
+          [ mkSig $ requiredType req $ ConT ''Table `AppT` typeRefAsType tref
+          , fun (bodyForNonScalar req (VarE 'readTable))
+          ]
 
         _ -> []
   where

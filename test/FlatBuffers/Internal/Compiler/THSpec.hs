@@ -53,7 +53,7 @@ spec =
               t = writeTable []
             |]
 
-        it "table field names are lowercased" $
+        it "table field names are lowercased in params, camelCased in getters" $
           [r| table T { X: int; }|] `shouldCompileTo`
             [d|
               data T
@@ -276,6 +276,9 @@ spec =
               t1 :: Maybe (WriteTable T2) -> WriteTable T1
               t1 x = writeTable [optional unWriteTable x]
 
+              t1X :: forall m. ReadCtx m => Table T1 -> m (Maybe (Table T2))
+              t1X = readTableFieldOpt readTable 0
+
               data T2
               t2 :: WriteTable T2
               t2 = writeTable []
@@ -297,6 +300,9 @@ spec =
               data T1
               t1 :: WriteTable T2 -> WriteTable T1
               t1 x = writeTable [unWriteTable x]
+
+              t1X :: forall m. ReadCtx m => Table T1 -> m (Table T2)
+              t1X = readTableFieldReq readTable 0 "x"
 
               data T2
               t2 :: WriteTable T2
