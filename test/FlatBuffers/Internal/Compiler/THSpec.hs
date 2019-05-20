@@ -322,7 +322,7 @@ shouldCompileTo input expectedQ =
         Right (FileTree _ root _) -> do
           ast <- runQ (compileSymbolTable root)
           expected <- runQ expectedQ
-          PrettyAst ast `shouldBe` PrettyAst (fmap normalizeDec expected)
+          PrettyAst (normalizeDec <$> ast) `shouldBe` PrettyAst (normalizeDec <$> expected)
 
 newtype PrettyAst a = PrettyAst a
   deriving Eq

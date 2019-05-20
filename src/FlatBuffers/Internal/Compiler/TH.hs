@@ -32,7 +32,7 @@ compileSymbolTable symbols =
 
 genTable :: (Namespace, TableDecl) -> Q [Dec]
 genTable (_, table) = do
-  let tableName = mkNameFor NC.dataTypeName table
+  tableName <- newNameFor NC.dataTypeName table
   (consSig, cons) <- genTableConstructor tableName table
 
   let getters = foldMap (genGetter tableName table) (tableFields table)
@@ -132,7 +132,7 @@ genTableContructorField tf =
         TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
         _                    -> pure ([], [], [VarE 'deprecated], [])
     else do
-      let name = mkNameFor NC.term tf
+      name <- newNameFor NC.term tf
 
       let arg = VarP name
       let argRef = VarE name
@@ -204,3 +204,6 @@ newName' = newName . T.unpack . unIdent . getIdent
 
 mkNameFor :: HasIdent a => (Text -> Text) -> a -> Name
 mkNameFor f = mkName . T.unpack . f . unIdent . getIdent
+
+newNameFor :: HasIdent a => (Text -> Text) -> a -> Q Name
+newNameFor f = newName . T.unpack . f . unIdent . getIdent

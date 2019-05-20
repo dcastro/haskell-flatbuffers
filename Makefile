@@ -9,15 +9,13 @@ STACK:=stack $(STACK_ARGS)
 ghcid:  ## Launch ghcid
 	ghcid \
 		--command "stack ghci" \
-			--restart package.yaml \
-			--restart Makefile
+			--restart package.yaml
 .PHONY: ghcid
 
 ghcid-splices:  ## Launch ghcid and dump TH splices on reload
 	ghcid \
-		--command "stack ghci --test --ghci-options='-ddump-splices'" \
-			--restart package.yaml \
-			--restart Makefile
+		--command "stack ghci --test --ghci-options='-ddump-splices -dsuppress-uniques'" \
+			--restart package.yaml
 .PHONY: ghcid-splices
 
 ghcid-test:  ## Launch ghcid and automatically run all tests
