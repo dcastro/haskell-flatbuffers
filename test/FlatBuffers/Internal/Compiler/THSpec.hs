@@ -2,6 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NegativeLiterals #-}
+{-# LANGUAGE ExplicitForAll #-}
 
 module FlatBuffers.Internal.Compiler.THSpec where
 
@@ -16,6 +17,7 @@ import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), 
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Write
+import           FlatBuffers.Read
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
@@ -58,6 +60,9 @@ spec =
 
               t :: Maybe Int32 -> WriteTable T
               t x = writeTable [ optionalDef 0 (inline int32) x ]
+
+              tX :: forall m. ReadCtx m => Table T -> m Int32
+              tX = readTableFieldWithDef readInt32 0 0
             |]
 
       describe "numeric fields + boolean" $ do
@@ -108,6 +113,29 @@ spec =
                   , optionalDef 0.0 (inline double) j
                   , optionalDef False (inline bool) k
                   ]
+
+              scalarsA :: forall m. ReadCtx m => Table Scalars -> m Word8
+              scalarsA = readTableFieldWithDef readWord8   0 0
+              scalarsB :: forall m. ReadCtx m => Table Scalars -> m Word16
+              scalarsB = readTableFieldWithDef readWord16  1 0
+              scalarsC :: forall m. ReadCtx m => Table Scalars -> m Word32
+              scalarsC = readTableFieldWithDef readWord32  2 0
+              scalarsD :: forall m. ReadCtx m => Table Scalars -> m Word64
+              scalarsD = readTableFieldWithDef readWord64  3 0
+              scalarsE :: forall m. ReadCtx m => Table Scalars -> m Int8
+              scalarsE = readTableFieldWithDef readInt8    4 0
+              scalarsF :: forall m. ReadCtx m => Table Scalars -> m Int16
+              scalarsF = readTableFieldWithDef readInt16   5 0
+              scalarsG :: forall m. ReadCtx m => Table Scalars -> m Int32
+              scalarsG = readTableFieldWithDef readInt32   6 0
+              scalarsH :: forall m. ReadCtx m => Table Scalars -> m Int64
+              scalarsH = readTableFieldWithDef readInt64   7 0
+              scalarsI :: forall m. ReadCtx m => Table Scalars -> m Float
+              scalarsI = readTableFieldWithDef readFloat   8 0.0
+              scalarsJ :: forall m. ReadCtx m => Table Scalars -> m Double
+              scalarsJ = readTableFieldWithDef readDouble  9 0.0
+              scalarsK :: forall m. ReadCtx m => Table Scalars -> m Bool
+              scalarsK = readTableFieldWithDef readBool    10 False
             |]
 
         it "deprecated fields" $
@@ -183,6 +211,29 @@ spec =
                   , optionalDef (-2.3e10) (inline double) j
                   , optionalDef True (inline bool)        k
                   ]
+
+              scalarsA :: forall m. ReadCtx m => Table Scalars -> m Word8
+              scalarsA = readTableFieldWithDef readWord8   0 8
+              scalarsB :: forall m. ReadCtx m => Table Scalars -> m Word16
+              scalarsB = readTableFieldWithDef readWord16  1 16
+              scalarsC :: forall m. ReadCtx m => Table Scalars -> m Word32
+              scalarsC = readTableFieldWithDef readWord32  2 32
+              scalarsD :: forall m. ReadCtx m => Table Scalars -> m Word64
+              scalarsD = readTableFieldWithDef readWord64  3 64
+              scalarsE :: forall m. ReadCtx m => Table Scalars -> m Int8
+              scalarsE = readTableFieldWithDef readInt8    4 (-1)
+              scalarsF :: forall m. ReadCtx m => Table Scalars -> m Int16
+              scalarsF = readTableFieldWithDef readInt16   5 -2
+              scalarsG :: forall m. ReadCtx m => Table Scalars -> m Int32
+              scalarsG = readTableFieldWithDef readInt32   6 -4
+              scalarsH :: forall m. ReadCtx m => Table Scalars -> m Int64
+              scalarsH = readTableFieldWithDef readInt64   7 -8
+              scalarsI :: forall m. ReadCtx m => Table Scalars -> m Float
+              scalarsI = readTableFieldWithDef readFloat   8 3.9
+              scalarsJ :: forall m. ReadCtx m => Table Scalars -> m Double
+              scalarsJ = readTableFieldWithDef readDouble  9 -2.3e10
+              scalarsK :: forall m. ReadCtx m => Table Scalars -> m Bool
+              scalarsK = readTableFieldWithDef readBool    10 True
             |]
 
       describe "string fields" $ do
@@ -193,6 +244,9 @@ spec =
 
               t :: Maybe Text -> WriteTable T
               t s = writeTable [optional text s]
+
+              tS :: forall m. ReadCtx m => Table T -> m (Maybe Text)
+              tS = readTableFieldOpt readText 0
             |]
         it "deprecated" $
           [r| table T {s: string (deprecated);} |] `shouldCompileTo`
@@ -209,6 +263,9 @@ spec =
 
               t :: Text -> WriteTable T
               t s = writeTable [text s]
+
+              tS :: forall m. ReadCtx m => Table T -> m Text
+              tS = readTableFieldReq readText 0 "s"
             |]
 
       describe "table fields" $ do
@@ -299,8 +356,16 @@ normalizeType :: Type -> Type
 normalizeType t =
   case t of
     ConT n -> ConT (normalizeName n)
+    VarT n -> VarT (normalizeName n)
     AppT t1 t2 -> AppT (normalizeType t1) (normalizeType t2)
+    ForallT tvs cxt t ->  ForallT (normalizeTyVarBndr <$> tvs) (normalizeType <$> cxt) (normalizeType t)
     _ -> t
+
+normalizeTyVarBndr :: TyVarBndr -> TyVarBndr
+normalizeTyVarBndr tv =
+  case tv of
+    PlainTV n -> PlainTV (normalizeName n)
+    KindedTV n k -> KindedTV (normalizeName n) (normalizeType k)
 
 normalizeClause :: Clause -> Clause
 normalizeClause (Clause pats body decs) = Clause (normalizePat <$> pats) (normalizeBody body) (normalizeDec <$> decs)

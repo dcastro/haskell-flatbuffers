@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module FlatBuffers.Internal.Compiler.NamingConventions where
 
 import           Data.Text ( Text )
 import qualified Data.Text as T
-import           FlatBuffers.Internal.Compiler.SyntaxTree        ( Namespace(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree        ( Namespace(..), HasIdent(..), Ident(..) )
 
 
 -- Style guide: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
@@ -31,4 +32,5 @@ modul = typ
 namespace :: Namespace -> Text
 namespace (Namespace fragments) = T.intercalate "." (modul <$> fragments)
 
-
+getter :: (HasIdent parent, HasIdent field) => parent -> field -> Text
+getter (getIdent -> unIdent -> parent) (getIdent -> unIdent -> field) = term parent <> typ field

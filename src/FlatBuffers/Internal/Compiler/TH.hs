@@ -15,8 +15,15 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(.
 import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Write
+import           FlatBuffers.Read
 
 import           Language.Haskell.TH
+
+-- | Helper method to create function types.
+-- @ConT ''Int ~> ConT ''String === Int -> String@
+(~>) :: Type -> Type -> Type
+a ~> b = ArrowT `AppT` a `AppT` b
+infixr 1 ~>
 
 -- TODO: process isRoot
 compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
@@ -27,18 +34,21 @@ genTable :: (Namespace, TableDecl) -> Q [Dec]
 genTable (_, table) = do
   let tableName = mkNameFor NC.dataTypeName table
   (consSig, cons) <- genTableConstructor tableName table
-  pure
+
+  let getters = foldMap (genGetter tableName table) (tableFields table)
+
+  pure $
     [ DataD [] tableName [] Nothing [] []
     , consSig
     , cons
-    ]
+    ] <> getters
 
 genTableConstructor :: Name -> TableDecl -> Q (Dec, Dec)
 genTableConstructor tableName table = do
   (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse genTableContructorField (tableFields table)
 
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
-  let sig = foldr (\t accum -> ArrowT `AppT` t `AppT` accum) retType argTypes
+  let sig = foldr (~>) retType argTypes
 
   let consName = mkNameFor NC.dataTypeConstructor table
   let consSig = SigD consName sig
@@ -52,6 +62,62 @@ genTableConstructor tableName table = do
 
   pure (consSig, cons)
 
+genGetter :: Name -> TableDecl -> TableField -> [Dec]
+genGetter tableName table tf =
+  if tableFieldDeprecated tf
+    then []
+    else
+      case tableFieldType tf of
+        TWord8 (DefaultVal n)   -> [ mkSig $ ConT ''Word8,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord8)) ]
+        TWord16 (DefaultVal n)  -> [ mkSig $ ConT ''Word16, fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord16)) ]
+        TWord32 (DefaultVal n)  -> [ mkSig $ ConT ''Word32, fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord32)) ]
+        TWord64 (DefaultVal n)  -> [ mkSig $ ConT ''Word64, fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord64)) ]
+        TInt8 (DefaultVal n)    -> [ mkSig $ ConT ''Int8,   fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt8)) ]
+        TInt16 (DefaultVal n)   -> [ mkSig $ ConT ''Int16,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt16)) ]
+        TInt32 (DefaultVal n)   -> [ mkSig $ ConT ''Int32,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt32)) ]
+        TInt64 (DefaultVal n)   -> [ mkSig $ ConT ''Int64,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt64)) ]
+        TFloat (DefaultVal n)   -> [ mkSig $ ConT ''Float,  fun (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readFloat)) ]
+        TDouble (DefaultVal n)  -> [ mkSig $ ConT ''Double, fun (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readDouble)) ]
+        TBool (DefaultVal b)    -> [ mkSig $ ConT ''Bool,   fun (bodyForScalar (if b then ConE 'True else ConE 'False) (VarE 'readBool)) ]
+        TString req ->
+          [ mkSig $ requiredType req $ ConT ''Text
+          , fun (bodyForNonScalar req (VarE 'readText))
+          ]
+
+        _ -> []
+  where
+    funName = mkName (T.unpack (NC.getter table tf))
+    fieldIndex = LitE (IntegerL (tableFieldId tf))
+    fun body = FunD funName [ Clause [] (NormalB body) [] ]
+
+    bodyForNonScalar req readExp =
+      case req of
+        Req ->
+          foldl1 AppE
+            [ VarE 'readTableFieldReq
+            , readExp
+            , fieldIndex
+            , LitE (StringL (T.unpack . unIdent . getIdent $ tf))
+            ]
+        Opt ->
+          foldl1 AppE
+            [ VarE 'readTableFieldOpt
+            , readExp
+            , fieldIndex
+            ]
+
+    bodyForScalar defaultValExp readExp =
+      foldl1 AppE
+        [ VarE 'readTableFieldWithDef
+        , readExp
+        , fieldIndex
+        , defaultValExp
+        ]
+
+    mkSig typ =
+      SigD (mkName (T.unpack (NC.getter table tf))) $
+          ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
+            ConT ''Table `AppT` ConT tableName ~> VarT (mkName "m") `AppT` typ
 
 genTableContructorField :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
 genTableContructorField tf =
