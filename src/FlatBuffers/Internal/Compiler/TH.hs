@@ -1,11 +1,13 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module FlatBuffers.Internal.Compiler.TH where
 
-import           Control.Monad                                   ( join )
+import           Control.Monad                                   ( forM, join )
 
 import           Data.Int
+import           Data.List.NonEmpty                              ( NonEmpty )
+import qualified Data.List.NonEmpty                              as NE
 import           Data.Text                                       ( Text )
 import qualified Data.Text                                       as T
 import           Data.Word
@@ -14,10 +16,11 @@ import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
 import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Write
 import           FlatBuffers.Read
+import           FlatBuffers.Write
 
 import           Language.Haskell.TH
+
 
 -- | Helper method to create function types.
 -- @ConT ''Int ~> ConT ''String === Int -> String@
@@ -27,8 +30,98 @@ infixr 1 ~>
 
 -- TODO: process isRoot
 compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
-compileSymbolTable symbols =
-  join <$> traverse genTable (allTables symbols)
+compileSymbolTable symbols = do
+  tableDecs <- join <$> traverse genTable (allTables symbols)
+  enumDecs <- join <$> traverse genEnum (allEnums symbols)
+  pure $ tableDecs <> enumDecs
+
+genEnum :: (Namespace, EnumDecl) -> Q [Dec]
+genEnum (_, enum) = do
+  enumName <- newNameFor NC.dataTypeName enum
+
+  enumValNames <-
+    forM (enumVals enum) $ \enumVal ->
+      newName $ T.unpack $ NC.enumMember enum enumVal
+
+  let enumDec = genEnumType enumName enumValNames
+  toEnumDecs <- genToEnum enumName enum (enumVals enum `NE.zip` enumValNames)
+  fromEnumDecs <- genFromEnum enumName enum (enumVals enum `NE.zip` enumValNames)
+
+  pure $ enumDec : toEnumDecs <> fromEnumDecs
+
+genEnumType :: Name -> NonEmpty Name -> Dec
+genEnumType enumName enumValNames =
+  DataD [] enumName [] Nothing
+    (NE.toList $ fmap (\n -> NormalC n []) enumValNames)
+    [ DerivClause Nothing
+      [ ConT ''Eq
+      , ConT ''Show
+      , ConT ''Read
+      , ConT ''Ord
+      , ConT ''Bounded
+      ]
+    ]
+
+genToEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
+genToEnum enumName enum enumValsAndNames = do
+  let funName = mkName $ "to" <> T.unpack (NC.typ (unIdent (getIdent enum)))
+  argName <- newName "n"
+  pure $
+    [ SigD funName (enumTypeToType (enumType enum) ~> ConT ''Maybe `AppT` ConT enumName)
+    , FunD funName
+      [ Clause
+        [VarP argName]
+        (NormalB (CaseE (VarE argName) matches))
+        []
+      ]
+    ]
+  where
+    matches =
+      (match <$> NE.toList enumValsAndNames) <> [matchWildcard]
+
+    match (enumVal, enumName) =
+      Match
+        (LitP (IntegerL (enumValInt enumVal)))
+        (NormalB (ConE 'Just `AppE` ConE enumName))
+        []
+
+    matchWildcard =
+      Match
+        WildP
+        (NormalB (ConE 'Nothing))
+        []
+
+genFromEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
+genFromEnum enumName enum enumValsAndNames = do
+  let funName = mkName $ "from" <> T.unpack (NC.typ (unIdent (getIdent enum)))
+  argName <- newName "n"
+  pure
+    [ SigD funName (ConT enumName ~> enumTypeToType (enumType enum))
+    , FunD funName
+      [ Clause
+        [VarP argName]
+        (NormalB (CaseE (VarE argName) (match <$> NE.toList enumValsAndNames)))
+        []
+      ]
+    ]
+  where
+    match (enumVal, enumName) =
+      Match
+        (ConP enumName [])
+        (NormalB (LitE (IntegerL (enumValInt enumVal))))
+        []
+
+enumTypeToType :: EnumType -> Type
+enumTypeToType et =
+  case et of
+    EInt8   -> ConT ''Int8
+    EInt16  -> ConT ''Int16
+    EInt32  -> ConT ''Int32
+    EInt64  -> ConT ''Int64
+    EWord8  -> ConT ''Word8
+    EWord16 -> ConT ''Word16
+    EWord32 -> ConT ''Word32
+    EWord64 -> ConT ''Word64
 
 genTable :: (Namespace, TableDecl) -> Q [Dec]
 genTable (_, table) = do

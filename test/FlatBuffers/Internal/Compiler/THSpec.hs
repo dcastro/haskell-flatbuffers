@@ -6,9 +6,10 @@
 
 module FlatBuffers.Internal.Compiler.THSpec where
 
+import           Control.Arrow                                  ( second )
 import           Data.Int
-import           Data.Text ( Text )
-import qualified Data.Text as T
+import           Data.Text                                      ( Text )
+import qualified Data.Text                                      as T
 import           Data.Word
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
@@ -16,8 +17,8 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( SymbolTable(..
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), HasIdent(..), Ident(..), Namespace(..) )
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Write
 import           FlatBuffers.Read
+import           FlatBuffers.Write
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
@@ -32,7 +33,7 @@ import           Text.RawString.QQ                              ( r )
 
 spec :: Spec
 spec =
-  describe "TH" $
+  describe "TH" $ do
     describe "Tables" $ do
       describe "naming coventions" $ do
         it "table datatype name is uppercased" $
@@ -309,6 +310,34 @@ spec =
               t2 = writeTable []
             |]
 
+    describe "Enums" $
+      describe "naming conventions" $
+        it "enum name / enum value names are uppercased" $
+          [r|
+            enum color: int16 { red = -2, Green, bLUE = 3  }
+
+          |] `shouldCompileTo`
+            [d|
+              data Color = ColorRed | ColorGreen | ColorBLUE
+                deriving (Eq, Show, Read, Ord, Bounded)
+
+              toColor :: Int16 -> Maybe Color
+              toColor n =
+                case n of
+                  -2 -> Just ColorRed
+                  -1 -> Just ColorGreen
+                  3 -> Just ColorBLUE
+                  _ -> Nothing
+
+              fromColor :: Color -> Int16
+              fromColor n =
+                case n of
+                  ColorRed -> -2
+                  ColorGreen -> -1
+                  ColorBLUE -> 3
+            |]
+
+
 
 
 shouldCompileTo :: HasCallStack => String -> Q [Dec] -> Expectation
@@ -345,7 +374,7 @@ showBundle = unlines . fmap indent . lines . errorBundlePretty
 normalizeDec :: Dec -> Dec
 normalizeDec dec = valToFun $
   case dec of
-    DataD a name b c d e -> DataD a (normalizeName name) b c d e
+    DataD a name b c cons e -> DataD a (normalizeName name) b c (normalizeCon <$> cons) e
     SigD n t -> SigD (normalizeName n) (normalizeType t)
     FunD n clauses -> FunD (normalizeName n) (normalizeClause <$> clauses)
     ValD pat body decs -> ValD (normalizePat pat) (normalizeBody body) (normalizeDec <$> decs)
@@ -357,6 +386,12 @@ valToFun dec =
   case dec of
     ValD (VarP name) body decs -> FunD name [Clause [] body decs]
     _ -> dec
+
+normalizeCon :: Con -> Con
+normalizeCon c =
+  case c of
+    NormalC name bangTypes -> NormalC (normalizeName name) (second normalizeType <$> bangTypes)
+    _ -> c
 
 normalizeType :: Type -> Type
 normalizeType t =
@@ -380,8 +415,8 @@ normalizePat :: Pat -> Pat
 normalizePat p =
   case p of
     VarP n -> VarP (normalizeName n)
+    ConP n pats -> ConP (normalizeName n) (normalizePat <$> pats)
     _ -> p
-
 
 normalizeBody :: Body -> Body
 normalizeBody b =
@@ -395,7 +430,13 @@ normalizeExp e =
     VarE n -> VarE (normalizeName n)
     AppE e1 e2 -> AppE (normalizeExp e1) (normalizeExp e2)
     ListE es -> ListE (normalizeExp <$> es)
+    CaseE e matches -> CaseE (normalizeExp e) (normalizeMatch <$> matches)
+    ConE name -> ConE (normalizeName name)
     _ -> e
+
+normalizeMatch :: Match -> Match
+normalizeMatch (Match pat body decs) =
+  Match (normalizePat pat) (normalizeBody body) (normalizeDec <$> decs)
 
 normalizeName (Name (OccName occ) (NameU _)) = mkName occ
 normalizeName name = name

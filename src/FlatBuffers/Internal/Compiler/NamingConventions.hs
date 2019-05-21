@@ -3,9 +3,12 @@
 
 module FlatBuffers.Internal.Compiler.NamingConventions where
 
-import           Data.Text ( Text )
-import qualified Data.Text as T
-import           FlatBuffers.Internal.Compiler.SyntaxTree        ( Namespace(..), HasIdent(..), Ident(..) )
+import           Data.Text                                     ( Text )
+import qualified Data.Text                                     as T
+
+import           FlatBuffers.Internal.Compiler.SyntaxTree      ( HasIdent(..), Ident(..), Namespace(..) )
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( EnumDecl(..), EnumVal(..) )
+
 
 
 -- Style guide: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
@@ -34,3 +37,7 @@ namespace (Namespace fragments) = T.intercalate "." (modul <$> fragments)
 
 getter :: (HasIdent parent, HasIdent field) => parent -> field -> Text
 getter (getIdent -> unIdent -> parent) (getIdent -> unIdent -> field) = term parent <> typ field
+
+enumMember :: EnumDecl -> EnumVal -> Text
+enumMember (getIdent -> unIdent -> enumDecl) (getIdent -> unIdent -> enumVal) =
+  typ enumDecl <> typ enumVal
