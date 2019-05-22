@@ -269,6 +269,38 @@ spec =
               tS = readTableFieldReq readText 0 "s"
             |]
 
+      describe "enum fields" $
+        it "are encoded as fields of the underlying type" $
+          [r|
+            enum Color:int8 { Red = 1, Blue }
+            table T {x: Color = Blue; }
+          |] `shouldCompileTo`
+            [d|
+              data Color = ColorRed | ColorBlue
+                deriving (Eq, Show, Read, Ord, Bounded)
+
+              toColor :: Int8 -> Maybe Color
+              toColor n =
+                case n of
+                  1 -> Just ColorRed
+                  2 -> Just ColorBlue
+                  _ -> Nothing
+
+              fromColor :: Color -> Int8
+              fromColor n =
+                case n of
+                  ColorRed -> 1
+                  ColorBlue -> 2
+
+              data T
+
+              t :: Maybe Int8 -> WriteTable T
+              t x = writeTable [ optionalDef 2 (inline int8) x ]
+
+              tX :: forall m. ReadCtx m => Table T -> m Int8
+              tX = readTableFieldWithDef readInt8 0 2
+            |]
+
       describe "table fields" $ do
         it "normal field" $
           [r| table T1 {x: t2;} table t2{}|] `shouldCompileTo`

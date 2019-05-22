@@ -467,7 +467,7 @@ validateTable symbolTables (currentNamespace, table) =
             MatchE (ns, enum) -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
-              pure $ TEnum (TypeRef ns (getIdent enum)) validDefault
+              pure $ TEnum (TypeRef ns (getIdent enum)) (enumType enum) validDefault
             MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (TypeRef ns (getIdent struct))  (isRequired md)
             MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (TypeRef ns (getIdent table)) (isRequired md)
             MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (TypeRef ns (getIdent union)) (isRequired md)

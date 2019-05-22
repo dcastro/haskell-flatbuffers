@@ -683,7 +683,7 @@ spec =
           |] `shouldValidate` foldDecls
             [ enum ("A.B", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
             , table ("A.B", TableDecl "T" NotRoot
-                [ TableField 0 "x" (TEnum (TypeRef "A.B" "E") 0) False ]
+                [ TableField 0 "x" (TEnum (TypeRef "A.B" "E") EInt16 0) False ]
               )
             ]
 
@@ -695,7 +695,7 @@ spec =
           [r| table T { x: E (deprecated); } enum E : short{A} |] `shouldValidate` foldDecls
             [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
             , table ("", TableDecl "T" NotRoot
-                [ TableField 0 "x" (TEnum (TypeRef "" "E") 0) True ]
+                [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 0) True ]
               )
             ]
 
@@ -703,7 +703,7 @@ spec =
           [r| table T { x: E; } enum E : short{ A = -1, B = 0, C = 1} |] `shouldValidate` foldDecls
             [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" (-1), EnumVal "B" 0, EnumVal "C" 1 ])
             , table ("", TableDecl "T" NotRoot
-                [ TableField 0 "x" (TEnum (TypeRef "" "E") 0) False ]
+                [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 0) False ]
               )
             ]
 
@@ -716,7 +716,7 @@ spec =
             [r| table T { x: E = 1; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
               [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
               , table ("", TableDecl "T" NotRoot
-                  [ TableField 0 "x" (TEnum (TypeRef "" "E") 1) False ]
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 1) False ]
                 )
               ]
 
@@ -728,7 +728,7 @@ spec =
             [r| table T { x: E = B; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
               [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
               , table ("", TableDecl "T" NotRoot
-                  [ TableField 0 "x" (TEnum (TypeRef "" "E") 1) False ]
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 1) False ]
                 )
               ]
 

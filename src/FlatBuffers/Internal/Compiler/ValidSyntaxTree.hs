@@ -1,4 +1,5 @@
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module FlatBuffers.Internal.Compiler.ValidSyntaxTree where
 
@@ -83,7 +84,7 @@ data StructFieldType
 ------------ Tables --------------
 ----------------------------------
 newtype DefaultVal a = DefaultVal a
-  deriving (Eq, Show, Num, IsString, Fractional) via a
+  deriving newtype (Eq, Show, Num, IsString, Ord, Enum, Real, Integral, Fractional)
 
 data Required = Req | Opt
   deriving (Eq, Show)
@@ -119,7 +120,7 @@ data TableFieldType
   | TDouble !(DefaultVal Scientific)
   | TBool   !(DefaultVal Bool)
   | TString !Required
-  | TEnum   !TypeRef !(DefaultVal Integer)
+  | TEnum   !TypeRef !EnumType !(DefaultVal Integer)
   | TStruct !TypeRef !Required
   | TTable  !TypeRef !Required
   | TUnion  !TypeRef !Required

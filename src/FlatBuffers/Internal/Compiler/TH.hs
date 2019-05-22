@@ -31,9 +31,9 @@ infixr 1 ~>
 -- TODO: process isRoot
 compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
 compileSymbolTable symbols = do
-  tableDecs <- join <$> traverse genTable (allTables symbols)
   enumDecs <- join <$> traverse genEnum (allEnums symbols)
-  pure $ tableDecs <> enumDecs
+  tableDecs <- join <$> traverse genTable (allTables symbols)
+  pure $ enumDecs <> tableDecs
 
 genEnum :: (Namespace, EnumDecl) -> Q [Dec]
 genEnum (_, enum) = do
@@ -176,6 +176,8 @@ genGetter tableName table tf =
           [ mkSig $ requiredType req $ ConT ''Text
           , fun (bodyForNonScalar req (VarE 'readText))
           ]
+        TEnum _ enumType dflt ->
+          genGetter tableName table $ tf { tableFieldType = enumTypeToTableFieldType enumType dflt }
         TTable tref req ->
           [ mkSig $ requiredType req $ ConT ''Table `AppT` typeRefAsType tref
           , fun (bodyForNonScalar req (VarE 'readTable))
@@ -230,41 +232,45 @@ genTableContructorField tf =
       let arg = VarP name
       let argRef = VarE name
 
-      typ <-
-        case tableFieldType tf of
-          TInt8   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int8)
-          TInt16  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int16)
-          TInt32  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int32)
-          TInt64  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int64)
-          TWord8  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word8)
-          TWord16 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word16)
-          TWord32 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word32)
-          TWord64 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word64)
-          TFloat  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Float)
-          TDouble _   -> pure $ AppT (ConT ''Maybe) (ConT ''Double)
-          TBool   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Bool)
-          TString req        -> pure $ requiredType req (ConT ''Text)
-          TTable typeRef req -> pure $ requiredType req (ConT ''WriteTable `AppT` typeRefAsType typeRef)
+      let mkType tfType =
+            case tfType of
+              TInt8   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int8)
+              TInt16  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int16)
+              TInt32  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int32)
+              TInt64  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int64)
+              TWord8  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word8)
+              TWord16 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word16)
+              TWord32 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word32)
+              TWord64 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word64)
+              TFloat  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Float)
+              TDouble _   -> pure $ AppT (ConT ''Maybe) (ConT ''Double)
+              TBool   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Bool)
+              TString req           -> pure $ requiredType req (ConT ''Text)
+              TEnum _ enumType dflt -> mkType (enumTypeToTableFieldType enumType dflt)
+              TTable typeRef req    -> pure $ requiredType req (ConT ''WriteTable `AppT` typeRefAsType typeRef)
 
-          _ -> undefined
+              _ -> undefined
 
-      exps <-
-        case tableFieldType tf of
-          TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) argRef
-          TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) argRef
-          TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) argRef
-          TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) argRef
-          TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) argRef
-          TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) argRef
-          TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) argRef
-          TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) argRef
-          TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
-          TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
-          TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
-          TString req            -> pure . pure $ AppE (requiredExp req (VarE 'text)) argRef
-          TTable _ req           -> pure . pure $ AppE (requiredExp req (VarE 'unWriteTable)) argRef
+      let mkExps tfType =
+            case tfType of
+              TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) argRef
+              TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) argRef
+              TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) argRef
+              TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) argRef
+              TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) argRef
+              TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) argRef
+              TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) argRef
+              TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) argRef
+              TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
+              TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
+              TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
+              TString req            -> pure . pure $ AppE (requiredExp req (VarE 'text)) argRef
+              TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
+              TTable _ req           -> pure . pure $ AppE (requiredExp req (VarE 'unWriteTable)) argRef
+              _ -> undefined
 
-          _ -> undefined
+      typ <- mkType (tableFieldType tf)
+      exps <- mkExps (tableFieldType tf)
 
       pure $ ([typ], [arg], exps, [])
 
@@ -274,6 +280,17 @@ genTableContructorField tf =
       [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
       ]
 
+enumTypeToTableFieldType :: Integral a => EnumType -> DefaultVal a -> TableFieldType
+enumTypeToTableFieldType et dflt =
+  case et of
+    EInt8   -> TInt8 (fromIntegral dflt)
+    EInt16  -> TInt16 (fromIntegral dflt)
+    EInt32  -> TInt32 (fromIntegral dflt)
+    EInt64  -> TInt64 (fromIntegral dflt)
+    EWord8  -> TWord8 (fromIntegral dflt)
+    EWord16 -> TWord16 (fromIntegral dflt)
+    EWord32 -> TWord32 (fromIntegral dflt)
+    EWord64 -> TWord64 (fromIntegral dflt)
 
 typeRefAsType :: TypeRef -> Type
 typeRefAsType (TypeRef "" ident) =
