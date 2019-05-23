@@ -126,7 +126,7 @@ mkTable (_, table) = do
 
 mkTableConstructor :: Name -> TableDecl -> Q (Dec, Dec)
 mkTableConstructor tableName table = do
-  (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse mkTableContructorField (tableFields table)
+  (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse mkTableContructorArg (tableFields table)
 
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
   let sig = foldr (~>) retType argTypes
@@ -142,6 +142,49 @@ mkTableConstructor tableName table = do
           ]
 
   pure (consSig, cons)
+
+mkTableContructorArg :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
+mkTableContructorArg tf =
+  if tableFieldDeprecated tf
+    then
+      case tableFieldType tf of
+        TUnion _ _           -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
+        TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
+        _                    -> pure ([], [], [VarE 'deprecated], [])
+    else do
+      name <- newNameFor NC.term tf
+
+      let arg = VarP name
+      let argRef = VarE name
+
+      let mkExps tfType =
+            case tfType of
+              TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) argRef
+              TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) argRef
+              TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) argRef
+              TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) argRef
+              TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) argRef
+              TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) argRef
+              TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) argRef
+              TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) argRef
+              TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
+              TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
+              TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
+              TString req            -> [AppE (requiredExp req (VarE 'text)) argRef]
+              TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
+              TTable _ req           -> [AppE (requiredExp req (VarE 'unWriteTable)) argRef]
+              _ -> undefined
+
+      let typ = tableFieldTypeToWriteType (tableFieldType tf)
+      let exps = mkExps (tableFieldType tf)
+
+      pure $ ([typ], [arg], exps, [])
+
+  where
+    expForScalar :: Exp -> Exp -> Exp -> [Exp]
+    expForScalar defaultValExp writeExp varExp =
+      [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
+      ]
 
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
 mkTableFieldGetter tableName table tf =
@@ -200,49 +243,6 @@ mkTableFieldGetter tableName table tf =
         , fieldIndex
         , defaultValExp
         ]
-
-mkTableContructorField :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
-mkTableContructorField tf =
-  if tableFieldDeprecated tf
-    then
-      case tableFieldType tf of
-        TUnion _ _           -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
-        TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
-        _                    -> pure ([], [], [VarE 'deprecated], [])
-    else do
-      name <- newNameFor NC.term tf
-
-      let arg = VarP name
-      let argRef = VarE name
-
-      let mkExps tfType =
-            case tfType of
-              TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) argRef
-              TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) argRef
-              TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) argRef
-              TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) argRef
-              TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) argRef
-              TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) argRef
-              TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) argRef
-              TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) argRef
-              TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
-              TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
-              TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
-              TString req            -> [AppE (requiredExp req (VarE 'text)) argRef]
-              TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
-              TTable _ req           -> [AppE (requiredExp req (VarE 'unWriteTable)) argRef]
-              _ -> undefined
-
-      let typ = tableFieldTypeToWriteType (tableFieldType tf)
-      let exps = mkExps (tableFieldType tf)
-
-      pure $ ([typ], [arg], exps, [])
-
-  where
-    expForScalar :: Exp -> Exp -> Exp -> [Exp]
-    expForScalar defaultValExp writeExp varExp =
-      [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
-      ]
 
 enumTypeToType :: EnumType -> Type
 enumTypeToType et =
