@@ -294,10 +294,10 @@ spec =
         getNestedTables'x decoded `shouldBeRightAnd` isNothing
 
 
-    describe "Union" $ do
+    describe "Union" $
       describe "present" $ do
         it "with sword" $ do
-          (json, decoded) <- flatc $ tableWithUnion (Just (weapon (sword (Just "hi"))))
+          (json, decoded) <- flatc $ tableWithUnion (weapon (sword (Just "hi")))
 
           json `shouldBeJson` object
             [ "uni"      .= object [ "x" .= String "hi" ]
@@ -309,7 +309,7 @@ spec =
             _                      -> unexpectedUnionType
 
         it "with axe" $ do
-          (json, decoded) <- flatc $ tableWithUnion (Just (weapon (axe (Just maxBound))))
+          (json, decoded) <- flatc $ tableWithUnion (weapon (axe (Just maxBound)))
 
           json `shouldBeJson` object
             [ "uni"      .= object [ "y" .= maxBound @Int32 ]
@@ -321,7 +321,7 @@ spec =
             _                    -> unexpectedUnionType
 
         it "with none" $ do
-          (json, decoded) <- flatc $ tableWithUnion (Just none)
+          (json, decoded) <- flatc $ tableWithUnion none
 
           json `shouldBeJson` object []
 
@@ -329,14 +329,6 @@ spec =
             UnionNone -> pure ()
             _         -> unexpectedUnionType
 
-      it "missing" $ do
-        (json, decoded) <- flatc $ tableWithUnion Nothing
-
-        json `shouldBeJson` object []
-
-        getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
-          UnionNone -> pure ()
-          _         -> unexpectedUnionType
 
     describe "Vectors" $ do
       it "non-empty" $ do

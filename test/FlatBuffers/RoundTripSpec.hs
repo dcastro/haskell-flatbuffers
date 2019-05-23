@@ -165,26 +165,32 @@ spec =
 
     describe "Union" $ do
       it "present" $ do
-        x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (sword (Just "hi"))))
+        x <- fromRight $ decode $ encode $ tableWithUnion (weapon (sword (Just "hi")))
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "hi")
           _                      -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion (Just (weapon (axe (Just maxBound))))
+        x <- fromRight $ decode $ encode $ tableWithUnion (weapon (axe (Just maxBound)))
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Right maxBound
           _                    -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion (Just none)
+        x <- fromRight $ decode $ encode $ tableWithUnion none
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
 
-      it "missing" $ do
-        x <- fromRight $ decode $ encode $ tableWithUnion Nothing
+      it "returns none when union type is missing" $ do
+        x <- fromRight $ decode $ encode $ writeTable @TableWithUnion [W.missing]
         getTableWithUnion'uni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
+
+      it "returns `unknown` when union type is unknown" $ do
+        x <- fromRight $ decode $ encode $ writeTable @TableWithUnion [inline word8 99, W.table []]
+        getTableWithUnion'uni x `shouldBeRightAndExpect` \case
+          UnionUnknown n -> n `shouldBe` 99
+          _              -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
         x <- fromRight $ decode $ encode $ writeTable @TableWithUnion [inline word8 1]

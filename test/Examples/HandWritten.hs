@@ -351,10 +351,10 @@ readWeapon n pos =
 ----------------------------------
 data TableWithUnion
 
-tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteTable TableWithUnion
+tableWithUnion :: WriteUnion Weapon -> WriteTable TableWithUnion
 tableWithUnion x1 = writeTable
-  [ optional writeUnionType x1
-  , optional writeUnionValue x1
+  [ writeUnionType x1
+  , writeUnionValue x1
   ]
 
 getTableWithUnion'uni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
