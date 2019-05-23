@@ -283,7 +283,7 @@ tableFieldTypeToWriteType tft =
     TDouble _   -> ConT ''Maybe `AppT` ConT ''Double
     TBool   _   -> ConT ''Maybe `AppT` ConT ''Bool
     TString req             -> requiredType req (ConT ''Text)
-    TEnum _ enumType dflt   -> tableFieldTypeToWriteType (enumTypeToTableFieldType enumType dflt)
+    TEnum _ enumType _      -> ConT ''Maybe `AppT` enumTypeToType enumType
     TStruct typeRef req     -> requiredType req (ConT ''WriteStruct `AppT` typeRefToType typeRef)
     TTable typeRef req      -> requiredType req (ConT ''WriteTable  `AppT` typeRefToType typeRef)
     TUnion typeRef _        -> ConT ''WriteUnion  `AppT` typeRefToType typeRef
@@ -304,7 +304,7 @@ tableFieldTypeToReadType tft =
     TDouble _   -> ConT ''Double
     TBool   _   -> ConT ''Bool
     TString req             -> requiredType req (ConT ''Text)
-    TEnum _ enumType dflt   -> tableFieldTypeToReadType (enumTypeToTableFieldType enumType dflt)
+    TEnum _ enumType _      -> enumTypeToType enumType
     TStruct typeRef req     -> requiredType req (ConT ''Struct `AppT` typeRefToType typeRef)
     TTable typeRef req      -> requiredType req (ConT ''Table  `AppT` typeRefToType typeRef)
     TUnion typeRef _        -> ConT ''Union  `AppT` typeRefToType typeRef
