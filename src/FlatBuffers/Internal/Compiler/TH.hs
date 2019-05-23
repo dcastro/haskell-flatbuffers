@@ -31,26 +31,26 @@ infixr 1 ~>
 -- TODO: process isRoot
 compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
 compileSymbolTable symbols = do
-  enumDecs <- join <$> traverse genEnum (allEnums symbols)
-  tableDecs <- join <$> traverse genTable (allTables symbols)
+  enumDecs <- join <$> traverse mkEnum (allEnums symbols)
+  tableDecs <- join <$> traverse mkTable (allTables symbols)
   pure $ enumDecs <> tableDecs
 
-genEnum :: (Namespace, EnumDecl) -> Q [Dec]
-genEnum (_, enum) = do
+mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
+mkEnum (_, enum) = do
   enumName <- newNameFor NC.dataTypeName enum
 
   enumValNames <-
     forM (enumVals enum) $ \enumVal ->
       newName $ T.unpack $ NC.enumMember enum enumVal
 
-  let enumDec = genEnumType enumName enumValNames
-  toEnumDecs <- genToEnum enumName enum (enumVals enum `NE.zip` enumValNames)
-  fromEnumDecs <- genFromEnum enumName enum (enumVals enum `NE.zip` enumValNames)
+  let enumDec = mkEnumDataDec enumName enumValNames
+  toEnumDecs <- mkToEnum enumName enum (enumVals enum `NE.zip` enumValNames)
+  fromEnumDecs <- mkFromEnum enumName enum (enumVals enum `NE.zip` enumValNames)
 
   pure $ enumDec : toEnumDecs <> fromEnumDecs
 
-genEnumType :: Name -> NonEmpty Name -> Dec
-genEnumType enumName enumValNames =
+mkEnumDataDec :: Name -> NonEmpty Name -> Dec
+mkEnumDataDec enumName enumValNames =
   DataD [] enumName [] Nothing
     (NE.toList $ fmap (\n -> NormalC n []) enumValNames)
     [ DerivClause Nothing
@@ -62,8 +62,8 @@ genEnumType enumName enumValNames =
       ]
     ]
 
-genToEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
-genToEnum enumName enum enumValsAndNames = do
+mkToEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
+mkToEnum enumName enum enumValsAndNames = do
   let funName = mkName $ "to" <> T.unpack (NC.typ (unIdent (getIdent enum)))
   argName <- newName "n"
   pure $
@@ -91,8 +91,8 @@ genToEnum enumName enum enumValsAndNames = do
         (NormalB (ConE 'Nothing))
         []
 
-genFromEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
-genFromEnum enumName enum enumValsAndNames = do
+mkFromEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
+mkFromEnum enumName enum enumValsAndNames = do
   let funName = mkName $ "from" <> T.unpack (NC.typ (unIdent (getIdent enum)))
   argName <- newName "n"
   pure
@@ -111,12 +111,12 @@ genFromEnum enumName enum enumValsAndNames = do
         (NormalB (LitE (IntegerL (enumValInt enumVal))))
         []
 
-genTable :: (Namespace, TableDecl) -> Q [Dec]
-genTable (_, table) = do
+mkTable :: (Namespace, TableDecl) -> Q [Dec]
+mkTable (_, table) = do
   tableName <- newNameFor NC.dataTypeName table
-  (consSig, cons) <- genTableConstructor tableName table
+  (consSig, cons) <- mkTableConstructor tableName table
 
-  let getters = foldMap (genGetter tableName table) (tableFields table)
+  let getters = foldMap (mkTableFieldGetter tableName table) (tableFields table)
 
   pure $
     [ DataD [] tableName [] Nothing [] []
@@ -124,9 +124,9 @@ genTable (_, table) = do
     , cons
     ] <> getters
 
-genTableConstructor :: Name -> TableDecl -> Q (Dec, Dec)
-genTableConstructor tableName table = do
-  (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse genTableContructorField (tableFields table)
+mkTableConstructor :: Name -> TableDecl -> Q (Dec, Dec)
+mkTableConstructor tableName table = do
+  (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse mkTableContructorField (tableFields table)
 
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
   let sig = foldr (~>) retType argTypes
@@ -143,8 +143,8 @@ genTableConstructor tableName table = do
 
   pure (consSig, cons)
 
-genGetter :: Name -> TableDecl -> TableField -> [Dec]
-genGetter tableName table tf =
+mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
+mkTableFieldGetter tableName table tf =
   if tableFieldDeprecated tf
     then []
     else [sig, mkFun (tableFieldType tf)]
@@ -201,8 +201,8 @@ genGetter tableName table tf =
         , defaultValExp
         ]
 
-genTableContructorField :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
-genTableContructorField tf =
+mkTableContructorField :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
+mkTableContructorField tf =
   if tableFieldDeprecated tf
     then
       case tableFieldType tf of
@@ -228,19 +228,19 @@ genTableContructorField tf =
               TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
               TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
               TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
-              TString req            -> pure . pure $ AppE (requiredExp req (VarE 'text)) argRef
+              TString req            -> [AppE (requiredExp req (VarE 'text)) argRef]
               TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
-              TTable _ req           -> pure . pure $ AppE (requiredExp req (VarE 'unWriteTable)) argRef
+              TTable _ req           -> [AppE (requiredExp req (VarE 'unWriteTable)) argRef]
               _ -> undefined
 
       let typ = tableFieldTypeToWriteType (tableFieldType tf)
-      exps <- mkExps (tableFieldType tf)
+      let exps = mkExps (tableFieldType tf)
 
       pure $ ([typ], [arg], exps, [])
 
   where
-    expForScalar :: Exp -> Exp -> Exp -> Q [Exp]
-    expForScalar defaultValExp writeExp varExp = pure
+    expForScalar :: Exp -> Exp -> Exp -> [Exp]
+    expForScalar defaultValExp writeExp varExp =
       [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
       ]
 
