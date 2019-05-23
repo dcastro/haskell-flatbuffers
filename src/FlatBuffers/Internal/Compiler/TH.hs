@@ -111,18 +111,6 @@ genFromEnum enumName enum enumValsAndNames = do
         (NormalB (LitE (IntegerL (enumValInt enumVal))))
         []
 
-enumTypeToType :: EnumType -> Type
-enumTypeToType et =
-  case et of
-    EInt8   -> ConT ''Int8
-    EInt16  -> ConT ''Int16
-    EInt32  -> ConT ''Int32
-    EInt64  -> ConT ''Int64
-    EWord8  -> ConT ''Word8
-    EWord16 -> ConT ''Word16
-    EWord32 -> ConT ''Word32
-    EWord64 -> ConT ''Word64
-
 genTable :: (Namespace, TableDecl) -> Q [Dec]
 genTable (_, table) = do
   tableName <- newNameFor NC.dataTypeName table
@@ -159,35 +147,35 @@ genGetter :: Name -> TableDecl -> TableField -> [Dec]
 genGetter tableName table tf =
   if tableFieldDeprecated tf
     then []
-    else
-      case tableFieldType tf of
-        TWord8 (DefaultVal n)   -> [ mkSig $ ConT ''Word8,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord8)) ]
-        TWord16 (DefaultVal n)  -> [ mkSig $ ConT ''Word16, fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord16)) ]
-        TWord32 (DefaultVal n)  -> [ mkSig $ ConT ''Word32, fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord32)) ]
-        TWord64 (DefaultVal n)  -> [ mkSig $ ConT ''Word64, fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord64)) ]
-        TInt8 (DefaultVal n)    -> [ mkSig $ ConT ''Int8,   fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt8)) ]
-        TInt16 (DefaultVal n)   -> [ mkSig $ ConT ''Int16,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt16)) ]
-        TInt32 (DefaultVal n)   -> [ mkSig $ ConT ''Int32,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt32)) ]
-        TInt64 (DefaultVal n)   -> [ mkSig $ ConT ''Int64,  fun (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt64)) ]
-        TFloat (DefaultVal n)   -> [ mkSig $ ConT ''Float,  fun (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readFloat)) ]
-        TDouble (DefaultVal n)  -> [ mkSig $ ConT ''Double, fun (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readDouble)) ]
-        TBool (DefaultVal b)    -> [ mkSig $ ConT ''Bool,   fun (bodyForScalar (if b then ConE 'True else ConE 'False) (VarE 'readBool)) ]
-        TString req ->
-          [ mkSig $ requiredType req $ ConT ''Text
-          , fun (bodyForNonScalar req (VarE 'readText))
-          ]
-        TEnum _ enumType dflt ->
-          genGetter tableName table $ tf { tableFieldType = enumTypeToTableFieldType enumType dflt }
-        TTable tref req ->
-          [ mkSig $ requiredType req $ ConT ''Table `AppT` typeRefAsType tref
-          , fun (bodyForNonScalar req (VarE 'readTable))
-          ]
-
-        _ -> []
+    else [sig, mkFun (tableFieldType tf)]
   where
     funName = mkName (T.unpack (NC.getter table tf))
     fieldIndex = LitE (IntegerL (tableFieldId tf))
-    fun body = FunD funName [ Clause [] (NormalB body) [] ]
+
+    sig =
+      SigD (mkName (T.unpack (NC.getter table tf))) $
+        ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
+          ConT ''Table `AppT` ConT tableName ~> VarT (mkName "m") `AppT` tableFieldTypeToReadType (tableFieldType tf)
+
+    mkFun tft =
+      case tft of
+        TWord8 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord8))
+        TWord16 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord16))
+        TWord32 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord32))
+        TWord64 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord64))
+        TInt8 (DefaultVal n)    -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt8))
+        TInt16 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt16))
+        TInt32 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt32))
+        TInt64 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt64))
+        TFloat (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readFloat))
+        TDouble (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readDouble))
+        TBool (DefaultVal b)    -> mkFunWithBody (bodyForScalar (if b then ConE 'True else ConE 'False) (VarE 'readBool))
+        TString req             -> mkFunWithBody (bodyForNonScalar req (VarE 'readText))
+        TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
+        TTable tref req         -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
+        _ -> undefined
+
+    mkFunWithBody body = FunD funName [ Clause [] (NormalB body) [] ]
 
     bodyForNonScalar req readExp =
       case req of
@@ -213,11 +201,6 @@ genGetter tableName table tf =
         , defaultValExp
         ]
 
-    mkSig typ =
-      SigD (mkName (T.unpack (NC.getter table tf))) $
-          ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
-            ConT ''Table `AppT` ConT tableName ~> VarT (mkName "m") `AppT` typ
-
 genTableContructorField :: TableField -> Q ([Type], [Pat], [Exp], [Dec])
 genTableContructorField tf =
   if tableFieldDeprecated tf
@@ -231,25 +214,6 @@ genTableContructorField tf =
 
       let arg = VarP name
       let argRef = VarE name
-
-      let mkType tfType =
-            case tfType of
-              TInt8   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int8)
-              TInt16  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int16)
-              TInt32  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int32)
-              TInt64  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Int64)
-              TWord8  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word8)
-              TWord16 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word16)
-              TWord32 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word32)
-              TWord64 _   -> pure $ AppT (ConT ''Maybe) (ConT ''Word64)
-              TFloat  _   -> pure $ AppT (ConT ''Maybe) (ConT ''Float)
-              TDouble _   -> pure $ AppT (ConT ''Maybe) (ConT ''Double)
-              TBool   _   -> pure $ AppT (ConT ''Maybe) (ConT ''Bool)
-              TString req           -> pure $ requiredType req (ConT ''Text)
-              TEnum _ enumType dflt -> mkType (enumTypeToTableFieldType enumType dflt)
-              TTable typeRef req    -> pure $ requiredType req (ConT ''WriteTable `AppT` typeRefAsType typeRef)
-
-              _ -> undefined
 
       let mkExps tfType =
             case tfType of
@@ -269,7 +233,7 @@ genTableContructorField tf =
               TTable _ req           -> pure . pure $ AppE (requiredExp req (VarE 'unWriteTable)) argRef
               _ -> undefined
 
-      typ <- mkType (tableFieldType tf)
+      let typ = tableFieldTypeToWriteType (tableFieldType tf)
       exps <- mkExps (tableFieldType tf)
 
       pure $ ([typ], [arg], exps, [])
@@ -279,6 +243,18 @@ genTableContructorField tf =
     expForScalar defaultValExp writeExp varExp = pure
       [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
       ]
+
+enumTypeToType :: EnumType -> Type
+enumTypeToType et =
+  case et of
+    EInt8   -> ConT ''Int8
+    EInt16  -> ConT ''Int16
+    EInt32  -> ConT ''Int32
+    EInt64  -> ConT ''Int64
+    EWord8  -> ConT ''Word8
+    EWord16 -> ConT ''Word16
+    EWord32 -> ConT ''Word32
+    EWord64 -> ConT ''Word64
 
 enumTypeToTableFieldType :: Integral a => EnumType -> DefaultVal a -> TableFieldType
 enumTypeToTableFieldType et dflt =
@@ -292,10 +268,92 @@ enumTypeToTableFieldType et dflt =
     EWord32 -> TWord32 (fromIntegral dflt)
     EWord64 -> TWord64 (fromIntegral dflt)
 
-typeRefAsType :: TypeRef -> Type
-typeRefAsType (TypeRef "" ident) =
+tableFieldTypeToWriteType :: TableFieldType -> Type
+tableFieldTypeToWriteType tft =
+  case tft of
+    TInt8   _   -> ConT ''Maybe `AppT` ConT ''Int8
+    TInt16  _   -> ConT ''Maybe `AppT` ConT ''Int16
+    TInt32  _   -> ConT ''Maybe `AppT` ConT ''Int32
+    TInt64  _   -> ConT ''Maybe `AppT` ConT ''Int64
+    TWord8  _   -> ConT ''Maybe `AppT` ConT ''Word8
+    TWord16 _   -> ConT ''Maybe `AppT` ConT ''Word16
+    TWord32 _   -> ConT ''Maybe `AppT` ConT ''Word32
+    TWord64 _   -> ConT ''Maybe `AppT` ConT ''Word64
+    TFloat  _   -> ConT ''Maybe `AppT` ConT ''Float
+    TDouble _   -> ConT ''Maybe `AppT` ConT ''Double
+    TBool   _   -> ConT ''Maybe `AppT` ConT ''Bool
+    TString req             -> requiredType req (ConT ''Text)
+    TEnum _ enumType dflt   -> tableFieldTypeToWriteType (enumTypeToTableFieldType enumType dflt)
+    TStruct typeRef req     -> requiredType req (ConT ''WriteStruct `AppT` typeRefToType typeRef)
+    TTable typeRef req      -> requiredType req (ConT ''WriteTable  `AppT` typeRefToType typeRef)
+    TUnion typeRef _        -> ConT ''WriteUnion  `AppT` typeRefToType typeRef
+    TVector req vecElemType -> requiredType req (vectorElementTypeToWriteType vecElemType)
+
+tableFieldTypeToReadType :: TableFieldType -> Type
+tableFieldTypeToReadType tft =
+  case tft of
+    TInt8   _   -> ConT ''Int8
+    TInt16  _   -> ConT ''Int16
+    TInt32  _   -> ConT ''Int32
+    TInt64  _   -> ConT ''Int64
+    TWord8  _   -> ConT ''Word8
+    TWord16 _   -> ConT ''Word16
+    TWord32 _   -> ConT ''Word32
+    TWord64 _   -> ConT ''Word64
+    TFloat  _   -> ConT ''Float
+    TDouble _   -> ConT ''Double
+    TBool   _   -> ConT ''Bool
+    TString req             -> requiredType req (ConT ''Text)
+    TEnum _ enumType dflt   -> tableFieldTypeToReadType (enumTypeToTableFieldType enumType dflt)
+    TStruct typeRef req     -> requiredType req (ConT ''Struct `AppT` typeRefToType typeRef)
+    TTable typeRef req      -> requiredType req (ConT ''Table  `AppT` typeRefToType typeRef)
+    TUnion typeRef _        -> ConT ''Union  `AppT` typeRefToType typeRef
+    TVector req vecElemType -> requiredType req (vectorElementTypeToReadType vecElemType)
+
+vectorElementTypeToWriteType :: VectorElementType -> Type
+vectorElementTypeToWriteType vet =
+  case vet of
+    VInt8                 -> ListT `AppT` ConT ''Int8
+    VInt16                -> ListT `AppT` ConT ''Int16
+    VInt32                -> ListT `AppT` ConT ''Int32
+    VInt64                -> ListT `AppT` ConT ''Int64
+    VWord8                -> ListT `AppT` ConT ''Word8
+    VWord16               -> ListT `AppT` ConT ''Word16
+    VWord32               -> ListT `AppT` ConT ''Word32
+    VWord64               -> ListT `AppT` ConT ''Word64
+    VFloat                -> ListT `AppT` ConT ''Float
+    VDouble               -> ListT `AppT` ConT ''Double
+    VBool                 -> ListT `AppT` ConT ''Bool
+    VString               -> ListT `AppT` ConT ''String
+    VEnum   _ enumType _  -> ListT `AppT` enumTypeToType enumType
+    VStruct typeRef _     -> ListT `AppT` (ConT ''WriteStruct `AppT` typeRefToType typeRef)
+    VTable  typeRef       -> ListT `AppT` (ConT ''WriteTable  `AppT` typeRefToType typeRef)
+    VUnion  typeRef       -> ListT `AppT` (ConT ''WriteUnion  `AppT` typeRefToType typeRef)
+
+vectorElementTypeToReadType :: VectorElementType -> Type
+vectorElementTypeToReadType vet =
+  case vet of
+    VInt8                 -> ConT ''Vector `AppT` ConT ''Int8
+    VInt16                -> ConT ''Vector `AppT` ConT ''Int16
+    VInt32                -> ConT ''Vector `AppT` ConT ''Int32
+    VInt64                -> ConT ''Vector `AppT` ConT ''Int64
+    VWord8                -> ConT ''Vector `AppT` ConT ''Word8
+    VWord16               -> ConT ''Vector `AppT` ConT ''Word16
+    VWord32               -> ConT ''Vector `AppT` ConT ''Word32
+    VWord64               -> ConT ''Vector `AppT` ConT ''Word64
+    VFloat                -> ConT ''Vector `AppT` ConT ''Float
+    VDouble               -> ConT ''Vector `AppT` ConT ''Double
+    VBool                 -> ConT ''Vector `AppT` ConT ''Bool
+    VString               -> ConT ''Vector `AppT` ConT ''String
+    VEnum   _ enumType _  -> ConT ''Vector `AppT` enumTypeToType enumType
+    VStruct typeRef _     -> ConT ''Vector `AppT` (ConT ''Struct `AppT` typeRefToType typeRef)
+    VTable  typeRef       -> ConT ''Vector `AppT` (ConT ''Table  `AppT` typeRefToType typeRef)
+    VUnion  typeRef       -> ConT ''Vector `AppT` (ConT ''Union  `AppT` typeRefToType typeRef)
+
+typeRefToType :: TypeRef -> Type
+typeRefToType (TypeRef "" ident) =
   ConT (mkNameFor NC.dataTypeName ident)
-typeRefAsType (TypeRef ns (Ident ident)) =
+typeRefToType (TypeRef ns (Ident ident)) =
   ConT . mkName . T.unpack $ NC.namespace ns <> "." <> NC.dataTypeName ident
 
 requiredExp :: Required -> Exp -> Exp
