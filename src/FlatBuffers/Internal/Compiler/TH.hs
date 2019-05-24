@@ -6,6 +6,7 @@ module FlatBuffers.Internal.Compiler.TH where
 import           Control.Monad                                   ( forM, join )
 
 import           Data.Int
+import qualified Data.List                                       as List
 import           Data.List.NonEmpty                              ( NonEmpty )
 import qualified Data.List.NonEmpty                              as NE
 import           Data.Text                                       ( Text )
@@ -32,8 +33,9 @@ infixr 1 ~>
 compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
 compileSymbolTable symbols = do
   enumDecs <- join <$> traverse mkEnum (allEnums symbols)
+  structDecs <- join <$> traverse mkStruct (allStructs symbols)
   tableDecs <- join <$> traverse mkTable (allTables symbols)
-  pure $ enumDecs <> tableDecs
+  pure $ enumDecs <> structDecs <> tableDecs
 
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) = do
@@ -111,6 +113,74 @@ mkFromEnum enumName enum enumValsAndNames = do
         (NormalB (LitE (IntegerL (enumValInt enumVal))))
         []
 
+
+mkStruct :: (Namespace, StructDecl) -> Q [Dec]
+mkStruct (_, struct) = do
+  structName <- newNameFor NC.dataTypeName struct
+  let dataDec = DataD [] structName [] Nothing [] []
+  (consSig, cons) <- mkStructConstructor structName struct
+
+  pure
+    [ dataDec
+    , consSig
+    , cons
+    ]
+
+
+mkStructConstructor :: Name -> StructDecl -> Q (Dec, Dec)
+mkStructConstructor structName struct = do
+  argsInfo <- traverse mkStructConstructorArg (structFields struct)
+  let (argTypes, pats, exps) = List.unzip3 $ NE.toList argsInfo
+
+  let retType = AppT (ConT ''WriteStruct) (ConT structName)
+  let sigType = foldr (~>) retType argTypes
+
+  let consName = mkNameFor NC.dataTypeConstructor struct
+  let consSig = SigD consName sigType
+
+  let body = NormalB $ AppE (VarE 'writeStruct) (ListE (List.reverse exps))
+  let cons = FunD consName [ Clause pats body [] ]
+
+  pure (consSig, cons)
+
+
+mkStructConstructorArg :: StructField -> Q (Type, Pat, Exp)
+mkStructConstructorArg sf = do
+  argName <- newNameFor NC.term sf
+  let argPat = VarP argName
+  let argRef = VarE argName
+  let argType = structFieldTypeToWriteType (structFieldType sf)
+
+  let mkWriteExp sft =
+        case sft of
+          SInt8            -> VarE 'int8
+          SInt16           -> VarE 'int16
+          SInt32           -> VarE 'int32
+          SInt64           -> VarE 'int64
+          SWord8           -> VarE 'word8
+          SWord16          -> VarE 'word16
+          SWord32          -> VarE 'word32
+          SWord64          -> VarE 'word64
+          SFloat           -> VarE 'float
+          SDouble          -> VarE 'double
+          SBool            -> VarE 'bool
+          SEnum _ enumType -> mkWriteExp (enumTypeToStructFieldType enumType)
+          SStruct _        -> VarE 'unWriteStruct
+
+  let expWithoutPadding = mkWriteExp (structFieldType sf) `AppE` argRef
+
+  let exp =
+        if structFieldPadding sf == 0
+          then expWithoutPadding
+          else foldl1 AppE
+            [ VarE 'padded
+            , LitE (IntegerL (toInteger (structFieldPadding sf)))
+            , expWithoutPadding
+            ]
+
+  pure (argType, argPat, exp)
+
+
 mkTable :: (Namespace, TableDecl) -> Q [Dec]
 mkTable (_, table) = do
   tableName <- newNameFor NC.dataTypeName table
@@ -129,17 +199,13 @@ mkTableConstructor tableName table = do
   (argTypes, pats, exps, whereBindings) <- mconcat <$> traverse mkTableContructorArg (tableFields table)
 
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
-  let sig = foldr (~>) retType argTypes
+  let sigType = foldr (~>) retType argTypes
 
   let consName = mkNameFor NC.dataTypeConstructor table
-  let consSig = SigD consName sig
+  let consSig = SigD consName sigType
 
   let body = NormalB $ AppE (VarE 'writeTable) (ListE exps)
-
-  let cons =
-        FunD consName
-          [ Clause pats body whereBindings
-          ]
+  let cons = FunD consName [ Clause pats body whereBindings ]
 
   pure (consSig, cons)
 
@@ -152,10 +218,9 @@ mkTableContructorArg tf =
         TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
         _                    -> pure ([], [], [VarE 'deprecated], [])
     else do
-      name <- newNameFor NC.term tf
-
-      let arg = VarP name
-      let argRef = VarE name
+      argName <- newNameFor NC.term tf
+      let argPat = VarP argName
+      let argRef = VarE argName
 
       let mkExps tfType =
             case tfType of
@@ -175,10 +240,10 @@ mkTableContructorArg tf =
               TTable _ req           -> [AppE (requiredExp req (VarE 'unWriteTable)) argRef]
               _ -> undefined
 
-      let typ = tableFieldTypeToWriteType (tableFieldType tf)
+      let argType = tableFieldTypeToWriteType (tableFieldType tf)
       let exps = mkExps (tableFieldType tf)
 
-      pure $ ([typ], [arg], exps, [])
+      pure $ ([argType], [argPat], exps, [])
 
   where
     expForScalar :: Exp -> Exp -> Exp -> [Exp]
@@ -267,6 +332,54 @@ enumTypeToTableFieldType et dflt =
     EWord16 -> TWord16 (fromIntegral dflt)
     EWord32 -> TWord32 (fromIntegral dflt)
     EWord64 -> TWord64 (fromIntegral dflt)
+
+enumTypeToStructFieldType :: EnumType -> StructFieldType
+enumTypeToStructFieldType et =
+  case et of
+    EInt8   -> SInt8
+    EInt16  -> SInt16
+    EInt32  -> SInt32
+    EInt64  -> SInt64
+    EWord8  -> SWord8
+    EWord16 -> SWord16
+    EWord32 -> SWord32
+    EWord64 -> SWord64
+
+structFieldTypeToWriteType :: StructFieldType -> Type
+structFieldTypeToWriteType sft =
+  case sft of
+    SInt8   -> ConT ''Int8
+    SInt16  -> ConT ''Int16
+    SInt32  -> ConT ''Int32
+    SInt64  -> ConT ''Int64
+    SWord8  -> ConT ''Word8
+    SWord16 -> ConT ''Word16
+    SWord32 -> ConT ''Word32
+    SWord64 -> ConT ''Word64
+    SFloat  -> ConT ''Float
+    SDouble -> ConT ''Double
+    SBool   -> ConT ''Bool
+    SEnum _ enumType -> enumTypeToType enumType
+    SStruct (namespace, structDecl) ->
+      ConT ''WriteStruct `AppT` typeRefToType (TypeRef namespace (getIdent structDecl))
+
+structFieldTypeToReadType :: StructFieldType -> Type
+structFieldTypeToReadType sft =
+  case sft of
+    SInt8   -> ConT ''Int8
+    SInt16  -> ConT ''Int16
+    SInt32  -> ConT ''Int32
+    SInt64  -> ConT ''Int64
+    SWord8  -> ConT ''Word8
+    SWord16 -> ConT ''Word16
+    SWord32 -> ConT ''Word32
+    SWord64 -> ConT ''Word64
+    SFloat  -> ConT ''Float
+    SDouble -> ConT ''Double
+    SBool   -> ConT ''Bool
+    SEnum _ enumType -> enumTypeToType enumType
+    SStruct (namespace, structDecl) ->
+      ConT ''Struct `AppT` typeRefToType (TypeRef namespace (getIdent structDecl))
 
 tableFieldTypeToWriteType :: TableFieldType -> Type
 tableFieldTypeToWriteType tft =

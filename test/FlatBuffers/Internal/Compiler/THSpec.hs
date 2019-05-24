@@ -369,6 +369,101 @@ spec =
                   ColorBLUE -> 3
             |]
 
+    describe "Structs" $ do
+      describe "naming conventions" $
+        it "struct name is uppercased, field names are lowercased" $
+          [r|
+            struct s { X: int; }
+          |] `shouldCompileTo`
+            [d|
+              data S
+              s :: Int32 -> WriteStruct S
+              s x = writeStruct [int32 x]
+            |]
+
+      it "with primitive fields" $
+        [r|
+          struct Scalars {
+            a: uint8;
+            b: uint16;
+            c: uint32;
+            d: uint64;
+            e: int8;
+            f: int16;
+            g: int32;
+            h: int64;
+            i: float32;
+            j: float64;
+            k: bool;
+          }
+        |] `shouldCompileTo`
+          [d|
+            data Scalars
+            scalars ::
+                 Word8
+              -> Word16
+              -> Word32
+              -> Word64
+              -> Int8
+              -> Int16
+              -> Int32
+              -> Int64
+              -> Float
+              -> Double
+              -> Bool
+              -> WriteStruct Scalars
+            scalars a b c d e f g h i j k =
+              writeStruct
+                [ padded 7 (bool     k)
+                ,          (double   j)
+                , padded 4 (float    i)
+                ,          (int64    h)
+                ,          (int32    g)
+                ,          (int16    f)
+                , padded 1 (int8     e)
+                ,          (word64   d)
+                ,          (word32   c)
+                ,          (word16   b)
+                , padded 1 (word8    a)
+                ]
+          |]
+
+      it "with enum fields" $
+        [r|
+          struct S { e: E; }
+          enum E : byte { X }
+        |] `shouldCompileTo`
+          [d|
+            data E = EX
+              deriving (Eq, Show, Read, Ord, Bounded)
+
+            toE :: Int8 -> Maybe E
+            toE n = case n of
+              0 -> Just EX
+              _ -> Nothing
+
+            fromE :: E -> Int8
+            fromE n = case n of EX -> 0
+
+            data S
+            s :: Int8 -> WriteStruct S
+            s e = writeStruct [int8 e]
+          |]
+
+      it "with nested structs" $
+        [r|
+          struct S1 { s2: S2; }
+          struct S2 { x: int8; }
+        |] `shouldCompileTo`
+          [d|
+            data S1
+            s1 :: WriteStruct S2 -> WriteStruct S1
+            s1 s2 = writeStruct [unWriteStruct s2]
+
+            data S2
+            s2 :: Int8 -> WriteStruct S2
+            s2 x = writeStruct [int8 x]
+          |]
 
 
 
