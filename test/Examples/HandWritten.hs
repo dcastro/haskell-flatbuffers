@@ -124,9 +124,9 @@ data Enums
 enums :: Maybe Int16 -> Maybe (WriteStruct StructWithEnum) -> Maybe [Int16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
 enums x1 x2 x3 x4 = writeTable
   [ (optionalDef 0 . inline) int16 x1
-  , optional unWriteStruct x2
+  , (optional . inline) unWriteStruct x2
   , (optional . writeVector . inline) int16 x3
-  , (optional . writeVector) unWriteStruct x4
+  , (optional . writeVector . inline) unWriteStruct x4
   ]
 
 getEnums'x :: ReadCtx m => Table Enums -> m Int16
@@ -197,11 +197,11 @@ getStruct2'x = readStructField readInt16 0
 
 data Struct3
 
-struct3 :: Int16 -> Word64 -> Word8 -> WriteStruct Struct3
+struct3 :: WriteStruct Struct2 -> Word64 -> Word8 -> WriteStruct Struct3
 struct3 a b c = writeStruct 8
   [ padded 7 (word8 c)
   , word64 b
-  , padded 6 (int16 a)
+  , padded 4 (unWriteStruct a)
   ]
 
 getStruct3'x :: Struct Struct3 -> Struct Struct2
@@ -216,12 +216,12 @@ getStruct3'z = readStructField readWord8 16
 
 data Struct4
 
-struct4 :: Int16 -> Int8 -> Int64 -> Bool -> WriteStruct Struct4
+struct4 :: WriteStruct Struct2 -> Int8 -> Int64 -> Bool -> WriteStruct Struct4
 struct4 a b c d = writeStruct 8
   [ padded 7 (bool d)
   , int64 c
   , padded 3 (int8 b)
-  , padded 2 (int16 a)
+  , unWriteStruct a
   ]
 
 getStruct4'w :: Struct Struct4 -> Struct Struct2
@@ -246,10 +246,10 @@ structs ::
   -> Maybe (WriteStruct Struct4)
   -> WriteTable Structs
 structs x1 x2 x3 x4 = writeTable
-  [ optional unWriteStruct x1
-  , optional unWriteStruct x2
-  , optional unWriteStruct x3
-  , optional unWriteStruct x4
+  [ (optional . inline) unWriteStruct x1
+  , (optional . inline) unWriteStruct x2
+  , (optional . inline) unWriteStruct x3
+  , (optional . inline) unWriteStruct x4
   ]
 
 getStructs'a :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct1))
@@ -445,10 +445,10 @@ vectorOfStructs ::
   -> Maybe [WriteStruct Struct4]
   -> WriteTable VectorOfStructs
 vectorOfStructs x1 x2 x3 x4 = writeTable
-  [ (optional . writeVector) unWriteStruct x1
-  , (optional . writeVector) unWriteStruct x2
-  , (optional . writeVector) unWriteStruct x3
-  , (optional . writeVector) unWriteStruct x4
+  [ (optional . writeVector . inline) unWriteStruct x1
+  , (optional . writeVector . inline) unWriteStruct x2
+  , (optional . writeVector . inline) unWriteStruct x3
+  , (optional . writeVector . inline) unWriteStruct x4
   ]
 
 getVectorOfStructs'as :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct1)))
@@ -602,7 +602,7 @@ requiredFields ::
   -> WriteTable RequiredFields
 requiredFields x0 x1 x2 x3 x4 = writeTable
   [ text x0
-  , unWriteStruct x1
+  , inline unWriteStruct x1
   , unWriteTable x2
   , writeUnionType x3
   , writeUnionValue x3

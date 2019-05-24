@@ -131,7 +131,7 @@ encodeMyRoot a b c d e f g =
     , (optionalDef 0 . inline) int64 b
     , optional unWriteTable c
     , optional text d
-    , optional unWriteStruct e
+    , (optional . inline) unWriteStruct e
     , (optional . writeVector) text f
     , (optional . writeVector) unWriteTable g
     ]

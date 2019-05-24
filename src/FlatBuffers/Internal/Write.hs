@@ -188,10 +188,10 @@ rootWithFileIdentifier fi table =
     (FBState mempty 0 1 mempty)
 
 -- | Fields should be provided in the reverse order as in the schema.
-struct :: Alignment -> NonEmpty InlineField -> Field
+struct :: Alignment -> NonEmpty InlineField -> InlineField
 struct structAlign fields =
   let structSize = getSum $ foldMap (Sum . size) fields
-  in Field . pure . InlineField structSize structAlign $
+  in InlineField structSize structAlign $
       traverse_ write fields
 
 -- | Adds zero padding AFTER this field.

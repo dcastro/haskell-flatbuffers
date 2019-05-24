@@ -120,8 +120,8 @@ spec =
         root <- fromRight $ decode $ encode $ structs
                 (Just (struct1 1 2 3))
                 (Just (struct2 11))
-                (Just (struct3 22 33 44))
-                (Just (struct4 55 66 77 True))
+                (Just (struct3 (struct2 22) 33 44))
+                (Just (struct4 (struct2 55) 66 77 True))
 
         s1 <- fromRightJust $ getStructs'a root
         s2 <- fromRightJust $ getStructs'b root
@@ -288,8 +288,8 @@ spec =
         x <- fromRight $ decode $ encode $ vectorOfStructs
           (Just [struct1 1 2 3, struct1 4 5 6])
           (Just [struct2 101, struct2 102, struct2 103])
-          (Just [struct3 104 105 106, struct3 107 108 109, struct3 110 111 112])
-          (Just [struct4 120 121 122 True, struct4 123 124 125 False, struct4 126 127 128 True])
+          (Just [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112])
+          (Just [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True])
 
         as <- fromRightJust $ getVectorOfStructs'as x
         bs <- fromRightJust $ getVectorOfStructs'bs x

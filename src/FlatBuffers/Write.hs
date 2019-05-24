@@ -61,7 +61,7 @@ encodeWithFileIdentifier' fi (WriteTable table) = rootWithFileIdentifier fi tabl
 
 newtype WriteTable a = WriteTable { unWriteTable :: Field }
 
-newtype WriteStruct a = WriteStruct { unWriteStruct :: Field }
+newtype WriteStruct a = WriteStruct { unWriteStruct :: InlineField }
 
 data WriteUnion a
   = None
