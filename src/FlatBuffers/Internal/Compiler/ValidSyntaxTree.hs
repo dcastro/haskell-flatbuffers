@@ -58,7 +58,8 @@ data StructDecl = StructDecl
 
 data StructField = StructField
   { structFieldIdent    :: !Ident
-  , structFieldPadding  :: !Word8
+  , structFieldPadding  :: !Word8  -- ^ How many zeros to write after this field.
+  , structFieldOffset   :: !Word16 -- ^ This field's offset from the struct's root.
   , structFieldType     :: !StructFieldType
   } deriving (Show, Eq)
 
