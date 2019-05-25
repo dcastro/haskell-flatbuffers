@@ -284,6 +284,7 @@ mkTableContructorArg tf =
               TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
               TString req            -> [AppE (requiredExp req (VarE 'text)) argRef]
               TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
+              TStruct _ req          -> [AppE (requiredExp req (VarE 'inline `AppE` VarE 'unWriteStruct)) argRef]
               TTable _ req           -> [AppE (requiredExp req (VarE 'unWriteTable)) argRef]
               _ -> undefined
 
@@ -328,7 +329,8 @@ mkTableFieldGetter tableName table tf =
         TBool (DefaultVal b)    -> mkFunWithBody (bodyForScalar (if b then ConE 'True else ConE 'False) (VarE 'readBool))
         TString req             -> mkFunWithBody (bodyForNonScalar req (VarE 'readText))
         TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
-        TTable tref req         -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
+        TStruct _ req           -> mkFunWithBody (bodyForNonScalar req (VarE 'readStruct'))
+        TTable _ req            -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
         _ -> undefined
 
     mkFunWithBody body = FunD funName [ Clause [] (NormalB body) [] ]

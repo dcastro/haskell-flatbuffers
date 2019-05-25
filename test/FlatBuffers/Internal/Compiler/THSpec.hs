@@ -301,6 +301,58 @@ spec =
               tX = readTableFieldWithDef readInt8 0 2
             |]
 
+      describe "struct fields" $ do
+        it "normal field" $
+          [r| table T {x: S;} struct S {x: int;}|] `shouldCompileTo`
+            [d|
+              data S
+              s :: Int32 -> WriteStruct S
+              s x = writeStruct 4 [ int32 x ]
+
+              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX = readStructField readInt32 0
+
+              data T
+              t :: Maybe (WriteStruct S) -> WriteTable T
+              t x = writeTable [(optional (inline unWriteStruct)) x]
+
+              tX :: forall m. ReadCtx m => Table T -> m (Maybe (Struct S))
+              tX = readTableFieldOpt readStruct' 0
+            |]
+
+        it "deprecated" $
+          [r| table T {x: S (deprecated);} struct S {x: int;}|] `shouldCompileTo`
+            [d|
+              data S
+              s :: Int32 -> WriteStruct S
+              s x = writeStruct 4 [ int32 x ]
+
+              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX = readStructField readInt32 0
+
+              data T
+              t ::  WriteTable T
+              t = writeTable [deprecated]
+            |]
+
+        it "required" $
+          [r| table T {X: S (required) ;} struct S {x: int;}|] `shouldCompileTo`
+            [d|
+              data S
+              s :: Int32 -> WriteStruct S
+              s x = writeStruct 4 [ int32 x ]
+
+              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX = readStructField readInt32 0
+
+              data T
+              t :: WriteStruct S -> WriteTable T
+              t x = writeTable [inline unWriteStruct x]
+
+              tX :: forall m. ReadCtx m => Table T -> m (Struct S)
+              tX = readTableFieldReq readStruct' 0 "X"
+            |]
+
       describe "table fields" $ do
         it "normal field" $
           [r| table T1 {x: t2;} table t2{}|] `shouldCompileTo`
