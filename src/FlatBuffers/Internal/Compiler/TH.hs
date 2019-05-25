@@ -110,7 +110,7 @@ mkFromEnum enumName enum enumValsAndNames = do
     match (enumVal, enumName) =
       Match
         (ConP enumName [])
-        (NormalB (LitE (IntegerL (enumValInt enumVal))))
+        (NormalB (intLitE (enumValInt enumVal)))
         []
 
 
@@ -140,9 +140,9 @@ mkStructConstructor structName struct = do
   let consName = mkNameFor NC.dataTypeConstructor struct
   let consSig = SigD consName sigType
 
-  let body = NormalB $ foldl1 AppE
+  let body = NormalB $ app
         [ VarE 'writeStruct
-        , LitE (IntegerL (toInteger (structAlignment struct)))
+        , intLitE (structAlignment struct)
         , ListE (List.reverse exps)
         ]
 
@@ -179,9 +179,9 @@ mkStructConstructorArg sf = do
   let exp =
         if structFieldPadding sf == 0
           then expWithoutPadding
-          else foldl1 AppE
+          else app
             [ VarE 'padded
-            , LitE (IntegerL (toInteger (structFieldPadding sf)))
+            , intLitE (structFieldPadding sf)
             , expWithoutPadding
             ]
 
@@ -192,7 +192,7 @@ mkStructFieldGetter structName struct sf =
   [sig, fun]
   where
     funName = mkName (T.unpack (NC.getter struct sf))
-    fieldOffsetExp = LitE (IntegerL (toInteger (structFieldOffset sf)))
+    fieldOffsetExp = intLitE (structFieldOffset sf)
 
     retType = structFieldTypeToReadType (structFieldType sf)
     sig =
@@ -206,7 +206,7 @@ mkStructFieldGetter structName struct sf =
 
     fun = FunD funName [ Clause [] (NormalB body) [] ]
 
-    body = foldl1 AppE
+    body = app
       [ VarE 'readStructField
       , mkReadExp (structFieldType sf)
       , fieldOffsetExp
@@ -271,16 +271,16 @@ mkTableContructorArg tf =
 
       let mkExps tfType =
             case tfType of
-              TInt8   (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int8   ) argRef
-              TInt16  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int16  ) argRef
-              TInt32  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int32  ) argRef
-              TInt64  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'int64  ) argRef
-              TWord8  (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word8  ) argRef
-              TWord16 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word16 ) argRef
-              TWord32 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word32 ) argRef
-              TWord64 (DefaultVal n) -> expForScalar (LitE . IntegerL $ toInteger n)          (VarE 'word64 ) argRef
-              TFloat  (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'float  ) argRef
-              TDouble (DefaultVal n) -> expForScalar (LitE . RationalL $ toRational n)        (VarE 'double ) argRef
+              TInt8   (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'int8   ) argRef
+              TInt16  (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'int16  ) argRef
+              TInt32  (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'int32  ) argRef
+              TInt64  (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'int64  ) argRef
+              TWord8  (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'word8  ) argRef
+              TWord16 (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'word16 ) argRef
+              TWord32 (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'word32 ) argRef
+              TWord64 (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'word64 ) argRef
+              TFloat  (DefaultVal n) -> expForScalar (realLitE n) (VarE 'float  ) argRef
+              TDouble (DefaultVal n) -> expForScalar (realLitE n) (VarE 'double ) argRef
               TBool   (DefaultVal b) -> expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef
               TString req            -> [AppE (requiredExp req (VarE 'text)) argRef]
               TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
@@ -307,7 +307,7 @@ mkTableFieldGetter tableName table tf =
     else [sig, mkFun (tableFieldType tf)]
   where
     funName = mkName (T.unpack (NC.getter table tf))
-    fieldIndex = LitE (IntegerL (tableFieldId tf))
+    fieldIndex = intLitE (tableFieldId tf)
 
     sig =
       SigD funName $
@@ -316,16 +316,16 @@ mkTableFieldGetter tableName table tf =
 
     mkFun tft =
       case tft of
-        TWord8 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord8))
-        TWord16 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord16))
-        TWord32 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord32))
-        TWord64 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readWord64))
-        TInt8 (DefaultVal n)    -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt8))
-        TInt16 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt16))
-        TInt32 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt32))
-        TInt64 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . IntegerL . toInteger $ n)   (VarE 'readInt64))
-        TFloat (DefaultVal n)   -> mkFunWithBody (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readFloat))
-        TDouble (DefaultVal n)  -> mkFunWithBody (bodyForScalar (LitE . RationalL . toRational $ n) (VarE 'readDouble))
+        TWord8 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readWord8))
+        TWord16 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readWord16))
+        TWord32 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readWord32))
+        TWord64 (DefaultVal n)  -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readWord64))
+        TInt8 (DefaultVal n)    -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readInt8))
+        TInt16 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readInt16))
+        TInt32 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readInt32))
+        TInt64 (DefaultVal n)   -> mkFunWithBody (bodyForScalar (intLitE n)   (VarE 'readInt64))
+        TFloat (DefaultVal n)   -> mkFunWithBody (bodyForScalar (realLitE n)  (VarE 'readFloat))
+        TDouble (DefaultVal n)  -> mkFunWithBody (bodyForScalar (realLitE n)  (VarE 'readDouble))
         TBool (DefaultVal b)    -> mkFunWithBody (bodyForScalar (if b then ConE 'True else ConE 'False) (VarE 'readBool))
         TString req             -> mkFunWithBody (bodyForNonScalar req (VarE 'readText))
         TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
@@ -338,21 +338,21 @@ mkTableFieldGetter tableName table tf =
     bodyForNonScalar req readExp =
       case req of
         Req ->
-          foldl1 AppE
+          app
             [ VarE 'readTableFieldReq
             , readExp
             , fieldIndex
             , LitE (StringL (T.unpack . unIdent . getIdent $ tf))
             ]
         Opt ->
-          foldl1 AppE
+          app
             [ VarE 'readTableFieldOpt
             , readExp
             , fieldIndex
             ]
 
     bodyForScalar defaultValExp readExp =
-      foldl1 AppE
+      app
         [ VarE 'readTableFieldWithDef
         , readExp
         , fieldIndex
@@ -538,3 +538,13 @@ mkNameFor f = mkName . T.unpack . f . unIdent . getIdent
 
 newNameFor :: HasIdent a => (Text -> Text) -> a -> Q Name
 newNameFor f = newName . T.unpack . f . unIdent . getIdent
+
+intLitE :: Integral i => i -> Exp
+intLitE = LitE . IntegerL . toInteger
+
+realLitE :: Real i => i -> Exp
+realLitE = LitE . RationalL . toRational
+
+-- | Applies a function to multiple arguments. Assumes the list is not empty.
+app :: [Exp] -> Exp
+app = foldl1 AppE
