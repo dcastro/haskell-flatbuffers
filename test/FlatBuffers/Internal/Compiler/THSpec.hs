@@ -378,7 +378,7 @@ spec =
             [d|
               data S
               s :: Int32 -> WriteStruct S
-              s x = writeStruct [int32 x]
+              s x = writeStruct 4 [int32 x]
 
               sX :: forall m. ReadCtx m => Struct S -> m Int32
               sX = readStructField readInt32 0
@@ -416,7 +416,7 @@ spec =
               -> Bool
               -> WriteStruct Scalars
             scalars a b c d e f g h i j k =
-              writeStruct
+              writeStruct 8
                 [ padded 7 (bool     k)
                 ,          (double   j)
                 , padded 4 (float    i)
@@ -473,7 +473,7 @@ spec =
 
             data S
             s :: Int8 -> WriteStruct S
-            s e = writeStruct [int8 e]
+            s e = writeStruct 1 [int8 e]
 
             sE :: forall m. ReadCtx m => Struct S -> m Int8
             sE = readStructField readInt8 0
@@ -481,20 +481,20 @@ spec =
 
       it "with nested structs" $
         [r|
-          struct S1 { s2: S2; }
+          struct S1 (force_align: 2) { s2: S2; }
           struct S2 { x: int8; }
         |] `shouldCompileTo`
           [d|
             data S1
             s1 :: WriteStruct S2 -> WriteStruct S1
-            s1 s2 = writeStruct [unWriteStruct s2]
+            s1 s2 = writeStruct 2 [padded 1 (unWriteStruct s2)]
 
             s1S2 :: Struct S1 -> Struct S2
             s1S2 = readStructField readStruct 0
 
             data S2
             s2 :: Int8 -> WriteStruct S2
-            s2 x = writeStruct [int8 x]
+            s2 x = writeStruct 1 [int8 x]
 
             s2X :: forall m. ReadCtx m => Struct S2 -> m Int8
             s2X = readStructField readInt8 0

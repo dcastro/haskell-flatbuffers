@@ -140,7 +140,12 @@ mkStructConstructor structName struct = do
   let consName = mkNameFor NC.dataTypeConstructor struct
   let consSig = SigD consName sigType
 
-  let body = NormalB $ AppE (VarE 'writeStruct) (ListE (List.reverse exps))
+  let body = NormalB $ foldl1 AppE
+        [ VarE 'writeStruct
+        , LitE (IntegerL (toInteger (structAlignment struct)))
+        , ListE (List.reverse exps)
+        ]
+
   let cons = FunD consName [ Clause pats body [] ]
 
   pure (consSig, cons)
