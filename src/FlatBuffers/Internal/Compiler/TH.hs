@@ -120,11 +120,13 @@ mkStruct (_, struct) = do
   let dataDec = DataD [] structName [] Nothing [] []
   (consSig, cons) <- mkStructConstructor structName struct
 
-  pure
+  let getters = foldMap (mkStructFieldGetter structName struct) (structFields struct)
+
+  pure $
     [ dataDec
     , consSig
     , cons
-    ]
+    ] <> getters
 
 
 mkStructConstructor :: Name -> StructDecl -> Q (Dec, Dec)
@@ -180,6 +182,46 @@ mkStructConstructorArg sf = do
 
   pure (argType, argPat, exp)
 
+mkStructFieldGetter :: Name -> StructDecl -> StructField -> [Dec]
+mkStructFieldGetter structName struct sf =
+  [sig, fun]
+  where
+    funName = mkName (T.unpack (NC.getter struct sf))
+    fieldOffsetExp = LitE (IntegerL (toInteger (structFieldOffset sf)))
+
+    retType = structFieldTypeToReadType (structFieldType sf)
+    sig =
+      SigD funName $
+        case structFieldType sf of
+          SStruct _ ->
+            ConT ''Struct `AppT` ConT structName ~> retType
+          _ ->
+            ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
+              ConT ''Struct `AppT` ConT structName ~> VarT (mkName "m") `AppT` retType
+
+    fun = FunD funName [ Clause [] (NormalB body) [] ]
+
+    body = foldl1 AppE
+      [ VarE 'readStructField
+      , mkReadExp (structFieldType sf)
+      , fieldOffsetExp
+      ]
+
+    mkReadExp sft =
+      case sft of
+        SInt8   -> VarE 'readInt8
+        SInt16  -> VarE 'readInt16
+        SInt32  -> VarE 'readInt32
+        SInt64  -> VarE 'readInt64
+        SWord8  -> VarE 'readWord8
+        SWord16 -> VarE 'readWord16
+        SWord32 -> VarE 'readWord32
+        SWord64 -> VarE 'readWord64
+        SFloat  -> VarE 'readFloat
+        SDouble -> VarE 'readDouble
+        SBool   -> VarE 'readBool
+        SEnum _ enumType -> mkReadExp $ enumTypeToStructFieldType enumType
+        SStruct (namespace, structDecl) -> VarE 'readStruct
 
 mkTable :: (Namespace, TableDecl) -> Q [Dec]
 mkTable (_, table) = do
@@ -251,6 +293,7 @@ mkTableContructorArg tf =
       [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
       ]
 
+
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
 mkTableFieldGetter tableName table tf =
   if tableFieldDeprecated tf
@@ -261,7 +304,7 @@ mkTableFieldGetter tableName table tf =
     fieldIndex = LitE (IntegerL (tableFieldId tf))
 
     sig =
-      SigD (mkName (T.unpack (NC.getter table tf))) $
+      SigD funName $
         ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
           ConT ''Table `AppT` ConT tableName ~> VarT (mkName "m") `AppT` tableFieldTypeToReadType (tableFieldType tf)
 

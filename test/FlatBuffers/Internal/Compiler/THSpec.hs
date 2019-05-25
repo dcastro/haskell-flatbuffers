@@ -379,6 +379,9 @@ spec =
               data S
               s :: Int32 -> WriteStruct S
               s x = writeStruct [int32 x]
+
+              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX = readStructField readInt32 0
             |]
 
       it "with primitive fields" $
@@ -426,6 +429,29 @@ spec =
                 ,          (word16   b)
                 , padded 1 (word8    a)
                 ]
+
+            scalarsA :: forall m. ReadCtx m => Struct Scalars -> m Word8
+            scalarsA = readStructField readWord8 0
+            scalarsB :: forall m. ReadCtx m => Struct Scalars -> m Word16
+            scalarsB = readStructField readWord16 2
+            scalarsC :: forall m. ReadCtx m => Struct Scalars -> m Word32
+            scalarsC = readStructField readWord32 4
+            scalarsD :: forall m. ReadCtx m => Struct Scalars -> m Word64
+            scalarsD = readStructField readWord64 8
+            scalarsE :: forall m. ReadCtx m => Struct Scalars -> m Int8
+            scalarsE = readStructField readInt8 16
+            scalarsF :: forall m. ReadCtx m => Struct Scalars -> m Int16
+            scalarsF = readStructField readInt16 18
+            scalarsG :: forall m. ReadCtx m => Struct Scalars -> m Int32
+            scalarsG = readStructField readInt32 20
+            scalarsH :: forall m. ReadCtx m => Struct Scalars -> m Int64
+            scalarsH = readStructField readInt64 24
+            scalarsI :: forall m. ReadCtx m => Struct Scalars -> m Float
+            scalarsI = readStructField readFloat 32
+            scalarsJ :: forall m. ReadCtx m => Struct Scalars -> m Double
+            scalarsJ = readStructField readDouble 40
+            scalarsK :: forall m. ReadCtx m => Struct Scalars -> m Bool
+            scalarsK = readStructField readBool 48
           |]
 
       it "with enum fields" $
@@ -448,6 +474,9 @@ spec =
             data S
             s :: Int8 -> WriteStruct S
             s e = writeStruct [int8 e]
+
+            sE :: forall m. ReadCtx m => Struct S -> m Int8
+            sE = readStructField readInt8 0
           |]
 
       it "with nested structs" $
@@ -460,9 +489,15 @@ spec =
             s1 :: WriteStruct S2 -> WriteStruct S1
             s1 s2 = writeStruct [unWriteStruct s2]
 
+            s1S2 :: Struct S1 -> Struct S2
+            s1S2 = readStructField readStruct 0
+
             data S2
             s2 :: Int8 -> WriteStruct S2
             s2 x = writeStruct [int8 x]
+
+            s2X :: forall m. ReadCtx m => Struct S2 -> m Int8
+            s2X = readStructField readInt8 0
           |]
 
 
