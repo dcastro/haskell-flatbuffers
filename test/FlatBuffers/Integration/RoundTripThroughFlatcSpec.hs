@@ -535,7 +535,7 @@ spec =
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do
-            (json, decoded) <- flatc $ buffer
+            (json, decoded) <- flatc buffer
 
             json `shouldBeJson` object [ ]
 

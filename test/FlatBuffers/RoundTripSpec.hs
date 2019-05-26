@@ -413,7 +413,7 @@ spec =
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do
-            x <- fromRight $ decode $ encode $ buffer
+            x <- fromRight $ decode $ encode buffer
 
             getScalarsWithDefaults'a x `shouldBe` Right 8
             getScalarsWithDefaults'b x `shouldBe` Right 16

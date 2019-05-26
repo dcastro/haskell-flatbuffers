@@ -314,7 +314,7 @@ spec =
 
               data T
               t :: Maybe (WriteStruct S) -> WriteTable T
-              t x = writeTable [(optional (inline unWriteStruct)) x]
+              t x = writeTable [optional (inline unWriteStruct) x]
 
               tX :: forall m. ReadCtx m => Table T -> m (Maybe (Struct S))
               tX = readTableFieldOpt readStruct' 0

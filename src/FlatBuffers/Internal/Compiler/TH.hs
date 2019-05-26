@@ -68,7 +68,7 @@ mkToEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
 mkToEnum enumName enum enumValsAndNames = do
   let funName = mkName $ "to" <> T.unpack (NC.typ (unIdent (getIdent enum)))
   argName <- newName "n"
-  pure $
+  pure
     [ SigD funName (enumTypeToType (enumType enum) ~> ConT ''Maybe `AppT` ConT enumName)
     , FunD funName
       [ Clause
@@ -291,7 +291,7 @@ mkTableContructorArg tf =
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
       let exps = mkExps (tableFieldType tf)
 
-      pure $ ([argType], [argPat], exps, [])
+      pure ([argType], [argPat], exps, [])
 
   where
     expForScalar :: Exp -> Exp -> Exp -> [Exp]

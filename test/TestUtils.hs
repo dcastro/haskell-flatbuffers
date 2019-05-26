@@ -40,7 +40,7 @@ fromRight ea = case ea of
 
 fromJust :: HasCallStack => Maybe a -> IO a
 fromJust mb = case mb of
-  Nothing -> expectationFailure' $ "Expected 'Just', got 'Nothing'"
+  Nothing -> expectationFailure' "Expected 'Just', got 'Nothing'"
   Just a  -> pure a
 
 fromRightJust :: HasCallStack => Show e => Either e (Maybe a) -> IO a
