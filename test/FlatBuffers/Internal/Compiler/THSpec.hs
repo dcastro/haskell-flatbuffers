@@ -17,6 +17,7 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( SymbolTable(..
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), HasIdent(..), Ident(..), Namespace(..) )
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
+import           FlatBuffers.Internal.Positive                  ( Positive )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
@@ -552,6 +553,34 @@ spec =
             s2X = readStructField readInt8 0
           |]
 
+    it "Unions" $
+      [r|
+        table T1{}
+        table T2{}
+        union Weapon { T1, alias: T2 }
+      |] `shouldCompileTo`
+        [d|
+          data T1
+          t1 :: WriteTable T1
+          t1 = writeTable []
+          data T2
+          t2 :: WriteTable T2
+          t2 = writeTable []
+
+          data Weapon
+            = WeaponT1 !(Table T1)
+            | WeaponAlias !(Table T2)
+
+          class WriteWeapon a where
+            weapon :: WriteTable a -> WriteUnion Weapon
+
+          instance WriteWeapon T1 where
+            weapon = writeUnion 1
+
+          instance WriteWeapon T2 where
+            weapon = writeUnion 2
+        |]
+
 
 
 shouldCompileTo :: HasCallStack => String -> Q [Dec] -> Expectation
@@ -592,6 +621,20 @@ normalizeDec dec = valToFun $
     SigD n t -> SigD (normalizeName n) (normalizeType t)
     FunD n clauses -> FunD (normalizeName n) (normalizeClause <$> clauses)
     ValD pat body decs -> ValD (normalizePat pat) (normalizeBody body) (normalizeDec <$> decs)
+    ClassD cxt n tvs funDeps decs ->
+      ClassD
+        (normalizeType <$> cxt)
+        (normalizeName n)
+        (normalizeTyVarBndr <$> tvs)
+        funDeps
+        (normalizeDec <$> decs)
+
+    InstanceD overlap cxt typ decs ->
+      InstanceD
+        overlap
+        (normalizeType <$> cxt)
+        (normalizeType typ)
+        (normalizeDec <$> decs)
     _ -> dec
 
 -- | values with a simple variable pattern (e.g. `x = 5`) are equivalent to functions with only one clause and no parameters

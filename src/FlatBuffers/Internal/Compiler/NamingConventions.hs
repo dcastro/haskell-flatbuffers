@@ -7,7 +7,7 @@ import           Data.Text                                     ( Text )
 import qualified Data.Text                                     as T
 
 import           FlatBuffers.Internal.Compiler.SyntaxTree      ( HasIdent(..), Ident(..), Namespace(..) )
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( EnumDecl(..), EnumVal(..) )
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( UnionDecl(..) )
 
 
 
@@ -38,6 +38,11 @@ namespace (Namespace fragments) = T.intercalate "." (modul <$> fragments)
 getter :: (HasIdent parent, HasIdent field) => parent -> field -> Text
 getter (getIdent -> unIdent -> parent) (getIdent -> unIdent -> field) = term parent <> typ field
 
-enumMember :: EnumDecl -> EnumVal -> Text
-enumMember (getIdent -> unIdent -> enumDecl) (getIdent -> unIdent -> enumVal) =
-  typ enumDecl <> typ enumVal
+enumUnionMember :: (HasIdent parent, HasIdent val) => parent -> val -> Text
+enumUnionMember (getIdent -> unIdent -> parentIdent) (getIdent -> unIdent -> valIdent) =
+  typ parentIdent <> typ valIdent
+
+unionClass :: UnionDecl -> Text
+unionClass (getIdent -> unIdent -> unionIdent) =
+  "Write" <> unionIdent
+

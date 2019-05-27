@@ -330,13 +330,13 @@ data Weapon
   = Weapon'Sword !(Table Sword)
   | Weapon'Axe !(Table Axe)
 
-class EncodeWeapon a where
+class WriteWeapon a where
   weapon :: WriteTable a -> WriteUnion Weapon
 
-instance EncodeWeapon Sword where
+instance WriteWeapon Sword where
   weapon = writeUnion 1
 
-instance EncodeWeapon Axe where
+instance WriteWeapon Axe where
   weapon = writeUnion 2
 
 readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)

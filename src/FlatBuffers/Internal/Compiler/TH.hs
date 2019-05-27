@@ -35,7 +35,8 @@ compileSymbolTable symbols = do
   enumDecs <- join <$> traverse mkEnum (allEnums symbols)
   structDecs <- join <$> traverse mkStruct (allStructs symbols)
   tableDecs <- join <$> traverse mkTable (allTables symbols)
-  pure $ enumDecs <> structDecs <> tableDecs
+  unionDecs <- join <$> traverse mkUnion (allUnions symbols)
+  pure $ enumDecs <> structDecs <> tableDecs <> unionDecs
 
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) = do
@@ -43,7 +44,7 @@ mkEnum (_, enum) = do
 
   enumValNames <-
     forM (enumVals enum) $ \enumVal ->
-      newName $ T.unpack $ NC.enumMember enum enumVal
+      newName $ T.unpack $ NC.enumUnionMember enum enumVal
 
   let enumDec = mkEnumDataDec enumName enumValNames
   toEnumDecs <- mkToEnum enumName enum (enumVals enum `NE.zip` enumValNames)
@@ -358,6 +359,61 @@ mkTableFieldGetter tableName table tf =
         , fieldIndex
         , defaultValExp
         ]
+
+mkUnion :: (Namespace, UnionDecl) -> Q [Dec]
+mkUnion (_, union) = do
+  unionName <- newNameFor NC.dataTypeName union
+  unionValNames <-
+    forM (unionVals union) $ \unionVal ->
+      newName $ T.unpack $ NC.enumUnionMember union unionVal
+
+  unionClassDecs <- mkUnionClass unionName union
+
+  pure $
+    mkUnionDataDec unionName (unionVals union `NE.zip` unionValNames)
+    : unionClassDecs
+
+
+mkUnionDataDec :: Name -> NonEmpty (UnionVal, Name) -> Dec
+mkUnionDataDec unionName unionValsAndNames =
+  DataD [] unionName [] Nothing
+    (NE.toList $ fmap mkCons unionValsAndNames)
+    []
+  where
+    mkCons (unionVal, unionValName) =
+      NormalC unionValName [(bang, ConT ''Table `AppT` typeRefToType (unionValTableRef unionVal))]
+
+    bang = Bang NoSourceUnpackedness SourceStrict
+
+mkUnionClass :: Name -> UnionDecl -> Q [Dec]
+mkUnionClass unionName union = do
+  className <- newName $ T.unpack $ NC.unionClass union
+  methodName <- newNameFor NC.term union
+  let cls =
+        ClassD [] className
+          [PlainTV (mkName "a")]
+          []
+          [ SigD methodName $
+              ConT ''WriteTable `AppT` VarT (mkName "a") ~> ConT ''WriteUnion `AppT` ConT unionName
+          ]
+  let
+    mkUnionInstance :: UnionVal -> Integer -> Dec
+    mkUnionInstance unionVal ix =
+      InstanceD
+        Nothing
+        []
+        (ConT className `AppT` typeRefToType (unionValTableRef unionVal))
+        [ FunD methodName
+            [ Clause
+                []
+                (NormalB $ VarE 'writeUnion `AppE` intLitE ix)
+                []
+            ]
+        ]
+  let instances = uncurry mkUnionInstance <$> NE.toList (unionVals union) `zip` [1..]
+
+  pure $ cls : instances
+
 
 enumTypeToType :: EnumType -> Type
 enumTypeToType et =
