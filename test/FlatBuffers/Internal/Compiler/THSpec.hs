@@ -399,9 +399,64 @@ spec =
               t2 = writeTable []
             |]
 
-      describe "union fields" $
+      describe "union fields" $ do
         it "normal field" $
           [r| table t1 {x: u1;} union u1{t1}|] `shouldCompileTo`
+            [d|
+              data T1
+              t1 :: WriteUnion U1 -> WriteTable T1
+              t1 x = writeTable
+                [ writeUnionType x
+                , writeUnionValue x
+                ]
+
+              t1X :: forall m. ReadCtx m => Table T1 -> m (Union U1)
+              t1X = readTableFieldUnion readU1 1
+
+              data U1
+                = U1T1 !(Table T1)
+
+              class WriteU1 a where
+                u1 :: WriteTable a -> WriteUnion U1
+
+              instance WriteU1 T1 where
+                u1 = writeUnion 1
+
+              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 n pos =
+                case getPositive n of
+                  1  -> Union . U1T1 <$> readTable pos
+                  n' -> pure $! UnionUnknown n'
+            |]
+
+        it "deprecated" $
+          [r| table t1 {x: u1 (deprecated) ;} union u1{t1}|] `shouldCompileTo`
+            [d|
+              data T1
+              t1 :: WriteTable T1
+              t1 = writeTable
+                [ deprecated
+                , deprecated
+                ]
+
+              data U1
+                = U1T1 !(Table T1)
+
+              class WriteU1 a where
+                u1 :: WriteTable a -> WriteUnion U1
+
+              instance WriteU1 T1 where
+                u1 = writeUnion 1
+
+              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 n pos =
+                case getPositive n of
+                  1  -> Union . U1T1 <$> readTable pos
+                  n' -> pure $! UnionUnknown n'
+            |]
+
+        it "required" $
+          [r| table t1 {x: u1 (required) ;} union u1{t1}|] `shouldCompileTo`
             [d|
               data T1
               t1 :: WriteUnion U1 -> WriteTable T1
