@@ -7,6 +7,7 @@
 module FlatBuffers.Internal.Compiler.THSpec where
 
 import           Control.Arrow                                  ( second )
+
 import           Data.Int
 import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
@@ -17,7 +18,7 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( SymbolTable(..
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), HasIdent(..), Ident(..), Namespace(..) )
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.Positive                  ( Positive )
+import           FlatBuffers.Internal.Positive                  ( Positive(getPositive) )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
@@ -555,9 +556,9 @@ spec =
 
     it "Unions" $
       [r|
-        table T1{}
-        table T2{}
-        union Weapon { T1, alias: T2 }
+        table t1{}
+        table t2{}
+        union weapon { t1, alias: t2 }
       |] `shouldCompileTo`
         [d|
           data T1
@@ -579,6 +580,13 @@ spec =
 
           instance WriteWeapon T2 where
             weapon = writeUnion 2
+
+          readWeapon :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)
+          readWeapon n pos =
+            case getPositive n of
+              1  -> Union . WeaponT1 <$> readTable pos
+              2  -> Union . WeaponAlias <$> readTable pos
+              n' -> pure $! UnionUnknown n'
         |]
 
 
@@ -689,6 +697,7 @@ normalizeExp e =
     ListE es -> ListE (normalizeExp <$> es)
     CaseE e matches -> CaseE (normalizeExp e) (normalizeMatch <$> matches)
     ConE name -> ConE (normalizeName name)
+    InfixE l op r -> InfixE (normalizeExp <$> l) (normalizeExp op) (normalizeExp <$> r)
     _ -> e
 
 normalizeMatch :: Match -> Match

@@ -17,11 +17,11 @@ import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
 import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
+import           FlatBuffers.Internal.Positive                   ( Positive(getPositive) )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
 import           Language.Haskell.TH
-
 
 -- | Helper method to create function types.
 -- @ConT ''Int ~> ConT ''String === Int -> String@
@@ -80,11 +80,11 @@ mkToEnum enumName enum enumValsAndNames = do
     ]
   where
     matches =
-      (match <$> NE.toList enumValsAndNames) <> [matchWildcard]
+      (mkMatch <$> NE.toList enumValsAndNames) <> [matchWildcard]
 
-    match (enumVal, enumName) =
+    mkMatch (enumVal, enumName) =
       Match
-        (LitP (IntegerL (enumValInt enumVal)))
+        (intLitP (enumValInt enumVal))
         (NormalB (ConE 'Just `AppE` ConE enumName))
         []
 
@@ -103,12 +103,12 @@ mkFromEnum enumName enum enumValsAndNames = do
     , FunD funName
       [ Clause
         [VarP argName]
-        (NormalB (CaseE (VarE argName) (match <$> NE.toList enumValsAndNames)))
+        (NormalB (CaseE (VarE argName) (mkMatch <$> NE.toList enumValsAndNames)))
         []
       ]
     ]
   where
-    match (enumVal, enumName) =
+    mkMatch (enumVal, enumName) =
       Match
         (ConP enumName [])
         (NormalB (intLitE (enumValInt enumVal)))
@@ -369,9 +369,12 @@ mkUnion (_, union) = do
 
   unionClassDecs <- mkUnionClass unionName union
 
+  readFun <- mkUnionReadFun unionName unionValNames union
+
   pure $
     mkUnionDataDec unionName (unionVals union `NE.zip` unionValNames)
     : unionClassDecs
+    <> readFun
 
 
 mkUnionDataDec :: Name -> NonEmpty (UnionVal, Name) -> Dec
@@ -414,6 +417,60 @@ mkUnionClass unionName union = do
 
   pure $ cls : instances
 
+mkUnionReadFun :: Name -> NonEmpty Name -> UnionDecl -> Q [Dec]
+mkUnionReadFun unionName unionValNames union = do
+  nArg <- newName "n"
+  posArg <- newName "pos"
+  wildcard <- newName "n'"
+
+  let funName = mkName $ T.unpack $ NC.unionReadFun union
+  let sig =
+        SigD funName $
+          ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
+            ConT ''Positive `AppT` ConT ''Word8
+              ~> ConT ''PositionInfo
+              ~> VarT (mkName "m") `AppT` (ConT ''Union `AppT` ConT unionName)
+
+  let
+    mkMatch :: Name -> Integer -> Match
+    mkMatch unionValName ix =
+      Match
+        (intLitP ix)
+        (NormalB $
+          InfixE
+            (Just (compose [ConE 'Union, ConE unionValName]))
+            (VarE '(<$>))
+            (Just (VarE 'readTable `AppE` VarE posArg))
+        )
+        []
+
+  let matchWildcard =
+        Match
+          (VarP wildcard)
+          (NormalB $
+            InfixE
+              (Just (VarE 'pure))
+              (VarE '($!))
+              (Just (ConE 'UnionUnknown `AppE` VarE wildcard))
+          )
+          []
+
+  let matches = (uncurry mkMatch <$> NE.toList unionValNames `zip` [1..]) <> [matchWildcard]
+
+  let funBody =
+        NormalB $
+          CaseE
+            (VarE 'getPositive `AppE` VarE nArg)
+            matches
+
+  let fun =
+        FunD funName $
+          [ Clause
+              [VarP nArg, VarP posArg]
+              funBody
+              []
+          ]
+  pure [sig, fun]
 
 enumTypeToType :: EnumType -> Type
 enumTypeToType et =
@@ -595,6 +652,10 @@ mkNameFor f = mkName . T.unpack . f . unIdent . getIdent
 newNameFor :: HasIdent a => (Text -> Text) -> a -> Q Name
 newNameFor f = newName . T.unpack . f . unIdent . getIdent
 
+
+intLitP :: Integral i => i -> Pat
+intLitP = LitP . IntegerL . toInteger
+
 intLitE :: Integral i => i -> Exp
 intLitE = LitE . IntegerL . toInteger
 
@@ -604,3 +665,6 @@ realLitE = LitE . RationalL . toRational
 -- | Applies a function to multiple arguments. Assumes the list is not empty.
 app :: [Exp] -> Exp
 app = foldl1 AppE
+
+compose :: [Exp] -> Exp
+compose = foldr1 (\e1 e2 -> InfixE (Just e1) (VarE '(.)) (Just e2))

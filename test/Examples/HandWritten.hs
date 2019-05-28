@@ -344,7 +344,7 @@ readWeapon n pos =
   case getPositive n of
     1  -> Union . Weapon'Sword <$> readTable pos
     2  -> Union . Weapon'Axe <$> readTable pos
-    n' -> pure $ UnionUnknown n'
+    n' -> pure $! UnionUnknown n'
 
 ----------------------------------
 ------- TableWithUnion -----------

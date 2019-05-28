@@ -44,5 +44,9 @@ enumUnionMember (getIdent -> unIdent -> parentIdent) (getIdent -> unIdent -> val
 
 unionClass :: UnionDecl -> Text
 unionClass (getIdent -> unIdent -> unionIdent) =
-  "Write" <> unionIdent
+  "Write" <> typ unionIdent
+
+unionReadFun :: UnionDecl -> Text
+unionReadFun (getIdent -> unIdent -> unionIdent) =
+  "read" <> typ unionIdent
 
