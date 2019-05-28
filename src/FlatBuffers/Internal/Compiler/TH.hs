@@ -287,7 +287,8 @@ mkTableContructorArg tf =
               TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
               TStruct _ req          -> [AppE (requiredExp req (VarE 'inline `AppE` VarE 'unWriteStruct)) argRef]
               TTable _ req           -> [AppE (requiredExp req (VarE 'unWriteTable)) argRef]
-              _ -> undefined
+              TUnion _ _             -> [VarE 'writeUnionType `AppE` argRef, VarE 'writeUnionValue `AppE` argRef]
+              _ -> []
 
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
       let exps = mkExps (tableFieldType tf)
@@ -332,6 +333,12 @@ mkTableFieldGetter tableName table tf =
         TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
         TStruct _ req           -> mkFunWithBody (bodyForNonScalar req (VarE 'readStruct'))
         TTable _ req            -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
+        TUnion (TypeRef ns ident) req ->
+          mkFunWithBody $ app
+            [ VarE 'readTableFieldUnion
+            , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
+            , fieldIndex
+            ]
         _ -> undefined
 
     mkFunWithBody body = FunD funName [ Clause [] (NormalB body) [] ]
@@ -627,10 +634,8 @@ vectorElementTypeToReadType vet =
     VUnion  typeRef       -> ConT ''Vector `AppT` (ConT ''Union  `AppT` typeRefToType typeRef)
 
 typeRefToType :: TypeRef -> Type
-typeRefToType (TypeRef "" ident) =
-  ConT (mkNameFor NC.dataTypeName ident)
-typeRefToType (TypeRef ns (Ident ident)) =
-  ConT . mkName . T.unpack $ NC.namespace ns <> "." <> NC.dataTypeName ident
+typeRefToType (TypeRef ns ident) =
+  ConT (mkNameFor (NC.withModulePrefix ns . NC.dataTypeName) ident)
 
 requiredExp :: Required -> Exp -> Exp
 requiredExp Req exp = exp

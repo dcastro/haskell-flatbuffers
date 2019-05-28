@@ -6,7 +6,7 @@ module FlatBuffers.Internal.Compiler.NamingConventions where
 import           Data.Text                                     ( Text )
 import qualified Data.Text                                     as T
 
-import           FlatBuffers.Internal.Compiler.SyntaxTree      ( HasIdent(..), Ident(..), Namespace(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree      ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( UnionDecl(..) )
 
 
@@ -46,7 +46,13 @@ unionClass :: UnionDecl -> Text
 unionClass (getIdent -> unIdent -> unionIdent) =
   "Write" <> typ unionIdent
 
-unionReadFun :: UnionDecl -> Text
+unionReadFun :: HasIdent union => union -> Text
 unionReadFun (getIdent -> unIdent -> unionIdent) =
   "read" <> typ unionIdent
+
+withModulePrefix :: Namespace -> Text -> Text
+withModulePrefix ns text =
+  if ns == ""
+    then text
+    else namespace ns <> "." <> text
 
