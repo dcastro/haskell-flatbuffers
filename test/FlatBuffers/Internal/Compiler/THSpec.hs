@@ -23,7 +23,10 @@ import           FlatBuffers.Read
 import           FlatBuffers.Write
 
 import           Language.Haskell.TH
+import           Language.Haskell.TH.Cleanup                    ( simplifiedTH )
 import           Language.Haskell.TH.Syntax
+
+import           System.IO.Unsafe                               ( unsafePerformIO )
 
 import           Test.Hspec
 
@@ -604,11 +607,13 @@ shouldCompileTo input expectedQ =
           expected <- runQ expectedQ
           PrettyAst (normalizeDec <$> ast) `shouldBe` PrettyAst (normalizeDec <$> expected)
 
-newtype PrettyAst a = PrettyAst a
+newtype PrettyAst = PrettyAst [Dec]
   deriving Eq
 
-instance Ppr a => Show (PrettyAst a) where
-  show (PrettyAst a) = pprint a
+instance Show PrettyAst where
+  show (PrettyAst decs) =
+    let LitE (StringL s) = unsafePerformIO . runQ . simplifiedTH $ decs
+    in  s
 
 showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
