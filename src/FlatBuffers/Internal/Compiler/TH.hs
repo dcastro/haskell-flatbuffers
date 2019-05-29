@@ -7,7 +7,7 @@ import           Control.Monad                                   ( forM, join )
 
 import           Data.Int
 import qualified Data.List                                       as List
-import           Data.List.NonEmpty                              ( NonEmpty )
+import           Data.List.NonEmpty                              ( NonEmpty(..) )
 import qualified Data.List.NonEmpty                              as NE
 import           Data.Text                                       ( Text )
 import qualified Data.Text                                       as T
@@ -18,6 +18,7 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(.
 import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Positive                   ( Positive(getPositive) )
+import           FlatBuffers.Internal.Util                       ( nonEmptyUnzip3 )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
 
@@ -133,7 +134,7 @@ mkStruct (_, struct) = do
 mkStructConstructor :: Name -> StructDecl -> Q (Dec, Dec)
 mkStructConstructor structName struct = do
   argsInfo <- traverse mkStructConstructorArg (structFields struct)
-  let (argTypes, pats, exps) = List.unzip3 $ NE.toList argsInfo
+  let (argTypes, pats, exps) = nonEmptyUnzip3 argsInfo
 
   let retType = AppT (ConT ''WriteStruct) (ConT structName)
   let sigType = foldr (~>) retType argTypes
@@ -144,10 +145,10 @@ mkStructConstructor structName struct = do
   let body = NormalB $ app
         [ VarE 'writeStruct
         , intLitE (structAlignment struct)
-        , ListE (List.reverse exps)
+        , nonEmptyE (NE.reverse exps)
         ]
 
-  let cons = FunD consName [ Clause pats body [] ]
+  let cons = FunD consName [ Clause (NE.toList pats) body [] ]
 
   pure (consSig, cons)
 
@@ -666,6 +667,9 @@ intLitE = LitE . IntegerL . toInteger
 
 realLitE :: Real i => i -> Exp
 realLitE = LitE . RationalL . toRational
+
+nonEmptyE :: NonEmpty Exp -> Exp
+nonEmptyE (x :| xs) = InfixE (Just x) (ConE '(:|)) (Just (ListE xs))
 
 -- | Applies a function to multiple arguments. Assumes the list is not empty.
 app :: [Exp] -> Exp
