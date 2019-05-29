@@ -524,7 +524,6 @@ spec =
           |] `shouldCompileTo`
             [d|
               data T1
-
               t1 :: WriteTable T1
               t1 = writeTable [ deprecated, deprecated, deprecated ]
 
@@ -684,6 +683,32 @@ spec =
                 t1J = readTableFieldReq (readPrimVector DoubleVec)  9 "j"
                 t1K :: forall m. ReadCtx m => Table T1 -> m (Vector Bool)
                 t1K = readTableFieldReq (readPrimVector BoolVec)    10 "k"
+              |]
+
+        describe "vector of strings" $ do
+          it "normal" $
+            [r|
+              table t1 { a: [string]; }
+            |] `shouldCompileTo`
+              [d|
+                data T1
+                t1 :: Maybe (WriteVector Text) -> WriteTable T1
+                t1 a = writeTable [ optional (writeVector text) a ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Text))
+                t1A = readTableFieldOpt (readPrimVector TextVec) 0
+              |]
+          it "required" $
+            [r|
+              table t1 { a: [string] (required); }
+            |] `shouldCompileTo`
+              [d|
+                data T1
+                t1 :: WriteVector Text -> WriteTable T1
+                t1 a = writeTable [ writeVector text a ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Text)
+                t1A = readTableFieldReq (readPrimVector TextVec) 0 "a"
               |]
 
 

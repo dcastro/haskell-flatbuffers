@@ -304,6 +304,7 @@ mkTableContructorArg tf =
                   VFloat  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'float  )) `AppE` argRef ]
                   VDouble -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'double )) `AppE` argRef ]
                   VBool   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'bool   )) `AppE` argRef ]
+                  VString -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'text    ) `AppE` argRef ]
                   _ -> undefined
 
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
@@ -368,6 +369,7 @@ mkTableFieldGetter tableName table tf =
             VFloat  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'FloatVec
             VDouble -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'DoubleVec
             VBool   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'BoolVec
+            VString -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'TextVec
             _ -> undefined
 
     mkFunWithBody :: Exp -> Dec
@@ -637,7 +639,7 @@ vectorElementTypeToWriteType vet =
     VFloat                -> ConT ''WriteVector `AppT` ConT ''Float
     VDouble               -> ConT ''WriteVector `AppT` ConT ''Double
     VBool                 -> ConT ''WriteVector `AppT` ConT ''Bool
-    VString               -> ConT ''WriteVector `AppT` ConT ''String
+    VString               -> ConT ''WriteVector `AppT` ConT ''Text
     VEnum   _ enumType _  -> ConT ''WriteVector `AppT` enumTypeToType enumType
     VStruct typeRef _     -> ConT ''WriteVector `AppT` (ConT ''WriteStruct `AppT` typeRefToType typeRef)
     VTable  typeRef       -> ConT ''WriteVector `AppT` (ConT ''WriteTable  `AppT` typeRefToType typeRef)
@@ -657,7 +659,7 @@ vectorElementTypeToReadType vet =
     VFloat                -> ConT ''Vector `AppT` ConT ''Float
     VDouble               -> ConT ''Vector `AppT` ConT ''Double
     VBool                 -> ConT ''Vector `AppT` ConT ''Bool
-    VString               -> ConT ''Vector `AppT` ConT ''String
+    VString               -> ConT ''Vector `AppT` ConT ''Text
     VEnum   _ enumType _  -> ConT ''Vector `AppT` enumTypeToType enumType
     VStruct typeRef _     -> ConT ''Vector `AppT` (ConT ''Struct `AppT` typeRefToType typeRef)
     VTable  typeRef       -> ConT ''Vector `AppT` (ConT ''Table  `AppT` typeRefToType typeRef)
