@@ -309,7 +309,10 @@ spec =
 
       describe "struct fields" $ do
         it "normal field" $
-          [r| table T {x: S;} struct S {x: int;}|] `shouldCompileTo`
+          [r|
+            table T {x: S;}
+            struct S {x: int;}
+          |] `shouldCompileTo`
             [d|
               data S
               s :: Int32 -> WriteStruct S
@@ -327,7 +330,10 @@ spec =
             |]
 
         it "deprecated" $
-          [r| table T {x: S (deprecated);} struct S {x: int;}|] `shouldCompileTo`
+          [r|
+            table T {x: S (deprecated);}
+            struct S {x: int;}
+          |] `shouldCompileTo`
             [d|
               data S
               s :: Int32 -> WriteStruct S
@@ -342,7 +348,10 @@ spec =
             |]
 
         it "required" $
-          [r| table T {X: S (required) ;} struct S {x: int;}|] `shouldCompileTo`
+          [r|
+            table T {X: S (required) ;}
+            struct S {x: int;}
+          |] `shouldCompileTo`
             [d|
               data S
               s :: Int32 -> WriteStruct S
@@ -361,7 +370,10 @@ spec =
 
       describe "table fields" $ do
         it "normal field" $
-          [r| table T1 {x: t2;} table t2{}|] `shouldCompileTo`
+          [r|
+            table T1 {x: t2;}
+            table t2{}
+          |] `shouldCompileTo`
             [d|
               data T1
               t1 :: Maybe (WriteTable T2) -> WriteTable T1
@@ -375,7 +387,10 @@ spec =
               t2 = writeTable []
             |]
         it "deprecated" $
-          [r| table T1 {x: t2 (deprecated) ;} table t2{}|] `shouldCompileTo`
+          [r|
+            table T1 {x: t2 (deprecated) ;}
+            table t2{}
+          |] `shouldCompileTo`
             [d|
               data T1
               t1 :: WriteTable T1
@@ -386,7 +401,10 @@ spec =
               t2 = writeTable []
             |]
         it "required" $
-          [r| table T1 {x: t2 (required) ;} table t2{}|] `shouldCompileTo`
+          [r|
+            table T1 {x: t2 (required) ;}
+            table t2{}
+          |] `shouldCompileTo`
             [d|
               data T1
               t1 :: WriteTable T2 -> WriteTable T1
@@ -402,7 +420,10 @@ spec =
 
       describe "union fields" $ do
         it "normal field" $
-          [r| table t1 {x: u1;} union u1{t1}|] `shouldCompileTo`
+          [r|
+            table t1 {x: u1;}
+            union u1{t1}
+          |] `shouldCompileTo`
             [d|
               data T1
               t1 :: WriteUnion U1 -> WriteTable T1
@@ -431,7 +452,10 @@ spec =
             |]
 
         it "deprecated" $
-          [r| table t1 {x: u1 (deprecated) ;} union u1{t1}|] `shouldCompileTo`
+          [r|
+            table t1 {x: u1 (deprecated) ;}
+            union u1{t1}
+          |] `shouldCompileTo`
             [d|
               data T1
               t1 :: WriteTable T1
@@ -457,7 +481,10 @@ spec =
             |]
 
         it "required" $
-          [r| table t1 {x: u1 (required) ;} union u1{t1}|] `shouldCompileTo`
+          [r|
+            table t1 {x: u1 (required) ;}
+            union u1{t1}
+          |] `shouldCompileTo`
             [d|
               data T1
               t1 :: WriteUnion U1 -> WriteTable T1
@@ -485,12 +512,156 @@ spec =
                   n' -> pure $! UnionUnknown n'
             |]
 
+      describe "vector fields" $
+        describe "vector of numeric types / booolean" $ do
+          it "normal" $
+            [r|
+              table t1 {
+                a: [uint8];
+                b: [uint16];
+                c: [uint32];
+                d: [uint64];
+                e: [int8];
+                f: [int16];
+                g: [int32];
+                h: [int64];
+                i: [float32];
+                j: [float64];
+                k: [bool];
+              }
+            |] `shouldCompileTo`
+              [d|
+                data T1
+
+                t1 ::
+                    Maybe [Word8]
+                  -> Maybe [Word16]
+                  -> Maybe [Word32]
+                  -> Maybe [Word64]
+                  -> Maybe [Int8]
+                  -> Maybe [Int16]
+                  -> Maybe [Int32]
+                  -> Maybe [Int64]
+                  -> Maybe [Float]
+                  -> Maybe [Double]
+                  -> Maybe [Bool]
+                  -> WriteTable T1
+                t1 a b c d e f g h i j k =
+                  writeTable
+                    [ optional (writeVector (inline word8))    a
+                    , optional (writeVector (inline word16))   b
+                    , optional (writeVector (inline word32))   c
+                    , optional (writeVector (inline word64))   d
+                    , optional (writeVector (inline int8))     e
+                    , optional (writeVector (inline int16))    f
+                    , optional (writeVector (inline int32))    g
+                    , optional (writeVector (inline int64))    h
+                    , optional (writeVector (inline float))    i
+                    , optional (writeVector (inline double))   j
+                    , optional (writeVector (inline bool))     k
+                    ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word8))
+                t1A = readTableFieldOpt (readPrimVector Word8Vec)   0
+                t1B :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word16))
+                t1B = readTableFieldOpt (readPrimVector Word16Vec)  1
+                t1C :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word32))
+                t1C = readTableFieldOpt (readPrimVector Word32Vec)  2
+                t1D :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word64))
+                t1D = readTableFieldOpt (readPrimVector Word64Vec)  3
+                t1E :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int8))
+                t1E = readTableFieldOpt (readPrimVector Int8Vec)    4
+                t1F :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
+                t1F = readTableFieldOpt (readPrimVector Int16Vec)   5
+                t1G :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int32))
+                t1G = readTableFieldOpt (readPrimVector Int32Vec)   6
+                t1H :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int64))
+                t1H = readTableFieldOpt (readPrimVector Int64Vec)   7
+                t1I :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Float))
+                t1I = readTableFieldOpt (readPrimVector FloatVec)   8
+                t1J :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Double))
+                t1J = readTableFieldOpt (readPrimVector DoubleVec)  9
+                t1K :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Bool))
+                t1K = readTableFieldOpt (readPrimVector BoolVec)    10
+              |]
+
+          it "required" $
+            [r|
+              table t1 {
+                a: [uint8]   (required);
+                b: [uint16]  (required);
+                c: [uint32]  (required);
+                d: [uint64]  (required);
+                e: [int8]    (required);
+                f: [int16]   (required);
+                g: [int32]   (required);
+                h: [int64]   (required);
+                i: [float32] (required);
+                j: [float64] (required);
+                k: [bool]    (required);
+              }
+            |] `shouldCompileTo`
+              [d|
+                data T1
+
+                t1 ::
+                     [Word8]
+                  -> [Word16]
+                  -> [Word32]
+                  -> [Word64]
+                  -> [Int8]
+                  -> [Int16]
+                  -> [Int32]
+                  -> [Int64]
+                  -> [Float]
+                  -> [Double]
+                  -> [Bool]
+                  -> WriteTable T1
+                t1 a b c d e f g h i j k =
+                  writeTable
+                    [ writeVector (inline word8)    a
+                    , writeVector (inline word16)   b
+                    , writeVector (inline word32)   c
+                    , writeVector (inline word64)   d
+                    , writeVector (inline int8)     e
+                    , writeVector (inline int16)    f
+                    , writeVector (inline int32)    g
+                    , writeVector (inline int64)    h
+                    , writeVector (inline float)    i
+                    , writeVector (inline double)   j
+                    , writeVector (inline bool)     k
+                    ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Word8)
+                t1A = readTableFieldReq (readPrimVector Word8Vec)   0 "a"
+                t1B :: forall m. ReadCtx m => Table T1 -> m (Vector Word16)
+                t1B = readTableFieldReq (readPrimVector Word16Vec)  1 "b"
+                t1C :: forall m. ReadCtx m => Table T1 -> m (Vector Word32)
+                t1C = readTableFieldReq (readPrimVector Word32Vec)  2 "c"
+                t1D :: forall m. ReadCtx m => Table T1 -> m (Vector Word64)
+                t1D = readTableFieldReq (readPrimVector Word64Vec)  3 "d"
+                t1E :: forall m. ReadCtx m => Table T1 -> m (Vector Int8)
+                t1E = readTableFieldReq (readPrimVector Int8Vec)    4 "e"
+                t1F :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
+                t1F = readTableFieldReq (readPrimVector Int16Vec)   5 "f"
+                t1G :: forall m. ReadCtx m => Table T1 -> m (Vector Int32)
+                t1G = readTableFieldReq (readPrimVector Int32Vec)   6 "g"
+                t1H :: forall m. ReadCtx m => Table T1 -> m (Vector Int64)
+                t1H = readTableFieldReq (readPrimVector Int64Vec)   7 "h"
+                t1I :: forall m. ReadCtx m => Table T1 -> m (Vector Float)
+                t1I = readTableFieldReq (readPrimVector FloatVec)   8 "i"
+                t1J :: forall m. ReadCtx m => Table T1 -> m (Vector Double)
+                t1J = readTableFieldReq (readPrimVector DoubleVec)  9 "j"
+                t1K :: forall m. ReadCtx m => Table T1 -> m (Vector Bool)
+                t1K = readTableFieldReq (readPrimVector BoolVec)    10 "k"
+              |]
+
+
     describe "Enums" $
       describe "naming conventions" $
         it "enum name / enum value names are uppercased" $
           [r|
             enum color: int16 { red = -2, Green, bLUE = 3  }
-
           |] `shouldCompileTo`
             [d|
               data Color = ColorRed | ColorGreen | ColorBLUE
