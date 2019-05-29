@@ -10,7 +10,7 @@ import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import           Data.Int
 import           Data.Word
 import           Examples.HandWritten
-import           FlatBuffers.Write         (WriteTable, encode, none)
+import           FlatBuffers.Write         (WriteTable, encode, none, vector)
 import           Network.HTTP.Client
 import           Network.HTTP.Types.Status (statusCode)
 import           Test.Hspec
@@ -22,7 +22,10 @@ spec =
     it "VectorOfUnions" $ do
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just [weapon (sword (Just "hi"))]) [weapon (sword (Just "hi2"))])
+        (encode $ vectorOfUnions
+          (Just (vector [weapon (sword (Just "hi"))]))
+          (vector [weapon (sword (Just "hi2"))])
+          )
         (object
           [ "xs" .= [object ["x" .= String "hi"]]
           , "xsReq" .= [object ["x" .= String "hi2"]]
@@ -30,23 +33,28 @@ spec =
         )
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just [weapon (sword Nothing)]) [weapon (axe Nothing)])
+        (encode $ vectorOfUnions
+          (Just (vector [weapon (sword Nothing)]))
+          (vector [weapon (axe Nothing)])
+          )
         (object ["xs" .= [object ["x" .= Null]], "xsReq" .= [object ["y" .= Number 0]]])
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just
+          (Just $ vector
             [ weapon (sword (Just "hi"))
             , none
             , weapon (axe (Just maxBound))
             , weapon (sword (Just "oi"))
             ]
           )
-          [ weapon (sword (Just "hi2"))
-          , none
-          , weapon (axe (Just minBound))
-          , weapon (sword (Just "oi2"))
-          ]
+          (vector
+            [ weapon (sword (Just "hi2"))
+            , none
+            , weapon (axe (Just minBound))
+            , weapon (sword (Just "oi2"))
+            ]
+          )
         )
         (object
           [ "xs" .=
@@ -64,11 +72,11 @@ spec =
           ])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just []) [])
+        (encode $ vectorOfUnions (Just (vector [])) (vector []))
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions Nothing [])
+        (encode $ vectorOfUnions Nothing (vector []))
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
 
 

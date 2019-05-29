@@ -51,7 +51,7 @@ spec =
         Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
-      let bs = encode $ encodeMyRoot (Just minBound) (Just maxBound) Nothing (Just "hello") Nothing (Just []) Nothing
+      let bs = encode $ encodeMyRoot (Just minBound) (Just maxBound) Nothing (Just "hello") Nothing (Just (vector nil)) Nothing
       s <- fromRight $ decode bs
 
       myRootA s `shouldBe` Right minBound
@@ -59,7 +59,7 @@ spec =
       myRootD s `shouldBe` Right "hello"
 
     it "decodes missing fields" $ do
-      let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just []) Nothing
+      let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just (vector nil)) Nothing
       s <- fromRight $ decode bs
 
       myRootA s `shouldBe` Right 0
@@ -69,7 +69,7 @@ spec =
       nestedA nested `shouldBe` Right 0
 
     it "decodes nested tables" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just []) Nothing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just (vector nil)) Nothing
       s <- fromRight $ decode bs
 
       nested <- fromRight $ myRootC s
@@ -79,7 +79,7 @@ spec =
       deepNestedA deepNested `shouldBe` Right 234
 
     it "decodes composite structs" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just []) Nothing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector nil)) Nothing
       s <- fromRight $ decode bs
 
       sws <- fromRight $ myRootE s
@@ -94,7 +94,7 @@ spec =
       threeBytesC tb `shouldBe` Right 6
 
     it "decodes vector of strings" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just ["hello", "world"]) Nothing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector @[] ["hello", "world"])) Nothing
       s <- fromRight $ decode bs
 
       vec <- fromRight $ myRootF s
@@ -104,8 +104,8 @@ spec =
       toList vec `shouldBe` Right ["hello", "world"]
 
     it "decodes vectors of tables" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just ["hello", "world"])
-            (Just [encodeDeepNested (Just 11), encodeDeepNested (Just 22)])
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector @[] ["hello", "world"]))
+            (Just (vector @[] [encodeDeepNested (Just 11), encodeDeepNested (Just 22)]))
       s <- fromRight $ decode bs
 
       vec <- fromRight $ myRootG s
@@ -113,6 +113,9 @@ spec =
       list <- fromRight $ toList vec
       traverse deepNestedA list `shouldBe` Right [11, 22]
 
+-- | Helper to disambiguate `[]` in the presence of `OverloadedLists`
+nil :: [a]
+nil = []
 
 data MyRoot
 
@@ -122,8 +125,8 @@ encodeMyRoot ::
   -> Maybe (WriteTable Nested)
   -> Maybe Text
   -> Maybe (WriteStruct SWS)
-  -> Maybe [Text]
-  -> Maybe [WriteTable DeepNested]
+  -> Maybe (WriteVector Text)
+  -> Maybe (WriteVector (WriteTable DeepNested))
   -> WriteTable MyRoot
 encodeMyRoot a b c d e f g =
   writeTable

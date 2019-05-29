@@ -165,8 +165,8 @@ spec =
         (json, decoded) <- flatc $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
-          (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
+          (Just (vector [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
+          (Just (vector [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
 
         json `shouldBeJson` object
           [ "x" .= String "Gray"
@@ -333,18 +333,18 @@ spec =
     describe "Vectors" $ do
       it "non-empty" $ do
         (json, decoded) <- flatc $ vectors
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [minBound, 0, maxBound])
-          (Just [-12e9, 0, 3.333333])
-          (Just [-12e98, 0, 3.33333333333333333333])
-          (Just [True, False, True])
-          (Just ["hi 👬 bye", "", "world"])
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [minBound, 0, maxBound]))
+          (Just (vector [-12e9, 0, 3.333333]))
+          (Just (vector [-12e98, 0, 3.33333333333333333333]))
+          (Just (vector [True, False, True]))
+          (Just (vector ["hi 👬 bye", "", "world"]))
 
         json `shouldBeJson` object
           [ "a" .= [ minBound @Word8, 0, maxBound @Word8 ]
@@ -376,9 +376,9 @@ spec =
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectors
-          (Just []) (Just []) (Just []) (Just [])
-          (Just []) (Just []) (Just []) (Just [])
-          (Just []) (Just []) (Just []) (Just [])
+          (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
+          (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
+          (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
 
         json `shouldBeJson` object
           [ "a" .= [] @Value
@@ -431,11 +431,13 @@ spec =
 
     describe "VectorOfTables" $ do
       it "non empty" $ do
-        (json, decoded) <- flatc $ vectorOfTables (Just
-          [ axe (Just minBound)
-          , axe (Just 0)
-          , axe (Just maxBound)
-          ])
+        (json, decoded) <- flatc $ vectorOfTables
+          (Just $ vector
+            [ axe (Just minBound)
+            , axe (Just 0)
+            , axe (Just maxBound)
+            ]
+          )
 
         json `shouldBeJson` object
           [ "xs" .=
@@ -449,7 +451,7 @@ spec =
         (toList xs >>= traverse getAxe'y) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
-        (json, decoded) <- flatc $ vectorOfTables (Just [])
+        (json, decoded) <- flatc $ vectorOfTables (Just (vector []))
 
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
@@ -471,10 +473,10 @@ spec =
 
       it "non empty" $ do
         (json, decoded) <- flatc $ vectorOfStructs
-          (Just [struct1 1 2 3, struct1 4 5 6])
-          (Just [struct2 101, struct2 102, struct2 103])
-          (Just [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112])
-          (Just [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True])
+          (Just (vector [struct1 1 2 3, struct1 4 5 6]))
+          (Just (vector [struct2 101, struct2 102, struct2 103]))
+          (Just (vector [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
+          (Just (vector [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
 
         json `shouldBeJson` object
           [ "as" .=
@@ -509,7 +511,8 @@ spec =
         traverse readStruct4 ds `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
       it "empty" $ do
-        (json, decoded) <- flatc $ vectorOfStructs (Just []) (Just []) (Just []) (Just [])
+        (json, decoded) <- flatc $ vectorOfStructs
+          (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
 
         json `shouldBeJson` object [ "as" .= [] @Value, "bs" .= [] @Value, "cs" .= [] @Value, "ds" .= [] @Value ]
 
@@ -588,7 +591,7 @@ spec =
         (struct1 11 22 33)
         (axe (Just 44))
         (weapon (sword (Just "a")))
-        [55, 66]
+        (vector [55, 66])
 
       json `shouldBeJson` object
         [ "a" .= String "hello"

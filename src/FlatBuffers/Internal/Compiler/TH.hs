@@ -626,22 +626,22 @@ tableFieldTypeToReadType tft =
 vectorElementTypeToWriteType :: VectorElementType -> Type
 vectorElementTypeToWriteType vet =
   case vet of
-    VInt8                 -> ListT `AppT` ConT ''Int8
-    VInt16                -> ListT `AppT` ConT ''Int16
-    VInt32                -> ListT `AppT` ConT ''Int32
-    VInt64                -> ListT `AppT` ConT ''Int64
-    VWord8                -> ListT `AppT` ConT ''Word8
-    VWord16               -> ListT `AppT` ConT ''Word16
-    VWord32               -> ListT `AppT` ConT ''Word32
-    VWord64               -> ListT `AppT` ConT ''Word64
-    VFloat                -> ListT `AppT` ConT ''Float
-    VDouble               -> ListT `AppT` ConT ''Double
-    VBool                 -> ListT `AppT` ConT ''Bool
-    VString               -> ListT `AppT` ConT ''String
-    VEnum   _ enumType _  -> ListT `AppT` enumTypeToType enumType
-    VStruct typeRef _     -> ListT `AppT` (ConT ''WriteStruct `AppT` typeRefToType typeRef)
-    VTable  typeRef       -> ListT `AppT` (ConT ''WriteTable  `AppT` typeRefToType typeRef)
-    VUnion  typeRef       -> ListT `AppT` (ConT ''WriteUnion  `AppT` typeRefToType typeRef)
+    VInt8                 -> ConT ''WriteVector `AppT` ConT ''Int8
+    VInt16                -> ConT ''WriteVector `AppT` ConT ''Int16
+    VInt32                -> ConT ''WriteVector `AppT` ConT ''Int32
+    VInt64                -> ConT ''WriteVector `AppT` ConT ''Int64
+    VWord8                -> ConT ''WriteVector `AppT` ConT ''Word8
+    VWord16               -> ConT ''WriteVector `AppT` ConT ''Word16
+    VWord32               -> ConT ''WriteVector `AppT` ConT ''Word32
+    VWord64               -> ConT ''WriteVector `AppT` ConT ''Word64
+    VFloat                -> ConT ''WriteVector `AppT` ConT ''Float
+    VDouble               -> ConT ''WriteVector `AppT` ConT ''Double
+    VBool                 -> ConT ''WriteVector `AppT` ConT ''Bool
+    VString               -> ConT ''WriteVector `AppT` ConT ''String
+    VEnum   _ enumType _  -> ConT ''WriteVector `AppT` enumTypeToType enumType
+    VStruct typeRef _     -> ConT ''WriteVector `AppT` (ConT ''WriteStruct `AppT` typeRefToType typeRef)
+    VTable  typeRef       -> ConT ''WriteVector `AppT` (ConT ''WriteTable  `AppT` typeRefToType typeRef)
+    VUnion  typeRef       -> ConT ''WriteVector `AppT` (ConT ''WriteUnion  `AppT` typeRefToType typeRef)
 
 vectorElementTypeToReadType :: VectorElementType -> Type
 vectorElementTypeToReadType vet =

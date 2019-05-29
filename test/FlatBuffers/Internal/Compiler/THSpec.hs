@@ -534,17 +534,17 @@ spec =
                 data T1
 
                 t1 ::
-                    Maybe [Word8]
-                  -> Maybe [Word16]
-                  -> Maybe [Word32]
-                  -> Maybe [Word64]
-                  -> Maybe [Int8]
-                  -> Maybe [Int16]
-                  -> Maybe [Int32]
-                  -> Maybe [Int64]
-                  -> Maybe [Float]
-                  -> Maybe [Double]
-                  -> Maybe [Bool]
+                     Maybe (WriteVector Word8)
+                  -> Maybe (WriteVector Word16)
+                  -> Maybe (WriteVector Word32)
+                  -> Maybe (WriteVector Word64)
+                  -> Maybe (WriteVector Int8)
+                  -> Maybe (WriteVector Int16)
+                  -> Maybe (WriteVector Int32)
+                  -> Maybe (WriteVector Int64)
+                  -> Maybe (WriteVector Float)
+                  -> Maybe (WriteVector Double)
+                  -> Maybe (WriteVector Bool)
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable
@@ -605,17 +605,17 @@ spec =
                 data T1
 
                 t1 ::
-                     [Word8]
-                  -> [Word16]
-                  -> [Word32]
-                  -> [Word64]
-                  -> [Int8]
-                  -> [Int16]
-                  -> [Int32]
-                  -> [Int64]
-                  -> [Float]
-                  -> [Double]
-                  -> [Bool]
+                     (WriteVector Word8)
+                  -> (WriteVector Word16)
+                  -> (WriteVector Word32)
+                  -> (WriteVector Word64)
+                  -> (WriteVector Int8)
+                  -> (WriteVector Int16)
+                  -> (WriteVector Int32)
+                  -> (WriteVector Int64)
+                  -> (WriteVector Float)
+                  -> (WriteVector Double)
+                  -> (WriteVector Bool)
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable

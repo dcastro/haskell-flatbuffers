@@ -87,8 +87,8 @@ spec =
         x <- fromRight $ decode $ encode $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
-          (Just [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66])
+          (Just (vector [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
+          (Just (vector [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
 
         toColor <$> getEnums'x x `shouldBe` Right (Just ColorGray)
         (getEnums'y x >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
@@ -198,23 +198,23 @@ spec =
 
     describe "Vectors" $ do
       let Right nonEmptyVecs = decode $ encode $ vectors
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [minBound, 0, maxBound])
-            (Just [-12e9, 0, 3.33333333333333333333])
-            (Just [-12e98, 0, 3.33333333333333333333])
-            (Just [True, False, True])
-            (Just ["hi 👬 bye", "", "world"])
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [minBound, 0, maxBound]))
+            (Just (vector [-12e9, 0, 3.33333333333333333333]))
+            (Just (vector [-12e98, 0, 3.33333333333333333333]))
+            (Just (vector [True, False, True]))
+            (Just (vector ["hi 👬 bye", "", "world"]))
 
       let Right emptyVecs = decode $ encode $ vectors
-            (Just []) (Just []) (Just []) (Just [])
-            (Just []) (Just []) (Just []) (Just [])
-            (Just []) (Just []) (Just []) (Just [])
+            (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
+            (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
+            (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
 
       let Right missingVecs = decode $ encode $ vectors
             Nothing Nothing Nothing Nothing
@@ -256,11 +256,13 @@ spec =
 
     describe "VectorOfTables" $ do
       it "non empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfTables (Just
-          [ axe (Just minBound)
-          , axe (Just 0)
-          , axe (Just maxBound)
-          ])
+        x <- fromRight $ decode $ encode $ vectorOfTables
+          (Just $ vector
+            [ axe (Just minBound)
+            , axe (Just 0)
+            , axe (Just maxBound)
+            ]
+          )
 
         Just xs <- fromRight $ getVectorOfTables'xs x
         vectorLength xs `shouldBe` Right 3
@@ -268,7 +270,7 @@ spec =
         (traverse (index xs) [0..2] >>= traverse getAxe'y) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfTables (Just [])
+        x <- fromRight $ decode $ encode $ vectorOfTables (Just (vector []))
 
         xs <- fromRightJust $ getVectorOfTables'xs x
         vectorLength xs `shouldBe` Right 0
@@ -286,10 +288,10 @@ spec =
 
       it "non empty" $ do
         x <- fromRight $ decode $ encode $ vectorOfStructs
-          (Just [struct1 1 2 3, struct1 4 5 6])
-          (Just [struct2 101, struct2 102, struct2 103])
-          (Just [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112])
-          (Just [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True])
+          (Just (vector [struct1 1 2 3, struct1 4 5 6]))
+          (Just (vector [struct2 101, struct2 102, struct2 103]))
+          (Just (vector [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
+          (Just (vector [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
 
         as <- fromRightJust $ getVectorOfStructs'as x
         bs <- fromRightJust $ getVectorOfStructs'bs x
@@ -313,7 +315,8 @@ spec =
         (traverse (index ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfStructs (Just []) (Just []) (Just []) (Just [])
+        x <- fromRight $ decode $ encode $ vectorOfStructs
+              (Just (vector [])) (Just (vector [])) (Just (vector [])) (Just (vector []))
 
         as <- fromRightJust $ getVectorOfStructs'as x
         bs <- fromRightJust $ getVectorOfStructs'bs x
@@ -352,16 +355,18 @@ spec =
           shouldBeNone _         = unexpectedUnionType
 
         x <- fromRight $ decode $ encode $ vectorOfUnions
-          (Just
+          (Just $ vector
             [ weapon (sword (Just "hi"))
             , none
             , weapon (axe (Just 98))
             ]
           )
-          [ weapon (sword (Just "hi2"))
-          , none
-          , weapon (axe (Just 100))
-          ]
+          (vector
+            [ weapon (sword (Just "hi2"))
+            , none
+            , weapon (axe (Just 100))
+            ]
+          )
 
         Just xs <- fromRight $ getVectorOfUnions'xs x
         vectorLength xs `shouldBe` Right 3
@@ -384,7 +389,7 @@ spec =
         (toList xsReq <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 100
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfUnions (Just []) [ ]
+        x <- fromRight $ decode $ encode $ vectorOfUnions (Just (vector [])) (vector [])
 
         Just xs <- fromRight $ getVectorOfUnions'xs x
         vectorLength xs `shouldBe` Right 0
@@ -395,17 +400,17 @@ spec =
         length <$> toList xsReq `shouldBe` Right 0
 
       it "missing" $ do
-        x <- fromRight $ decode $ encode $ vectorOfUnions Nothing []
+        x <- fromRight $ decode $ encode $ vectorOfUnions Nothing (vector [])
         getVectorOfUnions'xs x `shouldBeRightAnd` isNothing
         (getVectorOfUnions'xsReq x >>= vectorLength) `shouldBe` Right 0
 
       it "throws when union type vector is present, but union value vector is missing" $ do
         x <- fromRight $ decode $ encode $ writeTable @VectorOfUnions
-          [ (writeVector . inline) word8 []
+          [ (writeVector . inline) word8 (vector [])
           , W.missing
           , W.missing
           , W.missing
-          , (writeVector . inline) word8 []
+          , (writeVector . inline) word8 (vector [])
           , W.missing
           ]
         getVectorOfUnions'xs x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
@@ -457,7 +462,7 @@ spec =
         (struct1 11 22 33)
         (axe (Just 44))
         (weapon (sword (Just "a")))
-        [55, 66]
+        (vector [55, 66])
 
       getRequiredFields'a x `shouldBe` Right "hello"
       (getRequiredFields'b x >>= readStruct1) `shouldBe` Right (11, 22, 33)

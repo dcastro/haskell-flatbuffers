@@ -121,7 +121,12 @@ fromColor n =
 ----------------------------------
 data Enums
 
-enums :: Maybe Int16 -> Maybe (WriteStruct StructWithEnum) -> Maybe [Int16] -> Maybe [WriteStruct StructWithEnum] -> WriteTable Enums
+enums ::
+    Maybe Int16
+  -> Maybe (WriteStruct StructWithEnum)
+  -> Maybe (WriteVector Int16)
+  -> Maybe (WriteVector (WriteStruct StructWithEnum))
+  -> WriteTable Enums
 enums x1 x2 x3 x4 = writeTable
   [ (optionalDef 0 . inline) int16 x1
   , (optional . inline) unWriteStruct x2
@@ -366,18 +371,18 @@ getTableWithUnion'uni = readTableFieldUnion readWeapon 1
 data Vectors
 
 vectors ::
-     Maybe [Word8]
-  -> Maybe [Word16]
-  -> Maybe [Word32]
-  -> Maybe [Word64]
-  -> Maybe [Int8]
-  -> Maybe [Int16]
-  -> Maybe [Int32]
-  -> Maybe [Int64]
-  -> Maybe [Float]
-  -> Maybe [Double]
-  -> Maybe [Bool]
-  -> Maybe [Text]
+     Maybe (WriteVector Word8)
+  -> Maybe (WriteVector Word16)
+  -> Maybe (WriteVector Word32)
+  -> Maybe (WriteVector Word64)
+  -> Maybe (WriteVector Int8)
+  -> Maybe (WriteVector Int16)
+  -> Maybe (WriteVector Int32)
+  -> Maybe (WriteVector Int64)
+  -> Maybe (WriteVector Float)
+  -> Maybe (WriteVector Double)
+  -> Maybe (WriteVector Bool)
+  -> Maybe (WriteVector Text)
   -> WriteTable Vectors
 vectors a b c d e f g h i j k l =
   writeTable
@@ -425,7 +430,7 @@ getVectors'l = readTableFieldOpt (readPrimVector TextVec)    11
 ----------------------------------
 data VectorOfTables
 
-vectorOfTables :: Maybe [WriteTable Axe] -> WriteTable VectorOfTables
+vectorOfTables :: Maybe (WriteVector (WriteTable Axe)) -> WriteTable VectorOfTables
 vectorOfTables x1 = writeTable
   [ (optional . writeVector) unWriteTable x1
   ]
@@ -439,10 +444,10 @@ getVectorOfTables'xs = readTableFieldOpt readTableVector 0
 data VectorOfStructs
 
 vectorOfStructs ::
-     Maybe [WriteStruct Struct1]
-  -> Maybe [WriteStruct Struct2]
-  -> Maybe [WriteStruct Struct3]
-  -> Maybe [WriteStruct Struct4]
+     Maybe (WriteVector (WriteStruct Struct1))
+  -> Maybe (WriteVector (WriteStruct Struct2))
+  -> Maybe (WriteVector (WriteStruct Struct3))
+  -> Maybe (WriteVector (WriteStruct Struct4))
   -> WriteTable VectorOfStructs
 vectorOfStructs x1 x2 x3 x4 = writeTable
   [ (optional . writeVector . inline) unWriteStruct x1
@@ -469,7 +474,10 @@ getVectorOfStructs'ds = readTableFieldOpt (readStructVector 24) 3
 ----------------------------------
 data VectorOfUnions
 
-vectorOfUnions :: Maybe [WriteUnion Weapon] -> [WriteUnion Weapon] -> WriteTable VectorOfUnions
+vectorOfUnions ::
+     Maybe (WriteVector (WriteUnion Weapon))
+  -> WriteVector (WriteUnion Weapon)
+  -> WriteTable VectorOfUnions
 vectorOfUnions x1 x2 = writeTable
   [ x1t
   , x1v
@@ -598,7 +606,7 @@ requiredFields ::
   -> WriteStruct Struct1
   -> WriteTable Axe
   -> WriteUnion Weapon
-  -> [Int32]
+  -> WriteVector Int32
   -> WriteTable RequiredFields
 requiredFields x0 x1 x2 x3 x4 = writeTable
   [ text x0
