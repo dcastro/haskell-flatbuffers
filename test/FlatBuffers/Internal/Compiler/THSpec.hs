@@ -512,7 +512,37 @@ spec =
                   n' -> pure $! UnionUnknown n'
             |]
 
-      describe "vector fields" $
+      describe "vector fields" $ do
+        it "deprecated" $
+          [r|
+            table t1 {
+              a: [int8] (deprecated);
+              b: [u1] (deprecated);
+            }
+
+            union u1{t1}
+          |] `shouldCompileTo`
+            [d|
+              data T1
+
+              t1 :: WriteTable T1
+              t1 = writeTable [ deprecated, deprecated, deprecated ]
+
+              data U1
+                = U1T1 !(Table T1)
+
+              class WriteU1 a where
+                u1 :: WriteTable a -> WriteUnion U1
+
+              instance WriteU1 T1 where
+                u1 = writeUnion 1
+
+              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 n pos =
+                case getPositive n of
+                  1  -> Union . U1T1 <$> readTable pos
+                  n' -> pure $! UnionUnknown n'
+            |]
         describe "vector of numeric types / booolean" $ do
           it "normal" $
             [r|
