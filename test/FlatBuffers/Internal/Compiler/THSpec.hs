@@ -711,6 +711,62 @@ spec =
                 t1A = readTableFieldReq (readPrimVector TextVec) 0 "a"
               |]
 
+        describe "vector of enums" $ do
+          it "normal" $
+            [r|
+              table t1 { a: [color]; }
+              enum color : short { red }
+            |] `shouldCompileTo`
+              [d|
+                data Color = ColorRed
+                  deriving (Eq, Show, Read, Ord, Bounded)
+
+                toColor :: Int16 -> Maybe Color
+                toColor n =
+                  case n of
+                    0 -> Just ColorRed
+                    _ -> Nothing
+
+                fromColor :: Color -> Int16
+                fromColor n = case n of ColorRed -> 0
+
+                data T1
+                t1 :: Maybe (WriteVector Int16) -> WriteTable T1
+                t1 a = writeTable
+                  [ optional (writeVector (inline int16)) a
+                  ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
+                t1A = readTableFieldOpt (readPrimVector Int16Vec) 0
+              |]
+          it "required" $
+            [r|
+              table t1 { a: [color] (required); }
+              enum color : short { red }
+            |] `shouldCompileTo`
+              [d|
+                data Color = ColorRed
+                  deriving (Eq, Show, Read, Ord, Bounded)
+
+                toColor :: Int16 -> Maybe Color
+                toColor n =
+                  case n of
+                    0 -> Just ColorRed
+                    _ -> Nothing
+
+                fromColor :: Color -> Int16
+                fromColor n = case n of ColorRed -> 0
+
+                data T1
+                t1 :: WriteVector Int16 -> WriteTable T1
+                t1 a = writeTable
+                  [ writeVector (inline int16) a
+                  ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
+                t1A = readTableFieldReq (readPrimVector Int16Vec) 0 "a"
+              |]
+
 
     describe "Enums" $
       describe "naming conventions" $

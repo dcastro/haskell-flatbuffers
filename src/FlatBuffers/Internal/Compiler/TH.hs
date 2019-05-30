@@ -270,45 +270,8 @@ mkTableContructorArg tf =
       argName <- newNameFor NC.term tf
       let argPat = VarP argName
       let argRef = VarE argName
-
-      let mkExps tfType =
-            case tfType of
-              TInt8   (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int8   ) argRef ]
-              TInt16  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int16  ) argRef ]
-              TInt32  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int32  ) argRef ]
-              TInt64  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int64  ) argRef ]
-              TWord8  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word8  ) argRef ]
-              TWord16 (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word16 ) argRef ]
-              TWord32 (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word32 ) argRef ]
-              TWord64 (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word64 ) argRef ]
-              TFloat  (DefaultVal n) -> [ expForScalar (realLitE n) (VarE 'float  ) argRef ]
-              TDouble (DefaultVal n) -> [ expForScalar (realLitE n) (VarE 'double ) argRef ]
-              TBool   (DefaultVal b) -> [ expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef ]
-              TString req            -> [ requiredExp req (VarE 'text) `AppE` argRef ]
-              TEnum _ enumType dflt  -> mkExps (enumTypeToTableFieldType enumType dflt)
-              TStruct _ req          -> [ requiredExp req (VarE 'inline `AppE` VarE 'unWriteStruct) `AppE` argRef ]
-              TTable _ req           -> [ requiredExp req (VarE 'unWriteTable) `AppE` argRef ]
-              TUnion _ _             -> [ VarE 'writeUnionType `AppE` argRef
-                                        , VarE 'writeUnionValue `AppE` argRef
-                                        ]
-              TVector req vecElemType ->
-                case vecElemType of
-                  VInt8   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int8   )) `AppE` argRef ]
-                  VInt16  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int16  )) `AppE` argRef ]
-                  VInt32  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int32  )) `AppE` argRef ]
-                  VInt64  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int64  )) `AppE` argRef ]
-                  VWord8  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word8  )) `AppE` argRef ]
-                  VWord16 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word16 )) `AppE` argRef ]
-                  VWord32 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word32 )) `AppE` argRef ]
-                  VWord64 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word64 )) `AppE` argRef ]
-                  VFloat  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'float  )) `AppE` argRef ]
-                  VDouble -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'double )) `AppE` argRef ]
-                  VBool   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'bool   )) `AppE` argRef ]
-                  VString -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'text    ) `AppE` argRef ]
-                  _ -> undefined
-
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
-      let exps = mkExps (tableFieldType tf)
+      let exps = mkExps argRef (tableFieldType tf)
 
       pure ([argType], [argPat], exps, [])
 
@@ -316,6 +279,47 @@ mkTableContructorArg tf =
     expForScalar :: Exp -> Exp -> Exp -> Exp
     expForScalar defaultValExp writeExp varExp =
       VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp
+
+    mkExps :: Exp -> TableFieldType -> [Exp]
+    mkExps argRef tfType =
+        case tfType of
+          TInt8   (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int8   ) argRef ]
+          TInt16  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int16  ) argRef ]
+          TInt32  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int32  ) argRef ]
+          TInt64  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'int64  ) argRef ]
+          TWord8  (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word8  ) argRef ]
+          TWord16 (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word16 ) argRef ]
+          TWord32 (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word32 ) argRef ]
+          TWord64 (DefaultVal n) -> [ expForScalar (intLitE n)  (VarE 'word64 ) argRef ]
+          TFloat  (DefaultVal n) -> [ expForScalar (realLitE n) (VarE 'float  ) argRef ]
+          TDouble (DefaultVal n) -> [ expForScalar (realLitE n) (VarE 'double ) argRef ]
+          TBool   (DefaultVal b) -> [ expForScalar (if b then ConE 'True else ConE 'False)  (VarE 'bool   ) argRef ]
+          TString req            -> [ requiredExp req (VarE 'text) `AppE` argRef ]
+          TEnum _ enumType dflt  -> mkExps argRef (enumTypeToTableFieldType enumType dflt)
+          TStruct _ req          -> [ requiredExp req (VarE 'inline `AppE` VarE 'unWriteStruct) `AppE` argRef ]
+          TTable _ req           -> [ requiredExp req (VarE 'unWriteTable) `AppE` argRef ]
+          TUnion _ _             -> [ VarE 'writeUnionType `AppE` argRef
+                                    , VarE 'writeUnionValue `AppE` argRef
+                                    ]
+          TVector req vecElemType -> mkExpForVector argRef req vecElemType
+
+    mkExpForVector :: Exp -> Required -> VectorElementType -> [Exp]
+    mkExpForVector argRef req vecElemType =
+        case vecElemType of
+          VInt8   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int8   )) `AppE` argRef ]
+          VInt16  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int16  )) `AppE` argRef ]
+          VInt32  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int32  )) `AppE` argRef ]
+          VInt64  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int64  )) `AppE` argRef ]
+          VWord8  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word8  )) `AppE` argRef ]
+          VWord16 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word16 )) `AppE` argRef ]
+          VWord32 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word32 )) `AppE` argRef ]
+          VWord64 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word64 )) `AppE` argRef ]
+          VFloat  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'float  )) `AppE` argRef ]
+          VDouble -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'double )) `AppE` argRef ]
+          VBool   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'bool   )) `AppE` argRef ]
+          VString -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'text    ) `AppE` argRef ]
+          VEnum _ enumType _ -> mkExpForVector argRef req (enumTypeToVectorElementType enumType)
+          _ -> undefined
 
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
 mkTableFieldGetter tableName table tf =
@@ -355,22 +359,25 @@ mkTableFieldGetter tableName table tf =
             , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
             , fieldIndex
             ]
+        TVector req vecElemType -> mkFunForVector req vecElemType
 
-        TVector req vecElemType ->
-          case vecElemType of
-            VInt8   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int8Vec
-            VInt16  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int16Vec
-            VInt32  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int32Vec
-            VInt64  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int64Vec
-            VWord8  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word8Vec
-            VWord16 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word16Vec
-            VWord32 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word32Vec
-            VWord64 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word64Vec
-            VFloat  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'FloatVec
-            VDouble -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'DoubleVec
-            VBool   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'BoolVec
-            VString -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'TextVec
-            _ -> undefined
+    mkFunForVector :: Required -> VectorElementType -> Dec
+    mkFunForVector req vecElemType =
+      case vecElemType of
+        VInt8   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int8Vec
+        VInt16  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int16Vec
+        VInt32  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int32Vec
+        VInt64  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int64Vec
+        VWord8  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word8Vec
+        VWord16 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word16Vec
+        VWord32 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word32Vec
+        VWord64 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word64Vec
+        VFloat  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'FloatVec
+        VDouble -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'DoubleVec
+        VBool   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'BoolVec
+        VString -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'TextVec
+        VEnum _ enumType _ -> mkFunForVector req (enumTypeToVectorElementType enumType)
+        _ -> undefined
 
     mkFunWithBody :: Exp -> Dec
     mkFunWithBody body = FunD funName [ Clause [] (NormalB body) [] ]
@@ -546,6 +553,18 @@ enumTypeToStructFieldType et =
     EWord16 -> SWord16
     EWord32 -> SWord32
     EWord64 -> SWord64
+
+enumTypeToVectorElementType :: EnumType -> VectorElementType
+enumTypeToVectorElementType et =
+  case et of
+    EInt8   -> VInt8
+    EInt16  -> VInt16
+    EInt32  -> VInt32
+    EInt64  -> VInt64
+    EWord8  -> VWord8
+    EWord16 -> VWord16
+    EWord32 -> VWord32
+    EWord64 -> VWord64
 
 structFieldTypeToWriteType :: StructFieldType -> Type
 structFieldTypeToWriteType sft =
