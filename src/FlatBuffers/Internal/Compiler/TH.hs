@@ -320,6 +320,7 @@ mkTableContructorArg tf =
           VString          -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'text    ) `AppE` argRef ]
           VEnum _ enumType -> mkExpForVector argRef req (enumTypeToVectorElementType enumType)
           VStruct _ _      -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'unWriteStruct )) `AppE` argRef ]
+          VTable _         -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'unWriteTable   ) `AppE` argRef ]
           _ -> undefined
 
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
@@ -379,6 +380,7 @@ mkTableFieldGetter tableName table tf =
         VString              -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'TextVec
         VEnum _ enumType     -> mkFunForVector req (enumTypeToVectorElementType enumType)
         VStruct _ structSize -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readStructVector `AppE` intLitE structSize
+        VTable _             -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readTableVector
         _ -> undefined
 
     mkFunWithBody :: Exp -> Dec

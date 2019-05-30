@@ -814,6 +814,36 @@ spec =
                 t1A = readTableFieldReq (readStructVector 8) 0 "a"
               |]
 
+        describe "vector of tables" $ do
+          it "normal" $
+            [r|
+              table t1 { a: [t1]; }
+            |] `shouldCompileTo`
+              [d|
+                data T1
+                t1 :: Maybe (WriteVector (WriteTable T1)) -> WriteTable T1
+                t1 a = writeTable
+                  [ optional (writeVector unWriteTable) a
+                  ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Table T1)))
+                t1A = readTableFieldOpt readTableVector 0
+              |]
+          it "required" $
+            [r|
+              table t1 { a: [t1] (required); }
+            |] `shouldCompileTo`
+              [d|
+                data T1
+                t1 :: WriteVector (WriteTable T1) -> WriteTable T1
+                t1 a = writeTable
+                  [ writeVector unWriteTable a
+                  ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector (Table T1))
+                t1A = readTableFieldReq readTableVector 0 "a"
+              |]
+
 
     describe "Enums" $
       describe "naming conventions" $
