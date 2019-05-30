@@ -141,7 +141,7 @@ data VectorElementType
   | VDouble
   | VBool
   | VString
-  | VEnum   !TypeRef !EnumType !Word8
+  | VEnum   !TypeRef !EnumType
   | VStruct !TypeRef !InlineSize
   | VTable  !TypeRef
   | VUnion  !TypeRef

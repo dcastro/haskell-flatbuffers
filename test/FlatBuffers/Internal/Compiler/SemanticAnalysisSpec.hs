@@ -846,7 +846,7 @@ spec =
             union  U { T }
           |] `shouldValidate` foldDecls
             [ table ("A", TableDecl "Table" NotRoot
-                [ TableField 0 "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") EInt16 2)) False
+                [ TableField 0 "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") EInt16)) False
                 , TableField 1 "x" (TVector Opt (VStruct (TypeRef "A.B" "S") 16)) False
                 , TableField 2 "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
                 , TableField 4 "z" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False

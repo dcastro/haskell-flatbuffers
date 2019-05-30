@@ -492,7 +492,6 @@ validateTable symbolTables (currentNamespace, table) =
                   MatchE (ns, enum) ->
                     VEnum (TypeRef ns (getIdent enum))
                           (enumType enum)
-                          (enumSize $ enumType enum)
                   MatchS (ns, struct) ->
                     VStruct (TypeRef ns (getIdent struct))
                             (structSize struct)
