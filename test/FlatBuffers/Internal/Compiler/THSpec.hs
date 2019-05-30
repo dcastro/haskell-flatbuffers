@@ -767,6 +767,53 @@ spec =
                 t1A = readTableFieldReq (readPrimVector Int16Vec) 0 "a"
               |]
 
+        describe "vector of structs" $ do
+          it "normal" $
+            [r|
+              table t1 { a: [s1]; }
+              struct s1 (force_align: 8) { a: ubyte; }
+            |] `shouldCompileTo`
+              [d|
+                data S1
+                s1 :: Word8 -> WriteStruct S1
+                s1 a = writeStruct 8 (padded 7 (word8 a) :| [])
+
+                s1A :: forall m. ReadCtx m => Struct S1 -> m Word8
+                s1A = readStructField readWord8 0
+
+                data T1
+                t1 :: Maybe (WriteVector (WriteStruct S1)) -> WriteTable T1
+                t1 a = writeTable
+                  [ optional (writeVector (inline unWriteStruct)) a
+                  ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Struct S1)))
+                t1A = readTableFieldOpt (readStructVector 8) 0
+              |]
+
+          it "required" $
+            [r|
+              table t1 { a: [s1] (required); }
+              struct s1 (force_align: 8) { a: ubyte; }
+            |] `shouldCompileTo`
+              [d|
+                data S1
+                s1 :: Word8 -> WriteStruct S1
+                s1 a = writeStruct 8 (padded 7 (word8 a) :| [])
+
+                s1A :: forall m. ReadCtx m => Struct S1 -> m Word8
+                s1A = readStructField readWord8 0
+
+                data T1
+                t1 :: WriteVector (WriteStruct S1) -> WriteTable T1
+                t1 a = writeTable
+                  [ writeVector (inline unWriteStruct) a
+                  ]
+
+                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector (Struct S1))
+                t1A = readTableFieldReq (readStructVector 8) 0 "a"
+              |]
+
 
     describe "Enums" $
       describe "naming conventions" $

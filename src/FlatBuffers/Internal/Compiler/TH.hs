@@ -306,19 +306,20 @@ mkTableContructorArg tf =
     mkExpForVector :: Exp -> Required -> VectorElementType -> [Exp]
     mkExpForVector argRef req vecElemType =
         case vecElemType of
-          VInt8   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int8   )) `AppE` argRef ]
-          VInt16  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int16  )) `AppE` argRef ]
-          VInt32  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int32  )) `AppE` argRef ]
-          VInt64  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int64  )) `AppE` argRef ]
-          VWord8  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word8  )) `AppE` argRef ]
-          VWord16 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word16 )) `AppE` argRef ]
-          VWord32 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word32 )) `AppE` argRef ]
-          VWord64 -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word64 )) `AppE` argRef ]
-          VFloat  -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'float  )) `AppE` argRef ]
-          VDouble -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'double )) `AppE` argRef ]
-          VBool   -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'bool   )) `AppE` argRef ]
-          VString -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'text    ) `AppE` argRef ]
+          VInt8            -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int8   )) `AppE` argRef ]
+          VInt16           -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int16  )) `AppE` argRef ]
+          VInt32           -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int32  )) `AppE` argRef ]
+          VInt64           -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int64  )) `AppE` argRef ]
+          VWord8           -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word8  )) `AppE` argRef ]
+          VWord16          -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word16 )) `AppE` argRef ]
+          VWord32          -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word32 )) `AppE` argRef ]
+          VWord64          -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'word64 )) `AppE` argRef ]
+          VFloat           -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'float  )) `AppE` argRef ]
+          VDouble          -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'double )) `AppE` argRef ]
+          VBool            -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'bool   )) `AppE` argRef ]
+          VString          -> [ requiredExp req (VarE 'writeVector `AppE`                      VarE 'text    ) `AppE` argRef ]
           VEnum _ enumType -> mkExpForVector argRef req (enumTypeToVectorElementType enumType)
+          VStruct _ _      -> [ requiredExp req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'unWriteStruct )) `AppE` argRef ]
           _ -> undefined
 
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
@@ -364,19 +365,20 @@ mkTableFieldGetter tableName table tf =
     mkFunForVector :: Required -> VectorElementType -> Dec
     mkFunForVector req vecElemType =
       case vecElemType of
-        VInt8   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int8Vec
-        VInt16  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int16Vec
-        VInt32  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int32Vec
-        VInt64  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int64Vec
-        VWord8  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word8Vec
-        VWord16 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word16Vec
-        VWord32 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word32Vec
-        VWord64 -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word64Vec
-        VFloat  -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'FloatVec
-        VDouble -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'DoubleVec
-        VBool   -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'BoolVec
-        VString -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'TextVec
-        VEnum _ enumType -> mkFunForVector req (enumTypeToVectorElementType enumType)
+        VInt8                -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int8Vec
+        VInt16               -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int16Vec
+        VInt32               -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int32Vec
+        VInt64               -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Int64Vec
+        VWord8               -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word8Vec
+        VWord16              -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word16Vec
+        VWord32              -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word32Vec
+        VWord64              -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'Word64Vec
+        VFloat               -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'FloatVec
+        VDouble              -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'DoubleVec
+        VBool                -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'BoolVec
+        VString              -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'TextVec
+        VEnum _ enumType     -> mkFunForVector req (enumTypeToVectorElementType enumType)
+        VStruct _ structSize -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readStructVector `AppE` intLitE structSize
         _ -> undefined
 
     mkFunWithBody :: Exp -> Dec
