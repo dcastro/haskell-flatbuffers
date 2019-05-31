@@ -271,22 +271,23 @@ mkTableContructorArg tf =
       let argPat = VarP argName
       let argRef = VarE argName
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
-      let (exps, whereDecs) = mkExps argRef (tableFieldType tf)
+      (exps, whereDecs) <- mkExps argRef (tableFieldType tf)
 
       pure ([argType], [argPat], exps, whereDecs)
 
   where
-    expForScalar :: Exp -> Exp -> Exp -> ([Exp], [Dec])
+    expForScalar :: Exp -> Exp -> Exp -> Q ([Exp], [Dec])
     expForScalar defaultValExp writeExp varExp =
-      ( [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp ]
-      , []
-      )
+      pure
+        ( [ VarE 'optionalDef `AppE` defaultValExp `AppE` (VarE 'inline `AppE` writeExp) `AppE` varExp ]
+        , []
+        )
 
-    expForNonScalar :: Required -> Exp -> Exp -> ([Exp], [Dec])
-    expForNonScalar Req exp argRef = ([ exp `AppE` argRef ], [])
-    expForNonScalar Opt exp argRef = ([ VarE 'optional `AppE` exp `AppE` argRef ], [])
+    expForNonScalar :: Required -> Exp -> Exp -> Q ([Exp], [Dec])
+    expForNonScalar Req exp argRef = pure ([ exp `AppE` argRef ], [])
+    expForNonScalar Opt exp argRef = pure ([ VarE 'optional `AppE` exp `AppE` argRef ], [])
 
-    mkExps :: Exp -> TableFieldType -> ([Exp], [Dec])
+    mkExps :: Exp -> TableFieldType -> Q ([Exp], [Dec])
     mkExps argRef tfType =
         case tfType of
           TInt8   (DefaultVal n) -> expForScalar (intLitE n)  (VarE 'int8   ) argRef
@@ -304,14 +305,16 @@ mkTableContructorArg tf =
           TEnum _ enumType dflt  -> mkExps argRef (enumTypeToTableFieldType enumType dflt)
           TStruct _ req          -> expForNonScalar req (VarE 'inline `AppE` VarE 'unWriteStruct) argRef
           TTable _ req           -> expForNonScalar req (VarE 'unWriteTable) argRef
-          TUnion _ _             -> ( [ VarE 'writeUnionType `AppE` argRef
-                                      , VarE 'writeUnionValue `AppE` argRef
-                                      ]
-                                    , []
-                                    )
+          TUnion _ _             ->
+            pure
+              ( [ VarE 'writeUnionType `AppE` argRef
+                , VarE 'writeUnionValue `AppE` argRef
+                ]
+              , []
+              )
           TVector req vecElemType -> mkExpForVector argRef req vecElemType
 
-    mkExpForVector :: Exp -> Required -> VectorElementType -> ([Exp], [Dec])
+    mkExpForVector :: Exp -> Required -> VectorElementType -> Q ([Exp], [Dec])
     mkExpForVector argRef req vecElemType =
         case vecElemType of
           VInt8            -> expForNonScalar req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'int8   )) argRef
