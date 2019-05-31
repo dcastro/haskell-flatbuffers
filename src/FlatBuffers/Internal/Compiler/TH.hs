@@ -332,7 +332,21 @@ mkTableContructorArg tf =
           VEnum _ enumType -> mkExpForVector argRef req (enumTypeToVectorElementType enumType)
           VStruct _ _      -> expForNonScalar req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'unWriteStruct )) argRef
           VTable _         -> expForNonScalar req (VarE 'writeVector `AppE`                      VarE 'unWriteTable   ) argRef
-          _ -> undefined
+          VUnion _         -> do
+            unionVecTypesName  <- newName . T.unpack . (<> "Types") . NC.term . unIdent . getIdent $ tf
+            unionVecValuesName <- newName . T.unpack . (<> "Values") . NC.term . unIdent . getIdent $ tf
+            let whereBinding =
+                  ValD
+                    (TupP [VarP unionVecTypesName, VarP unionVecValuesName])
+                    ( case req of
+                        Opt -> NormalB $ VarE 'writeUnionVectorOpt `AppE` argRef
+                        Req -> NormalB $ VarE 'writeUnionVectorReq `AppE` argRef
+                    )
+                    []
+            pure
+              ( [VarE unionVecTypesName, VarE unionVecValuesName]
+              , [whereBinding]
+              )
 
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
 mkTableFieldGetter tableName table tf =
@@ -392,7 +406,21 @@ mkTableFieldGetter tableName table tf =
         VEnum _ enumType     -> mkFunForVector req (enumTypeToVectorElementType enumType)
         VStruct _ structSize -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readStructVector `AppE` intLitE structSize
         VTable _             -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readTableVector
-        _ -> undefined
+        VUnion (TypeRef ns ident) ->
+          mkFunWithBody $
+            case req of
+              Opt -> app
+                [ VarE 'readTableFieldUnionVectorOpt
+                , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
+                , fieldIndex
+                ]
+              Req -> app
+                [ VarE 'readTableFieldUnionVectorReq
+                , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
+                , fieldIndex
+                , LitE (StringL (T.unpack . unIdent . getIdent $ tf))
+                ]
+
 
     mkFunWithBody :: Exp -> Dec
     mkFunWithBody body = FunD funName [ Clause [] (NormalB body) [] ]

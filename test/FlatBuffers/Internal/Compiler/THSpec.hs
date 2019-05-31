@@ -844,6 +844,74 @@ spec =
                 t1A = readTableFieldReq readTableVector 0 "a"
               |]
 
+        describe "vector of unions" $ do
+          it "normal" $
+            [r|
+              table t1 {x: [u1];}
+              union u1{t1}
+            |] `shouldCompileTo`
+              [d|
+                data T1
+                t1 :: Maybe (WriteVector (WriteUnion U1)) -> WriteTable T1
+                t1 x = writeTable
+                  [ xTypes
+                  , xValues
+                  ]
+                  where
+                    (xTypes, xValues) = writeUnionVectorOpt x
+
+                t1X :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Union U1)))
+                t1X = readTableFieldUnionVectorOpt readU1 1
+
+                data U1
+                  = U1T1 !(Table T1)
+
+                class WriteU1 a where
+                  u1 :: WriteTable a -> WriteUnion U1
+
+                instance WriteU1 T1 where
+                  u1 = writeUnion 1
+
+                readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+                readU1 n pos =
+                  case getPositive n of
+                    1  -> Union . U1T1 <$> readTable pos
+                    n' -> pure $! UnionUnknown n'
+              |]
+
+          it "required" $
+            [r|
+              table t1 {x: [u1] (required);}
+              union u1{t1}
+            |] `shouldCompileTo`
+              [d|
+                data T1
+                t1 :: WriteVector (WriteUnion U1) -> WriteTable T1
+                t1 x = writeTable
+                  [ xTypes
+                  , xValues
+                  ]
+                  where
+                    (xTypes, xValues) = writeUnionVectorReq x
+
+                t1X :: forall m. ReadCtx m => Table T1 -> m (Vector (Union U1))
+                t1X = readTableFieldUnionVectorReq readU1 1 "x"
+
+                data U1
+                  = U1T1 !(Table T1)
+
+                class WriteU1 a where
+                  u1 :: WriteTable a -> WriteUnion U1
+
+                instance WriteU1 T1 where
+                  u1 = writeUnion 1
+
+                readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+                readU1 n pos =
+                  case getPositive n of
+                    1  -> Union . U1T1 <$> readTable pos
+                    n' -> pure $! UnionUnknown n'
+              |]
 
     describe "Enums" $
       describe "naming conventions" $
@@ -1131,6 +1199,7 @@ normalizePat p =
   case p of
     VarP n -> VarP (normalizeName n)
     ConP n pats -> ConP (normalizeName n) (normalizePat <$> pats)
+    TupP pats -> TupP (normalizePat <$> pats)
     _ -> p
 
 normalizeBody :: Body -> Body
