@@ -291,12 +291,14 @@ spec =
                   1 -> Just ColorRed
                   2 -> Just ColorBlue
                   _ -> Nothing
+              {-# INLINE toColor #-}
 
               fromColor :: Color -> Int8
               fromColor n =
                 case n of
                   ColorRed -> 1
                   ColorBlue -> 2
+              {-# INLINE fromColor #-}
 
               data T
 
@@ -726,9 +728,11 @@ spec =
                   case n of
                     0 -> Just ColorRed
                     _ -> Nothing
+                {-# INLINE toColor #-}
 
                 fromColor :: Color -> Int16
                 fromColor n = case n of ColorRed -> 0
+                {-# INLINE fromColor #-}
 
                 data T1
                 t1 :: Maybe (WriteVector Int16) -> WriteTable T1
@@ -753,9 +757,11 @@ spec =
                   case n of
                     0 -> Just ColorRed
                     _ -> Nothing
+                {-# INLINE toColor #-}
 
                 fromColor :: Color -> Int16
                 fromColor n = case n of ColorRed -> 0
+                {-# INLINE fromColor #-}
 
                 data T1
                 t1 :: WriteVector Int16 -> WriteTable T1
@@ -930,6 +936,7 @@ spec =
                   -1 -> Just ColorGreen
                   3 -> Just ColorBLUE
                   _ -> Nothing
+              {-# INLINE toColor #-}
 
               fromColor :: Color -> Int16
               fromColor n =
@@ -937,6 +944,7 @@ spec =
                   ColorRed -> -2
                   ColorGreen -> -1
                   ColorBLUE -> 3
+              {-# INLINE fromColor #-}
             |]
 
     describe "Structs" $ do
@@ -1037,9 +1045,11 @@ spec =
             toE n = case n of
               0 -> Just EX
               _ -> Nothing
+            {-# INLINE toE #-}
 
             fromE :: E -> Int8
             fromE n = case n of EX -> 0
+            {-# INLINE fromE #-}
 
             data S
             s :: Int8 -> WriteStruct S
@@ -1147,6 +1157,7 @@ normalizeDec dec = valToFun $
     SigD n t -> SigD (normalizeName n) (normalizeType t)
     FunD n clauses -> FunD (normalizeName n) (normalizeClause <$> clauses)
     ValD pat body decs -> ValD (normalizePat pat) (normalizeBody body) (normalizeDec <$> decs)
+    PragmaD p -> PragmaD (normalizePragma p)
     ClassD cxt n tvs funDeps decs ->
       ClassD
         (normalizeType <$> cxt)
@@ -1169,6 +1180,12 @@ valToFun dec =
   case dec of
     ValD (VarP name) body decs -> FunD name [Clause [] body decs]
     _ -> dec
+
+normalizePragma :: Pragma -> Pragma
+normalizePragma p =
+  case p of
+    InlineP n i rm p -> InlineP (normalizeName n) i rm p
+    _ -> p
 
 normalizeCon :: Con -> Con
 normalizeCon c =

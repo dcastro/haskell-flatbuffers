@@ -78,6 +78,7 @@ mkToEnum enumName enum enumValsAndNames = do
         (NormalB (CaseE (VarE argName) matches))
         []
       ]
+    , PragmaD $ InlineP funName Inline FunLike AllPhases
     ]
   where
     matches =
@@ -107,6 +108,7 @@ mkFromEnum enumName enum enumValsAndNames = do
         (NormalB (CaseE (VarE argName) (mkMatch <$> NE.toList enumValsAndNames)))
         []
       ]
+    , PragmaD $ InlineP funName Inline FunLike AllPhases
     ]
   where
     mkMatch (enumVal, enumName) =
