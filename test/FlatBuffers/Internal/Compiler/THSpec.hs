@@ -14,6 +14,7 @@ import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
 import           Data.Word
 
+import           FlatBuffers.FileIdentifier                     ( HasFileIdentifier(..), unsafeFileIdentifier )
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( SymbolTable(..), validateSchemas )
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), HasIdent(..), Ident(..), Namespace(..) )
@@ -41,6 +42,21 @@ spec :: Spec
 spec =
   describe "TH" $ do
     describe "Tables" $ do
+      it "with file identifier" $
+        [r|
+          table t {}
+          root_type t;
+          file_identifier "ABCD";
+        |] `shouldCompileTo`
+          [d|
+            data T
+            t :: WriteTable T
+            t = writeTable []
+
+            instance HasFileIdentifier T where
+              getFileIdentifier = unsafeFileIdentifier "ABCD"
+          |]
+
       describe "naming coventions" $ do
         it "table datatype name is uppercased" $
           [r| table t {}|] `shouldCompileTo`

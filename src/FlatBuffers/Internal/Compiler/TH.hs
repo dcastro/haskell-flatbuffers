@@ -13,6 +13,7 @@ import           Data.Text                                       ( Text )
 import qualified Data.Text                                       as T
 import           Data.Word
 
+import           FlatBuffers.FileIdentifier                      ( HasFileIdentifier(..), unsafeFileIdentifier )
 import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
 import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
@@ -237,13 +238,35 @@ mkTable (_, table) = do
   tableName <- newNameFor NC.dataTypeName table
   (consSig, cons) <- mkTableConstructor tableName table
 
+  let fileIdentifierDec = mkTableFileIdentifier tableName (tableIsRoot table)
   let getters = foldMap (mkTableFieldGetter tableName table) (tableFields table)
 
   pure $
     [ DataD [] tableName [] Nothing [] []
     , consSig
     , cons
-    ] <> getters
+    ] <> fileIdentifierDec
+    <> getters
+
+mkTableFileIdentifier :: Name -> IsRoot -> [Dec]
+mkTableFileIdentifier tableName isRoot =
+  case isRoot of
+    NotRoot -> []
+    IsRoot Nothing -> []
+    IsRoot (Just fileIdentifier) ->
+      [ InstanceD
+          Nothing
+          []
+          (ConT ''HasFileIdentifier `AppT` ConT tableName)
+          [ FunD 'getFileIdentifier
+            [ Clause
+              []
+              (NormalB $ VarE 'unsafeFileIdentifier `AppE` LitE (StringL (T.unpack fileIdentifier)))
+              []
+            ]
+
+          ]
+      ]
 
 mkTableConstructor :: Name -> TableDecl -> Q (Dec, Dec)
 mkTableConstructor tableName table = do
