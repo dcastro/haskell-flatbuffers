@@ -59,30 +59,30 @@ primitives a b c d e f g h i j k l =
     , optional text                     l
     ]
 
-getPrimitives'a :: ReadCtx m => Table Primitives -> m Word8
-getPrimitives'b :: ReadCtx m => Table Primitives -> m Word16
-getPrimitives'c :: ReadCtx m => Table Primitives -> m Word32
-getPrimitives'd :: ReadCtx m => Table Primitives -> m Word64
-getPrimitives'e :: ReadCtx m => Table Primitives -> m Int8
-getPrimitives'f :: ReadCtx m => Table Primitives -> m Int16
-getPrimitives'g :: ReadCtx m => Table Primitives -> m Int32
-getPrimitives'h :: ReadCtx m => Table Primitives -> m Int64
-getPrimitives'i :: ReadCtx m => Table Primitives -> m Float
-getPrimitives'j :: ReadCtx m => Table Primitives -> m Double
-getPrimitives'k :: ReadCtx m => Table Primitives -> m Bool
-getPrimitives'l :: ReadCtx m => Table Primitives -> m (Maybe Text)
-getPrimitives'a = readTableFieldWithDef readWord8   0 0
-getPrimitives'b = readTableFieldWithDef readWord16  1 0
-getPrimitives'c = readTableFieldWithDef readWord32  2 0
-getPrimitives'd = readTableFieldWithDef readWord64  3 0
-getPrimitives'e = readTableFieldWithDef readInt8    4 0
-getPrimitives'f = readTableFieldWithDef readInt16   5 0
-getPrimitives'g = readTableFieldWithDef readInt32   6 0
-getPrimitives'h = readTableFieldWithDef readInt64   7 0
-getPrimitives'i = readTableFieldWithDef readFloat   8 0
-getPrimitives'j = readTableFieldWithDef readDouble  9 0
-getPrimitives'k = readTableFieldWithDef readBool    10 False
-getPrimitives'l = readTableFieldOpt     readText    11
+primitivesA :: ReadCtx m => Table Primitives -> m Word8
+primitivesB :: ReadCtx m => Table Primitives -> m Word16
+primitivesC :: ReadCtx m => Table Primitives -> m Word32
+primitivesD :: ReadCtx m => Table Primitives -> m Word64
+primitivesE :: ReadCtx m => Table Primitives -> m Int8
+primitivesF :: ReadCtx m => Table Primitives -> m Int16
+primitivesG :: ReadCtx m => Table Primitives -> m Int32
+primitivesH :: ReadCtx m => Table Primitives -> m Int64
+primitivesI :: ReadCtx m => Table Primitives -> m Float
+primitivesJ :: ReadCtx m => Table Primitives -> m Double
+primitivesK :: ReadCtx m => Table Primitives -> m Bool
+primitivesL :: ReadCtx m => Table Primitives -> m (Maybe Text)
+primitivesA = readTableFieldWithDef readWord8   0 0
+primitivesB = readTableFieldWithDef readWord16  1 0
+primitivesC = readTableFieldWithDef readWord32  2 0
+primitivesD = readTableFieldWithDef readWord64  3 0
+primitivesE = readTableFieldWithDef readInt8    4 0
+primitivesF = readTableFieldWithDef readInt16   5 0
+primitivesG = readTableFieldWithDef readInt32   6 0
+primitivesH = readTableFieldWithDef readInt64   7 0
+primitivesI = readTableFieldWithDef readFloat   8 0
+primitivesJ = readTableFieldWithDef readDouble  9 0
+primitivesK = readTableFieldWithDef readBool    10 False
+primitivesL = readTableFieldOpt     readText    11
 
 ----------------------------------
 ------------- Color --------------
@@ -127,44 +127,44 @@ enums ::
   -> Maybe (WriteVector Int16)
   -> Maybe (WriteVector (WriteStruct StructWithEnum))
   -> WriteTable Enums
-enums x1 x2 x3 x4 = writeTable
-  [ (optionalDef 0 . inline) int16 x1
-  , (optional . inline) unWriteStruct x2
-  , (optional . writeVector . inline) int16 x3
-  , (optional . writeVector . inline) unWriteStruct x4
+enums x y xs ys = writeTable
+  [ (optionalDef 0 . inline) int16 x
+  , (optional . inline) unWriteStruct y
+  , (optional . writeVector . inline) int16 xs
+  , (optional . writeVector . inline) unWriteStruct ys
   ]
 
-getEnums'x :: ReadCtx m => Table Enums -> m Int16
-getEnums'x = readTableFieldWithDef readInt16 0 0
+enumsX :: ReadCtx m => Table Enums -> m Int16
+enumsX = readTableFieldWithDef readInt16 0 0
 
-getEnums'y :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
-getEnums'y = readTableFieldOpt readStruct' 1
+enumsY :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
+enumsY = readTableFieldOpt readStruct' 1
 
-getEnums'xs :: ReadCtx m => Table Enums -> m (Maybe (Vector Int16))
-getEnums'xs = readTableFieldOpt (readPrimVector Int16Vec) 2
+enumsXs :: ReadCtx m => Table Enums -> m (Maybe (Vector Int16))
+enumsXs = readTableFieldOpt (readPrimVector Int16Vec) 2
 
-getEnums'ys :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
-getEnums'ys = readTableFieldOpt (readStructVector 6) 3
+enumsYs :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
+enumsYs = readTableFieldOpt (readStructVector 6) 3
 
 
 
 data StructWithEnum
 
 structWithEnum :: Int8 -> Int16 -> Int8 -> WriteStruct StructWithEnum
-structWithEnum x1 x2 x3 = writeStruct 2
-  [ padded 1 (int8 x3)
-  , int16 x2
-  , padded 1 (int8 x1)
+structWithEnum x y z = writeStruct 2
+  [ padded 1 (int8 z)
+  , int16 y
+  , padded 1 (int8 x)
   ]
 
-getStructWithEnum'x :: ReadCtx m => Struct StructWithEnum -> m Int8
-getStructWithEnum'x = readStructField readInt8 0
+structWithEnumX :: ReadCtx m => Struct StructWithEnum -> m Int8
+structWithEnumX = readStructField readInt8 0
 
-getStructWithEnum'y :: ReadCtx m => Struct StructWithEnum -> m Int16
-getStructWithEnum'y = readStructField readInt16 2
+structWithEnumY :: ReadCtx m => Struct StructWithEnum -> m Int16
+structWithEnumY = readStructField readInt16 2
 
-getStructWithEnum'z :: ReadCtx m => Struct StructWithEnum -> m Int8
-getStructWithEnum'z = readStructField readInt8 4
+structWithEnumZ :: ReadCtx m => Struct StructWithEnum -> m Int8
+structWithEnumZ = readStructField readInt8 4
 
 ----------------------------------
 ------------- Structs ------------
@@ -172,74 +172,74 @@ getStructWithEnum'z = readStructField readInt8 4
 data Struct1
 
 struct1 :: Word8 -> Int8 -> Int8 -> WriteStruct Struct1
-struct1 a b c =
+struct1 x y z =
   writeStruct 1
-    [ int8 c
-    , int8 b
-    , word8 a
+    [ int8 z
+    , int8 y
+    , word8 x
     ]
 
-getStruct1'x :: ReadCtx m => Struct Struct1 -> m Word8
-getStruct1'x = readStructField readWord8 0
+struct1X :: ReadCtx m => Struct Struct1 -> m Word8
+struct1X = readStructField readWord8 0
 
-getStruct1'y :: ReadCtx m => Struct Struct1 -> m Int8
-getStruct1'y = readStructField readInt8 1
+struct1Y :: ReadCtx m => Struct Struct1 -> m Int8
+struct1Y = readStructField readInt8 1
 
-getStruct1'z :: ReadCtx m => Struct Struct1 -> m Int8
-getStruct1'z = readStructField readInt8 2
+struct1Z :: ReadCtx m => Struct Struct1 -> m Int8
+struct1Z = readStructField readInt8 2
 
 
 data Struct2
 
 struct2 :: Int16 -> WriteStruct Struct2
-struct2 a = writeStruct 4
-  [ padded 2 (int16 a)
+struct2 x = writeStruct 4
+  [ padded 2 (int16 x)
   ]
 
-getStruct2'x :: ReadCtx m => Struct Struct2 -> m Int16
-getStruct2'x = readStructField readInt16 0
+struct2X :: ReadCtx m => Struct Struct2 -> m Int16
+struct2X = readStructField readInt16 0
 
 
 data Struct3
 
 struct3 :: WriteStruct Struct2 -> Word64 -> Word8 -> WriteStruct Struct3
-struct3 a b c = writeStruct 8
-  [ padded 7 (word8 c)
-  , word64 b
-  , padded 4 (unWriteStruct a)
+struct3 x y z = writeStruct 8
+  [ padded 7 (word8 z)
+  , word64 y
+  , padded 4 (unWriteStruct x)
   ]
 
-getStruct3'x :: Struct Struct3 -> Struct Struct2
-getStruct3'x = readStructField readStruct 0
+struct3X :: Struct Struct3 -> Struct Struct2
+struct3X = readStructField readStruct 0
 
-getStruct3'y :: ReadCtx m => Struct Struct3 -> m Word64
-getStruct3'y = readStructField readWord64 8
+struct3Y :: ReadCtx m => Struct Struct3 -> m Word64
+struct3Y = readStructField readWord64 8
 
-getStruct3'z :: ReadCtx m => Struct Struct3 -> m Word8
-getStruct3'z = readStructField readWord8 16
+struct3Z :: ReadCtx m => Struct Struct3 -> m Word8
+struct3Z = readStructField readWord8 16
 
 
 data Struct4
 
 struct4 :: WriteStruct Struct2 -> Int8 -> Int64 -> Bool -> WriteStruct Struct4
-struct4 a b c d = writeStruct 8
-  [ padded 7 (bool d)
-  , int64 c
-  , padded 3 (int8 b)
-  , unWriteStruct a
+struct4 w x y z = writeStruct 8
+  [ padded 7 (bool z)
+  , int64 y
+  , padded 3 (int8 x)
+  , unWriteStruct w
   ]
 
-getStruct4'w :: Struct Struct4 -> Struct Struct2
-getStruct4'w = readStructField readStruct 0
+struct4W :: Struct Struct4 -> Struct Struct2
+struct4W = readStructField readStruct 0
 
-getStruct4'x :: ReadCtx m => Struct Struct4 -> m Int8
-getStruct4'x = readStructField readInt8 4
+struct4X :: ReadCtx m => Struct Struct4 -> m Int8
+struct4X = readStructField readInt8 4
 
-getStruct4'y :: ReadCtx m => Struct Struct4 -> m Int64
-getStruct4'y = readStructField readInt64 8
+struct4Y :: ReadCtx m => Struct Struct4 -> m Int64
+struct4Y = readStructField readInt64 8
 
-getStruct4'z :: ReadCtx m => Struct Struct4 -> m Bool
-getStruct4'z = readStructField readBool 16
+struct4Z :: ReadCtx m => Struct Struct4 -> m Bool
+struct4Z = readStructField readBool 16
 
 
 data Structs
@@ -250,24 +250,24 @@ structs ::
   -> Maybe (WriteStruct Struct3)
   -> Maybe (WriteStruct Struct4)
   -> WriteTable Structs
-structs x1 x2 x3 x4 = writeTable
-  [ (optional . inline) unWriteStruct x1
-  , (optional . inline) unWriteStruct x2
-  , (optional . inline) unWriteStruct x3
-  , (optional . inline) unWriteStruct x4
+structs a b c d = writeTable
+  [ (optional . inline) unWriteStruct a
+  , (optional . inline) unWriteStruct b
+  , (optional . inline) unWriteStruct c
+  , (optional . inline) unWriteStruct d
   ]
 
-getStructs'a :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct1))
-getStructs'a = readTableFieldOpt readStruct' 0
+structsA :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct1))
+structsA = readTableFieldOpt readStruct' 0
 
-getStructs'b :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct2))
-getStructs'b = readTableFieldOpt readStruct' 1
+structsB :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct2))
+structsB = readTableFieldOpt readStruct' 1
 
-getStructs'c :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct3))
-getStructs'c = readTableFieldOpt readStruct' 2
+structsC :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct3))
+structsC = readTableFieldOpt readStruct' 2
 
-getStructs'd :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct4))
-getStructs'd = readTableFieldOpt readStruct' 3
+structsD :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct4))
+structsD = readTableFieldOpt readStruct' 3
 
 
 ----------------------------------
@@ -276,36 +276,36 @@ getStructs'd = readTableFieldOpt readStruct' 3
 data NestedTables
 
 nestedTables :: Maybe (WriteTable Table1) -> WriteTable NestedTables
-nestedTables x0 = writeTable
-  [ optional unWriteTable x0
+nestedTables x = writeTable
+  [ optional unWriteTable x
   ]
 
-getNestedTables'x :: ReadCtx m => Table NestedTables -> m (Maybe (Table Table1))
-getNestedTables'x = readTableFieldOpt readTable 0
+nestedTablesX :: ReadCtx m => Table NestedTables -> m (Maybe (Table Table1))
+nestedTablesX = readTableFieldOpt readTable 0
 
 
 data Table1
 
 table1 :: Maybe (WriteTable Table2) -> Maybe Int32 -> WriteTable Table1
-table1 x0 x1 = writeTable
-  [ optional unWriteTable x0
-  , (optionalDef 0 . inline) int32 x1
+table1 x y = writeTable
+  [ optional unWriteTable x
+  , (optionalDef 0 . inline) int32 y
   ]
 
-getTable1'x :: ReadCtx m => Table Table1 -> m (Maybe (Table Table2))
-getTable1'x = readTableFieldOpt readTable 0
+table1X :: ReadCtx m => Table Table1 -> m (Maybe (Table Table2))
+table1X = readTableFieldOpt readTable 0
 
-getTable1'y :: ReadCtx m => Table Table1 -> m Int16
-getTable1'y = readTableFieldWithDef readInt16 1 0
+table1Y :: ReadCtx m => Table Table1 -> m Int16
+table1Y = readTableFieldWithDef readInt16 1 0
 
 
 data Table2
 
 table2 :: Maybe Int16 -> WriteTable Table2
-table2 x0 = writeTable [ (optionalDef 0 . inline) int16 x0 ]
+table2 x = writeTable [ (optionalDef 0 . inline) int16 x ]
 
-getTable2'x :: ReadCtx m => Table Table2 -> m Int16
-getTable2'x = readTableFieldWithDef readInt16 0 0
+table2X :: ReadCtx m => Table Table2 -> m Int16
+table2X = readTableFieldWithDef readInt16 0 0
 
 ----------------------------------
 ------------- Sword --------------
@@ -313,10 +313,10 @@ getTable2'x = readTableFieldWithDef readInt16 0 0
 data Sword
 
 sword :: Maybe Text -> WriteTable Sword
-sword x1 = writeTable [optional text x1]
+sword x = writeTable [optional text x]
 
-getSword'x :: ReadCtx m => Table Sword -> m (Maybe Text)
-getSword'x = readTableFieldOpt readText 0
+swordX :: ReadCtx m => Table Sword -> m (Maybe Text)
+swordX = readTableFieldOpt readText 0
 
 ----------------------------------
 ------------- Axe ----------------
@@ -324,16 +324,16 @@ getSword'x = readTableFieldOpt readText 0
 data Axe
 
 axe :: Maybe Int32 -> WriteTable Axe
-axe x1 = writeTable [(optionalDef 0 . inline) int32 x1]
+axe y = writeTable [(optionalDef 0 . inline) int32 y]
 
-getAxe'y :: ReadCtx m => Table Axe -> m Int32
-getAxe'y = readTableFieldWithDef readInt32 0 0
+axeY :: ReadCtx m => Table Axe -> m Int32
+axeY = readTableFieldWithDef readInt32 0 0
 ----------------------------------
 ------------- Weapon --------------
 ----------------------------------
 data Weapon
-  = Weapon'Sword !(Table Sword)
-  | Weapon'Axe !(Table Axe)
+  = WeaponSword !(Table Sword)
+  | WeaponAxe !(Table Axe)
 
 class WriteWeapon a where
   weapon :: WriteTable a -> WriteUnion Weapon
@@ -347,8 +347,8 @@ instance WriteWeapon Axe where
 readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)
 readWeapon n pos =
   case getPositive n of
-    1  -> Union . Weapon'Sword <$> readTable pos
-    2  -> Union . Weapon'Axe <$> readTable pos
+    1  -> Union . WeaponSword <$> readTable pos
+    2  -> Union . WeaponAxe <$> readTable pos
     n' -> pure $! UnionUnknown n'
 
 ----------------------------------
@@ -357,13 +357,13 @@ readWeapon n pos =
 data TableWithUnion
 
 tableWithUnion :: WriteUnion Weapon -> WriteTable TableWithUnion
-tableWithUnion x1 = writeTable
-  [ writeUnionType x1
-  , writeUnionValue x1
+tableWithUnion uni = writeTable
+  [ writeUnionType uni
+  , writeUnionValue uni
   ]
 
-getTableWithUnion'uni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
-getTableWithUnion'uni = readTableFieldUnion readWeapon 1
+tableWithUnionUni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
+tableWithUnionUni = readTableFieldUnion readWeapon 1
 
 ----------------------------------
 ------------ Vectors -------------
@@ -400,30 +400,30 @@ vectors a b c d e f g h i j k l =
     , (optional . writeVector)          text     l
     ]
 
-getVectors'a :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word8))
-getVectors'b :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word16))
-getVectors'c :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word32))
-getVectors'd :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word64))
-getVectors'e :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int8))
-getVectors'f :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int16))
-getVectors'g :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int32))
-getVectors'h :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int64))
-getVectors'i :: ReadCtx m => Table Vectors -> m (Maybe (Vector Float))
-getVectors'j :: ReadCtx m => Table Vectors -> m (Maybe (Vector Double))
-getVectors'k :: ReadCtx m => Table Vectors -> m (Maybe (Vector Bool))
-getVectors'l :: ReadCtx m => Table Vectors -> m (Maybe (Vector Text))
-getVectors'a = readTableFieldOpt (readPrimVector Word8Vec)   0
-getVectors'b = readTableFieldOpt (readPrimVector Word16Vec)  1
-getVectors'c = readTableFieldOpt (readPrimVector Word32Vec)  2
-getVectors'd = readTableFieldOpt (readPrimVector Word64Vec)  3
-getVectors'e = readTableFieldOpt (readPrimVector Int8Vec)    4
-getVectors'f = readTableFieldOpt (readPrimVector Int16Vec)   5
-getVectors'g = readTableFieldOpt (readPrimVector Int32Vec)   6
-getVectors'h = readTableFieldOpt (readPrimVector Int64Vec)   7
-getVectors'i = readTableFieldOpt (readPrimVector FloatVec)   8
-getVectors'j = readTableFieldOpt (readPrimVector DoubleVec)  9
-getVectors'k = readTableFieldOpt (readPrimVector BoolVec)    10
-getVectors'l = readTableFieldOpt (readPrimVector TextVec)    11
+vectorsA :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word8))
+vectorsB :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word16))
+vectorsC :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word32))
+vectorsD :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word64))
+vectorsE :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int8))
+vectorsF :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int16))
+vectorsG :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int32))
+vectorsH :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int64))
+vectorsI :: ReadCtx m => Table Vectors -> m (Maybe (Vector Float))
+vectorsJ :: ReadCtx m => Table Vectors -> m (Maybe (Vector Double))
+vectorsK :: ReadCtx m => Table Vectors -> m (Maybe (Vector Bool))
+vectorsL :: ReadCtx m => Table Vectors -> m (Maybe (Vector Text))
+vectorsA = readTableFieldOpt (readPrimVector Word8Vec)   0
+vectorsB = readTableFieldOpt (readPrimVector Word16Vec)  1
+vectorsC = readTableFieldOpt (readPrimVector Word32Vec)  2
+vectorsD = readTableFieldOpt (readPrimVector Word64Vec)  3
+vectorsE = readTableFieldOpt (readPrimVector Int8Vec)    4
+vectorsF = readTableFieldOpt (readPrimVector Int16Vec)   5
+vectorsG = readTableFieldOpt (readPrimVector Int32Vec)   6
+vectorsH = readTableFieldOpt (readPrimVector Int64Vec)   7
+vectorsI = readTableFieldOpt (readPrimVector FloatVec)   8
+vectorsJ = readTableFieldOpt (readPrimVector DoubleVec)  9
+vectorsK = readTableFieldOpt (readPrimVector BoolVec)    10
+vectorsL = readTableFieldOpt (readPrimVector TextVec)    11
 
 ----------------------------------
 -------- VectorOfTables ----------
@@ -431,12 +431,12 @@ getVectors'l = readTableFieldOpt (readPrimVector TextVec)    11
 data VectorOfTables
 
 vectorOfTables :: Maybe (WriteVector (WriteTable Axe)) -> WriteTable VectorOfTables
-vectorOfTables x1 = writeTable
-  [ (optional . writeVector) unWriteTable x1
+vectorOfTables xs = writeTable
+  [ (optional . writeVector) unWriteTable xs
   ]
 
-getVectorOfTables'xs :: ReadCtx m => Table VectorOfTables -> m (Maybe (Vector (Table Axe)))
-getVectorOfTables'xs = readTableFieldOpt readTableVector 0
+vectorOfTablesXs :: ReadCtx m => Table VectorOfTables -> m (Maybe (Vector (Table Axe)))
+vectorOfTablesXs = readTableFieldOpt readTableVector 0
 
 ----------------------------------
 ------- VectorOfStructs ----------
@@ -449,24 +449,24 @@ vectorOfStructs ::
   -> Maybe (WriteVector (WriteStruct Struct3))
   -> Maybe (WriteVector (WriteStruct Struct4))
   -> WriteTable VectorOfStructs
-vectorOfStructs x1 x2 x3 x4 = writeTable
-  [ (optional . writeVector . inline) unWriteStruct x1
-  , (optional . writeVector . inline) unWriteStruct x2
-  , (optional . writeVector . inline) unWriteStruct x3
-  , (optional . writeVector . inline) unWriteStruct x4
+vectorOfStructs as bs cs ds = writeTable
+  [ (optional . writeVector . inline) unWriteStruct as
+  , (optional . writeVector . inline) unWriteStruct bs
+  , (optional . writeVector . inline) unWriteStruct cs
+  , (optional . writeVector . inline) unWriteStruct ds
   ]
 
-getVectorOfStructs'as :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct1)))
-getVectorOfStructs'as = readTableFieldOpt (readStructVector 3) 0
+vectorOfStructsAs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct1)))
+vectorOfStructsAs = readTableFieldOpt (readStructVector 3) 0
 
-getVectorOfStructs'bs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct2)))
-getVectorOfStructs'bs = readTableFieldOpt (readStructVector 4) 1
+vectorOfStructsBs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct2)))
+vectorOfStructsBs = readTableFieldOpt (readStructVector 4) 1
 
-getVectorOfStructs'cs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct3)))
-getVectorOfStructs'cs = readTableFieldOpt (readStructVector 24) 2
+vectorOfStructsCs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct3)))
+vectorOfStructsCs = readTableFieldOpt (readStructVector 24) 2
 
-getVectorOfStructs'ds :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct4)))
-getVectorOfStructs'ds = readTableFieldOpt (readStructVector 24) 3
+vectorOfStructsDs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct4)))
+vectorOfStructsDs = readTableFieldOpt (readStructVector 24) 3
 
 
 ----------------------------------
@@ -478,23 +478,23 @@ vectorOfUnions ::
      Maybe (WriteVector (WriteUnion Weapon))
   -> WriteVector (WriteUnion Weapon)
   -> WriteTable VectorOfUnions
-vectorOfUnions x1 x2 = writeTable
-  [ x1t
-  , x1v
+vectorOfUnions xs xsReq = writeTable
+  [ xsTypes
+  , xsValues
   , deprecated
   , deprecated
-  , x2t
-  , x2v
+  , xsReqTypes
+  , xsReqValues
   ]
   where
-    (x1t, x1v) = writeUnionVectorOpt x1
-    (x2t, x2v) = writeUnionVectorReq x2
+    (xsTypes, xsValues) = writeUnionVectorOpt xs
+    (xsReqTypes, xsReqValues) = writeUnionVectorReq xsReq
 
-getVectorOfUnions'xs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
-getVectorOfUnions'xs = readTableFieldUnionVectorOpt readWeapon 1
+vectorOfUnionsXs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
+vectorOfUnionsXs = readTableFieldUnionVectorOpt readWeapon 1
 
-getVectorOfUnions'xsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
-getVectorOfUnions'xsReq = readTableFieldUnionVectorReq readWeapon 5 "xsReq"
+vectorOfUnionsXsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
+vectorOfUnionsXsReq = readTableFieldUnionVectorReq readWeapon 5 "xsReq"
 
 
 ----------------------------------
@@ -536,34 +536,34 @@ scalarsWithDefaults a b c d e f g h i j k l m n =
     , (optionalDef 5 . inline) int16          n
     ]
 
-getScalarsWithDefaults'a :: ReadCtx m => Table ScalarsWithDefaults -> m Word8
-getScalarsWithDefaults'b :: ReadCtx m => Table ScalarsWithDefaults -> m Word16
-getScalarsWithDefaults'c :: ReadCtx m => Table ScalarsWithDefaults -> m Word32
-getScalarsWithDefaults'd :: ReadCtx m => Table ScalarsWithDefaults -> m Word64
-getScalarsWithDefaults'e :: ReadCtx m => Table ScalarsWithDefaults -> m Int8
-getScalarsWithDefaults'f :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
-getScalarsWithDefaults'g :: ReadCtx m => Table ScalarsWithDefaults -> m Int32
-getScalarsWithDefaults'h :: ReadCtx m => Table ScalarsWithDefaults -> m Int64
-getScalarsWithDefaults'i :: ReadCtx m => Table ScalarsWithDefaults -> m Float
-getScalarsWithDefaults'j :: ReadCtx m => Table ScalarsWithDefaults -> m Double
-getScalarsWithDefaults'k :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
-getScalarsWithDefaults'l :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
-getScalarsWithDefaults'm :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
-getScalarsWithDefaults'n :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
-getScalarsWithDefaults'a = readTableFieldWithDef readWord8   0 8
-getScalarsWithDefaults'b = readTableFieldWithDef readWord16  1 16
-getScalarsWithDefaults'c = readTableFieldWithDef readWord32  2 32
-getScalarsWithDefaults'd = readTableFieldWithDef readWord64  3 64
-getScalarsWithDefaults'e = readTableFieldWithDef readInt8    4 (-1)
-getScalarsWithDefaults'f = readTableFieldWithDef readInt16   5 (-2)
-getScalarsWithDefaults'g = readTableFieldWithDef readInt32   6 (-4)
-getScalarsWithDefaults'h = readTableFieldWithDef readInt64   7 (-8)
-getScalarsWithDefaults'i = readTableFieldWithDef readFloat   8 3.9
-getScalarsWithDefaults'j = readTableFieldWithDef readDouble  9 (-2.3e10)
-getScalarsWithDefaults'k = readTableFieldWithDef readBool    10 True
-getScalarsWithDefaults'l = readTableFieldWithDef readBool    11 False
-getScalarsWithDefaults'm = readTableFieldWithDef readInt16   12 1
-getScalarsWithDefaults'n = readTableFieldWithDef readInt16   13 5
+scalarsWithDefaultsA :: ReadCtx m => Table ScalarsWithDefaults -> m Word8
+scalarsWithDefaultsB :: ReadCtx m => Table ScalarsWithDefaults -> m Word16
+scalarsWithDefaultsC :: ReadCtx m => Table ScalarsWithDefaults -> m Word32
+scalarsWithDefaultsD :: ReadCtx m => Table ScalarsWithDefaults -> m Word64
+scalarsWithDefaultsE :: ReadCtx m => Table ScalarsWithDefaults -> m Int8
+scalarsWithDefaultsF :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+scalarsWithDefaultsG :: ReadCtx m => Table ScalarsWithDefaults -> m Int32
+scalarsWithDefaultsH :: ReadCtx m => Table ScalarsWithDefaults -> m Int64
+scalarsWithDefaultsI :: ReadCtx m => Table ScalarsWithDefaults -> m Float
+scalarsWithDefaultsJ :: ReadCtx m => Table ScalarsWithDefaults -> m Double
+scalarsWithDefaultsK :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
+scalarsWithDefaultsL :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
+scalarsWithDefaultsM :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+scalarsWithDefaultsN :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+scalarsWithDefaultsA = readTableFieldWithDef readWord8   0 8
+scalarsWithDefaultsB = readTableFieldWithDef readWord16  1 16
+scalarsWithDefaultsC = readTableFieldWithDef readWord32  2 32
+scalarsWithDefaultsD = readTableFieldWithDef readWord64  3 64
+scalarsWithDefaultsE = readTableFieldWithDef readInt8    4 (-1)
+scalarsWithDefaultsF = readTableFieldWithDef readInt16   5 (-2)
+scalarsWithDefaultsG = readTableFieldWithDef readInt32   6 (-4)
+scalarsWithDefaultsH = readTableFieldWithDef readInt64   7 (-8)
+scalarsWithDefaultsI = readTableFieldWithDef readFloat   8 3.9
+scalarsWithDefaultsJ = readTableFieldWithDef readDouble  9 (-2.3e10)
+scalarsWithDefaultsK = readTableFieldWithDef readBool    10 True
+scalarsWithDefaultsL = readTableFieldWithDef readBool    11 False
+scalarsWithDefaultsM = readTableFieldWithDef readInt16   12 1
+scalarsWithDefaultsN = readTableFieldWithDef readInt16   13 5
 
 
 ----------------------------------
@@ -572,28 +572,28 @@ getScalarsWithDefaults'n = readTableFieldWithDef readInt16   13 5
 data DeprecatedFields
 
 deprecatedFields :: Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> WriteTable DeprecatedFields
-deprecatedFields x0 x1 x2 x3 = writeTable
-  [ (optionalDef 0 . inline) int8 x0
+deprecatedFields a c e g = writeTable
+  [ (optionalDef 0 . inline) int8 a
   , deprecated
-  , (optionalDef 0 . inline) int8 x1
+  , (optionalDef 0 . inline) int8 c
   , deprecated
-  , (optionalDef 0 . inline) int8 x2
+  , (optionalDef 0 . inline) int8 e
   , deprecated
   , deprecated
-  , (optionalDef 0 . inline) int8 x3
+  , (optionalDef 0 . inline) int8 g
   ]
 
-getDeprecatedFields'a :: ReadCtx m => Table DeprecatedFields -> m Int8
-getDeprecatedFields'a = readTableFieldWithDef readInt8 0 0
+deprecatedFieldsA :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsA = readTableFieldWithDef readInt8 0 0
 
-getDeprecatedFields'c :: ReadCtx m => Table DeprecatedFields -> m Int8
-getDeprecatedFields'c = readTableFieldWithDef readInt8 2 0
+deprecatedFieldsC :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsC = readTableFieldWithDef readInt8 2 0
 
-getDeprecatedFields'e :: ReadCtx m => Table DeprecatedFields -> m Int8
-getDeprecatedFields'e = readTableFieldWithDef readInt8 4 0
+deprecatedFieldsE :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsE = readTableFieldWithDef readInt8 4 0
 
-getDeprecatedFields'g :: ReadCtx m => Table DeprecatedFields -> m Int8
-getDeprecatedFields'g = readTableFieldWithDef readInt8 7 0
+deprecatedFieldsG :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsG = readTableFieldWithDef readInt8 7 0
 
 
 ----------------------------------
@@ -608,27 +608,27 @@ requiredFields ::
   -> WriteUnion Weapon
   -> WriteVector Int32
   -> WriteTable RequiredFields
-requiredFields x0 x1 x2 x3 x4 = writeTable
-  [ text x0
-  , inline unWriteStruct x1
-  , unWriteTable x2
-  , writeUnionType x3
-  , writeUnionValue x3
-  , (writeVector . inline) int32 x4
+requiredFields a b c d e = writeTable
+  [ text a
+  , inline unWriteStruct b
+  , unWriteTable c
+  , writeUnionType d
+  , writeUnionValue d
+  , (writeVector . inline) int32 e
   ]
 
-getRequiredFields'a :: ReadCtx m => Table RequiredFields -> m Text
-getRequiredFields'a = readTableFieldReq readText 0 "a"
+requiredFieldsA :: ReadCtx m => Table RequiredFields -> m Text
+requiredFieldsA = readTableFieldReq readText 0 "a"
 
-getRequiredFields'b :: ReadCtx m => Table RequiredFields -> m (Struct Struct1)
-getRequiredFields'b = readTableFieldReq readStruct' 1 "b"
+requiredFieldsB :: ReadCtx m => Table RequiredFields -> m (Struct Struct1)
+requiredFieldsB = readTableFieldReq readStruct' 1 "b"
 
-getRequiredFields'c :: ReadCtx m => Table RequiredFields -> m (Table Axe)
-getRequiredFields'c = readTableFieldReq readTable 2 "c"
+requiredFieldsC :: ReadCtx m => Table RequiredFields -> m (Table Axe)
+requiredFieldsC = readTableFieldReq readTable 2 "c"
 
-getRequiredFields'd :: ReadCtx m => Table RequiredFields -> m (Union Weapon)
-getRequiredFields'd = readTableFieldUnion readWeapon 4
+requiredFieldsD :: ReadCtx m => Table RequiredFields -> m (Union Weapon)
+requiredFieldsD = readTableFieldUnion readWeapon 4
 
-getRequiredFields'e :: ReadCtx m => Table RequiredFields -> m (Vector Int32)
-getRequiredFields'e = readTableFieldReq (readPrimVector Int32Vec) 5 "d"
+requiredFieldsE :: ReadCtx m => Table RequiredFields -> m (Vector Int32)
+requiredFieldsE = readTableFieldReq (readPrimVector Int32Vec) 5 "d"
 

@@ -73,18 +73,18 @@ spec =
           , "l" .= String "hi 👬 bye"
           ]
 
-        getPrimitives'a decoded `shouldBe` Right maxBound
-        getPrimitives'b decoded `shouldBe` Right maxBound
-        getPrimitives'c decoded `shouldBe` Right maxBound
-        getPrimitives'd decoded `shouldBe` Right maxBound
-        getPrimitives'e decoded `shouldBe` Right maxBound
-        getPrimitives'f decoded `shouldBe` Right maxBound
-        getPrimitives'g decoded `shouldBe` Right maxBound
-        getPrimitives'h decoded `shouldBe` Right maxBound
-        getPrimitives'i decoded `shouldBe` Right 1234.56
-        getPrimitives'j decoded `shouldBe` Right 2873242.82782
-        getPrimitives'k decoded `shouldBe` Right True
-        getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
+        primitivesA decoded `shouldBe` Right maxBound
+        primitivesB decoded `shouldBe` Right maxBound
+        primitivesC decoded `shouldBe` Right maxBound
+        primitivesD decoded `shouldBe` Right maxBound
+        primitivesE decoded `shouldBe` Right maxBound
+        primitivesF decoded `shouldBe` Right maxBound
+        primitivesG decoded `shouldBe` Right maxBound
+        primitivesH decoded `shouldBe` Right maxBound
+        primitivesI decoded `shouldBe` Right 1234.56
+        primitivesJ decoded `shouldBe` Right 2873242.82782
+        primitivesK decoded `shouldBe` Right True
+        primitivesL decoded `shouldBe` Right (Just "hi 👬 bye")
 
       it "present with minBound" $ do
         (json, decoded) <- flatcWithFileIdentifier $ primitives
@@ -102,18 +102,18 @@ spec =
           , "l" .= String "hi 👬 bye"
           ]
 
-        getPrimitives'a decoded `shouldBe` Right minBound
-        getPrimitives'b decoded `shouldBe` Right minBound
-        getPrimitives'c decoded `shouldBe` Right minBound
-        getPrimitives'd decoded `shouldBe` Right minBound
-        getPrimitives'e decoded `shouldBe` Right minBound
-        getPrimitives'f decoded `shouldBe` Right minBound
-        getPrimitives'g decoded `shouldBe` Right minBound
-        getPrimitives'h decoded `shouldBe` Right minBound
-        getPrimitives'i decoded `shouldBe` Right 1234.56
-        getPrimitives'j decoded `shouldBe` Right 2873242.82782
-        getPrimitives'k decoded `shouldBe` Right False
-        getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
+        primitivesA decoded `shouldBe` Right minBound
+        primitivesB decoded `shouldBe` Right minBound
+        primitivesC decoded `shouldBe` Right minBound
+        primitivesD decoded `shouldBe` Right minBound
+        primitivesE decoded `shouldBe` Right minBound
+        primitivesF decoded `shouldBe` Right minBound
+        primitivesG decoded `shouldBe` Right minBound
+        primitivesH decoded `shouldBe` Right minBound
+        primitivesI decoded `shouldBe` Right 1234.56
+        primitivesJ decoded `shouldBe` Right 2873242.82782
+        primitivesK decoded `shouldBe` Right False
+        primitivesL decoded `shouldBe` Right (Just "hi 👬 bye")
 
       it "present with defaults" $ do
         (json, decoded) <- flatcWithFileIdentifier $ primitives
@@ -125,18 +125,18 @@ spec =
           [ "l" .= String "hi 👬 bye"
           ]
 
-        getPrimitives'a decoded `shouldBe` Right 0
-        getPrimitives'b decoded `shouldBe` Right 0
-        getPrimitives'c decoded `shouldBe` Right 0
-        getPrimitives'd decoded `shouldBe` Right 0
-        getPrimitives'e decoded `shouldBe` Right 0
-        getPrimitives'f decoded `shouldBe` Right 0
-        getPrimitives'g decoded `shouldBe` Right 0
-        getPrimitives'h decoded `shouldBe` Right 0
-        getPrimitives'i decoded `shouldBe` Right 0
-        getPrimitives'j decoded `shouldBe` Right 0
-        getPrimitives'k decoded `shouldBe` Right False
-        getPrimitives'l decoded `shouldBe` Right (Just "hi 👬 bye")
+        primitivesA decoded `shouldBe` Right 0
+        primitivesB decoded `shouldBe` Right 0
+        primitivesC decoded `shouldBe` Right 0
+        primitivesD decoded `shouldBe` Right 0
+        primitivesE decoded `shouldBe` Right 0
+        primitivesF decoded `shouldBe` Right 0
+        primitivesG decoded `shouldBe` Right 0
+        primitivesH decoded `shouldBe` Right 0
+        primitivesI decoded `shouldBe` Right 0
+        primitivesJ decoded `shouldBe` Right 0
+        primitivesK decoded `shouldBe` Right False
+        primitivesL decoded `shouldBe` Right (Just "hi 👬 bye")
 
       it "missing" $ do
         (json, decoded) <- flatcWithFileIdentifier $ primitives
@@ -146,21 +146,21 @@ spec =
 
         json `shouldBeJson` object []
 
-        getPrimitives'a decoded `shouldBe` Right 0
-        getPrimitives'b decoded `shouldBe` Right 0
-        getPrimitives'c decoded `shouldBe` Right 0
-        getPrimitives'd decoded `shouldBe` Right 0
-        getPrimitives'e decoded `shouldBe` Right 0
-        getPrimitives'f decoded `shouldBe` Right 0
-        getPrimitives'g decoded `shouldBe` Right 0
-        getPrimitives'h decoded `shouldBe` Right 0
-        getPrimitives'i decoded `shouldBe` Right 0
-        getPrimitives'j decoded `shouldBe` Right 0
-        getPrimitives'k decoded `shouldBe` Right False
-        getPrimitives'l decoded `shouldBe` Right Nothing
+        primitivesA decoded `shouldBe` Right 0
+        primitivesB decoded `shouldBe` Right 0
+        primitivesC decoded `shouldBe` Right 0
+        primitivesD decoded `shouldBe` Right 0
+        primitivesE decoded `shouldBe` Right 0
+        primitivesF decoded `shouldBe` Right 0
+        primitivesG decoded `shouldBe` Right 0
+        primitivesH decoded `shouldBe` Right 0
+        primitivesI decoded `shouldBe` Right 0
+        primitivesJ decoded `shouldBe` Right 0
+        primitivesK decoded `shouldBe` Right False
+        primitivesL decoded `shouldBe` Right Nothing
 
     describe "Enums" $ do
-      let readStructWithEnum = (liftA3 . liftA3) (,,) getStructWithEnum'x (fmap toColor <$> getStructWithEnum'y) getStructWithEnum'z
+      let readStructWithEnum = (liftA3 . liftA3) (,,) structWithEnumX (fmap toColor <$> structWithEnumY) structWithEnumZ
       it "present" $ do
         (json, decoded) <- flatc $ enums
           (Just (fromColor ColorGray))
@@ -178,10 +178,10 @@ spec =
             ]
           ]
 
-        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGray)
-        (getEnums'y decoded >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
-        (getEnums'xs decoded >>= traverse toList) `shouldBe` Right (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
-        (getEnums'ys decoded >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe`
+        toColor <$> enumsX decoded `shouldBe` Right (Just ColorGray)
+        (enumsY decoded >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
+        (enumsXs decoded >>= traverse toList) `shouldBe` Right (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
+        (enumsYs decoded >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe`
           Right (Just
             [ (33, Just ColorRed, 44)
             , (55, Just ColorGreen, 66)
@@ -196,27 +196,27 @@ spec =
 
         json `shouldBeJson` object [ ]
 
-        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGreen)
-        getEnums'y decoded `shouldBeRightAnd` isNothing
-        getEnums'xs decoded `shouldBeRightAnd` isNothing
-        getEnums'ys decoded `shouldBeRightAnd` isNothing
+        toColor <$> enumsX decoded `shouldBe` Right (Just ColorGreen)
+        enumsY decoded `shouldBeRightAnd` isNothing
+        enumsXs decoded `shouldBeRightAnd` isNothing
+        enumsYs decoded `shouldBeRightAnd` isNothing
 
       it "missing" $ do
         (json, decoded) <- flatc $ enums Nothing Nothing Nothing Nothing
 
         json `shouldBeJson` object [ ]
 
-        toColor <$> getEnums'x decoded `shouldBe` Right (Just ColorGreen)
-        getEnums'y decoded `shouldBeRightAnd` isNothing
-        getEnums'xs decoded `shouldBeRightAnd` isNothing
-        getEnums'ys decoded `shouldBeRightAnd` isNothing
+        toColor <$> enumsX decoded `shouldBe` Right (Just ColorGreen)
+        enumsY decoded `shouldBeRightAnd` isNothing
+        enumsXs decoded `shouldBeRightAnd` isNothing
+        enumsYs decoded `shouldBeRightAnd` isNothing
 
     describe "Structs" $ do
       it "present" $ do
-        let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
-        let readStruct2 = getStruct2'x
-        let readStruct3 = (liftA3 . liftA3) (,,) (getStruct2'x . getStruct3'x) getStruct3'y getStruct3'z
-        let readStruct4 = (liftA4 . liftA4) (,,,) (getStruct2'x . getStruct4'w) getStruct4'x getStruct4'y getStruct4'z
+        let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z
+        let readStruct2 = struct2X
+        let readStruct3 = (liftA3 . liftA3) (,,) (struct2X . struct3X) struct3Y struct3Z
+        let readStruct4 = (liftA4 . liftA4) (,,,) (struct2X . struct4W) struct4X struct4Y struct4Z
         (json, decoded) <- flatc $ structs
           (Just (struct1 1 2 3))
           (Just (struct2 11))
@@ -230,10 +230,10 @@ spec =
           , "d" .= object ["w" .= object ["x" .= Number 55], "x" .= Number 66, "y" .= Number 77, "z" .= True ]
           ]
 
-        s1 <- fromRightJust $ getStructs'a decoded
-        s2 <- fromRightJust $ getStructs'b decoded
-        s3 <- fromRightJust $ getStructs'c decoded
-        s4 <- fromRightJust $ getStructs'd decoded
+        s1 <- fromRightJust $ structsA decoded
+        s2 <- fromRightJust $ structsB decoded
+        s3 <- fromRightJust $ structsC decoded
+        s4 <- fromRightJust $ structsD decoded
 
         readStruct1 s1 `shouldBe` Right (1, 2, 3)
         readStruct2 s2 `shouldBe` Right 11
@@ -249,10 +249,10 @@ spec =
 
         json `shouldBeJson` object [ ]
 
-        getStructs'a decoded `shouldBeRightAnd` isNothing
-        getStructs'b decoded `shouldBeRightAnd` isNothing
-        getStructs'c decoded `shouldBeRightAnd` isNothing
-        getStructs'd decoded `shouldBeRightAnd` isNothing
+        structsA decoded `shouldBeRightAnd` isNothing
+        structsB decoded `shouldBeRightAnd` isNothing
+        structsC decoded `shouldBeRightAnd` isNothing
+        structsD decoded `shouldBeRightAnd` isNothing
 
     describe "Nested tables" $ do
       it "present" $ do
@@ -267,11 +267,11 @@ spec =
             ]
           ]
 
-        t1 <- fromRightJust $ getNestedTables'x decoded
-        t2 <- fromRightJust $ getTable1'x t1
+        t1 <- fromRightJust $ nestedTablesX decoded
+        t2 <- fromRightJust $ table1X t1
 
-        getTable1'y t1 `shouldBe` Right 22
-        getTable2'x t2 `shouldBe` Right 11
+        table1Y t1 `shouldBe` Right 22
+        table2X t2 `shouldBe` Right 11
 
       it "missing table2" $ do
         (json, decoded) <- flatc $ nestedTables (Just (table1 Nothing (Just 22)))
@@ -282,16 +282,16 @@ spec =
             ]
           ]
 
-        t1 <- fromRightJust $ getNestedTables'x decoded
-        getTable1'x t1 `shouldBeRightAnd` isNothing
-        getTable1'y t1 `shouldBe` Right 22
+        t1 <- fromRightJust $ nestedTablesX decoded
+        table1X t1 `shouldBeRightAnd` isNothing
+        table1Y t1 `shouldBe` Right 22
 
       it "missing table1" $ do
         (json, decoded) <- flatc $ nestedTables Nothing
 
         json `shouldBeJson` object []
 
-        getNestedTables'x decoded `shouldBeRightAnd` isNothing
+        nestedTablesX decoded `shouldBeRightAnd` isNothing
 
 
     describe "Union" $
@@ -304,9 +304,9 @@ spec =
             , "uni_type" .= String "Sword"
             ]
 
-          getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
-            Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "hi")
-            _                      -> unexpectedUnionType
+          tableWithUnionUni decoded `shouldBeRightAndExpect` \case
+            Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
+            _                     -> unexpectedUnionType
 
         it "with axe" $ do
           (json, decoded) <- flatc $ tableWithUnion (weapon (axe (Just maxBound)))
@@ -316,16 +316,16 @@ spec =
             , "uni_type" .= String "Axe"
             ]
 
-          getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
-            Union (Weapon'Axe x) -> getAxe'y x `shouldBe` Right maxBound
-            _                    -> unexpectedUnionType
+          tableWithUnionUni decoded `shouldBeRightAndExpect` \case
+            Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
+            _                   -> unexpectedUnionType
 
         it "with none" $ do
           (json, decoded) <- flatc $ tableWithUnion none
 
           json `shouldBeJson` object []
 
-          getTableWithUnion'uni decoded `shouldBeRightAndExpect` \case
+          tableWithUnionUni decoded `shouldBeRightAndExpect` \case
             UnionNone -> pure ()
             _         -> unexpectedUnionType
 
@@ -361,18 +361,18 @@ spec =
           , "l" .= [ String "hi 👬 bye", String "", String "world"]
           ]
 
-        (getVectors'a decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'b decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'c decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'd decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'e decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'f decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'g decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'h decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (getVectors'i decoded >>= traverse toList) `shouldBe` Right (Just [-12e9, 0, 3.333333])
-        (getVectors'j decoded >>= traverse toList) `shouldBe` Right (Just [-12e98, 0, 3.333333333333])
-        (getVectors'k decoded >>= traverse toList) `shouldBe` Right (Just [True, False, True])
-        (getVectors'l decoded >>= traverse toList) `shouldBe` Right (Just ["hi 👬 bye", "", "world"])
+        (vectorsA decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsB decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsC decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsD decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsE decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsF decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsG decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsH decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsI decoded >>= traverse toList) `shouldBe` Right (Just [-12e9, 0, 3.333333])
+        (vectorsJ decoded >>= traverse toList) `shouldBe` Right (Just [-12e98, 0, 3.333333333333])
+        (vectorsK decoded >>= traverse toList) `shouldBe` Right (Just [True, False, True])
+        (vectorsL decoded >>= traverse toList) `shouldBe` Right (Just ["hi 👬 bye", "", "world"])
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectors
@@ -395,18 +395,18 @@ spec =
           , "l" .= [] @Value
           ]
 
-        (getVectors'a decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'b decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'c decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'd decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'e decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'f decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'g decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'h decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'i decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'j decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'k decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (getVectors'l decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsA decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsB decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsC decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsD decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsE decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsF decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsG decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsH decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsI decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsJ decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsK decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsL decoded >>= traverse toList) `shouldBe` Right (Just [])
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectors
@@ -416,18 +416,18 @@ spec =
 
         json `shouldBeJson` object []
 
-        getVectors'a decoded `shouldBeRightAnd` isNothing
-        getVectors'b decoded `shouldBeRightAnd` isNothing
-        getVectors'c decoded `shouldBeRightAnd` isNothing
-        getVectors'd decoded `shouldBeRightAnd` isNothing
-        getVectors'e decoded `shouldBeRightAnd` isNothing
-        getVectors'f decoded `shouldBeRightAnd` isNothing
-        getVectors'g decoded `shouldBeRightAnd` isNothing
-        getVectors'h decoded `shouldBeRightAnd` isNothing
-        getVectors'i decoded `shouldBeRightAnd` isNothing
-        getVectors'j decoded `shouldBeRightAnd` isNothing
-        getVectors'k decoded `shouldBeRightAnd` isNothing
-        getVectors'l decoded `shouldBeRightAnd` isNothing
+        vectorsA decoded `shouldBeRightAnd` isNothing
+        vectorsB decoded `shouldBeRightAnd` isNothing
+        vectorsC decoded `shouldBeRightAnd` isNothing
+        vectorsD decoded `shouldBeRightAnd` isNothing
+        vectorsE decoded `shouldBeRightAnd` isNothing
+        vectorsF decoded `shouldBeRightAnd` isNothing
+        vectorsG decoded `shouldBeRightAnd` isNothing
+        vectorsH decoded `shouldBeRightAnd` isNothing
+        vectorsI decoded `shouldBeRightAnd` isNothing
+        vectorsJ decoded `shouldBeRightAnd` isNothing
+        vectorsK decoded `shouldBeRightAnd` isNothing
+        vectorsL decoded `shouldBeRightAnd` isNothing
 
     describe "VectorOfTables" $ do
       it "non empty" $ do
@@ -447,15 +447,15 @@ spec =
             ]
           ]
 
-        xs <- fromRightJust $ getVectorOfTables'xs decoded
-        (toList xs >>= traverse getAxe'y) `shouldBe` Right [minBound, 0, maxBound]
+        xs <- fromRightJust $ vectorOfTablesXs decoded
+        (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectorOfTables (Just (vector []))
 
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
-        xs <- fromRightJust $ getVectorOfTables'xs decoded
+        xs <- fromRightJust $ vectorOfTablesXs decoded
         vectorLength xs `shouldBe` Right 0
 
       it "missing" $ do
@@ -463,13 +463,13 @@ spec =
 
         json `shouldBeJson` object []
 
-        getVectorOfTables'xs decoded `shouldBeRightAnd` isNothing
+        vectorOfTablesXs decoded `shouldBeRightAnd` isNothing
 
     describe "VectorOfStructs" $ do
-      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
-      let readStruct2 = getStruct2'x
-      let readStruct3 = (liftA3 . liftA3) (,,) (getStruct2'x . getStruct3'x) getStruct3'y getStruct3'z
-      let readStruct4 = (liftA4 . liftA4) (,,,) (getStruct2'x . getStruct4'w) getStruct4'x getStruct4'y getStruct4'z
+      let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z
+      let readStruct2 = struct2X
+      let readStruct3 = (liftA3 . liftA3) (,,) (struct2X . struct3X) struct3Y struct3Z
+      let readStruct4 = (liftA4 . liftA4) (,,,) (struct2X . struct4W) struct4X struct4Y struct4Z
 
       it "non empty" $ do
         (json, decoded) <- flatc $ vectorOfStructs
@@ -500,10 +500,10 @@ spec =
             ]
           ]
 
-        as <- fromRightJust (getVectorOfStructs'as decoded) >>= (fromRight . toList)
-        bs <- fromRightJust (getVectorOfStructs'bs decoded) >>= (fromRight . toList)
-        cs <- fromRightJust (getVectorOfStructs'cs decoded) >>= (fromRight . toList)
-        ds <- fromRightJust (getVectorOfStructs'ds decoded) >>= (fromRight . toList)
+        as <- fromRightJust (vectorOfStructsAs decoded) >>= (fromRight . toList)
+        bs <- fromRightJust (vectorOfStructsBs decoded) >>= (fromRight . toList)
+        cs <- fromRightJust (vectorOfStructsCs decoded) >>= (fromRight . toList)
+        ds <- fromRightJust (vectorOfStructsDs decoded) >>= (fromRight . toList)
 
         traverse readStruct1 as `shouldBe` Right [(1,2,3), (4,5,6)]
         traverse readStruct2 bs `shouldBe` Right [101, 102, 103]
@@ -516,10 +516,10 @@ spec =
 
         json `shouldBeJson` object [ "as" .= [] @Value, "bs" .= [] @Value, "cs" .= [] @Value, "ds" .= [] @Value ]
 
-        as <- fromRightJust $ getVectorOfStructs'as decoded
-        bs <- fromRightJust $ getVectorOfStructs'bs decoded
-        cs <- fromRightJust $ getVectorOfStructs'cs decoded
-        ds <- fromRightJust $ getVectorOfStructs'cs decoded
+        as <- fromRightJust $ vectorOfStructsAs decoded
+        bs <- fromRightJust $ vectorOfStructsBs decoded
+        cs <- fromRightJust $ vectorOfStructsCs decoded
+        ds <- fromRightJust $ vectorOfStructsCs decoded
         vectorLength as `shouldBe` Right 0
         vectorLength bs `shouldBe` Right 0
         vectorLength cs `shouldBe` Right 0
@@ -530,10 +530,10 @@ spec =
 
         json `shouldBeJson` object []
 
-        getVectorOfStructs'as decoded `shouldBeRightAnd` isNothing
-        getVectorOfStructs'bs decoded `shouldBeRightAnd` isNothing
-        getVectorOfStructs'cs decoded `shouldBeRightAnd` isNothing
-        getVectorOfStructs'ds decoded `shouldBeRightAnd` isNothing
+        vectorOfStructsAs decoded `shouldBeRightAnd` isNothing
+        vectorOfStructsBs decoded `shouldBeRightAnd` isNothing
+        vectorOfStructsCs decoded `shouldBeRightAnd` isNothing
+        vectorOfStructsDs decoded `shouldBeRightAnd` isNothing
 
 
     describe "ScalarsWithDefaults" $ do
@@ -542,20 +542,20 @@ spec =
 
             json `shouldBeJson` object [ ]
 
-            getScalarsWithDefaults'a decoded `shouldBe` Right 8
-            getScalarsWithDefaults'b decoded `shouldBe` Right 16
-            getScalarsWithDefaults'c decoded `shouldBe` Right 32
-            getScalarsWithDefaults'd decoded `shouldBe` Right 64
-            getScalarsWithDefaults'e decoded `shouldBe` Right (-1)
-            getScalarsWithDefaults'f decoded `shouldBe` Right (-2)
-            getScalarsWithDefaults'g decoded `shouldBe` Right (-4)
-            getScalarsWithDefaults'h decoded `shouldBe` Right (-8)
-            getScalarsWithDefaults'i decoded `shouldBe` Right 3.9
-            getScalarsWithDefaults'j decoded `shouldBe` Right (-2.3e10)
-            getScalarsWithDefaults'k decoded `shouldBe` Right True
-            getScalarsWithDefaults'l decoded `shouldBe` Right False
-            toColor <$> getScalarsWithDefaults'm decoded `shouldBe` Right (Just ColorBlue)
-            toColor <$> getScalarsWithDefaults'n decoded `shouldBe` Right (Just ColorGray)
+            scalarsWithDefaultsA decoded `shouldBe` Right 8
+            scalarsWithDefaultsB decoded `shouldBe` Right 16
+            scalarsWithDefaultsC decoded `shouldBe` Right 32
+            scalarsWithDefaultsD decoded `shouldBe` Right 64
+            scalarsWithDefaultsE decoded `shouldBe` Right (-1)
+            scalarsWithDefaultsF decoded `shouldBe` Right (-2)
+            scalarsWithDefaultsG decoded `shouldBe` Right (-4)
+            scalarsWithDefaultsH decoded `shouldBe` Right (-8)
+            scalarsWithDefaultsI decoded `shouldBe` Right 3.9
+            scalarsWithDefaultsJ decoded `shouldBe` Right (-2.3e10)
+            scalarsWithDefaultsK decoded `shouldBe` Right True
+            scalarsWithDefaultsL decoded `shouldBe` Right False
+            toColor <$> scalarsWithDefaultsM decoded `shouldBe` Right (Just ColorBlue)
+            toColor <$> scalarsWithDefaultsN decoded `shouldBe` Right (Just ColorGray)
 
       it "present with defaults" $ runTest $ scalarsWithDefaults
         (Just 8) (Just 16) (Just 32) (Just 64)
@@ -579,13 +579,13 @@ spec =
         , "g" .= Number 4
         ]
 
-      getDeprecatedFields'a decoded `shouldBe` Right 1
-      getDeprecatedFields'c decoded `shouldBe` Right 2
-      getDeprecatedFields'e decoded `shouldBe` Right 3
-      getDeprecatedFields'g decoded `shouldBe` Right 4
+      deprecatedFieldsA decoded `shouldBe` Right 1
+      deprecatedFieldsC decoded `shouldBe` Right 2
+      deprecatedFieldsE decoded `shouldBe` Right 3
+      deprecatedFieldsG decoded `shouldBe` Right 4
 
     it "RequiredFields" $ do
-      let readStruct1 = (liftA3 . liftA3) (,,) getStruct1'x getStruct1'y getStruct1'z
+      let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z
       (json, decoded) <- flatc $ requiredFields
         "hello"
         (struct1 11 22 33)
@@ -602,13 +602,13 @@ spec =
         , "e" .= [Number 55, Number 66]
         ]
 
-      getRequiredFields'a decoded `shouldBe` Right "hello"
-      (getRequiredFields'b decoded >>= readStruct1) `shouldBe` Right (11, 22, 33)
-      (getRequiredFields'c decoded >>= getAxe'y) `shouldBe` Right 44
-      getRequiredFields'd decoded `shouldBeRightAndExpect` \case
-        Union (Weapon'Sword x) -> getSword'x x `shouldBe` Right (Just "a")
-        _                      -> unexpectedUnionType
-      (getRequiredFields'e decoded >>= toList) `shouldBe` Right [55, 66]
+      requiredFieldsA decoded `shouldBe` Right "hello"
+      (requiredFieldsB decoded >>= readStruct1) `shouldBe` Right (11, 22, 33)
+      (requiredFieldsC decoded >>= axeY) `shouldBe` Right 44
+      requiredFieldsD decoded `shouldBeRightAndExpect` \case
+        Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "a")
+        _                     -> unexpectedUnionType
+      (requiredFieldsE decoded >>= toList) `shouldBe` Right [55, 66]
 
 
 unexpectedUnionType :: HasCallStack => Expectation
