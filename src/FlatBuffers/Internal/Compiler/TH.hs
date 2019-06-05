@@ -31,7 +31,6 @@ import           Language.Haskell.TH
 a ~> b = ArrowT `AppT` a `AppT` b
 infixr 1 ~>
 
--- TODO: process isRoot
 compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
 compileSymbolTable symbols = do
   enumDecs <- join <$> traverse mkEnum (allEnums symbols)
@@ -264,7 +263,6 @@ mkTableFileIdentifier tableName isRoot =
               (NormalB $ VarE 'unsafeFileIdentifier `AppE` LitE (StringL (T.unpack fileIdentifier)))
               []
             ]
-
           ]
       ]
 

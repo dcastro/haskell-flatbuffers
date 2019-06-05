@@ -34,6 +34,8 @@ dependencies:
   - hw-int
   - scientific
   - template-haskell
+  - filepath
+  - directory
 
 library:
   source-dirs:      src
@@ -55,7 +57,6 @@ tests:
     - aeson-pretty
     - raw-strings-qq
     - process
-    - directory
     - pretty-simple
     - th-pprint
 
