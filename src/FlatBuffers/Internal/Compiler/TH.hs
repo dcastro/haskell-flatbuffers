@@ -16,7 +16,6 @@ import           Data.Word
 import           FlatBuffers.FileIdentifier                      ( HasFileIdentifier(..), unsafeFileIdentifier )
 import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
-import           FlatBuffers.Internal.Compiler.SyntaxTree        ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Positive                   ( Positive(getPositive) )
 import           FlatBuffers.Internal.Util                       ( nonEmptyUnzip3 )

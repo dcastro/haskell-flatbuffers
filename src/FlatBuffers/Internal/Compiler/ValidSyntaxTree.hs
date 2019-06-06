@@ -1,7 +1,32 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module FlatBuffers.Internal.Compiler.ValidSyntaxTree where
+module FlatBuffers.Internal.Compiler.ValidSyntaxTree
+  ( -- * Re-exports from `FlatBuffers.Internal.Compiler.SyntaxTree`
+    FlatBuffers.Internal.Compiler.SyntaxTree.Namespace(..)
+  , FlatBuffers.Internal.Compiler.SyntaxTree.Ident(..)
+  , FlatBuffers.Internal.Compiler.SyntaxTree.TypeRef(..)
+  , FlatBuffers.Internal.Compiler.SyntaxTree.HasIdent(..)
+  -- * Enums
+  , EnumDecl(..)
+  , EnumVal(..)
+  , EnumType(..)
+  -- * Structs
+  , StructDecl(..)
+  , StructField(..)
+  , StructFieldType(..)
+  -- * Tables
+  , DefaultVal(..)
+  , Required(..)
+  , IsRoot(..)
+  , TableDecl(..)
+  , TableField(..)
+  , TableFieldType(..)
+  , VectorElementType(..)
+  -- * Unions
+  , UnionDecl(..)
+  , UnionVal(..)
+  ) where
 
 import           Data.Int
 import           Data.List.NonEmpty                       ( NonEmpty )
@@ -10,7 +35,7 @@ import           Data.String                              ( IsString(..) )
 import           Data.Text                                ( Text )
 import           Data.Word
 
-import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident, Namespace, TypeRef )
+import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
 import           FlatBuffers.Types
 
 instance HasIdent EnumDecl    where getIdent = enumIdent

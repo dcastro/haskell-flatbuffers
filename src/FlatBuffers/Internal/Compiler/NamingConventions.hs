@@ -6,10 +6,7 @@ module FlatBuffers.Internal.Compiler.NamingConventions where
 import           Data.Text                                     ( Text )
 import qualified Data.Text                                     as T
 
-import           FlatBuffers.Internal.Compiler.SyntaxTree      ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( UnionDecl(..) )
-
-
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..), UnionDecl )
 
 -- Style guide: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
 

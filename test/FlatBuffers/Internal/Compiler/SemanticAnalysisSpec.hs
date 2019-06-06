@@ -12,8 +12,7 @@ import qualified Data.Text                                      as T
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
-import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
-import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), Namespace, TypeRef(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 
 import           Test.Hspec

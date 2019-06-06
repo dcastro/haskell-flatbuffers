@@ -17,7 +17,7 @@ import           Data.Word
 import           FlatBuffers.FileIdentifier                     ( HasFileIdentifier(..), unsafeFileIdentifier )
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( SymbolTable(..), validateSchemas )
-import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..), HasIdent(..), Ident(..), Namespace(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Positive                  ( Positive(getPositive) )
