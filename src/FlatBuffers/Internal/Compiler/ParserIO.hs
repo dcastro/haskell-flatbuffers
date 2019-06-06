@@ -64,15 +64,23 @@ parseImportedSchema ::
   -> FilePath
   -> m ()
 parseImportedSchema includeDirs rootFilePathCanon filePath =
-  go (FP.takeDirectory rootFilePathCanon) filePath
+  go rootFilePathCanon filePath
   where
-    go parentSchemaDir filePath = do
+    go parentSchemaPath filePath = do
+
+      let parentSchemaDir = FP.takeDirectory parentSchemaPath
       let dirCandidates = parentSchemaDir : includeDirs
 
       actualFilePathCanonMaybe <- liftIO $ Dir.findFile dirCandidates filePath >>= traverse Dir.canonicalizePath
 
       case actualFilePathCanonMaybe of
-        Nothing -> throwError $ "File '" <> filePath <> "' not found. Searched in these directories: " <> show dirCandidates
+        Nothing -> throwError $
+          "File '"
+          <> filePath
+          <> "' (imported from '"
+          <> parentSchemaPath
+          <> "') not found.\nSearched in these directories: "
+          <> show dirCandidates
         Just actualFilePathCanon -> do
           importedSchemas <- get
           when (actualFilePathCanon /= rootFilePathCanon && actualFilePathCanon `Map.notMember` importedSchemas) $ do
@@ -81,5 +89,4 @@ parseImportedSchema includeDirs rootFilePathCanon filePath =
               Left err -> throwError (errorBundlePretty err)
               Right importedSchema -> do
                 put (Map.insert actualFilePathCanon importedSchema importedSchemas)
-                let importedSchemaDir = FP.takeDirectory actualFilePathCanon
-                traverse_ (go importedSchemaDir . T.unpack . coerce) (includes importedSchema)
+                traverse_ (go actualFilePathCanon . T.unpack . coerce) (includes importedSchema)
