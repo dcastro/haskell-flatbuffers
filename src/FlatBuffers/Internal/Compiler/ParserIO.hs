@@ -37,8 +37,8 @@ parseSchemas ::
   -> ParseOptions
   -> m (FileTree Schema)
 parseSchemas rootFilePath parseOpts = do
-  input <- liftIO $ readFile rootFilePath
-  case parse schema rootFilePath input of
+  fileContent <- liftIO $ readFile rootFilePath
+  case parse schema rootFilePath fileContent of
     Left err -> throwError (errorBundlePretty err)
     Right rootSchema -> do
       rootFilePathCanon <- liftIO $ Dir.canonicalizePath rootFilePath
@@ -67,30 +67,19 @@ parseImportedSchema includeDirs rootFilePathCanon filePath =
   go (FP.takeDirectory rootFilePathCanon) filePath
   where
     go parentSchemaDir filePath = do
-      -- Like Prelude.readFile, but returns the filePath as well
-      let readFile' filePath = do
-            content <- readFile filePath
-            pure (filePath, content)
+      let dirCandidates = parentSchemaDir : includeDirs
 
-      (actualFilePath, content) <-
-        if FP.isAbsolute filePath
-          then liftIO $ readFile' filePath
-          else
-            -- TODO: maybe use `Dir.findFile` instead
-            let dirCandidates = parentSchemaDir : includeDirs
-                filePathCandidates = fmap (</> filePath) dirCandidates
-                errorMsg = "File '" <> filePath <> "' not found. Searched in these directories: " <> show dirCandidates
-            in  liftIO $ foldl1 (<|>) $
-                  fmap readFile' filePathCandidates <> [fail errorMsg]
+      actualFilePathCanonMaybe <- liftIO $ Dir.findFile dirCandidates filePath >>= traverse Dir.canonicalizePath
 
-      actualFilePathCanon <- liftIO $  Dir.canonicalizePath actualFilePath
-
-      importedSchemas <- get
-      when (actualFilePathCanon /= rootFilePathCanon && actualFilePathCanon `Map.notMember` importedSchemas) $
-        case parse schema actualFilePathCanon content of
-          Left err -> throwError (errorBundlePretty err)
-          Right importedSchema -> do
-            put (Map.insert actualFilePathCanon importedSchema importedSchemas)
-            let importedSchemaDir = FP.takeDirectory actualFilePathCanon
-            traverse_ (go importedSchemaDir . T.unpack . coerce) (includes importedSchema)
-
+      case actualFilePathCanonMaybe of
+        Nothing -> throwError $ "File '" <> filePath <> "' not found. Searched in these directories: " <> show dirCandidates
+        Just actualFilePathCanon -> do
+          importedSchemas <- get
+          when (actualFilePathCanon /= rootFilePathCanon && actualFilePathCanon `Map.notMember` importedSchemas) $ do
+            fileContent <- liftIO $ readFile actualFilePathCanon
+            case parse schema actualFilePathCanon fileContent of
+              Left err -> throwError (errorBundlePretty err)
+              Right importedSchema -> do
+                put (Map.insert actualFilePathCanon importedSchema importedSchemas)
+                let importedSchemaDir = FP.takeDirectory actualFilePathCanon
+                traverse_ (go importedSchemaDir . T.unpack . coerce) (includes importedSchema)
