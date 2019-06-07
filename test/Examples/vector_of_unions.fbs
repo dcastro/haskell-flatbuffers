@@ -1,6 +1,6 @@
-include "schema.fbs";
+include "./schema.fbs";
 
-namespace testapi.flatbuffers;
+namespace examples.generated;
 
 table VectorOfUnions {
   xs: [Weapon];

@@ -1,4 +1,4 @@
-namespace testapi . flatbuffers;
+namespace examples . generated;
 
 table EmptyTable {}
 

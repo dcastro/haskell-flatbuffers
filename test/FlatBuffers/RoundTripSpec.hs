@@ -15,7 +15,7 @@ import           Data.Maybe                 ( isNothing )
 import           Data.Text                  ( Text )
 import           Data.Word
 
-import           Examples.HandWritten
+import           Examples.Generated
 
 import qualified FlatBuffers.Internal.Write as W
 import           FlatBuffers.Read

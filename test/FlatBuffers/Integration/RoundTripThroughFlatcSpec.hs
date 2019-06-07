@@ -7,24 +7,31 @@
 
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
-import           Control.Exception          ( throwIO )
 import           Control.Applicative        ( liftA3 )
-import           Data.Aeson                 ( Value(..), object, (.=) )
+import           Control.Exception          ( throwIO )
+
+import           Data.Aeson                 ( (.=), Value(..), object )
 import qualified Data.Aeson                 as J
 import qualified Data.ByteString.Lazy       as BSL
 import           Data.Int
+import           Data.Maybe                 ( isNothing )
 import           Data.Proxy
 import           Data.Typeable              ( Typeable, typeRep )
 import           Data.Word
-import           Data.Maybe (isNothing)
-import           Examples.HandWritten
+
+import           Examples.Generated
+
 import           FlatBuffers.FileIdentifier ( HasFileIdentifier )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
-import qualified System.Process             as Sys
+
 import qualified System.Directory           as Dir
+import qualified System.Process             as Sys
+
 import           Test.Hspec
+
 import           TestUtils
+
 
 {-
 
@@ -631,7 +638,7 @@ flatcAux withFileIdentifier bs = do
     <>
     [ "-o", "./temp"
     , "./test/Examples/schema.fbs"
-    , "--root-type", "testapi.flatbuffers." <> tableName
+    , "--root-type", "examples.generated." <> tableName
     , "--json"
     , "--strict-json"
     , "--"
@@ -647,7 +654,7 @@ flatcAux withFileIdentifier bs = do
   Sys.callProcess "flatc"
     [ "-o", "./temp"
     , "./test/Examples/schema.fbs"
-    , "--root-type", "testapi.flatbuffers." <> tableName
+    , "--root-type", "examples.generated." <> tableName
     , "--binary"
     , "--strict-json"
     , "temp/b.json"

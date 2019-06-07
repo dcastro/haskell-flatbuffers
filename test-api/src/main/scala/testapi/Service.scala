@@ -9,7 +9,7 @@ import io.circe.syntax._
 import org.http4s.HttpService
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
-import testapi.flatbuffers._
+import examples.generated._
 import scala.util._
 
 class Service[F[_]: Effect] extends Http4sDsl[F] {
