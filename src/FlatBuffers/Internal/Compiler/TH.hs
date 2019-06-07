@@ -307,7 +307,7 @@ mkTableFileIdentifier tableName isRoot =
           [ FunD 'getFileIdentifier
             [ Clause
               []
-              (NormalB $ VarE 'unsafeFileIdentifier `AppE` LitE (StringL (T.unpack fileIdentifier)))
+              (NormalB $ VarE 'unsafeFileIdentifier `AppE` textLitE fileIdentifier)
               []
             ]
           ]
@@ -488,7 +488,7 @@ mkTableFieldGetter tableName table tf =
                 [ VarE 'readTableFieldUnionVectorReq
                 , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
                 , fieldIndex
-                , LitE (StringL (T.unpack . unIdent . getIdent $ tf))
+                , textLitE . unIdent . getIdent $ tf
                 ]
 
 
@@ -502,7 +502,7 @@ mkTableFieldGetter tableName table tf =
             [ VarE 'readTableFieldReq
             , readExp
             , fieldIndex
-            , LitE (StringL (T.unpack . unIdent . getIdent $ tf))
+            , textLitE . unIdent . getIdent $ tf
             ]
         Opt ->
           app
@@ -826,6 +826,9 @@ intLitE = LitE . IntegerL . toInteger
 
 realLitE :: Real i => i -> Exp
 realLitE = LitE . RationalL . toRational
+
+textLitE :: Text -> Exp
+textLitE t = VarE 'T.pack `AppE` LitE (StringL (T.unpack t))
 
 nonEmptyE :: NonEmpty Exp -> Exp
 nonEmptyE (x :| xs) = InfixE (Just x) (ConE '(:|)) (Just (ListE xs))

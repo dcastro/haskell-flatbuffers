@@ -17,7 +17,6 @@
 module FlatBuffers.Read
   ( ReadCtx
   , TableIndex(..)
-  , FieldName(..)
   , VOffset(..)
   , ReadError(..)
   , Struct(..)
@@ -79,9 +78,6 @@ import           FlatBuffers.Types
 import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 
 type ReadCtx = MonadError ReadError
-
-newtype FieldName = FieldName Text
-  deriving newtype (Show, Eq, IsString)
 
 newtype TableIndex = TableIndex { unTableIndex :: Word16 }
   deriving newtype (Show, Num)
@@ -370,7 +366,7 @@ readTableFieldOpt read ix t = do
   mbOffset <- tableIndexToVOffset t ix
   traverse (\offset -> read (moveV (tablePos t) offset)) mbOffset
 
-readTableFieldReq :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> FieldName -> Table t -> m a
+readTableFieldReq :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> Text -> Table t -> m a
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
@@ -410,7 +406,7 @@ readTableFieldUnionVectorOpt read ix t =
 readTableFieldUnionVectorReq :: ReadCtx m
   => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
   -> TableIndex
-  -> FieldName
+  -> Text
   -> Table t
   -> m (Vector (Union a))
 readTableFieldUnionVectorReq read ix name t =
@@ -579,7 +575,7 @@ readAndSkipUOffset = do
 data ReadError
   = ParsingError { position :: !G.ByteOffset
                  , msg      :: !Text }
-  | MissingField { fieldName :: !FieldName }
+  | MissingField { fieldName :: !Text }
   | Utf8DecodingError { msg  :: !Text
                       , byte :: !(Maybe Word8) }
   | MalformedBuffer !Text

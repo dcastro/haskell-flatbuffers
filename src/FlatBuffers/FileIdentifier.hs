@@ -1,7 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module FlatBuffers.FileIdentifier ( HasFileIdentifier(..), FileIdentifier(unFileIdentifier), fileIdentifier, fileIdentifier', unsafeFileIdentifier, unsafeFileIdentifier' ) where
+module FlatBuffers.FileIdentifier
+  ( HasFileIdentifier(..)
+  , FileIdentifier(unFileIdentifier)
+  , fileIdentifier
+  , fileIdentifier'
+  , unsafeFileIdentifier
+  , unsafeFileIdentifier'
+  ) where
 
 import           Control.Monad.Except  ( MonadError )
 
