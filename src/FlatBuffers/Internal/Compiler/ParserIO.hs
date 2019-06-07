@@ -9,6 +9,7 @@ import           Control.Monad.State                      ( MonadState, execStat
 
 import           Data.Coerce                              ( coerce )
 import           Data.Foldable                            ( traverse_ )
+import qualified Data.List                                as List
 import           Data.Map.Strict                          ( Map )
 import qualified Data.Map.Strict                          as Map
 import qualified Data.Text                                as T
@@ -22,27 +23,18 @@ import           System.FilePath                          ( (</>) )
 
 import           Text.Megaparsec                          ( errorBundlePretty, parse )
 
-newtype ParseOptions = ParseOptions
-  { -- | Directories to search for @include@s.
-    includeDirectories :: [FilePath]
-  }
-
-defaultParseOptions :: ParseOptions
-defaultParseOptions = ParseOptions []
-
 parseSchemas ::
      MonadIO m
   => MonadError String m
   => FilePath -- ^ Filepath of the root schema. It must be a path relative to the project root or an absolute path.
-  -> ParseOptions
+  -> [FilePath] -- ^ Directories to search for @include@s.
   -> m (FileTree Schema)
-parseSchemas rootFilePath parseOpts = do
+parseSchemas rootFilePath includeDirs = do
   fileContent <- liftIO $ readFile rootFilePath
   case parse schema rootFilePath fileContent of
     Left err -> throwError (errorBundlePretty err)
     Right rootSchema -> do
       rootFilePathCanon <- liftIO $ Dir.canonicalizePath rootFilePath
-      let includeDirs = includeDirectories parseOpts
       let importedFilePaths = T.unpack . coerce <$> includes rootSchema
 
       importedSchemas <- flip execStateT Map.empty $
@@ -79,8 +71,9 @@ parseImportedSchema includeDirs rootFilePathCanon filePath =
           <> filePath
           <> "' (imported from '"
           <> parentSchemaPath
-          <> "') not found.\nSearched in these directories: "
-          <> show dirCandidates
+          <> "') not found. Searched in these directories: ["
+          <> List.intercalate ", " dirCandidates
+          <> "]"
         Just actualFilePathCanon -> do
           importedSchemas <- get
           when (actualFilePathCanon /= rootFilePathCanon && actualFilePathCanon `Map.notMember` importedSchemas) $ do

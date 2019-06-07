@@ -1,21 +1,28 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module FlatBuffers.Internal.Compiler.TH where
 
 import           Control.Monad                                   ( forM, join )
+import           Control.Monad.Except                            ( runExceptT )
 
+import           Data.Foldable                                   ( traverse_ )
 import           Data.Int
 import qualified Data.List                                       as List
 import           Data.List.NonEmpty                              ( NonEmpty(..) )
 import qualified Data.List.NonEmpty                              as NE
+import qualified Data.Map.Strict                                 as Map
 import           Data.Text                                       ( Text )
 import qualified Data.Text                                       as T
 import           Data.Word
 
 import           FlatBuffers.FileIdentifier                      ( HasFileIdentifier(..), unsafeFileIdentifier )
 import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
+import qualified FlatBuffers.Internal.Compiler.ParserIO          as ParserIO
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
+import qualified FlatBuffers.Internal.Compiler.SemanticAnalysis  as SemanticAnalysis
+import qualified FlatBuffers.Internal.Compiler.SyntaxTree        as SyntaxTree
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Positive                   ( Positive(getPositive) )
 import           FlatBuffers.Internal.Util                       ( nonEmptyUnzip3 )
@@ -23,6 +30,8 @@ import           FlatBuffers.Read
 import           FlatBuffers.Write
 
 import           Language.Haskell.TH
+import qualified Language.Haskell.TH.Syntax                      as TH
+
 
 -- | Helper method to create function types.
 -- @ConT ''Int ~> ConT ''String === Int -> String@
@@ -30,7 +39,46 @@ import           Language.Haskell.TH
 a ~> b = ArrowT `AppT` a `AppT` b
 infixr 1 ~>
 
-compileSymbolTable :: SymbolTable EnumDecl StructDecl TableDecl UnionDecl -> Q [Dec]
+data Options = Options
+  { -- | Directories to search for @include@s (same as flatc @-I@ option).
+    includeDirs :: [FilePath]
+    -- | Generate code not just for the root schema,
+    -- but for all schemas it includes as well
+    -- (same as flatc @--gen-all@ option).
+  , compileAllSchemas :: Bool
+  }
+
+defaultOptions :: Options
+defaultOptions = Options
+  { includeDirs = []
+  , compileAllSchemas = False
+  }
+
+mkFlatBuffers :: FilePath -> Options -> Q [Dec]
+mkFlatBuffers rootFilePath opts = do
+  parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirs opts)
+
+  schemaFileTree <- either fail pure parseResult
+
+  registerFiles schemaFileTree
+
+  symbolTables <- either (fail . T.unpack) pure $ SemanticAnalysis.validateSchemas schemaFileTree
+
+  let symbolTable =
+        if compileAllSchemas opts
+          then SyntaxTree.fileTreeRoot symbolTables
+                <> mconcat (Map.elems $ SyntaxTree.fileTreeForest symbolTables)
+          else SyntaxTree.fileTreeRoot symbolTables
+
+  compileSymbolTable symbolTable
+
+  where
+    registerFiles (SyntaxTree.FileTree rootFilePath _ includedFiles) = do
+      TH.addDependentFile rootFilePath
+      traverse_ TH.addDependentFile $ Map.keys includedFiles
+
+
+compileSymbolTable :: SemanticAnalysis.ValidDecls -> Q [Dec]
 compileSymbolTable symbols = do
   enumDecs <- join <$> traverse mkEnum (allEnums symbols)
   structDecs <- join <$> traverse mkStruct (allStructs symbols)

@@ -27,6 +27,8 @@ For example, using the official implementation:
 | `schemas/sub/b.fbs` | `include "./sub/c.fbs";` |
 | `schemas/sub/c.fbs` | `table T {}`             |
 
+Using this implementation:
+
 | File name           | Content                  |
 | `schemas/a.fbs`     | `include "./sub/b.fbs";` |
 | `schemas/sub/b.fbs` | `include "./c.fbs";`     |
