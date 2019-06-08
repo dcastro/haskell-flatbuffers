@@ -60,7 +60,7 @@ mkFlatBuffers rootFilePath opts = do
 
   parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirs opts)
 
-  schemaFileTree <- either fail pure parseResult
+  schemaFileTree <- either (fail . T.unpack) pure parseResult
 
   registerFiles schemaFileTree
 
