@@ -56,6 +56,8 @@ defaultOptions = Options
 
 mkFlatBuffers :: FilePath -> Options -> Q [Dec]
 mkFlatBuffers rootFilePath opts = do
+  currentModule <- T.pack . loc_module <$> location
+
   parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirs opts)
 
   schemaFileTree <- either fail pure parseResult
@@ -70,20 +72,32 @@ mkFlatBuffers rootFilePath opts = do
                 <> mconcat (Map.elems $ SyntaxTree.fileTreeForest symbolTables)
           else SyntaxTree.fileTreeRoot symbolTables
 
-  compileSymbolTable symbolTable
+  let symbolTable' = filterByCurrentModule currentModule symbolTable
+
+  compileSymbolTable symbolTable'
 
   where
     registerFiles (SyntaxTree.FileTree rootFilePath _ includedFiles) = do
       TH.addDependentFile rootFilePath
       traverse_ TH.addDependentFile $ Map.keys includedFiles
 
+    filterByCurrentModule currentModule (SymbolTable enums structs tables unions) =
+      SymbolTable
+        { allEnums   = filter (isCurrentModule currentModule) enums
+        , allStructs = filter (isCurrentModule currentModule) structs
+        , allTables  = filter (isCurrentModule currentModule) tables
+        , allUnions  = filter (isCurrentModule currentModule) unions
+        }
+
+    isCurrentModule currentModule (ns, _) = NC.namespace ns == currentModule
+
 
 compileSymbolTable :: SemanticAnalysis.ValidDecls -> Q [Dec]
-compileSymbolTable symbols = do
-  enumDecs <- join <$> traverse mkEnum (allEnums symbols)
-  structDecs <- join <$> traverse mkStruct (allStructs symbols)
-  tableDecs <- join <$> traverse mkTable (allTables symbols)
-  unionDecs <- join <$> traverse mkUnion (allUnions symbols)
+compileSymbolTable symbolTable = do
+  enumDecs <- join <$> traverse mkEnum (allEnums symbolTable)
+  structDecs <- join <$> traverse mkStruct (allStructs symbolTable)
+  tableDecs <- join <$> traverse mkTable (allTables symbolTable)
+  unionDecs <- join <$> traverse mkUnion (allUnions symbolTable)
   pure $ enumDecs <> structDecs <> tableDecs <> unionDecs
 
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
