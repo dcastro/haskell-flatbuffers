@@ -6,6 +6,10 @@ STACK:=stack $(STACK_ARGS)
 
 ################################################################################
 
+hoogle: ## Launch a hoogle server
+	stack hoogle --server
+.PHONY: hoogle
+
 ghcid:  ## Launch ghcid
 	ghcid \
 		--command "stack ghci" \
