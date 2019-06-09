@@ -12,14 +12,14 @@ import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( EnumDecl, HasId
 
 -- Style guide: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
 
-dataTypeConstructor :: Text -> Text
-dataTypeConstructor = TM.toCamel
+dataTypeConstructor :: HasIdent a => a -> Text
+dataTypeConstructor = TM.toCamel . unIdent . getIdent
 
-arg :: Text -> Text
-arg = TM.toCamel
+arg :: HasIdent a => a -> Text
+arg = TM.toCamel . unIdent . getIdent
 
-dataTypeName :: Text -> Text
-dataTypeName = TM.toPascal
+dataTypeName :: HasIdent a => a -> Text
+dataTypeName = TM.toPascal . unIdent . getIdent
 
 namespace :: Namespace -> Text
 namespace (Namespace fragments) = T.intercalate "." (TM.toPascal <$> fragments)
@@ -50,7 +50,7 @@ readUnionFun (getIdent -> unIdent -> unionIdent) =
 
 unionVecArg :: TableField -> (Text, Text)
 unionVecArg tf =
-  let argName = arg (unIdent (getIdent tf))
+  let argName = arg tf
   in  (argName <> "Types", argName <> "Values")
 
 

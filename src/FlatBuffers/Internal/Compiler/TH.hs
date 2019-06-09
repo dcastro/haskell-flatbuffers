@@ -103,7 +103,7 @@ compileSymbolTable symbolTable = do
 
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) = do
-  enumName <- newNameFor NC.dataTypeName enum
+  enumName <- newName' $ NC.dataTypeName enum
 
   enumValNames <-
     forM (enumVals enum) $ \enumVal ->
@@ -182,7 +182,7 @@ mkFromEnum enumName enum enumValsAndNames = do
 
 mkStruct :: (Namespace, StructDecl) -> Q [Dec]
 mkStruct (_, struct) = do
-  structName <- newNameFor NC.dataTypeName struct
+  structName <- newName' $ NC.dataTypeName struct
   let dataDec = DataD [] structName [] Nothing [] []
   (consSig, cons) <- mkStructConstructor structName struct
 
@@ -203,7 +203,7 @@ mkStructConstructor structName struct = do
   let retType = AppT (ConT ''WriteStruct) (ConT structName)
   let sigType = foldr (~>) retType argTypes
 
-  let consName = mkNameFor NC.dataTypeConstructor struct
+  let consName = mkName' $ NC.dataTypeConstructor struct
   let consSig = SigD consName sigType
 
   let body = NormalB $ app
@@ -219,7 +219,7 @@ mkStructConstructor structName struct = do
 
 mkStructConstructorArg :: StructField -> Q (Type, Pat, Exp)
 mkStructConstructorArg sf = do
-  argName <- newNameFor NC.dataTypeConstructor sf
+  argName <- newName' $ NC.arg sf
   let argPat = VarP argName
   let argRef = VarE argName
   let argType = structFieldTypeToWriteType (structFieldType sf)
@@ -296,7 +296,7 @@ mkStructFieldGetter structName struct sf =
 
 mkTable :: (Namespace, TableDecl) -> Q [Dec]
 mkTable (_, table) = do
-  tableName <- newNameFor NC.dataTypeName table
+  tableName <- newName' $ NC.dataTypeName table
   (consSig, cons) <- mkTableConstructor tableName table
 
   let fileIdentifierDec = mkTableFileIdentifier tableName (tableIsRoot table)
@@ -335,7 +335,7 @@ mkTableConstructor tableName table = do
   let retType = AppT (ConT ''WriteTable) (ConT tableName)
   let sigType = foldr (~>) retType argTypes
 
-  let consName = mkNameFor NC.dataTypeConstructor table
+  let consName = mkName' $ NC.dataTypeConstructor table
   let consSig = SigD consName sigType
 
   let body = NormalB $ AppE (VarE 'writeTable) (ListE exps)
@@ -352,7 +352,7 @@ mkTableContructorArg tf =
         TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
         _                    -> pure ([], [], [VarE 'deprecated], [])
     else do
-      argName <- newNameFor NC.arg tf
+      argName <- newName' $ NC.arg tf
       let argPat = VarP argName
       let argRef = VarE argName
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
@@ -535,7 +535,7 @@ mkTableFieldGetter tableName table tf =
 
 mkUnion :: (Namespace, UnionDecl) -> Q [Dec]
 mkUnion (_, union) = do
-  unionName <- newNameFor NC.dataTypeName union
+  unionName <- newName' $ NC.dataTypeName union
   unionValNames <-
     forM (unionVals union) $ \unionVal ->
       newName $ T.unpack $ NC.enumUnionMember union unionVal
@@ -564,7 +564,7 @@ mkUnionDataDec unionName unionValsAndNames =
 mkUnionClass :: Name -> UnionDecl -> Q [Dec]
 mkUnionClass unionName union = do
   className <- newName' $ NC.unionClass union
-  methodName <- newNameFor NC.dataTypeConstructor union
+  methodName <- newName' $ NC.dataTypeConstructor union
   let cls =
         ClassD [] className
           [PlainTV (mkName "a")]
@@ -813,7 +813,7 @@ vectorElementTypeToReadType vet =
 
 typeRefToType :: TypeRef -> Type
 typeRefToType (TypeRef ns ident) =
-  ConT (mkNameFor (NC.withModulePrefix ns . NC.dataTypeName) ident)
+  ConT . mkName' . NC.withModulePrefix ns . NC.dataTypeName $ ident
 
 requiredType :: Required -> Type -> Type
 requiredType Req t = t
@@ -824,12 +824,6 @@ mkName' = mkName . T.unpack
 
 newName' :: Text -> Q Name
 newName' = newName . T.unpack
-
-mkNameFor :: HasIdent a => (Text -> Text) -> a -> Name
-mkNameFor f = mkName . T.unpack . f . unIdent . getIdent
-
-newNameFor :: HasIdent a => (Text -> Text) -> a -> Q Name
-newNameFor f = newName . T.unpack . f . unIdent . getIdent
 
 
 intLitP :: Integral i => i -> Pat
