@@ -56,36 +56,21 @@ spec =
               getFileIdentifier = unsafeFileIdentifier (T.pack "ABCD")
           |]
 
-      describe "naming coventions" $ do
-        it "table datatype name is uppercased" $
-          [r| table t {}|] `shouldCompileTo`
-            [d|
-              data T
+      it "naming conventions" $ do
+        let expected =
+              [d|
+                data SomePerson
 
-              t :: WriteTable T
-              t = writeTable []
-            |]
+                somePerson :: Maybe Int32 -> WriteTable SomePerson
+                somePerson personAge = writeTable [ optionalDef 0 (inline int32) personAge ]
 
-        it "table constructor name is lowercased" $
-          [r| table T {}|] `shouldCompileTo`
-            [d|
-              data T
-
-              t :: WriteTable T
-              t = writeTable []
-            |]
-
-        it "table field names are lowercased in params, camelCased in getters" $
-          [r| table T { X: int; }|] `shouldCompileTo`
-            [d|
-              data T
-
-              t :: Maybe Int32 -> WriteTable T
-              t x = writeTable [ optionalDef 0 (inline int32) x ]
-
-              tX :: forall m. ReadCtx m => Table T -> m Int32
-              tX = readTableFieldWithDef readInt32 0 0
-            |]
+                somePersonPersonAge :: forall m. ReadCtx m => Table SomePerson -> m Int32
+                somePersonPersonAge = readTableFieldWithDef readInt32 0 0
+              |]
+        [r| table some_person  { person_age: int; }|] `shouldCompileTo` expected
+        [r| table Some_Person  { Person_Age: int; }|] `shouldCompileTo` expected
+        [r| table SomePerson   { PersonAge: int;  }|] `shouldCompileTo` expected
+        [r| table somePerson   { personAge: int;  }|] `shouldCompileTo` expected
 
       describe "numeric fields + boolean" $ do
         it "normal fields" $
@@ -935,47 +920,48 @@ spec =
               |]
 
     describe "Enums" $
-      describe "naming conventions" $
-        it "enum name / enum value names are uppercased" $
-          [r|
-            enum color: int16 { red = -2, Green, bLUE = 3  }
-          |] `shouldCompileTo`
-            [d|
-              data Color = ColorRed | ColorGreen | ColorBLUE
-                deriving (Eq, Show, Read, Ord, Bounded)
+      it "naming conventions" $ do
+        let expected =
+              [d|
+                data MyColor = MyColorIsRed | MyColorIsGreen
+                  deriving (Eq, Show, Read, Ord, Bounded)
 
-              toColor :: Int16 -> Maybe Color
-              toColor n =
-                case n of
-                  -2 -> Just ColorRed
-                  -1 -> Just ColorGreen
-                  3 -> Just ColorBLUE
-                  _ -> Nothing
-              {-# INLINE toColor #-}
+                toMyColor :: Int16 -> Maybe MyColor
+                toMyColor n =
+                  case n of
+                    -2 -> Just MyColorIsRed
+                    -1 -> Just MyColorIsGreen
+                    _ -> Nothing
+                {-# INLINE toMyColor #-}
 
-              fromColor :: Color -> Int16
-              fromColor n =
-                case n of
-                  ColorRed -> -2
-                  ColorGreen -> -1
-                  ColorBLUE -> 3
-              {-# INLINE fromColor #-}
-            |]
+                fromMyColor :: MyColor -> Int16
+                fromMyColor n =
+                  case n of
+                    MyColorIsRed -> -2
+                    MyColorIsGreen -> -1
+                {-# INLINE fromMyColor #-}
+              |]
+
+        [r| enum my_color: int16 { is_red = -2, is_green  } |] `shouldCompileTo` expected
+        [r| enum My_Color: int16 { Is_Red = -2, Is_Green  } |] `shouldCompileTo` expected
+        [r| enum MyColor:  int16 { IsRed = -2,  IsGreen   } |] `shouldCompileTo` expected
+        [r| enum myColor:  int16 { isRed = -2,  isGreen   } |] `shouldCompileTo` expected
 
     describe "Structs" $ do
-      describe "naming conventions" $
-        it "struct name is uppercased, field names are lowercased" $
-          [r|
-            struct s { X: int; }
-          |] `shouldCompileTo`
-            [d|
-              data S
-              s :: Int32 -> WriteStruct S
-              s x = writeStruct 4 (int32 x :| [])
+      it "naming conventions" $ do
+        let expected =
+              [d|
+                data MyStruct
+                myStruct :: Int32 -> WriteStruct MyStruct
+                myStruct myField = writeStruct 4 (int32 myField :| [])
 
-              sX :: forall m. ReadCtx m => Struct S -> m Int32
-              sX = readStructField readInt32 0
-            |]
+                myStructMyField :: forall m. ReadCtx m => Struct MyStruct -> m Int32
+                myStructMyField = readStructField readInt32 0
+              |]
+        [r| struct my_struct { my_field: int; } |] `shouldCompileTo` expected
+        [r| struct My_Struct { My_Field: int; } |] `shouldCompileTo` expected
+        [r| struct MyStruct  { MyField: int;  } |] `shouldCompileTo` expected
+        [r| struct myStruct  { myField: int;  } |] `shouldCompileTo` expected
 
       it "with primitive fields" $
         [r|
@@ -1095,40 +1081,42 @@ spec =
             s2X = readStructField readInt8 0
           |]
 
-    it "Unions" $
-      [r|
-        table t1{}
-        table t2{}
-        union weapon { t1, alias: t2 }
-      |] `shouldCompileTo`
-        [d|
-          data T1
-          t1 :: WriteTable T1
-          t1 = writeTable []
-          data T2
-          t2 :: WriteTable T2
-          t2 = writeTable []
+    describe "Unions" $
+      it "naming conventions" $ do
+        let expected =
+              [d|
+                data MySword
+                mySword :: WriteTable MySword
+                mySword = writeTable []
+                data MyAxe
+                myAxe :: WriteTable MyAxe
+                myAxe = writeTable []
 
-          data Weapon
-            = WeaponT1 !(Table T1)
-            | WeaponAlias !(Table T2)
+                data MyWeapon
+                  = MyWeaponMySword !(Table MySword)
+                  | MyWeaponMyAlias !(Table MyAxe)
 
-          class WriteWeapon a where
-            weapon :: WriteTable a -> WriteUnion Weapon
+                class WriteMyWeapon a where
+                  myWeapon :: WriteTable a -> WriteUnion MyWeapon
 
-          instance WriteWeapon T1 where
-            weapon = writeUnion 1
+                instance WriteMyWeapon MySword where
+                  myWeapon = writeUnion 1
 
-          instance WriteWeapon T2 where
-            weapon = writeUnion 2
+                instance WriteMyWeapon MyAxe where
+                  myWeapon = writeUnion 2
 
-          readWeapon :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)
-          readWeapon n pos =
-            case getPositive n of
-              1  -> Union . WeaponT1 <$> readTable pos
-              2  -> Union . WeaponAlias <$> readTable pos
-              n' -> pure $! UnionUnknown n'
-        |]
+                readMyWeapon :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union MyWeapon)
+                readMyWeapon n pos =
+                  case getPositive n of
+                    1  -> Union . MyWeaponMySword <$> readTable pos
+                    2  -> Union . MyWeaponMyAlias <$> readTable pos
+                    n' -> pure $! UnionUnknown n'
+              |]
+
+        [r| table my_sword{} table my_axe{} union my_weapon { my_sword, my_alias: my_axe } |] `shouldCompileTo` expected
+        [r| table My_sword{} table My_axe{} union My_weapon { My_sword, My_alias: My_axe } |] `shouldCompileTo` expected
+        [r| table MySword{}  table MyAxe{}  union MyWeapon  { MySword,  MyAlias:  MyAxe  } |] `shouldCompileTo` expected
+        [r| table mySword{}  table myAxe{}  union myWeapon  { mySword,  myAlias:  myAxe  } |] `shouldCompileTo` expected
 
 
 

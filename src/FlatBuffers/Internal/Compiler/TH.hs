@@ -7,6 +7,7 @@ module FlatBuffers.Internal.Compiler.TH where
 import           Control.Monad                                   ( forM, join )
 import           Control.Monad.Except                            ( runExceptT )
 
+import           Data.Bitraversable                              ( bitraverse )
 import           Data.Foldable                                   ( traverse_ )
 import           Data.Int
 import qualified Data.List                                       as List
@@ -129,7 +130,7 @@ mkEnumDataDec enumName enumValNames =
 
 mkToEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
 mkToEnum enumName enum enumValsAndNames = do
-  let funName = mkName $ "to" <> T.unpack (NC.typ (unIdent (getIdent enum)))
+  let funName = mkName' $ NC.toEnumFun enum
   argName <- newName "n"
   pure
     [ SigD funName (enumTypeToType (enumType enum) ~> ConT ''Maybe `AppT` ConT enumName)
@@ -159,7 +160,7 @@ mkToEnum enumName enum enumValsAndNames = do
 
 mkFromEnum :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
 mkFromEnum enumName enum enumValsAndNames = do
-  let funName = mkName $ "from" <> T.unpack (NC.typ (unIdent (getIdent enum)))
+  let funName = mkName' $ NC.fromEnumFun enum
   argName <- newName "n"
   pure
     [ SigD funName (ConT enumName ~> enumTypeToType (enumType enum))
@@ -218,7 +219,7 @@ mkStructConstructor structName struct = do
 
 mkStructConstructorArg :: StructField -> Q (Type, Pat, Exp)
 mkStructConstructorArg sf = do
-  argName <- newNameFor NC.term sf
+  argName <- newNameFor NC.dataTypeConstructor sf
   let argPat = VarP argName
   let argRef = VarE argName
   let argType = structFieldTypeToWriteType (structFieldType sf)
@@ -351,7 +352,7 @@ mkTableContructorArg tf =
         TVector _ (VUnion _) -> pure ([], [], [VarE 'deprecated, VarE 'deprecated], [])
         _                    -> pure ([], [], [VarE 'deprecated], [])
     else do
-      argName <- newNameFor NC.term tf
+      argName <- newNameFor NC.arg tf
       let argPat = VarP argName
       let argRef = VarE argName
       let argType = tableFieldTypeToWriteType (tableFieldType tf)
@@ -417,8 +418,7 @@ mkTableContructorArg tf =
           VStruct _ _      -> expForNonScalar req (VarE 'writeVector `AppE` (VarE 'inline `AppE` VarE 'unWriteStruct )) argRef
           VTable _         -> expForNonScalar req (VarE 'writeVector `AppE`                      VarE 'unWriteTable   ) argRef
           VUnion _         -> do
-            unionVecTypesName  <- newName . T.unpack . (<> "Types") . NC.term . unIdent . getIdent $ tf
-            unionVecValuesName <- newName . T.unpack . (<> "Values") . NC.term . unIdent . getIdent $ tf
+            (unionVecTypesName, unionVecValuesName) <- bitraverse newName' newName' (NC.unionVecArg tf)
             let whereBinding =
                   ValD
                     (TupP [VarP unionVecTypesName, VarP unionVecValuesName])
@@ -467,7 +467,7 @@ mkTableFieldGetter tableName table tf =
         TUnion (TypeRef ns ident) req ->
           mkFunWithBody $ app
             [ VarE 'readTableFieldUnion
-            , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
+            , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident
             , fieldIndex
             ]
         TVector req vecElemType -> mkFunForVector req vecElemType
@@ -495,12 +495,12 @@ mkTableFieldGetter tableName table tf =
             case req of
               Opt -> app
                 [ VarE 'readTableFieldUnionVectorOpt
-                , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
+                , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident
                 , fieldIndex
                 ]
               Req -> app
                 [ VarE 'readTableFieldUnionVectorReq
-                , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.unionReadFun ident
+                , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident
                 , fieldIndex
                 , textLitE . unIdent . getIdent $ tf
                 ]
@@ -542,7 +542,7 @@ mkUnion (_, union) = do
 
   unionClassDecs <- mkUnionClass unionName union
 
-  readFun <- mkUnionReadFun unionName unionValNames union
+  readFun <- mkReadUnionFun unionName unionValNames union
 
   pure $
     mkUnionDataDec unionName (unionVals union `NE.zip` unionValNames)
@@ -563,8 +563,8 @@ mkUnionDataDec unionName unionValsAndNames =
 
 mkUnionClass :: Name -> UnionDecl -> Q [Dec]
 mkUnionClass unionName union = do
-  className <- newName $ T.unpack $ NC.unionClass union
-  methodName <- newNameFor NC.term union
+  className <- newName' $ NC.unionClass union
+  methodName <- newNameFor NC.dataTypeConstructor union
   let cls =
         ClassD [] className
           [PlainTV (mkName "a")]
@@ -590,13 +590,13 @@ mkUnionClass unionName union = do
 
   pure $ cls : instances
 
-mkUnionReadFun :: Name -> NonEmpty Name -> UnionDecl -> Q [Dec]
-mkUnionReadFun unionName unionValNames union = do
+mkReadUnionFun :: Name -> NonEmpty Name -> UnionDecl -> Q [Dec]
+mkReadUnionFun unionName unionValNames union = do
   nArg <- newName "n"
   posArg <- newName "pos"
   wildcard <- newName "n'"
 
-  let funName = mkName $ T.unpack $ NC.unionReadFun union
+  let funName = mkName $ T.unpack $ NC.readUnionFun union
   let sig =
         SigD funName $
           ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
@@ -819,11 +819,11 @@ requiredType :: Required -> Type -> Type
 requiredType Req t = t
 requiredType Opt t = AppT (ConT ''Maybe) t
 
-mkName' :: HasIdent a => a -> Name
-mkName' = mkName . T.unpack . unIdent . getIdent
+mkName' :: Text -> Name
+mkName' = mkName . T.unpack
 
-newName' :: HasIdent a => a -> Q Name
-newName' = newName . T.unpack . unIdent . getIdent
+newName' :: Text -> Q Name
+newName' = newName . T.unpack
 
 mkNameFor :: HasIdent a => (Text -> Text) -> a -> Name
 mkNameFor f = mkName . T.unpack . f . unIdent . getIdent

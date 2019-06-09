@@ -36,6 +36,7 @@ dependencies:
   - template-haskell
   - filepath
   - directory
+  - text-manipulate
 
 library:
   source-dirs:      src
