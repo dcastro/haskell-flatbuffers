@@ -64,45 +64,32 @@
 
 ## TODO
 
+* Add grpc support: https://grpc.io/blog/flatbuffers/
+
+* Support for composable accessors via lens
+
 * Add support for `bit_flags` attribute on enums.
     - Could maybe represent as `newtype Colors = Colors { unColors :: Word16 }`
     -`hasRed`/`hasBlue`/etc
     - add Semigroup/Monoid instances with bitwise ops
 
 * Test with this file: https://github.com/google/flatbuffers/blob/master/tests/monster_test.fbs
-* Add TH function to validate a user-provided file identifier, ala refinement types. See if we can avoid using `unsafeFileIdentifier`.
 
-* Code generation:
-  - give the user the option to generate code for imported types (like flatc's --gen-all)
 * Optimize symbol search during semantic analysis by using sets/maps to store namespaces / identifiers
   * Symbol tables for imported schemas can probably all be merged together
-* Guard against writing buffers longer than 2^31-1 bytes 
-    * this should (implicitly) also protect against strings/vectors with a length that wouldn't fit in a uoffset (word32) field.
+
 * Add support for:
   * unions of structs / unions of strings: <https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions>
-  * `file_identifier` and `root_type`
-  * "size prefix before the standard header"?
+  * "size prefix before the standard header"
   * `nested_flatbuffer` attribute
 * Rules to be enforced at the type level
   * offsets can't be written to structs
   * vectors cannot contain `missing`
   * vector elements must all be of the same type - or at least of the same size
-* Override table alignment
 * Be able to choose the order in which fields are laid out inside the table, without affecting the order of the vtable. Check out the java classes generated for `table T {c: Color; u: SomeUnion; b: bool;}`.
 * "Force defaults" mode
-* Generalize code, `[Field]` -> `Traversable f => f Field`
 * Bang patterns, unpacked pragma, `$!`
 * Use strict version of `Maybe`, etc.
-* `FlatBuffers.Read`
-  * Parse a flatbuffer from a strict bytestring
-  * Support for reading lazy text and maybe strings
-  * Failure modes:
-    * Non-nullable fields (e.g. numerical, booleans and enums)
-      * throw, return default
-    * Nullable fields (e.g. strings, structs, tables)
-      * throw, return Maybe
-  * check if a field is present with `HasField`?
-* Define our own `Widen a b` typeclass
 
 ## Differences between `flatc` and `haskell-flatbuffers`
 
