@@ -41,12 +41,19 @@ dependencies:
 library:
   source-dirs:      src
 
+internal-libraries:
+  examples:
+    source-dirs: examples/
+    dependencies:
+    - flatbuffers
+
 tests:
   test:
     main: Spec.hs
     source-dirs: test/
     dependencies:
     - flatbuffers
+    - examples
     - hspec
     - HUnit
     - hspec-megaparsec
