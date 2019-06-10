@@ -165,12 +165,12 @@ spec =
 
     describe "Union" $ do
       it "present" $ do
-        x <- fromRight $ decode $ encode $ tableWithUnion (weapon (sword (Just "hi")))
+        x <- fromRight $ decode $ encode $ tableWithUnion (weaponSword (sword (Just "hi")))
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
           _                     -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion (weapon (axe (Just maxBound)))
+        x <- fromRight $ decode $ encode $ tableWithUnion (weaponAxe (axe (Just maxBound)))
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
           _                   -> unexpectedUnionType
@@ -356,15 +356,15 @@ spec =
 
         x <- fromRight $ decode $ encode $ vectorOfUnions
           (Just $ vector
-            [ weapon (sword (Just "hi"))
+            [ weaponSword (sword (Just "hi"))
             , none
-            , weapon (axe (Just 98))
+            , weaponAxe (axe (Just 98))
             ]
           )
           (vector
-            [ weapon (sword (Just "hi2"))
+            [ weaponSword (sword (Just "hi2"))
             , none
-            , weapon (axe (Just 100))
+            , weaponAxe (axe (Just 100))
             ]
           )
 
@@ -461,7 +461,7 @@ spec =
         "hello"
         (struct1 11 22 33)
         (axe (Just 44))
-        (weapon (sword (Just "a")))
+        (weaponSword (sword (Just "a")))
         (vector [55, 66])
 
       requiredFieldsA x `shouldBe` Right "hello"

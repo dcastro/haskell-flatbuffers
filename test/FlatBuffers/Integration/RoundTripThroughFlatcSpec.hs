@@ -304,7 +304,7 @@ spec =
     describe "Union" $
       describe "present" $ do
         it "with sword" $ do
-          (json, decoded) <- flatc $ tableWithUnion (weapon (sword (Just "hi")))
+          (json, decoded) <- flatc $ tableWithUnion (weaponSword (sword (Just "hi")))
 
           json `shouldBeJson` object
             [ "uni"      .= object [ "x" .= String "hi" ]
@@ -316,7 +316,7 @@ spec =
             _                     -> unexpectedUnionType
 
         it "with axe" $ do
-          (json, decoded) <- flatc $ tableWithUnion (weapon (axe (Just maxBound)))
+          (json, decoded) <- flatc $ tableWithUnion (weaponAxe (axe (Just maxBound)))
 
           json `shouldBeJson` object
             [ "uni"      .= object [ "y" .= maxBound @Int32 ]
@@ -597,7 +597,7 @@ spec =
         "hello"
         (struct1 11 22 33)
         (axe (Just 44))
-        (weapon (sword (Just "a")))
+        (weaponSword (sword (Just "a")))
         (vector [55, 66])
 
       json `shouldBeJson` object

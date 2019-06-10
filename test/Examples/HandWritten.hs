@@ -335,14 +335,11 @@ data Weapon
   = WeaponSword !(Table Sword)
   | WeaponAxe !(Table Axe)
 
-class WriteWeapon a where
-  weapon :: WriteTable a -> WriteUnion Weapon
+weaponSword :: WriteTable Sword -> WriteUnion Weapon
+weaponSword = writeUnion 1
 
-instance WriteWeapon Sword where
-  weapon = writeUnion 1
-
-instance WriteWeapon Axe where
-  weapon = writeUnion 2
+weaponAxe :: WriteTable Axe -> WriteUnion Weapon
+weaponAxe = writeUnion 2
 
 readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)
 readWeapon n pos =

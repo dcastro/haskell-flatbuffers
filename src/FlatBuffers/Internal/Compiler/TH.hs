@@ -540,13 +540,13 @@ mkUnion (_, union) = do
     forM (unionVals union) $ \unionVal ->
       newName $ T.unpack $ NC.enumUnionMember union unionVal
 
-  unionClassDecs <- mkUnionClass unionName union
+  unionConstructors <- mkUnionConstructors unionName union
 
   readFun <- mkReadUnionFun unionName unionValNames union
 
   pure $
     mkUnionDataDec unionName (unionVals union `NE.zip` unionValNames)
-    : unionClassDecs
+    : unionConstructors
     <> readFun
 
 
@@ -561,34 +561,24 @@ mkUnionDataDec unionName unionValsAndNames =
 
     bang = Bang NoSourceUnpackedness SourceStrict
 
-mkUnionClass :: Name -> UnionDecl -> Q [Dec]
-mkUnionClass unionName union = do
-  className <- newName' $ NC.unionClass union
-  methodName <- newName' $ NC.dataTypeConstructor union
-  let cls =
-        ClassD [] className
-          [PlainTV (mkName "a")]
-          []
-          [ SigD methodName $
-              ConT ''WriteTable `AppT` VarT (mkName "a") ~> ConT ''WriteUnion `AppT` ConT unionName
+mkUnionConstructors :: Name -> UnionDecl -> Q [Dec]
+mkUnionConstructors unionName union =
+  fmap join . traverse mkUnionConstructor $ NE.toList (unionVals union) `zip` [1..]
+  where
+    mkUnionConstructor :: (UnionVal, Integer) -> Q [Dec]
+    mkUnionConstructor (unionVal, ix) = do
+      constructorName <- newName' $ NC.unionConstructor union unionVal
+      pure
+        [ SigD constructorName $
+          ConT ''WriteTable `AppT` typeRefToType (unionValTableRef unionVal)
+            ~> ConT ''WriteUnion `AppT` ConT unionName
+        , FunD constructorName
+          [ Clause
+            []
+            (NormalB $ VarE 'writeUnion `AppE` intLitE ix)
+            []
           ]
-  let
-    mkUnionInstance :: UnionVal -> Integer -> Dec
-    mkUnionInstance unionVal ix =
-      InstanceD
-        Nothing
-        []
-        (ConT className `AppT` typeRefToType (unionValTableRef unionVal))
-        [ FunD methodName
-            [ Clause
-                []
-                (NormalB $ VarE 'writeUnion `AppE` intLitE ix)
-                []
-            ]
         ]
-  let instances = uncurry mkUnionInstance <$> NE.toList (unionVals union) `zip` [1..]
-
-  pure $ cls : instances
 
 mkReadUnionFun :: Name -> NonEmpty Name -> UnionDecl -> Q [Dec]
 mkReadUnionFun unionName unionValNames union = do

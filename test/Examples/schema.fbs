@@ -82,6 +82,9 @@ union Weapon { Sword, Axe }
 table Sword { x: string; }
 table Axe { y: int; }
 
+// A union where both members refer to the same table, distinguishable by an alias
+union Weapon2 { LeftHand: Sword, RightHand : Sword }
+
 table TableWithUnion {
   uni: Weapon;
 }

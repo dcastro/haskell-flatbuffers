@@ -23,8 +23,8 @@ spec =
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just (vector [weapon (sword (Just "hi"))]))
-          (vector [weapon (sword (Just "hi2"))])
+          (Just (vector [weaponSword (sword (Just "hi"))]))
+          (vector [weaponSword (sword (Just "hi2"))])
           )
         (object
           [ "xs" .= [object ["x" .= String "hi"]]
@@ -34,25 +34,25 @@ spec =
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just (vector [weapon (sword Nothing)]))
-          (vector [weapon (axe Nothing)])
+          (Just (vector [weaponSword (sword Nothing)]))
+          (vector [weaponAxe (axe Nothing)])
           )
         (object ["xs" .= [object ["x" .= Null]], "xsReq" .= [object ["y" .= Number 0]]])
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
           (Just $ vector
-            [ weapon (sword (Just "hi"))
+            [ weaponSword (sword (Just "hi"))
             , none
-            , weapon (axe (Just maxBound))
-            , weapon (sword (Just "oi"))
+            , weaponAxe (axe (Just maxBound))
+            , weaponSword (sword (Just "oi"))
             ]
           )
           (vector
-            [ weapon (sword (Just "hi2"))
+            [ weaponSword (sword (Just "hi2"))
             , none
-            , weapon (axe (Just minBound))
-            , weapon (sword (Just "oi2"))
+            , weaponAxe (axe (Just minBound))
+            , weaponSword (sword (Just "oi2"))
             ]
           )
         )

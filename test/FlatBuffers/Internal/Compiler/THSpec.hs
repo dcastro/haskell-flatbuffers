@@ -440,11 +440,8 @@ spec =
               data U1
                 = U1T1 !(Table T1)
 
-              class WriteU1 a where
-                u1 :: WriteTable a -> WriteUnion U1
-
-              instance WriteU1 T1 where
-                u1 = writeUnion 1
+              u1T1 :: WriteTable T1 -> WriteUnion U1
+              u1T1 = writeUnion 1
 
               readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
               readU1 n pos =
@@ -469,11 +466,8 @@ spec =
               data U1
                 = U1T1 !(Table T1)
 
-              class WriteU1 a where
-                u1 :: WriteTable a -> WriteUnion U1
-
-              instance WriteU1 T1 where
-                u1 = writeUnion 1
+              u1T1 :: WriteTable T1 -> WriteUnion U1
+              u1T1 = writeUnion 1
 
               readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
               readU1 n pos =
@@ -501,11 +495,8 @@ spec =
               data U1
                 = U1T1 !(Table T1)
 
-              class WriteU1 a where
-                u1 :: WriteTable a -> WriteUnion U1
-
-              instance WriteU1 T1 where
-                u1 = writeUnion 1
+              u1T1 :: WriteTable T1 -> WriteUnion U1
+              u1T1 = writeUnion 1
 
               readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
               readU1 n pos =
@@ -532,11 +523,8 @@ spec =
               data U1
                 = U1T1 !(Table T1)
 
-              class WriteU1 a where
-                u1 :: WriteTable a -> WriteUnion U1
-
-              instance WriteU1 T1 where
-                u1 = writeUnion 1
+              u1T1 :: WriteTable T1 -> WriteUnion U1
+              u1T1 = writeUnion 1
 
               readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
               readU1 n pos =
@@ -872,11 +860,8 @@ spec =
                 data U1
                   = U1T1 !(Table T1)
 
-                class WriteU1 a where
-                  u1 :: WriteTable a -> WriteUnion U1
-
-                instance WriteU1 T1 where
-                  u1 = writeUnion 1
+                u1T1 :: WriteTable T1 -> WriteUnion U1
+                u1T1 = writeUnion 1
 
                 readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
                 readU1 n pos =
@@ -906,11 +891,8 @@ spec =
                 data U1
                   = U1T1 !(Table T1)
 
-                class WriteU1 a where
-                  u1 :: WriteTable a -> WriteUnion U1
-
-                instance WriteU1 T1 where
-                  u1 = writeUnion 1
+                u1T1 :: WriteTable T1 -> WriteUnion U1
+                u1T1 = writeUnion 1
 
                 readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
                 readU1 n pos =
@@ -1088,22 +1070,16 @@ spec =
                 data MySword
                 mySword :: WriteTable MySword
                 mySword = writeTable []
-                data MyAxe
-                myAxe :: WriteTable MyAxe
-                myAxe = writeTable []
 
                 data MyWeapon
                   = MyWeaponMySword !(Table MySword)
-                  | MyWeaponMyAlias !(Table MyAxe)
+                  | MyWeaponMyAlias !(Table MySword)
 
-                class WriteMyWeapon a where
-                  myWeapon :: WriteTable a -> WriteUnion MyWeapon
+                myWeaponMySword :: WriteTable MySword -> WriteUnion MyWeapon
+                myWeaponMySword = writeUnion 1
 
-                instance WriteMyWeapon MySword where
-                  myWeapon = writeUnion 1
-
-                instance WriteMyWeapon MyAxe where
-                  myWeapon = writeUnion 2
+                myWeaponMyAlias :: WriteTable MySword -> WriteUnion MyWeapon
+                myWeaponMyAlias = writeUnion 2
 
                 readMyWeapon :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union MyWeapon)
                 readMyWeapon n pos =
@@ -1113,10 +1089,10 @@ spec =
                     n' -> pure $! UnionUnknown n'
               |]
 
-        [r| table my_sword{} table my_axe{} union my_weapon { my_sword, my_alias: my_axe } |] `shouldCompileTo` expected
-        [r| table My_sword{} table My_axe{} union My_weapon { My_sword, My_alias: My_axe } |] `shouldCompileTo` expected
-        [r| table MySword{}  table MyAxe{}  union MyWeapon  { MySword,  MyAlias:  MyAxe  } |] `shouldCompileTo` expected
-        [r| table mySword{}  table myAxe{}  union myWeapon  { mySword,  myAlias:  myAxe  } |] `shouldCompileTo` expected
+        [r| table my_sword{} union my_weapon { my_sword, my_alias: my_sword } |] `shouldCompileTo` expected
+        [r| table My_sword{} union My_weapon { My_sword, My_alias: My_sword } |] `shouldCompileTo` expected
+        [r| table MySword{}  union MyWeapon  { MySword,  MyAlias:  MySword  } |] `shouldCompileTo` expected
+        [r| table mySword{}  union myWeapon  { mySword,  myAlias:  mySword  } |] `shouldCompileTo` expected
 
 
 
