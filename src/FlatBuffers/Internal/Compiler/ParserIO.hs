@@ -74,7 +74,7 @@ parseImportedSchema includeDirs rootFilePathCanon filePath =
           <> T.pack filePath
           <> "' (imported from '"
           <> T.pack parentSchemaPath
-          <> "') not found. Searched in these directories: ["
+          <> "') not found.\n Searched in these directories: ["
           <> display (T.pack <$> dirCandidates)
           <> "]"
         Just actualFilePathCanon -> do
