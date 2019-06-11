@@ -43,8 +43,8 @@ ghcid-integration:  ## Launch ghcid and automatically run integration tests
 
 flatb: ## Generate java flatbuffers
 	flatc -o ./test-api/src/main/java/ --java \
-		./examples/Examples/schema.fbs \
-		./examples/Examples/vector_of_unions.fbs
+		./test/Examples/schema.fbs \
+		./test/Examples/vector_of_unions.fbs
 .PHONY: flatb
 
 test-api: ## Generate java flatbuffers and launch test-api

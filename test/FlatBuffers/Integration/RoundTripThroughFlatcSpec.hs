@@ -637,7 +637,7 @@ flatcAux withFileIdentifier bs = do
     (if not withFileIdentifier then ["--raw-binary"] else [])
     <>
     [ "-o", "./temp"
-    , "./examples/Examples/schema.fbs"
+    , "./test/Examples/schema.fbs"
     , "--root-type", "examples.generated." <> tableName
     , "--json"
     , "--strict-json"
@@ -653,7 +653,7 @@ flatcAux withFileIdentifier bs = do
 
   Sys.callProcess "flatc"
     [ "-o", "./temp"
-    , "./examples/Examples/schema.fbs"
+    , "./test/Examples/schema.fbs"
     , "--root-type", "examples.generated." <> tableName
     , "--binary"
     , "--strict-json"
