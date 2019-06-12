@@ -6,7 +6,6 @@ module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
 import           Data.Foldable                                  ( fold )
 import           Data.Int
-import           Data.Maybe                                     ( mapMaybe )
 import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
 

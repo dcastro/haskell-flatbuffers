@@ -8,7 +8,7 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad                                 ( forM_, join, void, when )
+import           Control.Monad                                 ( forM_, join, when )
 import           Control.Monad.Except                          ( MonadError, throwError )
 import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
 import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, modify, put )
@@ -553,8 +553,8 @@ validateDefaultAsEnum dflt enum =
           Just zeroVal -> pure (enumValInt zeroVal)
           Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
       Just (ST.DefaultNum n) ->
-        case Scientific.floatingOrInteger n of
-          Left _double -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+        case Scientific.floatingOrInteger @Float n of
+          Left _float -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
           Right i ->
             case find (\val -> enumValInt val == i) (enumVals enum) of
               Just matchingVal -> pure (enumValInt matchingVal)
@@ -700,7 +700,7 @@ validateStruct symbolTables (currentNamespace, struct) =
       NE.fromList . go 0 . NE.toList
       where
         go :: InlineSize -> [UnpaddedStructField] -> [StructField]
-        go sizeAccum [] = []
+        go _ [] = []
         go sizeAccum (x : y : tail) =
           let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
               nextFieldsAlignment = fromIntegral @Alignment @InlineSize (structFieldAlignment y)

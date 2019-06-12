@@ -15,10 +15,9 @@ import           Data.Word
 
 import           FlatBuffers.FileIdentifier                     ( HasFileIdentifier(..), unsafeFileIdentifier )
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
-import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( SymbolTable(..), validateSchemas )
+import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( validateSchemas )
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.TH
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Positive                  ( Positive(getPositive) )
 import           FlatBuffers.Read
 import           FlatBuffers.Write
@@ -30,8 +29,6 @@ import           Language.Haskell.TH.Syntax
 import           System.IO.Unsafe                               ( unsafePerformIO )
 
 import           Test.Hspec
-
-import           TestUtils
 
 import           Text.Megaparsec                                ( ParseErrorBundle, ShowErrorComponent, Stream, errorBundlePretty, parse )
 import           Text.RawString.QQ                              ( r )
@@ -1219,6 +1216,7 @@ normalizeMatch :: Match -> Match
 normalizeMatch (Match pat body decs) =
   Match (normalizePat pat) (normalizeBody body) (normalizeDec <$> decs)
 
+normalizeName :: Name -> Name
 normalizeName (Name (OccName occ) (NameU _)) = mkName occ
 normalizeName name = name
 

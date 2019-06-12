@@ -46,7 +46,6 @@ import qualified Data.List                  as L
 
 import           Data.List.NonEmpty         ( NonEmpty )
 import qualified Data.Map.Strict            as M
-import           Data.Maybe                 ( fromMaybe )
 import           Data.Monoid
 
 import           Data.Semigroup             ( Max(..) )
@@ -240,7 +239,7 @@ table' fields = do
   let newVtableLocation = tableLocation + newVtableSize
 
   map <- gets _cache
-  case M.insertLookupWithKey (\k new old -> old) newVtable newVtableLocation map of
+  case M.insertLookupWithKey (\_k _new old -> old) newVtable newVtableLocation map of
     (Nothing, map') -> do
       -- update the cache
       cache .= map'

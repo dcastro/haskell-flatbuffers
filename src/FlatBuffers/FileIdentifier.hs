@@ -10,11 +10,9 @@ module FlatBuffers.FileIdentifier
   , unsafeFileIdentifier'
   ) where
 
-import           Control.Monad.Except  ( MonadError )
 
 import           Data.ByteString       ( ByteString )
 import qualified Data.ByteString       as BS
-import           Data.Proxy            ( Proxy )
 import           Data.Text             ( Text )
 import qualified Data.Text.Encoding    as T
 

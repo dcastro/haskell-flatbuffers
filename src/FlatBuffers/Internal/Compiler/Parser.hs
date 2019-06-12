@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.Internal.Compiler.Parser where
 
@@ -18,6 +19,7 @@ import           Data.Text                                ( Text )
 import qualified Data.Text                                as T
 import qualified Data.Text.Encoding                       as T
 import           Data.Void                                ( Void )
+import           Data.Word                                ( Word8 )
 
 import           FlatBuffers.Constants                    ( fileIdentifierSize )
 import           FlatBuffers.Internal.Compiler.SyntaxTree
@@ -25,6 +27,7 @@ import           FlatBuffers.Internal.Compiler.SyntaxTree
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer               as L
+
 
 type Parser = Parsec Void String
 
@@ -100,9 +103,9 @@ commaSep p = sepBy p (symbol ",")
 commaSep1 :: Parser a -> Parser (NonEmpty a)
 commaSep1 p = NE.sepBy1 p (symbol ",")
 
-semi, colon :: Parser String
-semi = symbol ";"
-colon = symbol ":"
+semi, colon :: Parser ()
+semi = void $ symbol ";"
+colon = void $ symbol ":"
 
 ident :: Parser Ident
 ident = label "identifier" $ (lexeme . try) identifier
@@ -263,9 +266,9 @@ fileIdentifierDecl = do
   when (byteCount /= fileIdentifierSize) $
     if codePointCount == byteCount
       -- if the user is using ASCII characters
-      then fail $ "file_identifier must be exactly " <> show fileIdentifierSize <> " characters"
+      then fail $ "file_identifier must be exactly " <> show (fileIdentifierSize @Word8) <> " characters"
       -- if the user is using multi UTF-8 code unit characters, show a more detailed error message
-      else fail $ "file_identifier must be exactly " <> show fileIdentifierSize <> " UTF-8 code units"
+      else fail $ "file_identifier must be exactly " <> show (fileIdentifierSize @Word8) <> " UTF-8 code units"
 
   semi
   pure (FileIdentifierDecl fi)

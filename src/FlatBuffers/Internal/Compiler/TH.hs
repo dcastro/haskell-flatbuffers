@@ -10,7 +10,6 @@ import           Control.Monad.Except                            ( runExceptT )
 import           Data.Bitraversable                              ( bitraverse )
 import           Data.Foldable                                   ( traverse_ )
 import           Data.Int
-import qualified Data.List                                       as List
 import           Data.List.NonEmpty                              ( NonEmpty(..) )
 import qualified Data.List.NonEmpty                              as NE
 import qualified Data.Map.Strict                                 as Map
@@ -292,7 +291,7 @@ mkStructFieldGetter structName struct sf =
         SDouble -> VarE 'readDouble
         SBool   -> VarE 'readBool
         SEnum _ enumType -> mkReadExp $ enumTypeToStructFieldType enumType
-        SStruct (namespace, structDecl) -> VarE 'readStruct
+        SStruct _ -> VarE 'readStruct
 
 mkTable :: (Namespace, TableDecl) -> Q [Dec]
 mkTable (_, table) = do
@@ -464,7 +463,7 @@ mkTableFieldGetter tableName table tf =
         TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
         TStruct _ req           -> mkFunWithBody (bodyForNonScalar req (VarE 'readStruct'))
         TTable _ req            -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
-        TUnion (TypeRef ns ident) req ->
+        TUnion (TypeRef ns ident) _req ->
           mkFunWithBody $ app
             [ VarE 'readTableFieldUnion
             , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident

@@ -31,7 +31,6 @@ dependencies:
   - megaparsec
   - parser-combinators
   - binary
-  - hw-int
   - scientific
   - template-haskell
   - filepath

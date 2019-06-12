@@ -4,12 +4,9 @@
 
 module FlatBuffers.AlignmentSpec where
 
-import           Control.Monad.IO.Class
 import           Control.Monad.State
-import qualified Data.ByteString             as BS
 import qualified Data.ByteString.Builder     as B
 import qualified Data.ByteString.Lazy        as BSL
-import           Data.Coerce                 (coerce)
 import           Data.Int
 import           Data.Semigroup              (Max (..))
 import           Data.WithShow               (WithShow (WS))
@@ -19,11 +16,8 @@ import           FlatBuffers.Constants
 import qualified FlatBuffers.Gen             as FG
 import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types
 import           HaskellWorks.Hspec.Hedgehog
 import           Hedgehog
-import qualified Hedgehog.Gen                as G
-import qualified Hedgehog.Range              as R
 import           Test.Hspec
 
 -- | Appends a flatbuffer to a given pre-built bytestring
@@ -269,7 +263,7 @@ find = go 0
     go :: Int64 -> BSL.ByteString -> BSL.ByteString -> [Int64]
     go i sub xs =
       case BSL.uncons xs of
-        Just (h, t) ->
+        Just (_h, t) ->
           if sub `BSL.isPrefixOf` xs
             then i : go (i + 1) sub t
             else go (i + 1) sub t

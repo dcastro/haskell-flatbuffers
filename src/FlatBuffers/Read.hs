@@ -22,7 +22,7 @@ module FlatBuffers.Read
   , Struct(..)
   , Table(..)
   , HasPosition(..)
-  , Position(..)
+  , Position
   , PositionInfo(..)
   , Vector(..), VectorElement(..)
   , Union(..)
@@ -63,7 +63,6 @@ import           Data.Coerce                   ( coerce )
 import           Data.Functor                  ( (<&>) )
 import           Data.Int
 import qualified Data.List                     as L
-import           Data.String                   ( IsString )
 import           Data.Text                     ( Text )
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
@@ -72,10 +71,8 @@ import           Data.Word
 
 import           FlatBuffers.Constants
 import           FlatBuffers.FileIdentifier    ( FileIdentifier(..), HasFileIdentifier(..) )
-import           FlatBuffers.Internal.Positive ( Positive(getPositive), positive )
+import           FlatBuffers.Internal.Positive ( Positive, positive )
 import           FlatBuffers.Types
-
-import           HaskellWorks.Data.Int.Widen   ( widen16, widen32, widen64 )
 
 type ReadCtx = MonadError ReadError
 
@@ -86,11 +83,11 @@ newtype VOffset = VOffset { unVOffset :: Word16 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 -- NOTE: a uoffset should really be a Word32, but because buffers should not exceed 2^31 - 1, we use a Int32 instead.
-newtype UOffset = UOffset { unUOffset :: Int32 }
+newtype UOffset = UOffset Int32
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 -- NOTE: this is an Int32 because a buffer is assumed to respect the size limit of 2^31 - 1.
-newtype OffsetFromRoot = OffsetFromRoot { unOffsetFromRoot :: Int32 }
+newtype OffsetFromRoot = OffsetFromRoot Int32
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
 data Table a = Table
@@ -506,7 +503,7 @@ readUnionVector readUnion typesPos valuesPos =
 readText :: (ReadCtx m, HasPosition a) => a -> m Text
 readText (getPosition -> pos) = do
   bs <- flip runGetM pos $ do
-    readAndSkipUOffset
+    _ <- readAndSkipUOffset
     strLength <- G.getInt32le
     -- NOTE: this might overflow in systems where Int has less than 32 bytes
     G.getByteString $ fromIntegral @Int32 @Int strLength
@@ -530,7 +527,7 @@ readTable pos@PositionInfo{..} =
     tableOffset <- readAndSkipUOffset
     soffset <- G.getInt32le
 
-    let vtableOffsetFromRoot = coerce posOffsetFromRoot + coerce tableOffset - widen32 soffset
+    let vtableOffsetFromRoot = coerce posOffsetFromRoot + coerce tableOffset - soffset
     let vtable = move' posRoot (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
     pure $ Table vtable (move pos (coerce tableOffset))
 

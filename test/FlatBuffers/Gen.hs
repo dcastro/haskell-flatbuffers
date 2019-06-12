@@ -2,12 +2,8 @@
 
 module FlatBuffers.Gen where
 
-import qualified Data.ByteString.Lazy       as BSL
-import           Data.Text                  (Text)
 import qualified Data.Text                  as T
-import qualified Data.Text.Lazy             as TL
-import           Data.WithShow              (WithShow (WS), label, labelT,
-                                             tshow, wsmap, wssequence)
+import           Data.WithShow              (WithShow (WS), label, labelT, wsmap, wssequence)
 import           FlatBuffers.Internal.Write (Field, InlineField, missing)
 import qualified FlatBuffers.Internal.Write as F
 import           Hedgehog

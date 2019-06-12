@@ -8,9 +8,8 @@ import qualified Data.Aeson                as J
 import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
 import           Data.Int
-import           Data.Word
 import           Examples.Generated
-import           FlatBuffers.Write         (WriteTable, encode, none, vector)
+import           FlatBuffers.Write         (encode, none, vector)
 import           Network.HTTP.Client
 import           Network.HTTP.Types.Status (statusCode)
 import           Test.Hspec

@@ -43,9 +43,7 @@ module FlatBuffers.Write
 
 import           Data.Bifunctor             ( bimap )
 import qualified Data.ByteString.Lazy       as BSL
-import           Data.Int
 import           Data.List.NonEmpty         ( NonEmpty )
-import           Data.Text                  ( Text )
 import           Data.Word
 
 import           FlatBuffers.FileIdentifier ( FileIdentifier, HasFileIdentifier(..) )

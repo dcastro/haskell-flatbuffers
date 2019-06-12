@@ -3,14 +3,12 @@
 
 module FlatBuffers.Internal.Compiler.ParserIO where
 
-import           Control.Applicative                      ( (<|>) )
 import           Control.Monad                            ( when )
 import           Control.Monad.Except                     ( MonadError, MonadIO, liftIO, throwError )
 import           Control.Monad.State                      ( MonadState, execStateT, get, put )
 
 import           Data.Coerce                              ( coerce )
 import           Data.Foldable                            ( traverse_ )
-import qualified Data.List                                as List
 import           Data.Map.Strict                          ( Map )
 import qualified Data.Map.Strict                          as Map
 import           Data.Text                                ( Text )
@@ -22,7 +20,6 @@ import           FlatBuffers.Internal.Display             ( display )
 
 import qualified System.Directory                         as Dir
 import qualified System.FilePath                          as FP
-import           System.FilePath                          ( (</>) )
 
 import           Text.Megaparsec                          ( errorBundlePretty, parse )
 

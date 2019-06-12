@@ -6,11 +6,9 @@
 module FlatBuffers.ReadSpec where
 
 import           Data.Int
-import           Data.Maybe                 ( isNothing )
 import           Data.Text                  ( Text )
 import           Data.Word
 
-import           FlatBuffers.Constants
 import qualified FlatBuffers.Internal.Write as W
 import           FlatBuffers.Read
 import           FlatBuffers.Write

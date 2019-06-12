@@ -7,13 +7,10 @@
 module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative        ( liftA3 )
-import           Control.Monad              ( when )
 
 import           Data.Functor               ( (<&>) )
 import qualified Data.List                  as L
 import           Data.Maybe                 ( isNothing )
-import           Data.Text                  ( Text )
-import           Data.Word
 
 import           Examples.Generated
 

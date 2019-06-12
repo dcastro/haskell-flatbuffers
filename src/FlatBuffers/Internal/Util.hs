@@ -1,7 +1,7 @@
 module FlatBuffers.Internal.Util where
 
 import           Data.Bits          ( (.&.), Bits )
-import           Data.List.NonEmpty ( NonEmpty(..), (<|) )
+import           Data.List.NonEmpty ( NonEmpty(..) )
 import           Data.Monoid        ( First(..) )
 
 {-# INLINE headF #-}
