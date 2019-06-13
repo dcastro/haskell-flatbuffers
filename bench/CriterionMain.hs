@@ -1,6 +1,6 @@
 module Main where
 
-import           Bench          ( groups )
+import           CriterionBench.Encode ( groups )
 
 import           Criterion.Main
 

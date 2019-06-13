@@ -10,7 +10,7 @@ hoogle: ## Launch a hoogle server
 
 ghcid:  ## Launch ghcid
 	ghcid \
-		--command "stack ghci" \
+		--command "stack ghci --test --bench" \
 			--restart package.yaml
 .PHONY: ghcid
 
@@ -22,21 +22,21 @@ ghcid-splices:  ## Launch ghcid and dump TH splices on reload
 
 ghcid-test:  ## Launch ghcid and automatically run all tests
 	ghcid \
-		--command "stack ghci --test" \
+		--command "stack ghci --test --bench --main-is=:test" \
 		--test main \
 		--restart package.yaml
 .PHONY: ghcid-test
 
 ghcid-unit:  ## Launch ghcid and automatically run unit tests
 	ghcid \
-		--command "stack ghci --test" \
+		--command "stack ghci --test --bench --main-is=:test" \
 		--test ":main --skip=/FlatBuffers.Integration" \
 		--restart package.yaml
 .PHONY: ghcid-unit
 
 ghcid-integration:  ## Launch ghcid and automatically run integration tests
 	ghcid \
-		--command "stack ghci --test" \
+		--command "stack ghci --test --bench --main-is=:test" \
 		--test ":main --match=/FlatBuffers.Integration" \
 		--restart package.yaml
 .PHONY: ghcid-integration
@@ -58,6 +58,11 @@ test-api-detached: ## Generate java flatbuffers and launch test-api in detached 
 	cd ./test-api/ && \
 		sbt -Djline.terminal=jline.UnsupportedTerminal run &
 .PHONY: test-api-detached
+
+benchalloc: ## Run benchmarks and `weigh`
+	stack bench && stack run weigh-bench
+.PHONY: benchalloc
+
 
 hlint: ## Runs hlint on the project
 	hlint .

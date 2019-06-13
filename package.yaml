@@ -62,13 +62,29 @@ tests:
     - th-pprint
 
 benchmarks:
-  bench:
-    main: Main.hs
+  criterion-bench:
+    main: CriterionMain.hs
     source-dirs: bench/
+    other-modules:
+      - Types
+      - CriterionBench.Encode
     dependencies:
-    - flatbuffers
-    - criterion
+      - flatbuffers
+      - criterion
     ghc-options:
-    - -threaded
-    - -rtsopts
+      - -threaded
+      - -rtsopts
 
+executables:
+  weigh-bench:
+    main: WeighMain.hs
+    source-dirs: bench/
+    other-modules:
+      - Types
+      - WeighBench.Encode
+    dependencies:
+      - flatbuffers
+      - weigh
+    ghc-options:
+      - -threaded
+      - -rtsopts

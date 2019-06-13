@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bench where
+module CriterionBench.Encode where
 
-import           Criterion.Main
+import           Criterion
 
 import           FlatBuffers.Read
 import           FlatBuffers.Write
@@ -11,8 +11,8 @@ import           Types
 
 groups :: [Benchmark]
 groups =
-  [ bgroup "Write" $
-    [ bench "mkj" $ nf encode $
+  [ bgroup "Write.encode" $
+    [ bench "scalars" $ nf encode $
         scalars
             (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
             (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
@@ -27,3 +27,4 @@ groups =
               (Just 1234.56) (Just 2873242.82782) (Just True) Nothing
     ]
   ]
+
