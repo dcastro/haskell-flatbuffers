@@ -31,7 +31,7 @@ module FlatBuffers.Internal.Write
   ) where
 
 import           Control.Lens
-import           Control.Monad.State
+import           Control.Monad.State.Strict
 
 import qualified Data.ByteString            as BS
 import           Data.ByteString.Builder    ( Builder )

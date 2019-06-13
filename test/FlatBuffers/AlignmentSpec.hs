@@ -4,7 +4,7 @@
 
 module FlatBuffers.AlignmentSpec where
 
-import           Control.Monad.State
+import           Control.Monad.State.Strict
 import qualified Data.ByteString.Builder     as B
 import qualified Data.ByteString.Lazy        as BSL
 import           Data.Int
