@@ -18,6 +18,7 @@ ghc-options:
   - -Wincomplete-record-updates
   - -Wtabs
   - -Wno-unticked-promoted-constructors
+  - -O1
 
 dependencies:
   - base >= 4.7 && < 5
@@ -59,4 +60,15 @@ tests:
     - process
     - pretty-simple
     - th-pprint
+
+benchmarks:
+  bench:
+    main: Main.hs
+    source-dirs: bench/
+    dependencies:
+    - flatbuffers
+    - criterion
+    ghc-options:
+    - -threaded
+    - -rtsopts
 
