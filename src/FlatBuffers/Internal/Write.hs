@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE BangPatterns #-}
 
 module FlatBuffers.Internal.Write
   ( FBState(..)
@@ -63,8 +64,8 @@ type BytesWritten = Int32
 
 data FBState = FBState
   { _builder      :: !Builder
-  , _bytesWritten :: !(Sum BytesWritten)
-  , _maxAlign     :: !(Max Word8)
+  , _bytesWritten :: {-# UNPACK #-} !(Sum BytesWritten)
+  , _maxAlign     :: {-# UNPACK #-} !(Max Word8)
   , _cache        :: !(M.Map BSL.ByteString Offset)
   }
 
@@ -73,8 +74,8 @@ makeLenses ''FBState
 newtype Field = Field { dump :: State FBState InlineField }
 
 data InlineField = InlineField
-  { size :: !InlineSize
-  , align :: !Alignment
+  { size  :: {-# UNPACK #-} !InlineSize
+  , align :: {-# UNPACK #-} !Alignment
   , write :: !(State FBState ())
   }
 
@@ -145,7 +146,7 @@ byteString bs = Field $ do
   prep uoffsetSize length
   builder %= mappend (B.int32LE length <> B.byteString bs)
   Sum bw <- bytesWritten <<>= Sum (uoffsetSize + length)
-  pure $ uoffsetFrom bw
+  pure $! uoffsetFrom bw
 
 -- | Prepare to write @n@ bytes after writing @additionalBytes@.
 -- | In other words: add enough padding so that the buffer becomes aligned to @n@ after writing @additionalBytes@.
@@ -254,7 +255,7 @@ table' fields = do
       -- pointer to vtable
       write $ int32 $ negate $ tableLocation - oldVtableLocation
 
-  pure $ uoffsetFrom tableLocation
+  pure $! uoffsetFrom tableLocation
 
 -- | NOTE: Assumes all elemenets have the same size and alignment.
 -- The input is assumed not to exceed the buffer size limit of 2^31 - 1bytes.
@@ -272,9 +273,9 @@ vector fields = Field $ do
   traverse_ write (Reverse inlineFields)
   write (word32 (fromIntegral @Int @Word32 elemCount))
   bw <- uses bytesWritten getSum
-  pure $ uoffsetFrom bw
+  pure $! uoffsetFrom bw
 
 uoffsetFrom :: BytesWritten -> InlineField
-uoffsetFrom bw = InlineField uoffsetSize uoffsetSize $ do
+uoffsetFrom !bw = InlineField uoffsetSize uoffsetSize $ do
   bw2 <- uses bytesWritten getSum
   write (int32 (bw2 - bw + uoffsetSize))
