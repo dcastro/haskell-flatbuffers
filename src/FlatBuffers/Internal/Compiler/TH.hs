@@ -566,7 +566,7 @@ mkUnionConstructors unionName union =
   where
     mkUnionConstructor :: (UnionVal, Integer) -> Q [Dec]
     mkUnionConstructor (unionVal, ix) = do
-      constructorName <- newName' $ NC.unionConstructor union unionVal
+      let constructorName = mkName' $ NC.unionConstructor union unionVal
       pure
         [ SigD constructorName $
           ConT ''WriteTable `AppT` typeRefToType (unionValTableRef unionVal)
