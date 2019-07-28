@@ -1,43 +1,35 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLists   #-}
-{-# LANGUAGE TypeApplications  #-}
-
 module FlatBuffers.AlignmentSpec where
 
 import           Control.Monad.State.Strict
+
 import qualified Data.ByteString.Builder     as B
 import qualified Data.ByteString.Lazy        as BSL
-import           Data.Int
-import           Data.Semigroup              (Max (..))
-import           Data.WithShow               (WithShow (WS))
-import qualified Data.WithShow               as WS
-import           Data.Word                   (Word8)
+import           Data.Semigroup              ( getMax )
+import           Data.Word                   ( Word8 )
+
 import           FlatBuffers.Constants
-import qualified FlatBuffers.Gen             as FG
+import           FlatBuffers.Internal.Build
 import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
-import           HaskellWorks.Hspec.Hedgehog
-import           Hedgehog
+import           FlatBuffers.Types           ( Alignment(..), InlineSize(..) )
+
 import           Test.Hspec
 
 -- | Appends a flatbuffer to a given pre-built bytestring
-testRoot :: B.Builder -> Field -> BSL.ByteString
-testRoot initialBuffer table =
+testEncode :: B.Builder -> WriteTable a -> BSL.ByteString
+testEncode initialBuffer (WriteTable table) =
   B.toLazyByteString $
-  _builder $
+  builder $
   execState
-    (do ref <- dump table
-        root' ref)
-    (FBState initialBuffer initialLength (Max 1) mempty)
+    (do loc <- table
+        maxAlignment <- gets (getMax . maxAlign)
+        modify' $ alignTo maxAlignment uoffsetSize
+        modify' $ uoffsetFrom loc
+    )
+    (FBState initialBuffer initialLength 1 mempty)
   where
     initialLength =
       fromIntegral $ BSL.length (B.toLazyByteString initialBuffer)
-
-root' :: InlineField -> State FBState ()
-root' ref = do
-  align <- gets (getMax . _maxAlign)
-  prep align uoffsetSize
-  write ref
 
 newtype PrettyBuffer = PrettyBuffer BSL.ByteString
   deriving Eq
@@ -45,18 +37,19 @@ newtype PrettyBuffer = PrettyBuffer BSL.ByteString
 instance Show PrettyBuffer where
   show (PrettyBuffer bs) = showBuffer bs
 
-bufferShouldBe :: BSL.ByteString -> [Word8] -> Expectation
+bufferShouldBe :: HasCallStack => BSL.ByteString -> [Word8] -> Expectation
 bufferShouldBe bs xs = PrettyBuffer bs `shouldBe` PrettyBuffer (BSL.pack xs)
 
 spec :: Spec
 spec =
-  describe "alignment" $ do
+  describe "alignment" $
     describe "structs alignment" $ do
       let initialBuffer = B.word8 99 <> B.word8 99
       it "3 bytes aligned to 1 byte" $ do
-        let b = testRoot initialBuffer $ table
-                [ inline (struct 1)
-                    [word8 33, word8 22, word8 11] ]
+        let b = testEncode initialBuffer $ writeTable
+                [ writeStructTableField' 1 3 $
+                    buildWord8 11 <> buildWord8 22 <> buildWord8 33
+                ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -67,9 +60,9 @@ spec =
           ]
 
       it "3 bytes aligned to 2 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ inline (struct 2)
-                    [padded 1 $ word8 33, word8 22, word8 11] ]
+        let b = testEncode initialBuffer $ writeTable
+                [ writeStructTableField' 2 4 $
+                    buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 1 ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -80,9 +73,9 @@ spec =
           ]
 
       it "3 bytes aligned to 4 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ inline (struct 4)
-                    [padded 1 $ word8 33, word8 22, word8 11] ]
+        let b = testEncode initialBuffer $ writeTable
+                [ writeStructTableField' 4 4 $
+                    buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 1 ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -93,9 +86,9 @@ spec =
           ]
 
       it "3 bytes aligned to 8 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ inline (struct 8)
-                    [padded 5 $ word8 33, word8 22, word8 11] ]
+        let b = testEncode initialBuffer $ writeTable
+                [ writeStructTableField' 8 8 $
+                    buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 5 ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -108,9 +101,9 @@ spec =
           ]
 
       it "3 bytes aligned to 16 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ inline (struct 16)
-                    [padded 13 $ word8 33, word8 22, word8 11] ]
+        let b = testEncode initialBuffer $ writeTable
+                [ writeStructTableField' 16 16 $
+                    buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 13 ]
         b `bufferShouldBe`
           [ 12,0,0,0
           , 0,0,6,0
@@ -127,12 +120,12 @@ spec =
           ]
 
       it "vector of struct with 3 bytes aligned to 1 byte" $ do
-        let b = testRoot initialBuffer $ table
-                [ vector @[]
-                  [ inline (struct 1) [word8 33, word8 22, word8 11]
-                  , inline (struct 1) [word8 66, word8 55, word8 44]
+        let b = testEncode initialBuffer $ writeTable
+                  [ writeVectorTableField $ WriteVectorStruct $ inlineVector id (Alignment 1) (InlineSize 3) 2
+                    [ buildWord8 11 <> buildWord8 22 <> buildWord8 33
+                    , buildWord8 44 <> buildWord8 55 <> buildWord8 66
+                    ]
                   ]
-                ]
         b `bufferShouldBe`
           [ 12, 0, 0, 0
           , 0, 0, 6, 0
@@ -145,12 +138,12 @@ spec =
           ]
 
       it "vector of struct with 3 bytes aligned to 2 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ vector @[]
-                  [ inline (struct 2) [padded 1 $ word8 33, word8 22, word8 11]
-                  , inline (struct 2) [padded 1 $ word8 66, word8 55, word8 44]
+        let b = testEncode initialBuffer $ writeTable
+                  [ writeVectorTableField $ WriteVectorStruct $ inlineVector id (Alignment 2) (InlineSize 4) 2
+                    [ buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 1
+                    , buildWord8 44 <> buildWord8 55 <> buildWord8 66 <> buildPadding 1
+                    ]
                   ]
-                ]
         b `bufferShouldBe`
           [ 12, 0, 0, 0
           , 0, 0, 6, 0
@@ -164,12 +157,12 @@ spec =
           ]
 
       it "vector of struct with 3 bytes aligned to 4 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ vector @[]
-                  [ inline (struct 4) [padded 1 $ word8 33, word8 22, word8 11]
-                  , inline (struct 4) [padded 1 $ word8 66, word8 55, word8 44]
+        let b = testEncode initialBuffer $ writeTable
+                  [ writeVectorTableField $ WriteVectorStruct $ inlineVector id (Alignment 4) (InlineSize 4) 2
+                    [ buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 1
+                    , buildWord8 44 <> buildWord8 55 <> buildWord8 66 <> buildPadding 1
+                    ]
                   ]
-                ]
         b `bufferShouldBe`
           [ 12, 0, 0, 0
           , 0, 0, 6, 0
@@ -183,12 +176,12 @@ spec =
           ]
 
       it "vector of struct with 3 bytes aligned to 8 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ vector @[]
-                  [ inline (struct 8) [padded 5 $ word8 33, word8 22, word8 11]
-                  , inline (struct 8) [padded 5 $ word8 66, word8 55, word8 44]
+        let b = testEncode initialBuffer $ writeTable
+                  [ writeVectorTableField $ WriteVectorStruct $ inlineVector id (Alignment 8) (InlineSize 8) 2
+                    [ buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 5
+                    , buildWord8 44 <> buildWord8 55 <> buildWord8 66 <> buildPadding 5
+                    ]
                   ]
-                ]
         b `bufferShouldBe`
           [ 12, 0, 0, 0
           , 0, 0, 6, 0
@@ -205,12 +198,12 @@ spec =
           ]
 
       it "vector of struct with 3 bytes aligned to 16 bytes" $ do
-        let b = testRoot initialBuffer $ table
-                [ vector @[]
-                  [ inline (struct 16) [padded 13 $ word8 33, word8 22, word8 11]
-                  , inline (struct 16) [padded 13 $ word8 66, word8 55, word8 44]
+        let b = testEncode initialBuffer $ writeTable
+                  [ writeVectorTableField $ WriteVectorStruct $ inlineVector id (Alignment 16) (InlineSize 16) 2
+                    [ buildWord8 11 <> buildWord8 22 <> buildWord8 33 <> buildPadding 13
+                    , buildWord8 44 <> buildWord8 55 <> buildWord8 66 <> buildPadding 13
+                    ]
                   ]
-                ]
         b `bufferShouldBe`
           [ 20, 0, 0, 0
           , 0, 0, 0, 0
@@ -234,40 +227,3 @@ spec =
           , 0, 0, 99, 99
           ]
 
-    it "int64 are properly aligned" $ require $
-      alignedProp
-        (WS "inline int64 maxBound" (inline int64 maxBound))
-        (FG.inline FG.int64)
-        (B.int64LE maxBound)
-        8
-    it "strings are properly aligned" $ require $
-      alignedProp
-        (WS "string \"hellohellohello\"" (text "hellohellohello"))
-        FG.text
-        (B.int32LE 15 <> B.stringUtf8 "hellohellohello")
-        4
-
-alignedProp :: WithShow Field -> Gen (WithShow Field) -> B.Builder -> Int64 -> Property
-alignedProp field gen expectedBs align =
-  property $ do
-    bs <-
-      fmap (root . table . WS.value) . forAll $
-      FG.fieldsWith field gen
-    let indices = find (B.toLazyByteString expectedBs) bs
-    assert $ any (\i -> i `mod` align == 0) indices
-
--- | Finds all indices of a substring in a bytestring.
-find :: BSL.ByteString -> BSL.ByteString -> [Int64]
-find = go 0
-  where
-    go :: Int64 -> BSL.ByteString -> BSL.ByteString -> [Int64]
-    go i sub xs =
-      case BSL.uncons xs of
-        Just (_h, t) ->
-          if sub `BSL.isPrefixOf` xs
-            then i : go (i + 1) sub t
-            else go (i + 1) sub t
-        Nothing ->
-          if sub `BSL.isPrefixOf` xs
-            then [i]
-            else []

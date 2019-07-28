@@ -78,6 +78,7 @@ data EnumType
 data StructDecl = StructDecl
   { structIdent      :: !Ident
   , structAlignment  :: !Alignment
+  , structSize       :: !InlineSize
   , structFields     :: !(NonEmpty StructField)
   } deriving (Show, Eq)
 
@@ -167,7 +168,7 @@ data VectorElementType
   | VBool
   | VString
   | VEnum   !TypeRef !EnumType
-  | VStruct !TypeRef !InlineSize
+  | VStruct !TypeRef
   | VTable  !TypeRef
   | VUnion  !TypeRef
   deriving (Eq, Show)

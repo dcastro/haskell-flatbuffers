@@ -3,7 +3,7 @@ module CriterionBench.Encode where
 import           Criterion
 
 import           FlatBuffers.Read
-import           FlatBuffers.Write
+import           FlatBuffers.Internal.Write
 
 import           Types
 

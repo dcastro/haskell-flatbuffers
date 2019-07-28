@@ -3,17 +3,23 @@
 
 module FlatBuffers.Integration.HaskellToScalaSpec where
 
-import           Data.Aeson                (Value (..), object, (.=))
-import qualified Data.Aeson                as J
-import qualified Data.ByteString.Lazy      as BSL
-import qualified Data.ByteString.Lazy.UTF8 as BSLU
+import           Data.Aeson                 ( (.=), Value(..), object )
+import qualified Data.Aeson                 as J
+import qualified Data.ByteString.Lazy       as BSL
+import qualified Data.ByteString.Lazy.UTF8  as BSLU
 import           Data.Int
+
 import           Examples.Generated
-import           FlatBuffers.Write         (encode, none, vector)
+
+import           FlatBuffers.Internal.Write
+
 import           Network.HTTP.Client
-import           Network.HTTP.Types.Status (statusCode)
+import           Network.HTTP.Types.Status  ( statusCode )
+
 import           Test.Hspec
+
 import           TestUtils
+
 
 spec :: Spec
 spec =
@@ -22,8 +28,8 @@ spec =
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just (vector [weaponSword (sword (Just "hi"))]))
-          (vector [weaponSword (sword (Just "hi2"))])
+          (Just (vector' [weaponSword (sword (Just "hi"))]))
+          (vector' [weaponSword (sword (Just "hi2"))])
           )
         (object
           [ "xs" .= [object ["x" .= String "hi"]]
@@ -33,21 +39,21 @@ spec =
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just (vector [weaponSword (sword Nothing)]))
-          (vector [weaponAxe (axe Nothing)])
+          (Just (vector' [weaponSword (sword Nothing)]))
+          (vector' [weaponAxe (axe Nothing)])
           )
         (object ["xs" .= [object ["x" .= Null]], "xsReq" .= [object ["y" .= Number 0]]])
       test
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just $ vector
+          (Just $ vector'
             [ weaponSword (sword (Just "hi"))
             , none
             , weaponAxe (axe (Just maxBound))
             , weaponSword (sword (Just "oi"))
             ]
           )
-          (vector
+          (vector'
             [ weaponSword (sword (Just "hi2"))
             , none
             , weaponAxe (axe (Just minBound))
@@ -71,15 +77,15 @@ spec =
           ])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just (vector [])) (vector []))
+        (encode $ vectorOfUnions (Just (vector' [])) (vector' []))
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
       test
         "VectorOfUnions"
-        (encode $ vectorOfUnions Nothing (vector []))
+        (encode $ vectorOfUnions Nothing (vector' []))
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
 
 
-test :: String -> BSL.ByteString -> J.Value -> IO ()
+test :: HasCallStack => String -> BSL.ByteString -> J.Value -> IO ()
 test flatbufferName bs expectedJson = do
   man <- newManager defaultManagerSettings
   req <- parseRequest ("http://localhost:8080/" ++ flatbufferName)

@@ -1,17 +1,19 @@
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Examples.HandWritten where
 
+import           Data.Coerce                   ( coerce )
 import           Data.Int
 import           Data.Text                     ( Text )
 import           Data.Word
 
 import           FlatBuffers.FileIdentifier    ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.Internal.Build
 import           FlatBuffers.Internal.Positive ( Positive(getPositive) )
+import           FlatBuffers.Internal.Write
 import           FlatBuffers.Read
-import           FlatBuffers.Write
+import           FlatBuffers.Types
 
 ----------------------------------
 ---------- Empty table -----------
@@ -45,18 +47,18 @@ primitives ::
   -> WriteTable Primitives
 primitives a b c d e f g h i j k l =
   writeTable
-    [ (optionalDef 0 . inline) word8    a
-    , (optionalDef 0 . inline) word16   b
-    , (optionalDef 0 . inline) word32   c
-    , (optionalDef 0 . inline) word64   d
-    , (optionalDef 0 . inline) int8     e
-    , (optionalDef 0 . inline) int16    f
-    , (optionalDef 0 . inline) int32    g
-    , (optionalDef 0 . inline) int64    h
-    , (optionalDef 0 . inline) float    i
-    , (optionalDef 0 . inline) double   j
-    , (optionalDef False . inline) bool k
-    , optional text                     l
+    [ optionalDef 0 writeWord8TableField    a
+    , optionalDef 0 writeWord16TableField   b
+    , optionalDef 0 writeWord32TableField   c
+    , optionalDef 0 writeWord64TableField   d
+    , optionalDef 0 writeInt8TableField     e
+    , optionalDef 0 writeInt16TableField    f
+    , optionalDef 0 writeInt32TableField    g
+    , optionalDef 0 writeInt64TableField    h
+    , optionalDef 0 writeFloatTableField    i
+    , optionalDef 0 writeDoubleTableField   j
+    , optionalDef False writeBoolTableField k
+    , optional writeTextTableField          l
     ]
 
 primitivesA :: ReadCtx m => Table Primitives -> m Word8
@@ -128,10 +130,10 @@ enums ::
   -> Maybe (WriteVector (WriteStruct StructWithEnum))
   -> WriteTable Enums
 enums x y xs ys = writeTable
-  [ (optionalDef 0 . inline) int16 x
-  , (optional . inline) unWriteStruct y
-  , (optional . writeVector . inline) int16 xs
-  , (optional . writeVector . inline) unWriteStruct ys
+  [ optionalDef 0 writeInt16TableField x
+  , optional writeStructTableField y
+  , optional writeVectorTableField xs
+  , optional writeVectorTableField ys
   ]
 
 enumsX :: ReadCtx m => Table Enums -> m Int16
@@ -144,18 +146,21 @@ enumsXs :: ReadCtx m => Table Enums -> m (Maybe (Vector Int16))
 enumsXs = readTableFieldOpt (readPrimVector Int16Vec) 2
 
 enumsYs :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
-enumsYs = readTableFieldOpt (readStructVector 6) 3
+enumsYs = readTableFieldOpt readStructVector 3
 
 
 
 data StructWithEnum
 
+instance IsStruct StructWithEnum where
+  structAlignmentOf = 2
+  structSizeOf = 6
+
 structWithEnum :: Int8 -> Int16 -> Int8 -> WriteStruct StructWithEnum
-structWithEnum x y z = writeStruct 2
-  [ padded 1 (int8 z)
-  , int16 y
-  , padded 1 (int8 x)
-  ]
+structWithEnum x y z = WriteStruct $
+  buildInt8 x <> buildPadding 1
+  <> buildInt16 y
+  <> buildInt8 z <> buildPadding 1
 
 structWithEnumX :: ReadCtx m => Struct StructWithEnum -> m Int8
 structWithEnumX = readStructField readInt8 0
@@ -170,14 +175,14 @@ structWithEnumZ = readStructField readInt8 4
 ------------- Structs ------------
 ----------------------------------
 data Struct1
+instance IsStruct Struct1 where
+  structAlignmentOf = 1
+  structSizeOf = 3
 
 struct1 :: Word8 -> Int8 -> Int8 -> WriteStruct Struct1
 struct1 x y z =
-  writeStruct 1
-    [ int8 z
-    , int8 y
-    , word8 x
-    ]
+  WriteStruct $
+    buildWord8 x <> buildInt8 y <> buildInt8 z
 
 struct1X :: ReadCtx m => Struct Struct1 -> m Word8
 struct1X = readStructField readWord8 0
@@ -190,24 +195,28 @@ struct1Z = readStructField readInt8 2
 
 
 data Struct2
+instance IsStruct Struct2 where
+  structAlignmentOf = 2
+  structSizeOf = 4
 
 struct2 :: Int16 -> WriteStruct Struct2
-struct2 x = writeStruct 4
-  [ padded 2 (int16 x)
-  ]
+struct2 x = WriteStruct $
+  buildInt16 x <> buildPadding 2
 
 struct2X :: ReadCtx m => Struct Struct2 -> m Int16
 struct2X = readStructField readInt16 0
 
 
 data Struct3
+instance IsStruct Struct3 where
+  structAlignmentOf = 8
+  structSizeOf = 24
 
 struct3 :: WriteStruct Struct2 -> Word64 -> Word8 -> WriteStruct Struct3
-struct3 x y z = writeStruct 8
-  [ padded 7 (word8 z)
-  , word64 y
-  , padded 4 (unWriteStruct x)
-  ]
+struct3 x y z = WriteStruct $
+  coerce x <> buildPadding 4
+  <> buildWord64 y
+  <> buildWord8 z <> buildPadding 7
 
 struct3X :: Struct Struct3 -> Struct Struct2
 struct3X = readStructField readStruct 0
@@ -220,14 +229,16 @@ struct3Z = readStructField readWord8 16
 
 
 data Struct4
+instance IsStruct Struct4 where
+  structAlignmentOf = 8
+  structSizeOf = 24
 
 struct4 :: WriteStruct Struct2 -> Int8 -> Int64 -> Bool -> WriteStruct Struct4
-struct4 w x y z = writeStruct 8
-  [ padded 7 (bool z)
-  , int64 y
-  , padded 3 (int8 x)
-  , unWriteStruct w
-  ]
+struct4 w x y z = WriteStruct $
+  coerce w
+  <> buildInt8 x <> buildPadding 3
+  <> buildInt64 y
+  <> buildBool z <> buildPadding 7
 
 struct4W :: Struct Struct4 -> Struct Struct2
 struct4W = readStructField readStruct 0
@@ -251,10 +262,10 @@ structs ::
   -> Maybe (WriteStruct Struct4)
   -> WriteTable Structs
 structs a b c d = writeTable
-  [ (optional . inline) unWriteStruct a
-  , (optional . inline) unWriteStruct b
-  , (optional . inline) unWriteStruct c
-  , (optional . inline) unWriteStruct d
+  [ optional writeStructTableField a
+  , optional writeStructTableField b
+  , optional writeStructTableField c
+  , optional writeStructTableField d
   ]
 
 structsA :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct1))
@@ -277,7 +288,7 @@ data NestedTables
 
 nestedTables :: Maybe (WriteTable Table1) -> WriteTable NestedTables
 nestedTables x = writeTable
-  [ optional unWriteTable x
+  [ optional writeTableTableField x
   ]
 
 nestedTablesX :: ReadCtx m => Table NestedTables -> m (Maybe (Table Table1))
@@ -288,8 +299,8 @@ data Table1
 
 table1 :: Maybe (WriteTable Table2) -> Maybe Int32 -> WriteTable Table1
 table1 x y = writeTable
-  [ optional unWriteTable x
-  , (optionalDef 0 . inline) int32 y
+  [ optional writeTableTableField x
+  , optionalDef 0 writeInt32TableField y
   ]
 
 table1X :: ReadCtx m => Table Table1 -> m (Maybe (Table Table2))
@@ -302,7 +313,7 @@ table1Y = readTableFieldWithDef readInt16 1 0
 data Table2
 
 table2 :: Maybe Int16 -> WriteTable Table2
-table2 x = writeTable [ (optionalDef 0 . inline) int16 x ]
+table2 x = writeTable [ optionalDef 0 writeInt16TableField x ]
 
 table2X :: ReadCtx m => Table Table2 -> m Int16
 table2X = readTableFieldWithDef readInt16 0 0
@@ -313,7 +324,7 @@ table2X = readTableFieldWithDef readInt16 0 0
 data Sword
 
 sword :: Maybe Text -> WriteTable Sword
-sword x = writeTable [optional text x]
+sword x = writeTable [optional writeTextTableField x]
 
 swordX :: ReadCtx m => Table Sword -> m (Maybe Text)
 swordX = readTableFieldOpt readText 0
@@ -324,10 +335,11 @@ swordX = readTableFieldOpt readText 0
 data Axe
 
 axe :: Maybe Int32 -> WriteTable Axe
-axe y = writeTable [(optionalDef 0 . inline) int32 y]
+axe y = writeTable [optionalDef 0 writeInt32TableField y]
 
 axeY :: ReadCtx m => Table Axe -> m Int32
 axeY = readTableFieldWithDef readInt32 0 0
+
 ----------------------------------
 ------------- Weapon --------------
 ----------------------------------
@@ -355,8 +367,8 @@ data TableWithUnion
 
 tableWithUnion :: WriteUnion Weapon -> WriteTable TableWithUnion
 tableWithUnion uni = writeTable
-  [ writeUnionType uni
-  , writeUnionValue uni
+  [ writeUnionTypeTableField uni
+  , writeUnionValueTableField uni
   ]
 
 tableWithUnionUni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
@@ -383,18 +395,18 @@ vectors ::
   -> WriteTable Vectors
 vectors a b c d e f g h i j k l =
   writeTable
-    [ (optional . writeVector . inline) word8    a
-    , (optional . writeVector . inline) word16   b
-    , (optional . writeVector . inline) word32   c
-    , (optional . writeVector . inline) word64   d
-    , (optional . writeVector . inline) int8     e
-    , (optional . writeVector . inline) int16    f
-    , (optional . writeVector . inline) int32    g
-    , (optional . writeVector . inline) int64    h
-    , (optional . writeVector . inline) float    i
-    , (optional . writeVector . inline) double   j
-    , (optional . writeVector . inline) bool     k
-    , (optional . writeVector)          text     l
+    [ optional writeVectorTableField a
+    , optional writeVectorTableField b
+    , optional writeVectorTableField c
+    , optional writeVectorTableField d
+    , optional writeVectorTableField e
+    , optional writeVectorTableField f
+    , optional writeVectorTableField g
+    , optional writeVectorTableField h
+    , optional writeVectorTableField i
+    , optional writeVectorTableField j
+    , optional writeVectorTableField k
+    , optional writeVectorTableField l
     ]
 
 vectorsA :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word8))
@@ -429,7 +441,7 @@ data VectorOfTables
 
 vectorOfTables :: Maybe (WriteVector (WriteTable Axe)) -> WriteTable VectorOfTables
 vectorOfTables xs = writeTable
-  [ (optional . writeVector) unWriteTable xs
+  [ optional writeVectorTableField xs
   ]
 
 vectorOfTablesXs :: ReadCtx m => Table VectorOfTables -> m (Maybe (Vector (Table Axe)))
@@ -447,23 +459,23 @@ vectorOfStructs ::
   -> Maybe (WriteVector (WriteStruct Struct4))
   -> WriteTable VectorOfStructs
 vectorOfStructs as bs cs ds = writeTable
-  [ (optional . writeVector . inline) unWriteStruct as
-  , (optional . writeVector . inline) unWriteStruct bs
-  , (optional . writeVector . inline) unWriteStruct cs
-  , (optional . writeVector . inline) unWriteStruct ds
+  [ optional writeVectorTableField as
+  , optional writeVectorTableField bs
+  , optional writeVectorTableField cs
+  , optional writeVectorTableField ds
   ]
 
 vectorOfStructsAs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct1)))
-vectorOfStructsAs = readTableFieldOpt (readStructVector 3) 0
+vectorOfStructsAs = readTableFieldOpt readStructVector 0
 
 vectorOfStructsBs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct2)))
-vectorOfStructsBs = readTableFieldOpt (readStructVector 4) 1
+vectorOfStructsBs = readTableFieldOpt readStructVector 1
 
 vectorOfStructsCs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct3)))
-vectorOfStructsCs = readTableFieldOpt (readStructVector 24) 2
+vectorOfStructsCs = readTableFieldOpt readStructVector 2
 
 vectorOfStructsDs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct4)))
-vectorOfStructsDs = readTableFieldOpt (readStructVector 24) 3
+vectorOfStructsDs = readTableFieldOpt readStructVector 3
 
 
 ----------------------------------
@@ -476,16 +488,13 @@ vectorOfUnions ::
   -> WriteVector (WriteUnion Weapon)
   -> WriteTable VectorOfUnions
 vectorOfUnions xs xsReq = writeTable
-  [ xsTypes
-  , xsValues
+  [ optional writeUnionTypesVectorTableField xs
+  , optional writeUnionValuesVectorTableField xs
   , deprecated
   , deprecated
-  , xsReqTypes
-  , xsReqValues
+  , writeUnionTypesVectorTableField xsReq
+  , writeUnionValuesVectorTableField xsReq
   ]
-  where
-    (xsTypes, xsValues) = writeUnionVectorOpt xs
-    (xsReqTypes, xsReqValues) = writeUnionVectorReq xsReq
 
 vectorOfUnionsXs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
 vectorOfUnionsXs = readTableFieldUnionVectorOpt readWeapon 1
@@ -517,20 +526,20 @@ scalarsWithDefaults ::
   -> WriteTable ScalarsWithDefaults
 scalarsWithDefaults a b c d e f g h i j k l m n =
   writeTable
-    [ (optionalDef 8 . inline) word8          a
-    , (optionalDef 16 . inline) word16        b
-    , (optionalDef 32 . inline) word32        c
-    , (optionalDef 64 . inline) word64        d
-    , (optionalDef (-1) . inline) int8        e
-    , (optionalDef (-2) . inline) int16       f
-    , (optionalDef (-4) . inline) int32       g
-    , (optionalDef (-8) . inline) int64       h
-    , (optionalDef 3.9 . inline) float        i
-    , (optionalDef (-2.3e10) . inline) double j
-    , (optionalDef True . inline) bool        k
-    , (optionalDef False . inline) bool       l
-    , (optionalDef 1 . inline) int16          m
-    , (optionalDef 5 . inline) int16          n
+    [ optionalDef 8 writeWord8TableField          a
+    , optionalDef 16 writeWord16TableField        b
+    , optionalDef 32 writeWord32TableField        c
+    , optionalDef 64 writeWord64TableField        d
+    , optionalDef (-1) writeInt8TableField        e
+    , optionalDef (-2) writeInt16TableField       f
+    , optionalDef (-4) writeInt32TableField       g
+    , optionalDef (-8) writeInt64TableField       h
+    , optionalDef 3.9 writeFloatTableField        i
+    , optionalDef (-2.3e10) writeDoubleTableField j
+    , optionalDef True writeBoolTableField        k
+    , optionalDef False writeBoolTableField       l
+    , optionalDef 1 writeInt16TableField          m
+    , optionalDef 5 writeInt16TableField          n
     ]
 
 scalarsWithDefaultsA :: ReadCtx m => Table ScalarsWithDefaults -> m Word8
@@ -570,14 +579,14 @@ data DeprecatedFields
 
 deprecatedFields :: Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> WriteTable DeprecatedFields
 deprecatedFields a c e g = writeTable
-  [ (optionalDef 0 . inline) int8 a
+  [ optionalDef 0 writeInt8TableField a
   , deprecated
-  , (optionalDef 0 . inline) int8 c
+  , optionalDef 0 writeInt8TableField c
   , deprecated
-  , (optionalDef 0 . inline) int8 e
+  , optionalDef 0 writeInt8TableField e
   , deprecated
   , deprecated
-  , (optionalDef 0 . inline) int8 g
+  , optionalDef 0 writeInt8TableField g
   ]
 
 deprecatedFieldsA :: ReadCtx m => Table DeprecatedFields -> m Int8
@@ -606,12 +615,12 @@ requiredFields ::
   -> WriteVector Int32
   -> WriteTable RequiredFields
 requiredFields a b c d e = writeTable
-  [ text a
-  , inline unWriteStruct b
-  , unWriteTable c
-  , writeUnionType d
-  , writeUnionValue d
-  , (writeVector . inline) int32 e
+  [ writeTextTableField a
+  , writeStructTableField b
+  , writeTableTableField c
+  , writeUnionTypeTableField d
+  , writeUnionValueTableField d
+  , writeVectorTableField e
   ]
 
 requiredFieldsA :: ReadCtx m => Table RequiredFields -> m Text

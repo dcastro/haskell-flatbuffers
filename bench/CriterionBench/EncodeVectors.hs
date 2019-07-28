@@ -12,7 +12,7 @@ import qualified Data.List                  as L
 import           Data.Text                  ( Text )
 import qualified Data.Vector                as V
 
-import           FlatBuffers.Write
+import           FlatBuffers.Internal.Write
 import           FlatBuffers.Read
 
 import           Types
@@ -25,52 +25,52 @@ groups =
   [ bgroup "Write.encode vectors"
     [ bgroup "from list"
       [ bench "of ints" $ nf (\xs ->
-          encode . vectorOfInts . Just . vector $
+          encode . vectorOfInts . Just . vector (fromIntegral (F.length xs)) $
             xs
         ) $ mkIntList n
 
       , bench "of ints (with fusion)" $ nf (\xs ->
-          encode . vectorOfInts . Just . vector $
+          encode . vectorOfInts . Just . vector (fromIntegral (F.length xs)) $
             userId <$> xs
         ) $ mkUserList n
 
       , bench "of structs (1 int field)" $ nf (\xs ->
-          encode . vectorOfStructWithOneInt . Just . vector $
+          encode . vectorOfStructWithOneInt . Just . vector (fromIntegral (F.length xs)) $
             structWithOneInt <$> xs
         ) $ mkIntList n
 
       , bench "of structs (2 ints fields)" $ nf (\xs ->
-          encode . vectorOfPairs . Just . vector $
+          encode . vectorOfPairs . Just . vector (fromIntegral (F.length xs)) $
             (\(User id age _) -> pair id age) <$> xs
         ) $ mkUserList n
 
       , bench "of short strings" $ nf (\xs ->
-          encode . vectorOfStrings . Just . vector $
+          encode . vectorOfStrings . Just . vector (fromIntegral (F.length xs)) $
             xs
         ) $ mkTextList n
 
       , bench "of short strings (with fusion)" $ nf (\xs ->
-          encode . vectorOfStrings . Just . vector $
+          encode . vectorOfStrings . Just . vector (fromIntegral (F.length xs)) $
             userName <$> xs
         ) $ mkUserList n
 
       , bench "of long strings" $ nf (\xs ->
-          encode . vectorOfStrings . Just . vector $
+          encode . vectorOfStrings . Just . vector (fromIntegral (F.length xs)) $
             xs
         ) $ mkLongTextList n
 
       , bench "of tables (2 int fields)" $ nf (\xs ->
-          encode . vectorOfTables . Just . vector $
+          encode . vectorOfTables . Just . vector (fromIntegral (F.length xs)) $
             (\(User id age _) -> pairTable (Just id) (Just age)) <$> xs
         ) $ mkUserList n
 
       , bench "of tables (1 int field, 1 string field)" $ nf (\xs ->
-          encode . vectorOfUsers . Just . vector $
+          encode . vectorOfUsers . Just . vector (fromIntegral (F.length xs)) $
             (\(User id age name) -> userTable (Just id) (Just name)) <$> xs
         ) $ mkUserList n
 
       , bench "of unions (1 int field each)" $ nf (\xs ->
-          encode . vectorOfUnions . Just . vector $
+          encode . vectorOfUnions . Just . vector (fromIntegral (F.length xs)) $
             xs <&> \case
               Sword x -> weaponUnionSword (swordTable (Just x))
               Axe x   -> weaponUnionAxe   (axeTable   (Just x))
@@ -79,52 +79,52 @@ groups =
 
     , bgroup "from vector"
       [ bench "of ints" $ nf (\xs ->
-          encode . vectorOfInts . Just . vector $
+          encode . vectorOfInts . Just . vector (fromIntegral (F.length xs)) $
             xs
         ) $ mkIntVector n
 
       , bench "of ints (with fusion)" $ nf (\xs ->
-          encode . vectorOfInts . Just . vector $
+          encode . vectorOfInts . Just . vector (fromIntegral (F.length xs)) $
             userId <$> xs
         ) $ mkUserVector n
 
       , bench "of structs (1 int field)" $ nf (\xs ->
-          encode . vectorOfStructWithOneInt . Just . vector $
+          encode . vectorOfStructWithOneInt . Just . vector (fromIntegral (F.length xs)) $
             structWithOneInt <$> xs
         ) $ mkIntVector n
 
       , bench "of structs (2 ints fields)" $ nf (\xs ->
-          encode . vectorOfPairs . Just . vector $
+          encode . vectorOfPairs . Just . vector (fromIntegral (F.length xs)) $
             (\(User id age _) -> pair id age) <$> xs
         ) $ mkUserVector n
 
       , bench "of short strings" $ nf (\xs ->
-          encode . vectorOfStrings . Just . vector $
+          encode . vectorOfStrings . Just . vector (fromIntegral (F.length xs)) $
             xs
         ) $ mkTextVector n
 
       , bench "of short strings (with fusion)" $ nf (\xs ->
-          encode . vectorOfStrings . Just . vector $
+          encode . vectorOfStrings . Just . vector (fromIntegral (F.length xs)) $
             userName <$> xs
         ) $ mkUserVector n
 
       , bench "of long strings" $ nf (\xs ->
-          encode . vectorOfStrings . Just . vector $
+          encode . vectorOfStrings . Just . vector (fromIntegral (F.length xs)) $
             xs
         ) $ mkLongTextVector n
 
       , bench "of tables (2 int fields)" $ nf (\xs ->
-          encode . vectorOfTables . Just . vector $
+          encode . vectorOfTables . Just . vector (fromIntegral (F.length xs)) $
             (\(User id age _) -> pairTable (Just id) (Just age)) <$> xs
         ) $ mkUserVector n
 
       , bench "of tables (1 int field, 1 string field)" $ nf (\xs ->
-          encode . vectorOfUsers . Just . vector $
+          encode . vectorOfUsers . Just . vector (fromIntegral (F.length xs)) $
             (\(User id age name) -> userTable (Just id) (Just name)) <$> xs
         ) $ mkUserVector n
 
       , bench "of unions (1 int field each)" $ nf (\xs ->
-          encode . vectorOfUnions . Just . vector $
+          encode . vectorOfUnions . Just . vector (fromIntegral (F.length xs)) $
             xs <&> \case
               Sword x -> weaponUnionSword (swordTable (Just x))
               Axe x   -> weaponUnionAxe   (axeTable   (Just x))

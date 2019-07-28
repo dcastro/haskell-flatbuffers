@@ -8,7 +8,6 @@ import           Control.Monad             ( (>=>) )
 import qualified Data.Aeson                as J
 import           Data.Aeson.Encode.Pretty  ( encodePretty )
 import qualified Data.ByteString.Lazy.UTF8 as BSLU
-
 import qualified Data.Text.Lazy            as TL
 
 import           Test.HUnit                ( assertFailure )

@@ -1,6 +1,6 @@
 module WeighBench.Encode where
 
-import           FlatBuffers.Write
+import           FlatBuffers.Internal.Write
 import           Types
 import           Weigh
 

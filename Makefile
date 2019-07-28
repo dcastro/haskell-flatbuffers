@@ -10,13 +10,13 @@ hoogle: ## Launch a hoogle server
 
 ghcid:  ## Launch ghcid
 	ghcid \
-		--command "stack ghci --test --bench" \
+		--command "stack ghci --test --bench --ghci-options='-dsuppress-uniques -dsuppress-module-prefixes'" \
 			--restart package.yaml
 .PHONY: ghcid
 
 ghcid-splices:  ## Launch ghcid and dump TH splices on reload
 	ghcid \
-		--command "stack ghci --test --ghci-options='-ddump-splices -dsuppress-uniques'" \
+		--command "stack ghci --test --ghci-options='-ddump-splices -dsuppress-uniques -dsuppress-module-prefixes'" \
 			--restart package.yaml
 .PHONY: ghcid-splices
 

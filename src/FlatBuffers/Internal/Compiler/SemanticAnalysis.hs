@@ -44,6 +44,7 @@ import           FlatBuffers.Types
 
 import           Text.Read                                     ( readMaybe )
 
+
 type ValidationCtx m = (MonadError Text m, MonadReader ValidationState m)
 
 data ValidationState = ValidationState
@@ -494,7 +495,6 @@ validateTable symbolTables (currentNamespace, table) =
                           (enumType enum)
                   MatchS (ns, struct) ->
                     VStruct (TypeRef ns (getIdent struct))
-                            (structSize struct)
                   MatchT (ns, table) -> VTable (TypeRef ns (getIdent table))
                   MatchU (ns, union) -> VUnion (TypeRef ns (getIdent union))
 
@@ -682,11 +682,12 @@ validateStruct symbolTables (currentNamespace, struct) =
         -- In order to calculate the padding between fields, we must first know the fields' and the struct's
         -- alignment. Which means we must first validate all the struct's fields, and then do a second
         -- pass to calculate the padding.
-        let paddedFields = addFieldPadding alignment fields
+        let (size, paddedFields) = addFieldPadding alignment fields
 
         let validStruct = StructDecl
               { structIdent      = getIdent struct
               , structAlignment  = alignment
+              , structSize       = size
               , structFields     = paddedFields
               }
         modify ((currentNamespace, validStruct) :)
@@ -695,37 +696,43 @@ validateStruct symbolTables (currentNamespace, struct) =
   where
     invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
 
-    addFieldPadding :: Alignment -> NonEmpty UnpaddedStructField -> NonEmpty StructField
-    addFieldPadding structAlignment =
-      NE.fromList . go 0 . NE.toList
+    -- | Calculates how much padding each field needs, and returns the struct's total size
+    -- and a list of fields with padding information.
+    addFieldPadding :: Alignment -> NonEmpty UnpaddedStructField -> (InlineSize, NonEmpty StructField)
+    addFieldPadding structAlignment unpaddedFields =
+      (size, NE.fromList (reverse paddedFields))
       where
-        go :: InlineSize -> [UnpaddedStructField] -> [StructField]
-        go _ [] = []
-        go sizeAccum (x : y : tail) =
-          let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
+
+        (size, paddedFields) = go 0 [] (NE.toList unpaddedFields)
+
+        go :: InlineSize -> [StructField] -> [UnpaddedStructField] -> (InlineSize, [StructField])
+        go size paddedFields [] = (size, paddedFields)
+        go size paddedFields (x : y : tail) =
+          let size' = size + structFieldTypeSize (unpaddedStructFieldType x)
               nextFieldsAlignment = fromIntegral @Alignment @InlineSize (structFieldAlignment y)
-              paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` nextFieldsAlignment) - sizeAccum'
-              sizeAccum'' = sizeAccum' + paddingNeeded
+              paddingNeeded = (size' `roundUpToNearestMultipleOf` nextFieldsAlignment) - size'
+              size'' = size' + paddingNeeded
               paddedField = StructField
                 { structFieldIdent = unpaddedStructFieldIdent x
                 -- NOTE: it is safe to narrow `paddingNeeded` to a word8 here because it's always smaller than `nextFieldsAlignment`
                 , structFieldPadding = fromIntegral @InlineSize @Word8 paddingNeeded
-                , structFieldOffset = coerce sizeAccum
+                , structFieldOffset = coerce size
                 , structFieldType = unpaddedStructFieldType x
                 }
-          in  paddedField : go sizeAccum'' (y : tail)
-        go sizeAccum [x] =
-          let sizeAccum' = sizeAccum + structFieldTypeSize (unpaddedStructFieldType x)
+          in  go size'' (paddedField : paddedFields) (y : tail)
+        go size paddedFields [x] =
+          let size' = size + structFieldTypeSize (unpaddedStructFieldType x)
               structAlignment' = fromIntegral @Alignment @InlineSize structAlignment
-              paddingNeeded = (sizeAccum' `roundUpToNearestMultipleOf` structAlignment') - sizeAccum'
-          in  [ StructField
+              paddingNeeded = (size' `roundUpToNearestMultipleOf` structAlignment') - size'
+              size'' = size' + paddingNeeded
+              paddedField = StructField
                 { structFieldIdent = unpaddedStructFieldIdent x
                 -- NOTE: it is safe to narrow `paddingNeeded` to a word8 here because it's always smaller than `nextFieldsAlignment`
                 , structFieldPadding = fromIntegral @InlineSize @Word8 paddingNeeded
-                , structFieldOffset = coerce sizeAccum
+                , structFieldOffset = coerce size
                 , structFieldType = unpaddedStructFieldType x
                 }
-              ]
+          in  (size'', paddedField : paddedFields)
 
     validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
@@ -842,14 +849,6 @@ structFieldTypeSize sft =
     SBool -> boolSize
     SEnum _ enumType -> fromIntegral @Word8 @InlineSize (enumSize enumType)
     SStruct (_, nestedStruct) -> structSize nestedStruct
-
-structFieldSize :: StructField -> InlineSize
-structFieldSize sf =
-  fromIntegral @Word8 @InlineSize (structFieldPadding sf) + structFieldTypeSize (structFieldType sf)
-
-structSize :: StructDecl -> InlineSize
-structSize struct =
-  sum (structFieldSize <$> structFields struct)
 
 checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f, HasIdent a) => f a -> m ()
 checkDuplicateIdentifiers xs =

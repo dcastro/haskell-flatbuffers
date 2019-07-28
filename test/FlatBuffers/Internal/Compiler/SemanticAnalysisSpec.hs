@@ -221,7 +221,7 @@ spec =
             x: int;
           }
         |] `shouldValidate`
-          struct ("Ns", StructDecl "S" 4
+          struct ("Ns", StructDecl "S" 4 4
             [ StructField "x" 0 0 SInt32
             ])
 
@@ -233,7 +233,7 @@ spec =
             z: bool;
           }
         |] `shouldValidate`
-          struct ("", StructDecl "S" 8
+          struct ("", StructDecl "S" 8 24
             [ StructField "x" 7 0 SWord8
             , StructField "y" 0 8 SDouble
             , StructField "z" 7 16 SBool
@@ -259,7 +259,7 @@ spec =
           , mkEnum "A"      "E1", mkEnum "A"      "E2"
           , mkEnum "A.B"    "E1"
           , mkEnum "A.B.C"  "E1", mkEnum "A.B.C"  "E2", mkEnum "A.B.C"  "E3"
-          , struct ("A.B", StructDecl "S" 2
+          , struct ("A.B", StructDecl "S" 2 6
               [ StructField "x" 0 0 (SEnum (TypeRef "A.B"  "E1") EInt16)
               , StructField "y" 0 2 (SEnum (TypeRef "A"    "E2") EInt16)
               , StructField "z" 0 4 (SEnum (TypeRef ""     "E3") EInt16)
@@ -290,7 +290,7 @@ spec =
           , mkEnum "A.A"      "E1", mkEnum "A.A"      "E2"
           , mkEnum "A.B.A"    "E1"
           , mkEnum "A.B.C.A"  "E1", mkEnum "A.B.C.A"  "E2", mkEnum "A.B.C.A"  "E3"
-          , struct ("A.B", StructDecl "S" 2
+          , struct ("A.B", StructDecl "S" 2 6
               [ StructField "x" 0 0 (SEnum (TypeRef "A.B.A" "E1") EInt16)
               , StructField "y" 0 2 (SEnum (TypeRef "A.A"   "E2") EInt16)
               , StructField "z" 0 4 (SEnum (TypeRef "A"     "E3") EInt16)
@@ -318,14 +318,14 @@ spec =
           }
         |] `shouldValidate` foldDecls
           [ enum ("A", EnumDecl "Color" EWord16 [EnumVal "Blue" 0])
-          , struct ("A", StructDecl "S" 2
+          , struct ("A", StructDecl "S" 2 2
               [ StructField "x" 0 0 (SEnum (TypeRef "A" "Color") EWord16)
               ])
           ]
 
       it "with nested structs (backwards/forwards references)" $ do
-        let backwards = ("A.B", StructDecl "Backwards" 4 [ StructField "x" 0 0 SFloat ])
-        let forwards  = ("A.B", StructDecl "Forwards" 4 [ StructField "y" 0 0 (SStruct backwards) ])
+        let backwards = ("A.B", StructDecl "Backwards" 4 4 [ StructField "x" 0 0 SFloat ])
+        let forwards  = ("A.B", StructDecl "Forwards"  4 4 [ StructField "y" 0 0 (SStruct backwards) ])
         [r|
           namespace A.B;
           struct Backwards {
@@ -342,7 +342,7 @@ spec =
           }
         |] `shouldValidate` foldDecls
           [ struct backwards
-          , struct ("A.B", StructDecl "S" 4
+          , struct ("A.B", StructDecl "S" 4 8
               [ StructField "x1" 0 0 (SStruct backwards)
               , StructField "x2" 0 4 (SStruct forwards)
               ])
@@ -394,18 +394,18 @@ spec =
 
       it "with `force_align` attribute" $ do
         -- just 1 field
-        [r| struct S (force_align: 4)  { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 4  [StructField "x" 0 0 SInt32])
-        [r| struct S (force_align: 8)  { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 8  [StructField "x" 4 0 SInt32])
-        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" 12 0 SInt32])
+        [r| struct S (force_align: 4)  { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 4  4  [StructField "x" 0 0 SInt32])
+        [r| struct S (force_align: 8)  { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 8  8  [StructField "x" 4 0 SInt32])
+        [r| struct S (force_align: 16) { x: int; } |] `shouldValidate` struct ("", StructDecl "S" 16 16 [StructField "x" 12 0 SInt32])
         -- multiple fields
-        [r| struct S (force_align: 2)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 2  [StructField "x" 1 0 SInt8, StructField "y" 0 2 SWord16])
-        [r| struct S (force_align: 4)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 4  [StructField "x" 1 0 SInt8, StructField "y" 0 2 SWord16])
-        [r| struct S (force_align: 8)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 8  [StructField "x" 1 0 SInt8, StructField "y" 4 2 SWord16])
-        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 16 [StructField "x" 1 0 SInt8, StructField "y" 12 2 SWord16])
+        [r| struct S (force_align: 2)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 2  4  [StructField "x" 1 0 SInt8, StructField "y" 0 2 SWord16])
+        [r| struct S (force_align: 4)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 4  4  [StructField "x" 1 0 SInt8, StructField "y" 0 2 SWord16])
+        [r| struct S (force_align: 8)  { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 8  8  [StructField "x" 1 0 SInt8, StructField "y" 4 2 SWord16])
+        [r| struct S (force_align: 16) { x: byte; y: ushort; } |] `shouldValidate` struct ("", StructDecl "S" 16 16 [StructField "x" 1 0 SInt8, StructField "y" 12 2 SWord16])
         -- nested structs
-        let s1 = ("", StructDecl "S1" 2 [StructField "x" 1 0 SInt8])
-        let s2 = ("", StructDecl "S2" 4 [StructField "x" 0 0 SInt32])
-        let s  = ("", StructDecl "S" 4
+        let s1 = ("", StructDecl "S1" 2 2 [StructField "x" 1 0 SInt8])
+        let s2 = ("", StructDecl "S2" 4 4 [StructField "x" 0 0 SInt32])
+        let s  = ("", StructDecl "S" 4 12
                   [ StructField "x" 2 0 (SStruct s1)
                   , StructField "y" 0 4 (SStruct s2)
                   , StructField "z" 3 8 SBool
@@ -760,7 +760,7 @@ spec =
               z: U;
             }
           |] `shouldValidate` foldDecls
-            [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 0 SInt32 ])
+            [ struct ("A", StructDecl "S" 4 4 [ StructField "x" 0 0 SInt32 ])
             , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table" NotRoot
@@ -783,7 +783,7 @@ spec =
               z: U (required);
             }
           |] `shouldValidate` foldDecls
-            [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 0 SInt32 ])
+            [ struct ("A", StructDecl "S" 4 4 [ StructField "x" 0 0 SInt32 ])
             , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table" NotRoot
@@ -806,7 +806,7 @@ spec =
               z: U (deprecated);
             }
           |] `shouldValidate` foldDecls
-            [ struct ("A", StructDecl "S" 4 [ StructField "x" 0 0 SInt32 ])
+            [ struct ("A", StructDecl "S" 4 4 [ StructField "x" 0 0 SInt32 ])
             , table ("A", TableDecl "T" NotRoot [])
             , union ("A", UnionDecl "U" [UnionVal "A_T" (TypeRef "A" "T")])
             , table ("A", TableDecl "Table" NotRoot
@@ -845,12 +845,12 @@ spec =
           |] `shouldValidate` foldDecls
             [ table ("A", TableDecl "Table" NotRoot
                 [ TableField 0 "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") EInt16)) False
-                , TableField 1 "x" (TVector Opt (VStruct (TypeRef "A.B" "S") 16)) False
+                , TableField 1 "x" (TVector Opt (VStruct (TypeRef "A.B" "S"))) False
                 , TableField 2 "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
                 , TableField 4 "z" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False
                 ])
             , enum   ("A.B", EnumDecl "E" EInt16 [EnumVal "EA" 0])
-            , struct ("A.B", StructDecl "S" 8 [StructField "x" 7 0 SWord8, StructField "y" 0 8 SInt64])
+            , struct ("A.B", StructDecl "S" 8 16 [StructField "x" 7 0 SWord8, StructField "y" 0 8 SInt64])
             , table  ("A.B", TableDecl "T" NotRoot [])
             , union  ("A.B", UnionDecl "U" [UnionVal "T" (TypeRef "A.B" "T")])
             ]

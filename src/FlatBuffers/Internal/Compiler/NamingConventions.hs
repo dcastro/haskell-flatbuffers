@@ -47,12 +47,6 @@ readUnionFun :: HasIdent union => union -> Text
 readUnionFun (getIdent -> unIdent -> unionIdent) =
   "read" <> TM.toPascal unionIdent
 
-unionVecArg :: TableField -> (Text, Text)
-unionVecArg tf =
-  let argName = arg tf
-  in  (argName <> "Types", argName <> "Values")
-
-
 withModulePrefix :: Namespace -> Text -> Text
 withModulePrefix ns text =
   if ns == ""

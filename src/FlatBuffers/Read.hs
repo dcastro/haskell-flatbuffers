@@ -476,14 +476,14 @@ readTableVector pos = do
 
 readStructVector ::
      forall a m. ReadCtx m
-  => InlineSize
-  -> PositionInfo
+  => IsStruct a
+  => PositionInfo
   -> m (Vector (Struct a))
-readStructVector structSize (posCurrent -> pos) = do
+readStructVector (posCurrent -> pos) = do
   uoffset <- readInt32 pos
   pure $! StructVec
     (move' pos (fromIntegral @Int32 @Int64 uoffset))
-    structSize
+    (structSizeOf @a)
 
 readUnionVector ::
      forall a m. ReadCtx m

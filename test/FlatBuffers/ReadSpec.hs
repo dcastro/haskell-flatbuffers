@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -9,13 +8,14 @@ import           Data.Int
 import           Data.Text                  ( Text )
 import           Data.Word
 
-import qualified FlatBuffers.Internal.Write as W
+import           FlatBuffers.Internal.Build
+import           FlatBuffers.Internal.Write
 import           FlatBuffers.Read
-import           FlatBuffers.Write
+import           FlatBuffers.Types
 
 import           Test.Hspec
-import           TestUtils
 
+import           TestUtils
 
 spec :: Spec
 spec =
@@ -42,14 +42,14 @@ spec =
       myRootF s `shouldBeLeft` MissingField "f"
 
     it "throws when string is invalid utf-8" $ do
-      let text = W.vector @[] [inline word8 255]
-      let bs = W.root $ W.table [W.missing, W.missing, W.missing, text]
+      let text = vector' @Word8 [ 255 ]
+      let bs = encode $ writeTable [missing, missing, missing, writeVectorTableField text]
       s <- fromRight $ decode bs
       myRootD s `shouldBeLeft`
         Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "decodes inline table fields" $ do
-      let bs = encode $ encodeMyRoot (Just minBound) (Just maxBound) Nothing (Just "hello") Nothing (Just (vector nil)) Nothing
+      let bs = encode $ encodeMyRoot (Just minBound) (Just maxBound) Nothing (Just "hello") Nothing (Just (vector' nil)) Nothing
       s <- fromRight $ decode bs
 
       myRootA s `shouldBe` Right minBound
@@ -57,7 +57,7 @@ spec =
       myRootD s `shouldBe` Right "hello"
 
     it "decodes missing fields" $ do
-      let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just (vector nil)) Nothing
+      let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just (vector' nil)) Nothing
       s <- fromRight $ decode bs
 
       myRootA s `shouldBe` Right 0
@@ -67,7 +67,7 @@ spec =
       nestedA nested `shouldBe` Right 0
 
     it "decodes nested tables" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just (vector nil)) Nothing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just (vector' nil)) Nothing
       s <- fromRight $ decode bs
 
       nested <- fromRight $ myRootC s
@@ -77,7 +77,7 @@ spec =
       deepNestedA deepNested `shouldBe` Right 234
 
     it "decodes composite structs" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector nil)) Nothing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector' nil)) Nothing
       s <- fromRight $ decode bs
 
       sws <- fromRight $ myRootE s
@@ -92,7 +92,7 @@ spec =
       threeBytesC tb `shouldBe` Right 6
 
     it "decodes vector of strings" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector @[] ["hello", "world"])) Nothing
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector' ["hello", "world"])) Nothing
       s <- fromRight $ decode bs
 
       vec <- fromRight $ myRootF s
@@ -102,8 +102,8 @@ spec =
       toList vec `shouldBe` Right ["hello", "world"]
 
     it "decodes vectors of tables" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector @[] ["hello", "world"]))
-            (Just (vector @[] [encodeDeepNested (Just 11), encodeDeepNested (Just 22)]))
+      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector' ["hello", "world"]))
+            (Just (vector' [encodeDeepNested (Just 11), encodeDeepNested (Just 22)]))
       s <- fromRight $ decode bs
 
       vec <- fromRight $ myRootG s
@@ -128,13 +128,13 @@ encodeMyRoot ::
   -> WriteTable MyRoot
 encodeMyRoot a b c d e f g =
   writeTable
-    [ (optionalDef 0 . inline) int32 a
-    , (optionalDef 0 . inline) int64 b
-    , optional unWriteTable c
-    , optional text d
-    , (optional . inline) unWriteStruct e
-    , (optional . writeVector) text f
-    , (optional . writeVector) unWriteTable g
+    [ optionalDef 0 writeInt32TableField a
+    , optionalDef 0 writeInt64TableField b
+    , optional writeTableTableField c
+    , optional writeTextTableField d
+    , optional writeStructTableField e
+    , optional writeVectorTableField f
+    , optional writeVectorTableField g
     ]
 
 myRootA :: ReadCtx m => Table MyRoot -> m Int32
@@ -163,8 +163,8 @@ data Nested
 encodeNested :: Maybe Int32 -> Maybe (WriteTable DeepNested) -> WriteTable Nested
 encodeNested a b =
   writeTable
-    [ (optionalDef 0 . inline) int32 a
-    , optional unWriteTable b
+    [ optionalDef 0 writeInt32TableField a
+    , optional writeTableTableField b
     ]
 
 nestedA :: ReadCtx m => Table Nested -> m Int32
@@ -178,21 +178,23 @@ data DeepNested
 encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
 encodeDeepNested a =
   writeTable
-    [ (optionalDef 0 . inline) int32 a
+    [ optionalDef 0 writeInt32TableField a
     ]
 
 deepNestedA :: ReadCtx m => Table DeepNested -> m Int32
 deepNestedA = readTableFieldWithDef readInt32 0 0
 
 data MyStruct
+instance IsStruct MyStruct where
+  structAlignmentOf = 8
+  structSizeOf = 16
 
 encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
 encodeMyStruct a b c =
-  writeStruct 8
-    [ int64 c
-    , padded 3 $ word8 b
-    , int32 a
-    ]
+  WriteStruct $
+    buildInt32 a
+    <> buildWord8 b <> buildPadding 3
+    <> buildInt64 c
 
 myStructA :: ReadCtx m => Struct MyStruct -> m Int32
 myStructA = readStructField readInt32 0
@@ -204,14 +206,14 @@ myStructC :: ReadCtx m => Struct MyStruct -> m Int64
 myStructC = readStructField readInt64 8
 
 data ThreeBytes
+instance IsStruct ThreeBytes where
+  structAlignmentOf = 1
+  structSizeOf = 3
 
 encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
 encodeThreeBytes a b c =
-  writeStruct 1
-    [ word8 c
-    , word8 b
-    , word8 a
-    ]
+  WriteStruct $
+    buildWord8 a <> buildWord8 b <> buildWord8 c
 
 threeBytesA :: ReadCtx m => Struct ThreeBytes -> m Word8
 threeBytesA = readStructField readWord8 0
@@ -224,17 +226,20 @@ threeBytesC = readStructField readWord8 2
 
 -- struct with structs
 data SWS
+instance IsStruct SWS where
+  structAlignmentOf = 8
+  structSizeOf = 24
 
 encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
 encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
-  writeStruct 8
-    [ padded 5 $ word8 threeBytesC
-    , word8 threeBytesB
-    , word8 threeBytesA
-    , int64 myStructC
-    , padded 3 $ word8 myStructB
-    , int32 myStructA
-    ]
+  WriteStruct $
+    buildInt32 myStructA
+    <> buildWord8 myStructB <> buildPadding 3
+    <> buildInt64 myStructC
+    <> buildWord8 threeBytesA
+    <> buildWord8 threeBytesB
+    <> buildWord8 threeBytesC
+    <> buildPadding 5
 
 swsA :: Struct SWS -> Struct MyStruct
 swsA = readStructField readStruct 0

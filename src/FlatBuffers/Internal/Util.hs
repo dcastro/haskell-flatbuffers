@@ -2,11 +2,6 @@ module FlatBuffers.Internal.Util where
 
 import           Data.Bits          ( (.&.), Bits )
 import           Data.List.NonEmpty ( NonEmpty(..) )
-import           Data.Monoid        ( First(..) )
-
-{-# INLINE headF #-}
-headF :: Foldable f => f a -> Maybe a
-headF xs = getFirst $ foldMap (First . Just) xs
 
 {-# INLINE isPowerOfTwo #-}
 isPowerOfTwo :: (Num a, Bits a) => a -> Bool

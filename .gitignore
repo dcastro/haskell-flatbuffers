@@ -27,6 +27,9 @@ flatbuffers.cabal
 
 # End of https://www.gitignore.io/api/haskell
 
+*.dump-simpl
+*.dump-splices
+
 .metals
 
 temp/*.bin

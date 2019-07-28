@@ -7,20 +7,22 @@ module FlatBuffers.Internal.Compiler.THSpec where
 
 import           Control.Arrow                                  ( second )
 
+import           Data.Coerce                                    ( coerce )
 import           Data.Int
-import           Data.List.NonEmpty                             ( NonEmpty((:|)) )
 import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
 import           Data.Word
 
 import           FlatBuffers.FileIdentifier                     ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.Internal.Build
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( validateSchemas )
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Positive                  ( Positive(getPositive) )
+import           FlatBuffers.Internal.Write
 import           FlatBuffers.Read
-import           FlatBuffers.Write
+import           FlatBuffers.Types
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Cleanup                    ( simplifiedTH )
@@ -59,7 +61,7 @@ spec =
                 data SomePerson
 
                 somePerson :: Maybe Int32 -> WriteTable SomePerson
-                somePerson personAge = writeTable [ optionalDef 0 (inline int32) personAge ]
+                somePerson personAge = writeTable [ optionalDef 0 writeInt32TableField personAge ]
 
                 somePersonPersonAge :: forall m. ReadCtx m => Table SomePerson -> m Int32
                 somePersonPersonAge = readTableFieldWithDef readInt32 0 0
@@ -105,17 +107,17 @@ spec =
                 -> WriteTable Scalars
               scalars a b c d e f g h i j k =
                 writeTable
-                  [ optionalDef 0 (inline word8)    a
-                  , optionalDef 0 (inline word16)   b
-                  , optionalDef 0 (inline word32)   c
-                  , optionalDef 0 (inline word64)   d
-                  , optionalDef 0 (inline int8)     e
-                  , optionalDef 0 (inline int16)    f
-                  , optionalDef 0 (inline int32)    g
-                  , optionalDef 0 (inline int64)    h
-                  , optionalDef 0.0 (inline float)  i
-                  , optionalDef 0.0 (inline double) j
-                  , optionalDef False (inline bool) k
+                  [ optionalDef 0 writeWord8TableField    a
+                  , optionalDef 0 writeWord16TableField   b
+                  , optionalDef 0 writeWord32TableField   c
+                  , optionalDef 0 writeWord64TableField   d
+                  , optionalDef 0 writeInt8TableField     e
+                  , optionalDef 0 writeInt16TableField    f
+                  , optionalDef 0 writeInt32TableField    g
+                  , optionalDef 0 writeInt64TableField    h
+                  , optionalDef 0.0 writeFloatTableField  i
+                  , optionalDef 0.0 writeDoubleTableField j
+                  , optionalDef False writeBoolTableField k
                   ]
 
               scalarsA :: forall m. ReadCtx m => Table Scalars -> m Word8
@@ -203,17 +205,17 @@ spec =
                 -> WriteTable Scalars
               scalars a b c d e f g h i j k =
                 writeTable
-                  [ optionalDef 8 (inline word8)          a
-                  , optionalDef 16 (inline word16)        b
-                  , optionalDef 32 (inline word32)        c
-                  , optionalDef 64 (inline word64)        d
-                  , optionalDef (-1) (inline int8)        e
-                  , optionalDef (-2) (inline int16)       f
-                  , optionalDef (-4) (inline int32)       g
-                  , optionalDef (-8) (inline int64)       h
-                  , optionalDef 3.9 (inline float)        i
-                  , optionalDef (-2.3e10) (inline double) j
-                  , optionalDef True (inline bool)        k
+                  [ optionalDef 8 writeWord8TableField          a
+                  , optionalDef 16 writeWord16TableField        b
+                  , optionalDef 32 writeWord32TableField        c
+                  , optionalDef 64 writeWord64TableField        d
+                  , optionalDef (-1) writeInt8TableField        e
+                  , optionalDef (-2) writeInt16TableField       f
+                  , optionalDef (-4) writeInt32TableField       g
+                  , optionalDef (-8) writeInt64TableField       h
+                  , optionalDef 3.9 writeFloatTableField        i
+                  , optionalDef (-2.3e10) writeDoubleTableField j
+                  , optionalDef True writeBoolTableField        k
                   ]
 
               scalarsA :: forall m. ReadCtx m => Table Scalars -> m Word8
@@ -247,7 +249,7 @@ spec =
               data T
 
               t :: Maybe Text -> WriteTable T
-              t s = writeTable [optional text s]
+              t s = writeTable [optional writeTextTableField s]
 
               tS :: forall m. ReadCtx m => Table T -> m (Maybe Text)
               tS = readTableFieldOpt readText 0
@@ -266,7 +268,7 @@ spec =
               data T
 
               t :: Text -> WriteTable T
-              t s = writeTable [text s]
+              t s = writeTable [writeTextTableField s]
 
               tS :: forall m. ReadCtx m => Table T -> m Text
               tS = readTableFieldReq readText 0 (T.pack "s")
@@ -300,7 +302,7 @@ spec =
               data T
 
               t :: Maybe Int8 -> WriteTable T
-              t x = writeTable [ optionalDef 2 (inline int8) x ]
+              t x = writeTable [ optionalDef 2 writeInt8TableField x ]
 
               tX :: forall m. ReadCtx m => Table T -> m Int8
               tX = readTableFieldWithDef readInt8 0 2
@@ -314,15 +316,19 @@ spec =
           |] `shouldCompileTo`
             [d|
               data S
+              instance IsStruct S where
+                structAlignmentOf = 4
+                structSizeOf = 4
+
               s :: Int32 -> WriteStruct S
-              s x = writeStruct 4 (int32 x :| [])
+              s x = WriteStruct (buildInt32 x)
 
               sX :: forall m. ReadCtx m => Struct S -> m Int32
               sX = readStructField readInt32 0
 
               data T
               t :: Maybe (WriteStruct S) -> WriteTable T
-              t x = writeTable [optional (inline unWriteStruct) x]
+              t x = writeTable [optional writeStructTableField x]
 
               tX :: forall m. ReadCtx m => Table T -> m (Maybe (Struct S))
               tX = readTableFieldOpt readStruct' 0
@@ -335,8 +341,12 @@ spec =
           |] `shouldCompileTo`
             [d|
               data S
+              instance IsStruct S where
+                structAlignmentOf = 4
+                structSizeOf = 4
+
               s :: Int32 -> WriteStruct S
-              s x = writeStruct 4 (int32 x :| [])
+              s x = WriteStruct (buildInt32 x)
 
               sX :: forall m. ReadCtx m => Struct S -> m Int32
               sX = readStructField readInt32 0
@@ -353,15 +363,19 @@ spec =
           |] `shouldCompileTo`
             [d|
               data S
+              instance IsStruct S where
+                structAlignmentOf = 4
+                structSizeOf = 4
+
               s :: Int32 -> WriteStruct S
-              s x = writeStruct 4 (int32 x :| [])
+              s x = WriteStruct (buildInt32 x)
 
               sX :: forall m. ReadCtx m => Struct S -> m Int32
               sX = readStructField readInt32 0
 
               data T
               t :: WriteStruct S -> WriteTable T
-              t x = writeTable [inline unWriteStruct x]
+              t x = writeTable [writeStructTableField x]
 
               tX :: forall m. ReadCtx m => Table T -> m (Struct S)
               tX = readTableFieldReq readStruct' 0 (T.pack "X")
@@ -376,7 +390,7 @@ spec =
             [d|
               data T1
               t1 :: Maybe (WriteTable T2) -> WriteTable T1
-              t1 x = writeTable [optional unWriteTable x]
+              t1 x = writeTable [optional writeTableTableField x]
 
               t1X :: forall m. ReadCtx m => Table T1 -> m (Maybe (Table T2))
               t1X = readTableFieldOpt readTable 0
@@ -407,7 +421,7 @@ spec =
             [d|
               data T1
               t1 :: WriteTable T2 -> WriteTable T1
-              t1 x = writeTable [unWriteTable x]
+              t1 x = writeTable [writeTableTableField x]
 
               t1X :: forall m. ReadCtx m => Table T1 -> m (Table T2)
               t1X = readTableFieldReq readTable 0 (T.pack "x")
@@ -427,8 +441,8 @@ spec =
               data T1
               t1 :: WriteUnion U1 -> WriteTable T1
               t1 x = writeTable
-                [ writeUnionType x
-                , writeUnionValue x
+                [ writeUnionTypeTableField x
+                , writeUnionValueTableField x
                 ]
 
               t1X :: forall m. ReadCtx m => Table T1 -> m (Union U1)
@@ -482,8 +496,8 @@ spec =
               data T1
               t1 :: WriteUnion U1 -> WriteTable T1
               t1 x = writeTable
-                [ writeUnionType x
-                , writeUnionValue x
+                [ writeUnionTypeTableField x
+                , writeUnionValueTableField x
                 ]
 
               t1X :: forall m. ReadCtx m => Table T1 -> m (Union U1)
@@ -564,17 +578,17 @@ spec =
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable
-                    [ optional (writeVector (inline word8))    a
-                    , optional (writeVector (inline word16))   b
-                    , optional (writeVector (inline word32))   c
-                    , optional (writeVector (inline word64))   d
-                    , optional (writeVector (inline int8))     e
-                    , optional (writeVector (inline int16))    f
-                    , optional (writeVector (inline int32))    g
-                    , optional (writeVector (inline int64))    h
-                    , optional (writeVector (inline float))    i
-                    , optional (writeVector (inline double))   j
-                    , optional (writeVector (inline bool))     k
+                    [ optional writeVectorTableField a
+                    , optional writeVectorTableField b
+                    , optional writeVectorTableField c
+                    , optional writeVectorTableField d
+                    , optional writeVectorTableField e
+                    , optional writeVectorTableField f
+                    , optional writeVectorTableField g
+                    , optional writeVectorTableField h
+                    , optional writeVectorTableField i
+                    , optional writeVectorTableField j
+                    , optional writeVectorTableField k
                     ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word8))
@@ -635,17 +649,17 @@ spec =
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable
-                    [ writeVector (inline word8)    a
-                    , writeVector (inline word16)   b
-                    , writeVector (inline word32)   c
-                    , writeVector (inline word64)   d
-                    , writeVector (inline int8)     e
-                    , writeVector (inline int16)    f
-                    , writeVector (inline int32)    g
-                    , writeVector (inline int64)    h
-                    , writeVector (inline float)    i
-                    , writeVector (inline double)   j
-                    , writeVector (inline bool)     k
+                    [ writeVectorTableField a
+                    , writeVectorTableField b
+                    , writeVectorTableField c
+                    , writeVectorTableField d
+                    , writeVectorTableField e
+                    , writeVectorTableField f
+                    , writeVectorTableField g
+                    , writeVectorTableField h
+                    , writeVectorTableField i
+                    , writeVectorTableField j
+                    , writeVectorTableField k
                     ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Word8)
@@ -680,7 +694,7 @@ spec =
               [d|
                 data T1
                 t1 :: Maybe (WriteVector Text) -> WriteTable T1
-                t1 a = writeTable [ optional (writeVector text) a ]
+                t1 a = writeTable [ optional writeVectorTableField a ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Text))
                 t1A = readTableFieldOpt (readPrimVector TextVec) 0
@@ -692,7 +706,7 @@ spec =
               [d|
                 data T1
                 t1 :: WriteVector Text -> WriteTable T1
-                t1 a = writeTable [ writeVector text a ]
+                t1 a = writeTable [ writeVectorTableField a ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Text)
                 t1A = readTableFieldReq (readPrimVector TextVec) 0 (T.pack "a")
@@ -722,7 +736,7 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector Int16) -> WriteTable T1
                 t1 a = writeTable
-                  [ optional (writeVector (inline int16)) a
+                  [ optional writeVectorTableField a
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
@@ -751,7 +765,7 @@ spec =
                 data T1
                 t1 :: WriteVector Int16 -> WriteTable T1
                 t1 a = writeTable
-                  [ writeVector (inline int16) a
+                  [ writeVectorTableField a
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
@@ -766,8 +780,12 @@ spec =
             |] `shouldCompileTo`
               [d|
                 data S1
+                instance IsStruct S1 where
+                  structAlignmentOf = 8
+                  structSizeOf = 8
+
                 s1 :: Word8 -> WriteStruct S1
-                s1 a = writeStruct 8 (padded 7 (word8 a) :| [])
+                s1 a = WriteStruct (buildWord8 a <> buildPadding 7)
 
                 s1A :: forall m. ReadCtx m => Struct S1 -> m Word8
                 s1A = readStructField readWord8 0
@@ -775,11 +793,11 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector (WriteStruct S1)) -> WriteTable T1
                 t1 a = writeTable
-                  [ optional (writeVector (inline unWriteStruct)) a
+                  [ optional writeVectorTableField a
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Struct S1)))
-                t1A = readTableFieldOpt (readStructVector 8) 0
+                t1A = readTableFieldOpt readStructVector 0
               |]
 
           it "required" $
@@ -789,8 +807,12 @@ spec =
             |] `shouldCompileTo`
               [d|
                 data S1
+                instance IsStruct S1 where
+                  structAlignmentOf = 8
+                  structSizeOf = 8
+
                 s1 :: Word8 -> WriteStruct S1
-                s1 a = writeStruct 8 (padded 7 (word8 a) :| [])
+                s1 a = WriteStruct (buildWord8 a <> buildPadding 7)
 
                 s1A :: forall m. ReadCtx m => Struct S1 -> m Word8
                 s1A = readStructField readWord8 0
@@ -798,11 +820,11 @@ spec =
                 data T1
                 t1 :: WriteVector (WriteStruct S1) -> WriteTable T1
                 t1 a = writeTable
-                  [ writeVector (inline unWriteStruct) a
+                  [ writeVectorTableField a
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector (Struct S1))
-                t1A = readTableFieldReq (readStructVector 8) 0 (T.pack "a")
+                t1A = readTableFieldReq readStructVector 0 (T.pack "a")
               |]
 
         describe "vector of tables" $ do
@@ -814,7 +836,7 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector (WriteTable T1)) -> WriteTable T1
                 t1 a = writeTable
-                  [ optional (writeVector unWriteTable) a
+                  [ optional writeVectorTableField a
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Table T1)))
@@ -828,7 +850,7 @@ spec =
                 data T1
                 t1 :: WriteVector (WriteTable T1) -> WriteTable T1
                 t1 a = writeTable
-                  [ writeVector unWriteTable a
+                  [ writeVectorTableField a
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector (Table T1))
@@ -845,11 +867,9 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector (WriteUnion U1)) -> WriteTable T1
                 t1 x = writeTable
-                  [ xTypes
-                  , xValues
+                  [ optional writeUnionTypesVectorTableField x
+                  , optional writeUnionValuesVectorTableField x
                   ]
-                  where
-                    (xTypes, xValues) = writeUnionVectorOpt x
 
                 t1X :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Union U1)))
                 t1X = readTableFieldUnionVectorOpt readU1 1
@@ -876,11 +896,9 @@ spec =
                 data T1
                 t1 :: WriteVector (WriteUnion U1) -> WriteTable T1
                 t1 x = writeTable
-                  [ xTypes
-                  , xValues
+                  [ writeUnionTypesVectorTableField x
+                  , writeUnionValuesVectorTableField x
                   ]
-                  where
-                    (xTypes, xValues) = writeUnionVectorReq x
 
                 t1X :: forall m. ReadCtx m => Table T1 -> m (Vector (Union U1))
                 t1X = readTableFieldUnionVectorReq readU1 1 (T.pack "x")
@@ -931,8 +949,12 @@ spec =
         let expected =
               [d|
                 data MyStruct
+                instance IsStruct MyStruct where
+                  structAlignmentOf = 4
+                  structSizeOf = 4
+
                 myStruct :: Int32 -> WriteStruct MyStruct
-                myStruct myField = writeStruct 4 (int32 myField :| [])
+                myStruct myField = WriteStruct (buildInt32 myField)
 
                 myStructMyField :: forall m. ReadCtx m => Struct MyStruct -> m Int32
                 myStructMyField = readStructField readInt32 0
@@ -960,6 +982,10 @@ spec =
         |] `shouldCompileTo`
           [d|
             data Scalars
+            instance IsStruct Scalars where
+              structAlignmentOf = 8
+              structSizeOf = 56
+
             scalars ::
                  Word8
               -> Word16
@@ -974,19 +1000,15 @@ spec =
               -> Bool
               -> WriteStruct Scalars
             scalars a b c d e f g h i j k =
-              writeStruct 8
-                ( padded 7 (bool     k) :|
-                [          (double   j)
-                , padded 4 (float    i)
-                ,          (int64    h)
-                ,          (int32    g)
-                ,          (int16    f)
-                , padded 1 (int8     e)
-                ,          (word64   d)
-                ,          (word32   c)
-                ,          (word16   b)
-                , padded 1 (word8    a)
-                ])
+              WriteStruct (
+                buildWord8 a <> buildPadding 1 <> buildWord16 b <> buildWord32 c
+                <> buildWord64 d
+                <> buildInt8 e <> buildPadding 1 <> buildInt16 f <> buildInt32 g
+                <> buildInt64 h
+                <> buildFloat i <> buildPadding 4
+                <> buildDouble j
+                <> buildBool k <> buildPadding 7
+              )
 
             scalarsA :: forall m. ReadCtx m => Struct Scalars -> m Word8
             scalarsA = readStructField readWord8 0
@@ -1032,8 +1054,12 @@ spec =
             {-# INLINE fromE #-}
 
             data S
+            instance IsStruct S where
+              structAlignmentOf = 1
+              structSizeOf = 1
+
             s :: Int8 -> WriteStruct S
-            s e = writeStruct 1 (int8 e :| [])
+            s e = WriteStruct (buildInt8 e)
 
             sE :: forall m. ReadCtx m => Struct S -> m Int8
             sE = readStructField readInt8 0
@@ -1046,15 +1072,23 @@ spec =
         |] `shouldCompileTo`
           [d|
             data S1
+            instance IsStruct S1 where
+              structAlignmentOf = 2
+              structSizeOf = 2
+
             s1 :: WriteStruct S2 -> WriteStruct S1
-            s1 s2 = writeStruct 2 (padded 1 (unWriteStruct s2) :| [])
+            s1 s2 = WriteStruct (coerce s2 <> buildPadding 1)
 
             s1S2 :: Struct S1 -> Struct S2
             s1S2 = readStructField readStruct 0
 
             data S2
+            instance IsStruct S2 where
+              structAlignmentOf = 1
+              structSizeOf = 1
+
             s2 :: Int8 -> WriteStruct S2
-            s2 x = writeStruct 1 (int8 x :| [])
+            s2 x = WriteStruct (buildInt8 x)
 
             s2X :: forall m. ReadCtx m => Struct S2 -> m Int8
             s2X = readStructField readInt8 0

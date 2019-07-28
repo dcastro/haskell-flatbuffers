@@ -1,9 +1,14 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module FlatBuffers.Types where
 
 import Data.Word
+
+class IsStruct a where
+  structAlignmentOf :: Alignment
+  structSizeOf      :: InlineSize
 
 newtype InlineSize = InlineSize { unInlineSize :: Word16 }
   deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral, Bounded)
