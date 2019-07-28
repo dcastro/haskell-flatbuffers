@@ -143,7 +143,7 @@ enumsY :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
 enumsY = readTableFieldOpt readStruct' 1
 
 enumsXs :: ReadCtx m => Table Enums -> m (Maybe (Vector Int16))
-enumsXs = readTableFieldOpt (readPrimVector Int16Vec) 2
+enumsXs = readTableFieldOpt (readPrimVector VectorInt16) 2
 
 enumsYs :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
 enumsYs = readTableFieldOpt readStructVector 3
@@ -421,18 +421,18 @@ vectorsI :: ReadCtx m => Table Vectors -> m (Maybe (Vector Float))
 vectorsJ :: ReadCtx m => Table Vectors -> m (Maybe (Vector Double))
 vectorsK :: ReadCtx m => Table Vectors -> m (Maybe (Vector Bool))
 vectorsL :: ReadCtx m => Table Vectors -> m (Maybe (Vector Text))
-vectorsA = readTableFieldOpt (readPrimVector Word8Vec)   0
-vectorsB = readTableFieldOpt (readPrimVector Word16Vec)  1
-vectorsC = readTableFieldOpt (readPrimVector Word32Vec)  2
-vectorsD = readTableFieldOpt (readPrimVector Word64Vec)  3
-vectorsE = readTableFieldOpt (readPrimVector Int8Vec)    4
-vectorsF = readTableFieldOpt (readPrimVector Int16Vec)   5
-vectorsG = readTableFieldOpt (readPrimVector Int32Vec)   6
-vectorsH = readTableFieldOpt (readPrimVector Int64Vec)   7
-vectorsI = readTableFieldOpt (readPrimVector FloatVec)   8
-vectorsJ = readTableFieldOpt (readPrimVector DoubleVec)  9
-vectorsK = readTableFieldOpt (readPrimVector BoolVec)    10
-vectorsL = readTableFieldOpt (readPrimVector TextVec)    11
+vectorsA = readTableFieldOpt (readPrimVector VectorWord8)   0
+vectorsB = readTableFieldOpt (readPrimVector VectorWord16)  1
+vectorsC = readTableFieldOpt (readPrimVector VectorWord32)  2
+vectorsD = readTableFieldOpt (readPrimVector VectorWord64)  3
+vectorsE = readTableFieldOpt (readPrimVector VectorInt8)    4
+vectorsF = readTableFieldOpt (readPrimVector VectorInt16)   5
+vectorsG = readTableFieldOpt (readPrimVector VectorInt32)   6
+vectorsH = readTableFieldOpt (readPrimVector VectorInt64)   7
+vectorsI = readTableFieldOpt (readPrimVector VectorFloat)   8
+vectorsJ = readTableFieldOpt (readPrimVector VectorDouble)  9
+vectorsK = readTableFieldOpt (readPrimVector VectorBool)    10
+vectorsL = readTableFieldOpt (readPrimVector VectorText)    11
 
 ----------------------------------
 -------- VectorOfTables ----------
@@ -636,5 +636,5 @@ requiredFieldsD :: ReadCtx m => Table RequiredFields -> m (Union Weapon)
 requiredFieldsD = readTableFieldUnion readWeapon 4
 
 requiredFieldsE :: ReadCtx m => Table RequiredFields -> m (Vector Int32)
-requiredFieldsE = readTableFieldReq (readPrimVector Int32Vec) 5 "d"
+requiredFieldsE = readTableFieldReq (readPrimVector VectorInt32) 5 "d"
 

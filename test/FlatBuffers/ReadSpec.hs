@@ -153,7 +153,7 @@ myRootE :: ReadCtx m => Table MyRoot -> m (Struct SWS)
 myRootE = readTableFieldReq readStruct' 4 "e"
 
 myRootF :: ReadCtx m => Table MyRoot -> m (Vector Text)
-myRootF = readTableFieldReq (readPrimVector TextVec) 5 "f"
+myRootF = readTableFieldReq (readPrimVector VectorText) 5 "f"
 
 myRootG :: ReadCtx m => Table MyRoot -> m (Vector (Table DeepNested))
 myRootG = readTableFieldReq readTableVector 6 "g"

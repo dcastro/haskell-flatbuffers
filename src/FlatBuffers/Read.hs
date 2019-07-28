@@ -183,9 +183,9 @@ class VectorElement a where
   toList :: ReadCtx m => Vector a -> m [a]
 
 instance VectorElement Word8 where
-  newtype Vector Word8 = Word8Vec Position
-  vectorLength (Word8Vec pos) = readInt32 pos
-  index (Word8Vec pos) ix = byteStringSafeIndex pos (int32Size + checkNegIndex ix)
+  newtype Vector Word8 = VectorWord8 Position
+  vectorLength (VectorWord8 pos) = readInt32 pos
+  index (VectorWord8 pos) ix = byteStringSafeIndex pos (int32Size + checkNegIndex ix)
   toList vec =
     vectorLength vec <&> \len ->
       BSL.unpack $
@@ -194,69 +194,69 @@ instance VectorElement Word8 where
             (coerce vec)
 
 instance VectorElement Word16 where
-  newtype Vector Word16 = Word16Vec Position
-  vectorLength (Word16Vec pos) = readInt32 pos
-  index (Word16Vec pos) = readWord16 . moveToElem' pos word16Size . checkNegIndex
+  newtype Vector Word16 = VectorWord16 Position
+  vectorLength (VectorWord16 pos) = readInt32 pos
+  index (VectorWord16 pos) = readWord16 . moveToElem' pos word16Size . checkNegIndex
   toList vec = inlineVectorToList G.getWord16le (coerce vec)
 
 instance VectorElement Word32 where
-  newtype Vector Word32 = Word32Vec Position
-  vectorLength (Word32Vec pos) = readInt32 pos
-  index (Word32Vec pos) = readWord32 . moveToElem' pos word32Size . checkNegIndex
+  newtype Vector Word32 = VectorWord32 Position
+  vectorLength (VectorWord32 pos) = readInt32 pos
+  index (VectorWord32 pos) = readWord32 . moveToElem' pos word32Size . checkNegIndex
   toList vec = inlineVectorToList G.getWord32le (coerce vec)
 
 instance VectorElement Word64 where
-  newtype Vector Word64 = Word64Vec Position
-  vectorLength (Word64Vec pos) = readInt32 pos
-  index (Word64Vec pos) = readWord64 . moveToElem' pos word64Size . checkNegIndex
+  newtype Vector Word64 = VectorWord64 Position
+  vectorLength (VectorWord64 pos) = readInt32 pos
+  index (VectorWord64 pos) = readWord64 . moveToElem' pos word64Size . checkNegIndex
   toList vec = inlineVectorToList G.getWord64le (coerce vec)
 
 instance VectorElement Int8 where
-  newtype Vector Int8 = Int8Vec Position
-  vectorLength (Int8Vec pos) = readInt32 pos
-  index (Int8Vec pos) = readInt8 . moveToElem' pos int8Size . checkNegIndex
+  newtype Vector Int8 = VectorInt8 Position
+  vectorLength (VectorInt8 pos) = readInt32 pos
+  index (VectorInt8 pos) = readInt8 . moveToElem' pos int8Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt8 (coerce vec)
 
 instance VectorElement Int16 where
-  newtype Vector Int16 = Int16Vec Position
-  vectorLength (Int16Vec pos) = readInt32 pos
-  index (Int16Vec pos) = readInt16 . moveToElem' pos int16Size . checkNegIndex
+  newtype Vector Int16 = VectorInt16 Position
+  vectorLength (VectorInt16 pos) = readInt32 pos
+  index (VectorInt16 pos) = readInt16 . moveToElem' pos int16Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt16le (coerce vec)
 
 instance VectorElement Int32 where
-  newtype Vector Int32 = Int32Vec Position
-  vectorLength (Int32Vec pos) = readInt32 pos
-  index (Int32Vec pos) = readInt32 . moveToElem' pos int32Size . checkNegIndex
+  newtype Vector Int32 = VectorInt32 Position
+  vectorLength (VectorInt32 pos) = readInt32 pos
+  index (VectorInt32 pos) = readInt32 . moveToElem' pos int32Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt32le (coerce vec)
 
 instance VectorElement Int64 where
-  newtype Vector Int64 = Int64Vec Position
-  vectorLength (Int64Vec pos) = readInt32 pos
-  index (Int64Vec pos) = readInt64 . moveToElem' pos int64Size . checkNegIndex
+  newtype Vector Int64 = VectorInt64 Position
+  vectorLength (VectorInt64 pos) = readInt32 pos
+  index (VectorInt64 pos) = readInt64 . moveToElem' pos int64Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt64le (coerce vec)
 
 instance VectorElement Float where
-  newtype Vector Float = FloatVec Position
-  vectorLength (FloatVec pos) = readInt32 pos
-  index (FloatVec pos) = readFloat . moveToElem' pos floatSize . checkNegIndex
+  newtype Vector Float = VectorFloat Position
+  vectorLength (VectorFloat pos) = readInt32 pos
+  index (VectorFloat pos) = readFloat . moveToElem' pos floatSize . checkNegIndex
   toList vec = inlineVectorToList G.getFloatle (coerce vec)
 
 instance VectorElement Double where
-  newtype Vector Double = DoubleVec Position
-  vectorLength (DoubleVec pos) = readInt32 pos
-  index (DoubleVec pos) = readDouble . moveToElem' pos doubleSize . checkNegIndex
+  newtype Vector Double = VectorDouble Position
+  vectorLength (VectorDouble pos) = readInt32 pos
+  index (VectorDouble pos) = readDouble . moveToElem' pos doubleSize . checkNegIndex
   toList vec = inlineVectorToList G.getDoublele (coerce vec)
 
 instance VectorElement Bool where
-  newtype Vector Bool = BoolVec Position
-  vectorLength (BoolVec pos) = readInt32 pos
-  index (BoolVec pos) = readBool . moveToElem' pos boolSize . checkNegIndex
+  newtype Vector Bool = VectorBool Position
+  vectorLength (VectorBool pos) = readInt32 pos
+  index (VectorBool pos) = readBool . moveToElem' pos boolSize . checkNegIndex
   toList vec = inlineVectorToList (word8ToBool <$> G.getWord8) (coerce vec)
 
 instance VectorElement Text where
-  newtype Vector Text = TextVec Position
-  vectorLength (TextVec pos) = readInt32 pos
-  index (TextVec pos) = readText . moveToElem' pos textRefSize . checkNegIndex
+  newtype Vector Text = VectorText Position
+  vectorLength (VectorText pos) = readInt32 pos
+  index (VectorText pos) = readText . moveToElem' pos textRefSize . checkNegIndex
   toList vec = do
     len <- vectorLength vec
     go len (coerce vec)
@@ -270,19 +270,19 @@ instance VectorElement Text where
         pure $! head : tail
 
 instance VectorElement (Struct a) where
-  data Vector (Struct a) = StructVec
-    { structVecPos        :: !Position
-    , structVecStructSize :: !InlineSize
+  data Vector (Struct a) = VectorStruct
+    { vectorStructPos        :: !Position
+    , vectorStructStructSize :: !InlineSize
     }
-  vectorLength = readInt32 . structVecPos
+  vectorLength = readInt32 . vectorStructPos
   index vec ix =
-    let elemSize = fromIntegral @InlineSize @Int32 (structVecStructSize vec)
-    in readStruct' . moveToElem' (structVecPos vec) elemSize . checkNegIndex $ ix
+    let elemSize = fromIntegral @InlineSize @Int32 (vectorStructStructSize vec)
+    in readStruct' . moveToElem' (vectorStructPos vec) elemSize . checkNegIndex $ ix
   toList vec = do
     len <- vectorLength vec
     if len == 0
       then pure []
-      else pure $ go len (move' (structVecPos vec) int32Size)
+      else pure $ go len (move' (vectorStructPos vec) int32Size)
     where
       go :: Int32 -> Position -> [Struct a]
       go !len !pos =
@@ -290,12 +290,12 @@ instance VectorElement (Struct a) where
             tail =
               if len == 1
                 then []
-                else go (len - 1) (move' pos (fromIntegral @InlineSize @Int64 (structVecStructSize vec)))
+                else go (len - 1) (move' pos (fromIntegral @InlineSize @Int64 (vectorStructStructSize vec)))
         in  head : tail
 
 instance VectorElement (Table a) where
-  newtype Vector (Table a) = TableVec PositionInfo
-  vectorLength (TableVec pos) = readInt32 pos
+  newtype Vector (Table a) = VectorTable PositionInfo
+  vectorLength (VectorTable pos) = readInt32 pos
   index vec = readTable . moveToElem (coerce vec) tableRefSize . checkNegIndex
   toList vec = do
     len <- vectorLength vec
@@ -310,24 +310,24 @@ instance VectorElement (Table a) where
         pure $! head : tail
 
 instance VectorElement (Union a) where
-  data Vector (Union a) = UnionVec
-    { unionVecTypesPos  :: !(Vector Word8)
+  data Vector (Union a) = VectorUnion
+    { vectorUnionTypesPos  :: !(Vector Word8)
     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
-    , unionVecValuesPos :: !PositionInfo
+    , vectorUnionValuesPos :: !PositionInfo
     -- ^ A table vector, with the actual union values
-    , unionVecElemRead  :: !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+    , vectorUnionElemRead  :: !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
     -- ^ A function to read a union value from this vector
     }
   -- NOTE: we assume the two vectors have the same length
-  vectorLength = readInt32 . unionVecValuesPos
+  vectorLength = readInt32 . vectorUnionValuesPos
 
   index vec ix = do
-    unionType <- index (unionVecTypesPos vec) ix
+    unionType <- index (vectorUnionTypesPos vec) ix
     case positive unionType of
       Nothing         -> pure UnionNone
       Just unionType' ->
-        let readElem = (unionVecElemRead vec) unionType'
-        in  readElem (moveToElem (unionVecValuesPos vec) tableRefSize ix)
+        let readElem = (vectorUnionElemRead vec) unionType'
+        in  readElem (moveToElem (vectorUnionValuesPos vec) tableRefSize ix)
 
   toList vec = do
     len <- vectorLength vec
@@ -335,8 +335,8 @@ instance VectorElement (Union a) where
       then pure []
       else go
             len
-            (move' (coerce unionVecTypesPos vec) 4)
-            (move (unionVecValuesPos vec) 4)
+            (move' (coerce vectorUnionTypesPos vec) 4)
+            (move (vectorUnionValuesPos vec) 4)
     where
       go :: ReadCtx m => Int32 -> Position -> PositionInfo -> m [Union a]
       go !len !valuesPos !typesPos = do
@@ -344,7 +344,7 @@ instance VectorElement (Union a) where
         head <- case positive unionType of
                   Nothing -> pure UnionNone
                   Just unionType' ->
-                    let readElem = (unionVecElemRead vec) unionType'
+                    let readElem = (vectorUnionElemRead vec) unionType'
                     in  readElem typesPos
         tail <- if len == 1
                   then pure []
@@ -471,7 +471,7 @@ readTableVector ::
   -> m (Vector (Table a))
 readTableVector pos = do
   uoffset <- readInt32 pos
-  pure $! TableVec
+  pure $! VectorTable
     (move pos (coerce uoffset))
 
 readStructVector ::
@@ -481,7 +481,7 @@ readStructVector ::
   -> m (Vector (Struct a))
 readStructVector (posCurrent -> pos) = do
   uoffset <- readInt32 pos
-  pure $! StructVec
+  pure $! VectorStruct
     (move' pos (fromIntegral @Int32 @Int64 uoffset))
     (structSizeOf @a)
 
@@ -493,9 +493,9 @@ readUnionVector ::
   -> m (Vector (Union a))
 readUnionVector readUnion typesPos valuesPos =
   do
-    typesVec <- readPrimVector Word8Vec typesPos
+    typesVec <- readPrimVector VectorWord8 typesPos
     valuesVecUOffset <- readInt32 valuesPos
-    pure $! UnionVec
+    pure $! VectorUnion
       typesVec
       (move valuesPos valuesVecUOffset)
       readUnion

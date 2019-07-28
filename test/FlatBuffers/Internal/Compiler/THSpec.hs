@@ -592,27 +592,27 @@ spec =
                     ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word8))
-                t1A = readTableFieldOpt (readPrimVector Word8Vec)   0
+                t1A = readTableFieldOpt (readPrimVector VectorWord8)   0
                 t1B :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word16))
-                t1B = readTableFieldOpt (readPrimVector Word16Vec)  1
+                t1B = readTableFieldOpt (readPrimVector VectorWord16)  1
                 t1C :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word32))
-                t1C = readTableFieldOpt (readPrimVector Word32Vec)  2
+                t1C = readTableFieldOpt (readPrimVector VectorWord32)  2
                 t1D :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word64))
-                t1D = readTableFieldOpt (readPrimVector Word64Vec)  3
+                t1D = readTableFieldOpt (readPrimVector VectorWord64)  3
                 t1E :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int8))
-                t1E = readTableFieldOpt (readPrimVector Int8Vec)    4
+                t1E = readTableFieldOpt (readPrimVector VectorInt8)    4
                 t1F :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
-                t1F = readTableFieldOpt (readPrimVector Int16Vec)   5
+                t1F = readTableFieldOpt (readPrimVector VectorInt16)   5
                 t1G :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int32))
-                t1G = readTableFieldOpt (readPrimVector Int32Vec)   6
+                t1G = readTableFieldOpt (readPrimVector VectorInt32)   6
                 t1H :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int64))
-                t1H = readTableFieldOpt (readPrimVector Int64Vec)   7
+                t1H = readTableFieldOpt (readPrimVector VectorInt64)   7
                 t1I :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Float))
-                t1I = readTableFieldOpt (readPrimVector FloatVec)   8
+                t1I = readTableFieldOpt (readPrimVector VectorFloat)   8
                 t1J :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Double))
-                t1J = readTableFieldOpt (readPrimVector DoubleVec)  9
+                t1J = readTableFieldOpt (readPrimVector VectorDouble)  9
                 t1K :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Bool))
-                t1K = readTableFieldOpt (readPrimVector BoolVec)    10
+                t1K = readTableFieldOpt (readPrimVector VectorBool)    10
               |]
 
           it "required" $
@@ -663,27 +663,27 @@ spec =
                     ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Word8)
-                t1A = readTableFieldReq (readPrimVector Word8Vec)   0 (T.pack "a")
+                t1A = readTableFieldReq (readPrimVector VectorWord8)   0 (T.pack "a")
                 t1B :: forall m. ReadCtx m => Table T1 -> m (Vector Word16)
-                t1B = readTableFieldReq (readPrimVector Word16Vec)  1 (T.pack "b")
+                t1B = readTableFieldReq (readPrimVector VectorWord16)  1 (T.pack "b")
                 t1C :: forall m. ReadCtx m => Table T1 -> m (Vector Word32)
-                t1C = readTableFieldReq (readPrimVector Word32Vec)  2 (T.pack "c")
+                t1C = readTableFieldReq (readPrimVector VectorWord32)  2 (T.pack "c")
                 t1D :: forall m. ReadCtx m => Table T1 -> m (Vector Word64)
-                t1D = readTableFieldReq (readPrimVector Word64Vec)  3 (T.pack "d")
+                t1D = readTableFieldReq (readPrimVector VectorWord64)  3 (T.pack "d")
                 t1E :: forall m. ReadCtx m => Table T1 -> m (Vector Int8)
-                t1E = readTableFieldReq (readPrimVector Int8Vec)    4 (T.pack "e")
+                t1E = readTableFieldReq (readPrimVector VectorInt8)    4 (T.pack "e")
                 t1F :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
-                t1F = readTableFieldReq (readPrimVector Int16Vec)   5 (T.pack "f")
+                t1F = readTableFieldReq (readPrimVector VectorInt16)   5 (T.pack "f")
                 t1G :: forall m. ReadCtx m => Table T1 -> m (Vector Int32)
-                t1G = readTableFieldReq (readPrimVector Int32Vec)   6 (T.pack "g")
+                t1G = readTableFieldReq (readPrimVector VectorInt32)   6 (T.pack "g")
                 t1H :: forall m. ReadCtx m => Table T1 -> m (Vector Int64)
-                t1H = readTableFieldReq (readPrimVector Int64Vec)   7 (T.pack "h")
+                t1H = readTableFieldReq (readPrimVector VectorInt64)   7 (T.pack "h")
                 t1I :: forall m. ReadCtx m => Table T1 -> m (Vector Float)
-                t1I = readTableFieldReq (readPrimVector FloatVec)   8 (T.pack "i")
+                t1I = readTableFieldReq (readPrimVector VectorFloat)   8 (T.pack "i")
                 t1J :: forall m. ReadCtx m => Table T1 -> m (Vector Double)
-                t1J = readTableFieldReq (readPrimVector DoubleVec)  9 (T.pack "j")
+                t1J = readTableFieldReq (readPrimVector VectorDouble)  9 (T.pack "j")
                 t1K :: forall m. ReadCtx m => Table T1 -> m (Vector Bool)
-                t1K = readTableFieldReq (readPrimVector BoolVec)    10 (T.pack "k")
+                t1K = readTableFieldReq (readPrimVector VectorBool)    10 (T.pack "k")
               |]
 
         describe "vector of strings" $ do
@@ -697,7 +697,7 @@ spec =
                 t1 a = writeTable [ optional writeVectorTableField a ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Text))
-                t1A = readTableFieldOpt (readPrimVector TextVec) 0
+                t1A = readTableFieldOpt (readPrimVector VectorText) 0
               |]
           it "required" $
             [r|
@@ -709,7 +709,7 @@ spec =
                 t1 a = writeTable [ writeVectorTableField a ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Text)
-                t1A = readTableFieldReq (readPrimVector TextVec) 0 (T.pack "a")
+                t1A = readTableFieldReq (readPrimVector VectorText) 0 (T.pack "a")
               |]
 
         describe "vector of enums" $ do
@@ -740,7 +740,7 @@ spec =
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
-                t1A = readTableFieldOpt (readPrimVector Int16Vec) 0
+                t1A = readTableFieldOpt (readPrimVector VectorInt16) 0
               |]
           it "required" $
             [r|
@@ -769,7 +769,7 @@ spec =
                   ]
 
                 t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
-                t1A = readTableFieldReq (readPrimVector Int16Vec) 0 (T.pack "a")
+                t1A = readTableFieldReq (readPrimVector VectorInt16) 0 (T.pack "a")
               |]
 
         describe "vector of structs" $ do
