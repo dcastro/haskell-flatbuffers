@@ -14,3 +14,52 @@ table Scalars {
   k: bool;
   x: Scalars;
 }
+
+table VectorOfInts {
+  xs: [int];
+}
+
+struct StructWithOneInt {
+  x: int;
+}
+
+struct Pair {
+  x: int;
+  y: int;
+}
+
+table VectorOfStructWithOneInt { xs: [StructWithOneInt]; }
+table VectorOfPairs { xs: [Pair]; }
+
+table VectorOfStrings {
+  xs : [string];
+}
+
+table PairTable {
+  x: int;
+  y: int;
+}
+
+table VectorOfTables {
+  xs : [PairTable];
+}
+
+
+table UserTable {
+  id: int;
+  username: string;
+}
+
+table VectorOfUsers {
+  xs : [UserTable];
+}
+
+
+
+table SwordTable { x: int32; }
+table AxeTable { x: int32; }
+
+union WeaponUnion { Sword: SwordTable, Axe: AxeTable }
+table VectorOfUnions { xs: [WeaponUnion]; }
+
+

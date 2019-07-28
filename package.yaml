@@ -68,9 +68,11 @@ benchmarks:
     other-modules:
       - Types
       - CriterionBench.Encode
+      - CriterionBench.EncodeVectors
     dependencies:
       - flatbuffers
       - criterion
+      - vector
     ghc-options:
       - -threaded
       - -rtsopts

@@ -1,10 +1,7 @@
 module WeighBench.Encode where
 
-import           FlatBuffers.Read
 import           FlatBuffers.Write
-
 import           Types
-
 import           Weigh
 
 groups :: Weigh ()

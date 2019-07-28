@@ -1,7 +1,12 @@
 module Main where
 
-import           CriterionBench.Encode ( groups )
-
+import           CriterionBench.Encode
+import           CriterionBench.EncodeVectors
 import           Criterion.Main
 
-main = defaultMain groups
+main =
+  defaultMain $
+    mconcat
+    [ CriterionBench.Encode.groups
+    , CriterionBench.EncodeVectors.groups
+    ]

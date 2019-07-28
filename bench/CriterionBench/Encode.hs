@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module CriterionBench.Encode where
 
 import           Criterion
@@ -8,6 +6,7 @@ import           FlatBuffers.Read
 import           FlatBuffers.Write
 
 import           Types
+
 
 groups :: [Benchmark]
 groups =
@@ -27,4 +26,5 @@ groups =
               (Just 1234.56) (Just 2873242.82782) (Just True) Nothing
     ]
   ]
+
 
