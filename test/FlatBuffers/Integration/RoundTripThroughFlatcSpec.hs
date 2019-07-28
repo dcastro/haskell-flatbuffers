@@ -21,7 +21,7 @@ import           Examples.Generated
 
 import           FlatBuffers.FileIdentifier ( HasFileIdentifier )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 
 import qualified System.Directory           as Dir
 import qualified System.Process             as Sys

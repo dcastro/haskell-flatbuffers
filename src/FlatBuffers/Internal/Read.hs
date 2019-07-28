@@ -14,7 +14,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module FlatBuffers.Read
+module FlatBuffers.Internal.Read
   ( ReadCtx
   , TableIndex(..)
   , VOffset(..)

@@ -10,7 +10,7 @@ import           Data.Word
 
 import           FlatBuffers.Internal.Build
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 import           FlatBuffers.Types
 
 import           Test.Hspec

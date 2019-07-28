@@ -12,7 +12,7 @@ import           FlatBuffers.FileIdentifier    ( HasFileIdentifier(..), unsafeFi
 import           FlatBuffers.Internal.Build
 import           FlatBuffers.Internal.Positive ( Positive(getPositive) )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 import           FlatBuffers.Types
 
 ----------------------------------

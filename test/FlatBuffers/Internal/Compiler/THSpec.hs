@@ -21,7 +21,7 @@ import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.TH
 import           FlatBuffers.Internal.Positive                  ( Positive(getPositive) )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 import           FlatBuffers.Types
 
 import           Language.Haskell.TH

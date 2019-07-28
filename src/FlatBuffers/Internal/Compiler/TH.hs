@@ -28,7 +28,7 @@ import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Positive                   ( Positive(getPositive) )
 import           FlatBuffers.Internal.Util                       ( nonEmptyUnzip3 )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 import           FlatBuffers.Types
 
 import           Language.Haskell.TH

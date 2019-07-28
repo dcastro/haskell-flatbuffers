@@ -13,7 +13,7 @@ import           Data.Text                  ( Text )
 import qualified Data.Vector                as V
 
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 
 import           Types
 

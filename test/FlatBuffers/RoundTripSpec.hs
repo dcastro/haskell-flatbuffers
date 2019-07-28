@@ -14,7 +14,7 @@ import           Data.Word
 import           Examples.Generated
 
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Read
+import           FlatBuffers.Internal.Read
 
 import           Test.Hspec
 
