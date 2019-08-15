@@ -172,7 +172,7 @@ inlineVectorToList :: ReadCtx m => Get a -> ByteString -> m [a]
 inlineVectorToList get bs =
   flip runGetM bs $ do
     len <- G.getInt32le
-    sequence $ L.genericReplicate len get
+    sequence $ L.replicate (fromIntegral @Int32 @Int len) get
 
 class VectorElement a where
   data Vector a
