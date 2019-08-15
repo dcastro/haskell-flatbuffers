@@ -168,6 +168,7 @@ checkNegIndex !n
   | n < 0     = error ("FlatBuffers.Read.index: negative index: " <> show n)
   | otherwise = n
 
+{-# INLINE inlineVectorToList #-}
 inlineVectorToList :: ReadCtx m => Get a -> ByteString -> m [a]
 inlineVectorToList get bs =
   flip runGetM bs $ do
