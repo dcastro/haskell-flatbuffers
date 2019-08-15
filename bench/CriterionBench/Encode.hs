@@ -10,7 +10,7 @@ import           Types
 
 groups :: [Benchmark]
 groups =
-  [ bgroup "Write.encode" $
+  [ bgroup "encode" $
     [ bench "scalars" $ nf encode $
         scalars
             (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)

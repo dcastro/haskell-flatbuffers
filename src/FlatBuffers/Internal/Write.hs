@@ -250,22 +250,6 @@ none = None
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b
 writeUnion n (WriteTable st) = Some n st
 
--- TODO
--- {-# INLINE writeText #-}
--- writeText :: Text -> State FBState Position
--- writeText text = do
---   fbs <- get
-
---   let len = utf8length text
---   let pad = calcPadding int32Size len (getSum (bufferSize fbs))
---   let fbs' = fbs
---         { builder = B.int32LE len <> T.encodeUtf8Builder text <> foldMap (\_ -> B.word8 0) [0..pad-1] <> builder fbs
---         , bufferSize = Sum int32Size <> Sum len <> Sum pad <> bufferSize fbs
---         , maxAlign = maxAlign fbs <> Max int32Size
---         }
---   put $! fbs'
---   pure $! coerce bufferSize fbs'
-
 {-# INLINE vtable #-}
 vtable :: [Word16] -> Word16 -> BSL.ByteString
 vtable fieldVOffsets tableSize = bytestring

@@ -15,6 +15,25 @@ table Scalars {
   x: Scalars;
 }
 
+table Vectors {
+  a: [uint8];
+  b: [uint16];
+  c: [uint32];
+  d: [uint64];
+  e: [int8];
+  f: [int16];
+  g: [int32];
+  h: [int64];
+  i: [float32];
+  j: [float64];
+  k: [bool];
+  l: [string];
+  m: [StructWithOneInt];
+  n: [Pair];
+  o: [PairTable];
+  p: [WeaponUnion];
+}
+
 table VectorOfInts {
   xs: [int];
 }

@@ -6,7 +6,7 @@ import           Weigh
 
 groups :: Weigh ()
 groups =
-  wgroup "Write.encode" $
+  wgroup "encode" $
     func "scalars" encode $
       scalars
           (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)

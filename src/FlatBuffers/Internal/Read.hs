@@ -11,6 +11,8 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -47,18 +49,17 @@ module FlatBuffers.Internal.Read
   , readTableFieldUnionVectorReq
   ) where
 
+import           Control.DeepSeq               ( NFData )
 import           Control.Exception             ( Exception )
 import           Control.Monad.Except          ( MonadError(..) )
 
 import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
 import qualified Data.ByteString               as BS
-
 import           Data.ByteString.Lazy          ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import qualified Data.ByteString.Lazy.Internal as BSL
 import qualified Data.ByteString.Unsafe        as BSU
-
 import           Data.Coerce                   ( coerce )
 import           Data.Functor                  ( (<&>) )
 import           Data.Int
@@ -73,6 +74,8 @@ import           FlatBuffers.Constants
 import           FlatBuffers.FileIdentifier    ( FileIdentifier(..), HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Positive ( Positive, positive )
 import           FlatBuffers.Types
+
+import           GHC.Generics                  ( Generic )
 
 type ReadCtx = MonadError ReadError
 
@@ -576,9 +579,8 @@ data ReadError
   | Utf8DecodingError { msg  :: !Text
                       , byte :: !(Maybe Word8) }
   | MalformedBuffer !Text
-  deriving (Show, Eq)
-
-instance Exception ReadError
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData, Exception)
 
 runGetM :: ReadCtx m => Get a -> ByteString -> m a
 runGetM get =

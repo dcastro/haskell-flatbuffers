@@ -22,7 +22,7 @@ n = 10000
 
 groups :: [Benchmark]
 groups =
-  [ bgroup "Write.encode vectors"
+  [ bgroup "encode vectors"
     [ bgroup "from list"
       [ bench "of ints" $ nf (\xs ->
           encode . vectorOfInts . Just . vector (fromIntegral (F.length xs)) $

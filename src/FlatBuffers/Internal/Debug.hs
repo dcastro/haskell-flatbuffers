@@ -1,11 +1,18 @@
 module FlatBuffers.Internal.Debug
   ( showBuffer
   , printBuffer
+  , traceBufferM
   ) where
 
 import           Control.Monad.IO.Class
+
 import qualified Data.ByteString.Lazy   as BSL
-import           Data.List              (intercalate)
+import           Data.List              ( intercalate )
+
+import           Debug.Trace
+
+traceBufferM :: Applicative m => BSL.ByteString -> m ()
+traceBufferM = traceM . showBuffer
 
 printBuffer :: MonadIO m => BSL.ByteString -> m ()
 printBuffer = liftIO . putStrLn . showBuffer
