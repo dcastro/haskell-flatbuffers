@@ -15,6 +15,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module FlatBuffers.Internal.Read
   ( ReadCtx
@@ -51,6 +52,7 @@ module FlatBuffers.Internal.Read
 
 import           Control.DeepSeq               ( NFData )
 import           Control.Exception             ( Exception )
+import           Control.Monad                 ( join )
 import           Control.Monad.Except          ( MonadError(..) )
 
 import           Data.Binary.Get               ( Get )
@@ -261,17 +263,18 @@ instance VectorElement Text where
   newtype Vector Text = VectorText Position
   vectorLength (VectorText pos) = readInt32 pos
   index (VectorText pos) = readText . moveToElem' pos textRefSize . checkNegIndex
-  toList vec = do
-    len <- vectorLength vec
-    go len (coerce vec)
+
+  toList :: forall m. ReadCtx m => Vector Text -> m [Text]
+  toList (VectorText pos) = do
+    positions <- toList (VectorInt32 pos)
+    L.reverse <$> readTexts positions 0 []
     where
-      go :: ReadCtx m => Int32 -> Position -> m [Text]
-      go 0 _ = pure []
-      go !len !pos = do
-        let pos' = move' pos textRefSize
-        head <- readText pos'
-        tail <- go (len - 1) pos'
-        pure $! head : tail
+      readTexts :: [Int32] -> Int32 -> [Text] -> m [Text]
+      readTexts [] _ acc = pure acc
+      readTexts (offset : xs) ix acc = do
+        let pos' = move' pos (fromIntegral (offset + (ix * 4) + 4))
+        text <- join $ runGetM readText' pos'
+        readTexts xs (ix + 1) (text : acc)
 
 instance VectorElement (Struct a) where
   data Vector (Struct a) = VectorStruct
@@ -504,14 +507,19 @@ readUnionVector readUnion typesPos valuesPos =
       (move valuesPos valuesVecUOffset)
       readUnion
 
+-- | Follow a pointer to the position of a string and read it.
 readText :: (ReadCtx m, HasPosition a) => a -> m Text
-readText (getPosition -> pos) = do
-  bs <- flip runGetM pos $ do
-    _ <- readAndSkipUOffset
-    strLength <- G.getInt32le
-    -- NOTE: this might overflow in systems where Int has less than 32 bytes
-    G.getByteString $ fromIntegral @Int32 @Int strLength
-  case T.decodeUtf8' bs of
+readText (getPosition -> pos) =
+  join $ runGetM (readAndSkipUOffset >> readText') pos
+
+-- | Read a string from the current buffer position.
+{-# INLINE readText' #-}
+readText' :: ReadCtx m => Get (m Text)
+readText' = do
+  strLength <- G.getInt32le
+  -- NOTE: this might overflow in systems where Int has less than 32 bits
+  bs <- G.getByteString $ fromIntegral @Int32 @Int strLength
+  pure $! case T.decodeUtf8' bs of
     Right t -> pure t
     Left (T.DecodeError msg b) -> throwError $ Utf8DecodingError (T.pack msg) b
     -- The `EncodeError` constructor is deprecated and not used
@@ -569,7 +577,7 @@ move' bs offset = BSL.drop offset bs
 readAndSkipUOffset :: Get UOffset
 readAndSkipUOffset = do
   uoffset <- G.getInt32le
-  -- NOTE: this might overflow in systems where Int has less than 32 bytes
+  -- NOTE: this might overflow in systems where Int has less than 32 bits
   G.skip (fromIntegral @Int32 @Int (uoffset - uoffsetSize))
   pure (UOffset uoffset)
 
@@ -610,7 +618,7 @@ byteStringSafeIndex !cs0 !i =
   index' cs0 i
   where index' BSL.Empty _ = throwError $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
         index' (BSL.Chunk c cs) n
-          -- NOTE: this might overflow in systems where Int has less than 32 bytes
+          -- NOTE: this might overflow in systems where Int has less than 32 bits
           | fromIntegral @Int32 @Int n >= BS.length c =
               -- Note: it's safe to narrow `BS.length` to an int32 here, the line above proves it.
               index' cs (n - fromIntegral @Int @Int32 (BS.length c))
