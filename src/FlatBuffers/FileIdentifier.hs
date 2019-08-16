@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module FlatBuffers.FileIdentifier
   ( HasFileIdentifier(..)

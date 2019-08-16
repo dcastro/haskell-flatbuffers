@@ -273,8 +273,7 @@ mkStructFieldGetter structName struct sf =
           SStruct _ ->
             ConT ''Struct `AppT` ConT structName ~> retType
           _ ->
-            ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
-              ConT ''Struct `AppT` ConT structName ~> VarT (mkName "m") `AppT` retType
+            ConT ''Struct `AppT` ConT structName ~> ConT ''Either `AppT` ConT ''ReadError `AppT` retType
 
     fun = FunD funName [ Clause [] (NormalB body) [] ]
 
@@ -419,8 +418,7 @@ mkTableFieldGetter tableName table tf =
 
     sig =
       SigD funName $
-        ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
-          ConT ''Table `AppT` ConT tableName ~> VarT (mkName "m") `AppT` tableFieldTypeToReadType (tableFieldType tf)
+        ConT ''Table `AppT` ConT tableName ~> ConT ''Either `AppT` ConT ''ReadError `AppT` tableFieldTypeToReadType (tableFieldType tf)
 
     mkFun :: TableFieldType -> Dec
     mkFun tft =
@@ -565,10 +563,9 @@ mkReadUnionFun unionName unionValNames union = do
   let funName = mkName $ T.unpack $ NC.readUnionFun union
   let sig =
         SigD funName $
-          ForallT [PlainTV (mkName "m")] [ConT ''ReadCtx `AppT` VarT (mkName "m")] $
-            ConT ''Positive `AppT` ConT ''Word8
-              ~> ConT ''PositionInfo
-              ~> VarT (mkName "m") `AppT` (ConT ''Union `AppT` ConT unionName)
+          ConT ''Positive `AppT` ConT ''Word8
+            ~> ConT ''PositionInfo
+            ~> ConT ''Either `AppT` ConT ''ReadError `AppT` (ConT ''Union `AppT` ConT unionName)
 
   let
     mkMatch :: Name -> Integer -> Match

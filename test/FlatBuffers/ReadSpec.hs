@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module FlatBuffers.ReadSpec where
 
@@ -137,25 +136,25 @@ encodeMyRoot a b c d e f g =
     , optional writeVectorTableField g
     ]
 
-myRootA :: ReadCtx m => Table MyRoot -> m Int32
+myRootA :: Table MyRoot -> Either ReadError Int32
 myRootA = readTableFieldWithDef readInt32 0 0
 
-myRootB :: ReadCtx m => Table MyRoot -> m Int64
+myRootB :: Table MyRoot -> Either ReadError Int64
 myRootB = readTableFieldWithDef readInt64 1 0
 
-myRootC :: ReadCtx m => Table MyRoot -> m (Table Nested)
+myRootC :: Table MyRoot -> Either ReadError (Table Nested)
 myRootC = readTableFieldReq readTable 2 "c"
 
-myRootD :: ReadCtx m => Table MyRoot -> m Text
+myRootD :: Table MyRoot -> Either ReadError Text
 myRootD = readTableFieldReq readText 3 "d"
 
-myRootE :: ReadCtx m => Table MyRoot -> m (Struct SWS)
+myRootE :: Table MyRoot -> Either ReadError (Struct SWS)
 myRootE = readTableFieldReq readStruct' 4 "e"
 
-myRootF :: ReadCtx m => Table MyRoot -> m (Vector Text)
+myRootF :: Table MyRoot -> Either ReadError (Vector Text)
 myRootF = readTableFieldReq (readPrimVector VectorText) 5 "f"
 
-myRootG :: ReadCtx m => Table MyRoot -> m (Vector (Table DeepNested))
+myRootG :: Table MyRoot -> Either ReadError (Vector (Table DeepNested))
 myRootG = readTableFieldReq readTableVector 6 "g"
 
 data Nested
@@ -167,10 +166,10 @@ encodeNested a b =
     , optional writeTableTableField b
     ]
 
-nestedA :: ReadCtx m => Table Nested -> m Int32
+nestedA :: Table Nested -> Either ReadError Int32
 nestedA = readTableFieldWithDef readInt32 0 0
 
-nestedB :: ReadCtx m => Table Nested -> m (Table DeepNested)
+nestedB :: Table Nested -> Either ReadError (Table DeepNested)
 nestedB = readTableFieldReq readTable 1 "b"
 
 data DeepNested
@@ -181,7 +180,7 @@ encodeDeepNested a =
     [ optionalDef 0 writeInt32TableField a
     ]
 
-deepNestedA :: ReadCtx m => Table DeepNested -> m Int32
+deepNestedA :: Table DeepNested -> Either ReadError Int32
 deepNestedA = readTableFieldWithDef readInt32 0 0
 
 data MyStruct
@@ -196,13 +195,13 @@ encodeMyStruct a b c =
     <> buildWord8 b <> buildPadding 3
     <> buildInt64 c
 
-myStructA :: ReadCtx m => Struct MyStruct -> m Int32
+myStructA :: Struct MyStruct -> Either ReadError Int32
 myStructA = readStructField readInt32 0
 
-myStructB :: ReadCtx m => Struct MyStruct -> m Word8
+myStructB :: Struct MyStruct -> Either ReadError Word8
 myStructB = readStructField readWord8 4
 
-myStructC :: ReadCtx m => Struct MyStruct -> m Int64
+myStructC :: Struct MyStruct -> Either ReadError Int64
 myStructC = readStructField readInt64 8
 
 data ThreeBytes
@@ -215,13 +214,13 @@ encodeThreeBytes a b c =
   WriteStruct $
     buildWord8 a <> buildWord8 b <> buildWord8 c
 
-threeBytesA :: ReadCtx m => Struct ThreeBytes -> m Word8
+threeBytesA :: Struct ThreeBytes -> Either ReadError Word8
 threeBytesA = readStructField readWord8 0
 
-threeBytesB :: ReadCtx m => Struct ThreeBytes -> m Word8
+threeBytesB :: Struct ThreeBytes -> Either ReadError Word8
 threeBytesB = readStructField readWord8 1
 
-threeBytesC :: ReadCtx m => Struct ThreeBytes -> m Word8
+threeBytesC :: Struct ThreeBytes -> Either ReadError Word8
 threeBytesC = readStructField readWord8 2
 
 -- struct with structs

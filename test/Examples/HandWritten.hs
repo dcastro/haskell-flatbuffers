@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Examples.HandWritten where
 
@@ -61,18 +60,18 @@ primitives a b c d e f g h i j k l =
     , optional writeTextTableField          l
     ]
 
-primitivesA :: ReadCtx m => Table Primitives -> m Word8
-primitivesB :: ReadCtx m => Table Primitives -> m Word16
-primitivesC :: ReadCtx m => Table Primitives -> m Word32
-primitivesD :: ReadCtx m => Table Primitives -> m Word64
-primitivesE :: ReadCtx m => Table Primitives -> m Int8
-primitivesF :: ReadCtx m => Table Primitives -> m Int16
-primitivesG :: ReadCtx m => Table Primitives -> m Int32
-primitivesH :: ReadCtx m => Table Primitives -> m Int64
-primitivesI :: ReadCtx m => Table Primitives -> m Float
-primitivesJ :: ReadCtx m => Table Primitives -> m Double
-primitivesK :: ReadCtx m => Table Primitives -> m Bool
-primitivesL :: ReadCtx m => Table Primitives -> m (Maybe Text)
+primitivesA :: Table Primitives -> Either ReadError Word8
+primitivesB :: Table Primitives -> Either ReadError Word16
+primitivesC :: Table Primitives -> Either ReadError Word32
+primitivesD :: Table Primitives -> Either ReadError Word64
+primitivesE :: Table Primitives -> Either ReadError Int8
+primitivesF :: Table Primitives -> Either ReadError Int16
+primitivesG :: Table Primitives -> Either ReadError Int32
+primitivesH :: Table Primitives -> Either ReadError Int64
+primitivesI :: Table Primitives -> Either ReadError Float
+primitivesJ :: Table Primitives -> Either ReadError Double
+primitivesK :: Table Primitives -> Either ReadError Bool
+primitivesL :: Table Primitives -> Either ReadError (Maybe Text)
 primitivesA = readTableFieldWithDef readWord8   0 0
 primitivesB = readTableFieldWithDef readWord16  1 0
 primitivesC = readTableFieldWithDef readWord32  2 0
@@ -136,16 +135,16 @@ enums x y xs ys = writeTable
   , optional writeVectorTableField ys
   ]
 
-enumsX :: ReadCtx m => Table Enums -> m Int16
+enumsX :: Table Enums -> Either ReadError Int16
 enumsX = readTableFieldWithDef readInt16 0 0
 
-enumsY :: ReadCtx m => Table Enums -> m (Maybe (Struct StructWithEnum))
+enumsY :: Table Enums -> Either ReadError (Maybe (Struct StructWithEnum))
 enumsY = readTableFieldOpt readStruct' 1
 
-enumsXs :: ReadCtx m => Table Enums -> m (Maybe (Vector Int16))
+enumsXs :: Table Enums -> Either ReadError (Maybe (Vector Int16))
 enumsXs = readTableFieldOpt (readPrimVector VectorInt16) 2
 
-enumsYs :: ReadCtx m => Table Enums -> m (Maybe (Vector (Struct StructWithEnum)))
+enumsYs :: Table Enums -> Either ReadError (Maybe (Vector (Struct StructWithEnum)))
 enumsYs = readTableFieldOpt readStructVector 3
 
 
@@ -162,13 +161,13 @@ structWithEnum x y z = WriteStruct $
   <> buildInt16 y
   <> buildInt8 z <> buildPadding 1
 
-structWithEnumX :: ReadCtx m => Struct StructWithEnum -> m Int8
+structWithEnumX :: Struct StructWithEnum -> Either ReadError Int8
 structWithEnumX = readStructField readInt8 0
 
-structWithEnumY :: ReadCtx m => Struct StructWithEnum -> m Int16
+structWithEnumY :: Struct StructWithEnum -> Either ReadError Int16
 structWithEnumY = readStructField readInt16 2
 
-structWithEnumZ :: ReadCtx m => Struct StructWithEnum -> m Int8
+structWithEnumZ :: Struct StructWithEnum -> Either ReadError Int8
 structWithEnumZ = readStructField readInt8 4
 
 ----------------------------------
@@ -184,13 +183,13 @@ struct1 x y z =
   WriteStruct $
     buildWord8 x <> buildInt8 y <> buildInt8 z
 
-struct1X :: ReadCtx m => Struct Struct1 -> m Word8
+struct1X :: Struct Struct1 -> Either ReadError Word8
 struct1X = readStructField readWord8 0
 
-struct1Y :: ReadCtx m => Struct Struct1 -> m Int8
+struct1Y :: Struct Struct1 -> Either ReadError Int8
 struct1Y = readStructField readInt8 1
 
-struct1Z :: ReadCtx m => Struct Struct1 -> m Int8
+struct1Z :: Struct Struct1 -> Either ReadError Int8
 struct1Z = readStructField readInt8 2
 
 
@@ -203,7 +202,7 @@ struct2 :: Int16 -> WriteStruct Struct2
 struct2 x = WriteStruct $
   buildInt16 x <> buildPadding 2
 
-struct2X :: ReadCtx m => Struct Struct2 -> m Int16
+struct2X :: Struct Struct2 -> Either ReadError Int16
 struct2X = readStructField readInt16 0
 
 
@@ -221,10 +220,10 @@ struct3 x y z = WriteStruct $
 struct3X :: Struct Struct3 -> Struct Struct2
 struct3X = readStructField readStruct 0
 
-struct3Y :: ReadCtx m => Struct Struct3 -> m Word64
+struct3Y :: Struct Struct3 -> Either ReadError Word64
 struct3Y = readStructField readWord64 8
 
-struct3Z :: ReadCtx m => Struct Struct3 -> m Word8
+struct3Z :: Struct Struct3 -> Either ReadError Word8
 struct3Z = readStructField readWord8 16
 
 
@@ -243,13 +242,13 @@ struct4 w x y z = WriteStruct $
 struct4W :: Struct Struct4 -> Struct Struct2
 struct4W = readStructField readStruct 0
 
-struct4X :: ReadCtx m => Struct Struct4 -> m Int8
+struct4X :: Struct Struct4 -> Either ReadError Int8
 struct4X = readStructField readInt8 4
 
-struct4Y :: ReadCtx m => Struct Struct4 -> m Int64
+struct4Y :: Struct Struct4 -> Either ReadError Int64
 struct4Y = readStructField readInt64 8
 
-struct4Z :: ReadCtx m => Struct Struct4 -> m Bool
+struct4Z :: Struct Struct4 -> Either ReadError Bool
 struct4Z = readStructField readBool 16
 
 
@@ -268,16 +267,16 @@ structs a b c d = writeTable
   , optional writeStructTableField d
   ]
 
-structsA :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct1))
+structsA :: Table Structs -> Either ReadError (Maybe (Struct Struct1))
 structsA = readTableFieldOpt readStruct' 0
 
-structsB :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct2))
+structsB :: Table Structs -> Either ReadError (Maybe (Struct Struct2))
 structsB = readTableFieldOpt readStruct' 1
 
-structsC :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct3))
+structsC :: Table Structs -> Either ReadError (Maybe (Struct Struct3))
 structsC = readTableFieldOpt readStruct' 2
 
-structsD :: ReadCtx m => Table Structs -> m (Maybe (Struct Struct4))
+structsD :: Table Structs -> Either ReadError (Maybe (Struct Struct4))
 structsD = readTableFieldOpt readStruct' 3
 
 
@@ -291,7 +290,7 @@ nestedTables x = writeTable
   [ optional writeTableTableField x
   ]
 
-nestedTablesX :: ReadCtx m => Table NestedTables -> m (Maybe (Table Table1))
+nestedTablesX :: Table NestedTables -> Either ReadError (Maybe (Table Table1))
 nestedTablesX = readTableFieldOpt readTable 0
 
 
@@ -303,10 +302,10 @@ table1 x y = writeTable
   , optionalDef 0 writeInt32TableField y
   ]
 
-table1X :: ReadCtx m => Table Table1 -> m (Maybe (Table Table2))
+table1X :: Table Table1 -> Either ReadError (Maybe (Table Table2))
 table1X = readTableFieldOpt readTable 0
 
-table1Y :: ReadCtx m => Table Table1 -> m Int16
+table1Y :: Table Table1 -> Either ReadError Int16
 table1Y = readTableFieldWithDef readInt16 1 0
 
 
@@ -315,7 +314,7 @@ data Table2
 table2 :: Maybe Int16 -> WriteTable Table2
 table2 x = writeTable [ optionalDef 0 writeInt16TableField x ]
 
-table2X :: ReadCtx m => Table Table2 -> m Int16
+table2X :: Table Table2 -> Either ReadError Int16
 table2X = readTableFieldWithDef readInt16 0 0
 
 ----------------------------------
@@ -326,7 +325,7 @@ data Sword
 sword :: Maybe Text -> WriteTable Sword
 sword x = writeTable [optional writeTextTableField x]
 
-swordX :: ReadCtx m => Table Sword -> m (Maybe Text)
+swordX :: Table Sword -> Either ReadError (Maybe Text)
 swordX = readTableFieldOpt readText 0
 
 ----------------------------------
@@ -337,7 +336,7 @@ data Axe
 axe :: Maybe Int32 -> WriteTable Axe
 axe y = writeTable [optionalDef 0 writeInt32TableField y]
 
-axeY :: ReadCtx m => Table Axe -> m Int32
+axeY :: Table Axe -> Either ReadError Int32
 axeY = readTableFieldWithDef readInt32 0 0
 
 ----------------------------------
@@ -353,7 +352,7 @@ weaponSword = writeUnion 1
 weaponAxe :: WriteTable Axe -> WriteUnion Weapon
 weaponAxe = writeUnion 2
 
-readWeapon :: ReadCtx m => Positive Word8 -> PositionInfo -> m (Union Weapon)
+readWeapon :: Positive Word8 -> PositionInfo -> Either ReadError (Union Weapon)
 readWeapon n pos =
   case getPositive n of
     1  -> Union . WeaponSword <$> readTable pos
@@ -371,7 +370,7 @@ tableWithUnion uni = writeTable
   , writeUnionValueTableField uni
   ]
 
-tableWithUnionUni :: ReadCtx m => Table TableWithUnion -> m (Union Weapon)
+tableWithUnionUni :: Table TableWithUnion -> Either ReadError (Union Weapon)
 tableWithUnionUni = readTableFieldUnion readWeapon 1
 
 ----------------------------------
@@ -409,18 +408,18 @@ vectors a b c d e f g h i j k l =
     , optional writeVectorTableField l
     ]
 
-vectorsA :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word8))
-vectorsB :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word16))
-vectorsC :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word32))
-vectorsD :: ReadCtx m => Table Vectors -> m (Maybe (Vector Word64))
-vectorsE :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int8))
-vectorsF :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int16))
-vectorsG :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int32))
-vectorsH :: ReadCtx m => Table Vectors -> m (Maybe (Vector Int64))
-vectorsI :: ReadCtx m => Table Vectors -> m (Maybe (Vector Float))
-vectorsJ :: ReadCtx m => Table Vectors -> m (Maybe (Vector Double))
-vectorsK :: ReadCtx m => Table Vectors -> m (Maybe (Vector Bool))
-vectorsL :: ReadCtx m => Table Vectors -> m (Maybe (Vector Text))
+vectorsA :: Table Vectors -> Either ReadError (Maybe (Vector Word8))
+vectorsB :: Table Vectors -> Either ReadError (Maybe (Vector Word16))
+vectorsC :: Table Vectors -> Either ReadError (Maybe (Vector Word32))
+vectorsD :: Table Vectors -> Either ReadError (Maybe (Vector Word64))
+vectorsE :: Table Vectors -> Either ReadError (Maybe (Vector Int8))
+vectorsF :: Table Vectors -> Either ReadError (Maybe (Vector Int16))
+vectorsG :: Table Vectors -> Either ReadError (Maybe (Vector Int32))
+vectorsH :: Table Vectors -> Either ReadError (Maybe (Vector Int64))
+vectorsI :: Table Vectors -> Either ReadError (Maybe (Vector Float))
+vectorsJ :: Table Vectors -> Either ReadError (Maybe (Vector Double))
+vectorsK :: Table Vectors -> Either ReadError (Maybe (Vector Bool))
+vectorsL :: Table Vectors -> Either ReadError (Maybe (Vector Text))
 vectorsA = readTableFieldOpt (readPrimVector VectorWord8)   0
 vectorsB = readTableFieldOpt (readPrimVector VectorWord16)  1
 vectorsC = readTableFieldOpt (readPrimVector VectorWord32)  2
@@ -444,7 +443,7 @@ vectorOfTables xs = writeTable
   [ optional writeVectorTableField xs
   ]
 
-vectorOfTablesXs :: ReadCtx m => Table VectorOfTables -> m (Maybe (Vector (Table Axe)))
+vectorOfTablesXs :: Table VectorOfTables -> Either ReadError (Maybe (Vector (Table Axe)))
 vectorOfTablesXs = readTableFieldOpt readTableVector 0
 
 ----------------------------------
@@ -465,16 +464,16 @@ vectorOfStructs as bs cs ds = writeTable
   , optional writeVectorTableField ds
   ]
 
-vectorOfStructsAs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct1)))
+vectorOfStructsAs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct1)))
 vectorOfStructsAs = readTableFieldOpt readStructVector 0
 
-vectorOfStructsBs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct2)))
+vectorOfStructsBs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct2)))
 vectorOfStructsBs = readTableFieldOpt readStructVector 1
 
-vectorOfStructsCs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct3)))
+vectorOfStructsCs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct3)))
 vectorOfStructsCs = readTableFieldOpt readStructVector 2
 
-vectorOfStructsDs :: ReadCtx m => Table VectorOfStructs -> m (Maybe (Vector (Struct Struct4)))
+vectorOfStructsDs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct4)))
 vectorOfStructsDs = readTableFieldOpt readStructVector 3
 
 
@@ -496,10 +495,10 @@ vectorOfUnions xs xsReq = writeTable
   , writeUnionValuesVectorTableField xsReq
   ]
 
-vectorOfUnionsXs :: ReadCtx m => Table VectorOfUnions -> m (Maybe (Vector (Union Weapon)))
+vectorOfUnionsXs :: Table VectorOfUnions -> Either ReadError (Maybe (Vector (Union Weapon)))
 vectorOfUnionsXs = readTableFieldUnionVectorOpt readWeapon 1
 
-vectorOfUnionsXsReq :: ReadCtx m => Table VectorOfUnions -> m (Vector (Union Weapon))
+vectorOfUnionsXsReq :: Table VectorOfUnions -> Either ReadError (Vector (Union Weapon))
 vectorOfUnionsXsReq = readTableFieldUnionVectorReq readWeapon 5 "xsReq"
 
 
@@ -542,20 +541,20 @@ scalarsWithDefaults a b c d e f g h i j k l m n =
     , optionalDef 5 writeInt16TableField          n
     ]
 
-scalarsWithDefaultsA :: ReadCtx m => Table ScalarsWithDefaults -> m Word8
-scalarsWithDefaultsB :: ReadCtx m => Table ScalarsWithDefaults -> m Word16
-scalarsWithDefaultsC :: ReadCtx m => Table ScalarsWithDefaults -> m Word32
-scalarsWithDefaultsD :: ReadCtx m => Table ScalarsWithDefaults -> m Word64
-scalarsWithDefaultsE :: ReadCtx m => Table ScalarsWithDefaults -> m Int8
-scalarsWithDefaultsF :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
-scalarsWithDefaultsG :: ReadCtx m => Table ScalarsWithDefaults -> m Int32
-scalarsWithDefaultsH :: ReadCtx m => Table ScalarsWithDefaults -> m Int64
-scalarsWithDefaultsI :: ReadCtx m => Table ScalarsWithDefaults -> m Float
-scalarsWithDefaultsJ :: ReadCtx m => Table ScalarsWithDefaults -> m Double
-scalarsWithDefaultsK :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
-scalarsWithDefaultsL :: ReadCtx m => Table ScalarsWithDefaults -> m Bool
-scalarsWithDefaultsM :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
-scalarsWithDefaultsN :: ReadCtx m => Table ScalarsWithDefaults -> m Int16
+scalarsWithDefaultsA :: Table ScalarsWithDefaults -> Either ReadError Word8
+scalarsWithDefaultsB :: Table ScalarsWithDefaults -> Either ReadError Word16
+scalarsWithDefaultsC :: Table ScalarsWithDefaults -> Either ReadError Word32
+scalarsWithDefaultsD :: Table ScalarsWithDefaults -> Either ReadError Word64
+scalarsWithDefaultsE :: Table ScalarsWithDefaults -> Either ReadError Int8
+scalarsWithDefaultsF :: Table ScalarsWithDefaults -> Either ReadError Int16
+scalarsWithDefaultsG :: Table ScalarsWithDefaults -> Either ReadError Int32
+scalarsWithDefaultsH :: Table ScalarsWithDefaults -> Either ReadError Int64
+scalarsWithDefaultsI :: Table ScalarsWithDefaults -> Either ReadError Float
+scalarsWithDefaultsJ :: Table ScalarsWithDefaults -> Either ReadError Double
+scalarsWithDefaultsK :: Table ScalarsWithDefaults -> Either ReadError Bool
+scalarsWithDefaultsL :: Table ScalarsWithDefaults -> Either ReadError Bool
+scalarsWithDefaultsM :: Table ScalarsWithDefaults -> Either ReadError Int16
+scalarsWithDefaultsN :: Table ScalarsWithDefaults -> Either ReadError Int16
 scalarsWithDefaultsA = readTableFieldWithDef readWord8   0 8
 scalarsWithDefaultsB = readTableFieldWithDef readWord16  1 16
 scalarsWithDefaultsC = readTableFieldWithDef readWord32  2 32
@@ -589,16 +588,16 @@ deprecatedFields a c e g = writeTable
   , optionalDef 0 writeInt8TableField g
   ]
 
-deprecatedFieldsA :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsA :: Table DeprecatedFields -> Either ReadError Int8
 deprecatedFieldsA = readTableFieldWithDef readInt8 0 0
 
-deprecatedFieldsC :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsC :: Table DeprecatedFields -> Either ReadError Int8
 deprecatedFieldsC = readTableFieldWithDef readInt8 2 0
 
-deprecatedFieldsE :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsE :: Table DeprecatedFields -> Either ReadError Int8
 deprecatedFieldsE = readTableFieldWithDef readInt8 4 0
 
-deprecatedFieldsG :: ReadCtx m => Table DeprecatedFields -> m Int8
+deprecatedFieldsG :: Table DeprecatedFields -> Either ReadError Int8
 deprecatedFieldsG = readTableFieldWithDef readInt8 7 0
 
 
@@ -623,18 +622,18 @@ requiredFields a b c d e = writeTable
   , writeVectorTableField e
   ]
 
-requiredFieldsA :: ReadCtx m => Table RequiredFields -> m Text
+requiredFieldsA :: Table RequiredFields -> Either ReadError Text
 requiredFieldsA = readTableFieldReq readText 0 "a"
 
-requiredFieldsB :: ReadCtx m => Table RequiredFields -> m (Struct Struct1)
+requiredFieldsB :: Table RequiredFields -> Either ReadError (Struct Struct1)
 requiredFieldsB = readTableFieldReq readStruct' 1 "b"
 
-requiredFieldsC :: ReadCtx m => Table RequiredFields -> m (Table Axe)
+requiredFieldsC :: Table RequiredFields -> Either ReadError (Table Axe)
 requiredFieldsC = readTableFieldReq readTable 2 "c"
 
-requiredFieldsD :: ReadCtx m => Table RequiredFields -> m (Union Weapon)
+requiredFieldsD :: Table RequiredFields -> Either ReadError (Union Weapon)
 requiredFieldsD = readTableFieldUnion readWeapon 4
 
-requiredFieldsE :: ReadCtx m => Table RequiredFields -> m (Vector Int32)
+requiredFieldsE :: Table RequiredFields -> Either ReadError (Vector Int32)
 requiredFieldsE = readTableFieldReq (readPrimVector VectorInt32) 5 "d"
 

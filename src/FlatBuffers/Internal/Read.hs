@@ -1,15 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -18,8 +14,7 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module FlatBuffers.Internal.Read
-  ( ReadCtx
-  , TableIndex(..)
+  ( TableIndex(..)
   , VOffset(..)
   , ReadError(..)
   , Struct(..)
@@ -53,7 +48,6 @@ module FlatBuffers.Internal.Read
 import           Control.DeepSeq               ( NFData )
 import           Control.Exception             ( Exception )
 import           Control.Monad                 ( join )
-import           Control.Monad.Except          ( MonadError(..) )
 
 import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
@@ -78,8 +72,6 @@ import           FlatBuffers.Internal.Positive ( Positive, positive )
 import           FlatBuffers.Types
 
 import           GHC.Generics                  ( Generic )
-
-type ReadCtx = MonadError ReadError
 
 newtype TableIndex = TableIndex { unTableIndex :: Word16 }
   deriving newtype (Show, Num)
@@ -125,7 +117,7 @@ class HasPosition a where
 instance HasPosition ByteString   where getPosition = id
 instance HasPosition PositionInfo where getPosition = posCurrent
 
-decode :: forall a m. ReadCtx m => ByteString -> m (Table a)
+decode :: ByteString -> Either ReadError (Table a)
 decode root = readTable initialPos
   where
     initialPos = PositionInfo root root 0
@@ -171,7 +163,7 @@ checkNegIndex !n
   | otherwise = n
 
 {-# INLINE inlineVectorToList #-}
-inlineVectorToList :: ReadCtx m => Get a -> ByteString -> m [a]
+inlineVectorToList :: Get a -> ByteString -> Either ReadError [a]
 inlineVectorToList get bs =
   flip runGetM bs $ do
     len <- G.getInt32le
@@ -180,13 +172,13 @@ inlineVectorToList get bs =
 class VectorElement a where
   data Vector a
 
-  vectorLength :: ReadCtx m => Vector a -> m Int32
+  vectorLength :: Vector a -> Either ReadError Int32
 
   -- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
   -- If the index is negative, an exception will be thrown.
-  index :: ReadCtx m => Vector a -> Int32 -> m a
+  index :: Vector a -> Int32 -> Either ReadError a
 
-  toList :: ReadCtx m => Vector a -> m [a]
+  toList :: Vector a -> Either ReadError [a]
 
 instance VectorElement Word8 where
   newtype Vector Word8 = VectorWord8 Position
@@ -264,13 +256,13 @@ instance VectorElement Text where
   vectorLength (VectorText pos) = readInt32 pos
   index (VectorText pos) = readText . moveToElem' pos textRefSize . checkNegIndex
 
-  toList :: forall m. ReadCtx m => Vector Text -> m [Text]
+  toList :: Vector Text -> Either ReadError [Text]
   toList (VectorText pos) = do
     positions <- toList (VectorInt32 pos)
     L.reverse <$> readTexts positions 0 []
     where
-      readTexts :: [Int32] -> Int32 -> [Text] -> m [Text]
-      readTexts [] _ acc = pure acc
+      readTexts :: [Int32] -> Int32 -> [Text] -> Either ReadError [Text]
+      readTexts [] _ acc = Right acc
       readTexts (offset : xs) ix acc = do
         let pos' = move' pos (fromIntegral (offset + (ix * 4) + 4))
         text <- join $ runGetM readText' pos'
@@ -288,8 +280,8 @@ instance VectorElement (Struct a) where
   toList vec = do
     len <- vectorLength vec
     if len == 0
-      then pure []
-      else pure $ go len (move' (vectorStructPos vec) int32Size)
+      then Right []
+      else Right $ go len (move' (vectorStructPos vec) int32Size)
     where
       go :: Int32 -> Position -> [Struct a]
       go !len !pos =
@@ -308,13 +300,13 @@ instance VectorElement (Table a) where
     len <- vectorLength vec
     go len (coerce vec)
     where
-      go :: ReadCtx m => Int32 -> PositionInfo -> m [Table a]
-      go 0 _ = pure []
+      go :: Int32 -> PositionInfo -> Either ReadError [Table a]
+      go 0 _ = Right []
       go !len !pos = do
         let pos' = move pos tableRefSize
         head <- readTable pos'
         tail <- go (len - 1) pos'
-        pure $! head : tail
+        Right $! head : tail
 
 instance VectorElement (Union a) where
   data Vector (Union a) = VectorUnion
@@ -322,7 +314,7 @@ instance VectorElement (Union a) where
     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
     , vectorUnionValuesPos :: !PositionInfo
     -- ^ A table vector, with the actual union values
-    , vectorUnionElemRead  :: !(forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+    , vectorUnionElemRead  :: !(Positive Word8 -> PositionInfo -> Either ReadError (Union a))
     -- ^ A function to read a union value from this vector
     }
   -- NOTE: we assume the two vectors have the same length
@@ -331,7 +323,7 @@ instance VectorElement (Union a) where
   index vec ix = do
     unionType <- index (vectorUnionTypesPos vec) ix
     case positive unionType of
-      Nothing         -> pure UnionNone
+      Nothing         -> Right UnionNone
       Just unionType' ->
         let readElem = (vectorUnionElemRead vec) unionType'
         in  readElem (moveToElem (vectorUnionValuesPos vec) tableRefSize ix)
@@ -339,24 +331,24 @@ instance VectorElement (Union a) where
   toList vec = do
     len <- vectorLength vec
     if len == 0
-      then pure []
+      then Right []
       else go
             len
             (move' (coerce vectorUnionTypesPos vec) 4)
             (move (vectorUnionValuesPos vec) 4)
     where
-      go :: ReadCtx m => Int32 -> Position -> PositionInfo -> m [Union a]
+      go :: Int32 -> Position -> PositionInfo -> Either ReadError [Union a]
       go !len !valuesPos !typesPos = do
         unionType <- readWord8 valuesPos
         head <- case positive unionType of
-                  Nothing -> pure UnionNone
+                  Nothing -> Right UnionNone
                   Just unionType' ->
                     let readElem = (vectorUnionElemRead vec) unionType'
                     in  readElem typesPos
         tail <- if len == 1
-                  then pure []
+                  then Right []
                   else go (len - 1) (BSL.drop 1 valuesPos) (move typesPos 4)
-        pure $! head : tail
+        Right $! head : tail
 
 ----------------------------------
 ----- Read from Struct/Table -----
@@ -365,97 +357,97 @@ readStructField :: (Position -> a) -> VOffset -> Struct s -> a
 readStructField read voffset (Struct bs) =
   read (move' bs (fromIntegral @VOffset @Int64 voffset))
 
-readTableFieldOpt :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> Table t -> m (Maybe a)
+readTableFieldOpt :: (PositionInfo -> Either ReadError a) -> TableIndex -> Table t -> Either ReadError (Maybe a)
 readTableFieldOpt read ix t = do
   mbOffset <- tableIndexToVOffset t ix
   traverse (\offset -> read (moveV (tablePos t) offset)) mbOffset
 
-readTableFieldReq :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> Text -> Table t -> m a
+readTableFieldReq :: (PositionInfo -> Either ReadError a) -> TableIndex -> Text -> Table t -> Either ReadError a
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
-    Nothing -> throwError $ MissingField name
+    Nothing -> Left $ MissingField name
     Just offset -> read (moveV (tablePos t) offset)
 
-readTableFieldWithDef :: ReadCtx m => (PositionInfo -> m a) -> TableIndex -> a -> Table t -> m a
+readTableFieldWithDef :: (PositionInfo -> Either ReadError a) -> TableIndex -> a -> Table t -> Either ReadError a
 readTableFieldWithDef read ix dflt t =
   tableIndexToVOffset t ix >>= \case
-    Nothing -> pure dflt
+    Nothing -> Right dflt
     Just offset -> read (moveV (tablePos t) offset)
 
-readTableFieldUnion :: ReadCtx m => (Positive Word8 -> PositionInfo -> m (Union a)) -> TableIndex -> Table t -> m (Union a)
+readTableFieldUnion :: (Positive Word8 -> PositionInfo -> Either ReadError (Union a)) -> TableIndex -> Table t -> Either ReadError (Union a)
 readTableFieldUnion read ix t =
   readTableFieldWithDef readWord8 (ix - 1) 0 t >>= \unionType ->
     case positive unionType of
-      Nothing         -> pure UnionNone
+      Nothing         -> Right UnionNone
       Just unionType' ->
         tableIndexToVOffset t ix >>= \case
-          Nothing     -> throwError $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+          Nothing     -> Left $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
           Just offset -> read unionType' (moveV (tablePos t) offset)
 
-readTableFieldUnionVectorOpt :: ReadCtx m
-  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+readTableFieldUnionVectorOpt ::
+     (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
   -> TableIndex
   -> Table t
-  -> m (Maybe (Vector (Union a)))
+  -> Either ReadError (Maybe (Vector (Union a)))
 readTableFieldUnionVectorOpt read ix t =
   tableIndexToVOffset t (ix - 1) >>= \case
-    Nothing -> pure Nothing
+    Nothing -> Right Nothing
     Just typesOffset ->
       tableIndexToVOffset t ix >>= \case
-        Nothing -> throwError $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Nothing -> Left $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           Just <$> readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
-readTableFieldUnionVectorReq :: ReadCtx m
-  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+readTableFieldUnionVectorReq ::
+     (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
   -> TableIndex
   -> Text
   -> Table t
-  -> m (Vector (Union a))
+  -> Either ReadError (Vector (Union a))
 readTableFieldUnionVectorReq read ix name t =
   tableIndexToVOffset t (ix - 1) >>= \case
-    Nothing -> throwError $ MissingField name
+    Nothing -> Left $ MissingField name
     Just typesOffset ->
       tableIndexToVOffset t ix >>= \case
-        Nothing -> throwError $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Nothing -> Left $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
 
 ----------------------------------
 ------ Read from `Position` ------
 ----------------------------------
-readInt8 :: (ReadCtx m, HasPosition a) => a -> m Int8
+readInt8 :: HasPosition a => a -> Either ReadError Int8
 readInt8 (getPosition -> pos) = runGetM G.getInt8 pos
 
-readInt16 :: (ReadCtx m, HasPosition a) => a -> m Int16
+readInt16 :: HasPosition a => a -> Either ReadError Int16
 readInt16 (getPosition -> pos) = runGetM G.getInt16le pos
 
-readInt32 :: (ReadCtx m, HasPosition a) => a -> m Int32
+readInt32 :: HasPosition a => a -> Either ReadError Int32
 readInt32 (getPosition -> pos) = runGetM G.getInt32le pos
 
-readInt64 :: (ReadCtx m, HasPosition a) => a -> m Int64
+readInt64 :: HasPosition a => a -> Either ReadError Int64
 readInt64 (getPosition -> pos) = runGetM G.getInt64le pos
 
-readWord8 :: (ReadCtx m, HasPosition a) => a -> m Word8
+readWord8 :: HasPosition a => a -> Either ReadError Word8
 readWord8 (getPosition -> pos) = runGetM G.getWord8 pos
 
-readWord16 :: (ReadCtx m, HasPosition a) => a -> m Word16
+readWord16 :: HasPosition a => a -> Either ReadError Word16
 readWord16 (getPosition -> pos) = runGetM G.getWord16le pos
 
-readWord32 :: (ReadCtx m, HasPosition a) => a -> m Word32
+readWord32 :: HasPosition a => a -> Either ReadError Word32
 readWord32 (getPosition -> pos) = runGetM G.getWord32le pos
 
-readWord64 :: (ReadCtx m, HasPosition a) => a -> m Word64
+readWord64 :: HasPosition a => a -> Either ReadError Word64
 readWord64 (getPosition -> pos) = runGetM G.getWord64le pos
 
-readFloat :: (ReadCtx m, HasPosition a) => a -> m Float
+readFloat :: HasPosition a => a -> Either ReadError Float
 readFloat (getPosition -> pos) = runGetM G.getFloatle pos
 
-readDouble :: (ReadCtx m, HasPosition a) => a -> m Double
+readDouble :: HasPosition a => a -> Either ReadError Double
 readDouble (getPosition -> pos) = runGetM G.getDoublele pos
 
-readBool :: (ReadCtx m, HasPosition a) => a -> m Bool
+readBool :: HasPosition a => a -> Either ReadError Bool
 readBool p = word8ToBool <$> readWord8 p
 
 word8ToBool :: Word8 -> Bool
@@ -463,77 +455,68 @@ word8ToBool 0 = False
 word8ToBool _ = True
 
 readPrimVector ::
-     forall a m. ReadCtx m
-  => (Position -> Vector a)
+     (Position -> Vector a)
   -> PositionInfo
-  -> m (Vector a)
+  -> Either ReadError (Vector a)
 readPrimVector vecConstructor (posCurrent -> pos) = do
   uoffset <- readInt32 pos
-  pure $! vecConstructor
+  Right $! vecConstructor
     (move' pos (fromIntegral @Int32 @Int64 uoffset))
 
-readTableVector ::
-     forall a m. ReadCtx m
-  => PositionInfo
-  -> m (Vector (Table a))
+readTableVector :: PositionInfo -> Either ReadError (Vector (Table a))
 readTableVector pos = do
   uoffset <- readInt32 pos
-  pure $! VectorTable
+  Right $! VectorTable
     (move pos (coerce uoffset))
 
-readStructVector ::
-     forall a m. ReadCtx m
-  => IsStruct a
-  => PositionInfo
-  -> m (Vector (Struct a))
+readStructVector :: forall a. IsStruct a => PositionInfo -> Either ReadError (Vector (Struct a))
 readStructVector (posCurrent -> pos) = do
   uoffset <- readInt32 pos
-  pure $! VectorStruct
+  Right $! VectorStruct
     (move' pos (fromIntegral @Int32 @Int64 uoffset))
     (structSizeOf @a)
 
 readUnionVector ::
-     forall a m. ReadCtx m
-  => (forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union a))
+     (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
   -> PositionInfo
   -> PositionInfo
-  -> m (Vector (Union a))
+  -> Either ReadError (Vector (Union a))
 readUnionVector readUnion typesPos valuesPos =
   do
     typesVec <- readPrimVector VectorWord8 typesPos
     valuesVecUOffset <- readInt32 valuesPos
-    pure $! VectorUnion
+    Right $! VectorUnion
       typesVec
       (move valuesPos valuesVecUOffset)
       readUnion
 
 -- | Follow a pointer to the position of a string and read it.
-readText :: (ReadCtx m, HasPosition a) => a -> m Text
+readText :: HasPosition a => a -> Either ReadError Text
 readText (getPosition -> pos) =
   join $ runGetM (readAndSkipUOffset >> readText') pos
 
 -- | Read a string from the current buffer position.
 {-# INLINE readText' #-}
-readText' :: ReadCtx m => Get (m Text)
+readText' :: Get (Either ReadError Text)
 readText' = do
   strLength <- G.getInt32le
   -- NOTE: this might overflow in systems where Int has less than 32 bits
   bs <- G.getByteString $ fromIntegral @Int32 @Int strLength
   pure $! case T.decodeUtf8' bs of
-    Right t -> pure t
-    Left (T.DecodeError msg b) -> throwError $ Utf8DecodingError (T.pack msg) b
+    Right t -> Right t
+    Left (T.DecodeError msg b) -> Left $ Utf8DecodingError (T.pack msg) b
     -- The `EncodeError` constructor is deprecated and not used
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
 
 -- | Convenience function for reading structs from table fields / vectors
-readStruct' :: (Applicative f, HasPosition a) => a -> f (Struct s)
-readStruct' = pure . readStruct
+readStruct' :: HasPosition a => a -> Either ReadError (Struct s)
+readStruct' = Right . readStruct
 
 readStruct :: HasPosition a => a -> Struct s
 readStruct (getPosition -> pos) = Struct pos
 
-readTable :: forall t m. ReadCtx m => PositionInfo -> m (Table t)
+readTable :: PositionInfo -> Either ReadError (Table t)
 readTable pos@PositionInfo{..} =
   flip runGetM posCurrent $ do
     tableOffset <- readAndSkipUOffset
@@ -547,7 +530,7 @@ readTable pos@PositionInfo{..} =
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
-tableIndexToVOffset :: ReadCtx m => Table t -> TableIndex -> m (Maybe VOffset)
+tableIndexToVOffset :: Table t -> TableIndex -> Either ReadError (Maybe VOffset)
 tableIndexToVOffset Table{..} ix =
   flip runGetM vtable $ do
     vtableSize <- G.getWord16le
@@ -591,13 +574,13 @@ data ReadError
   deriving stock (Show, Eq, Generic)
   deriving anyclass (NFData, Exception)
 
-runGetM :: ReadCtx m => Get a -> ByteString -> m a
+runGetM :: Get a -> ByteString -> Either ReadError a
 runGetM get =
   feedAll (G.runGetIncremental get)
   where
-    feedAll (G.Done _ _ x) _ = pure x
+    feedAll (G.Done _ _ x) _ = Right x
     feedAll (G.Partial k) lbs = feedAll (k (takeHeadChunk lbs)) (dropHeadChunk lbs)
-    feedAll (G.Fail _ pos msg) _ = throwError $ ParsingError pos (T.pack msg)
+    feedAll (G.Fail _ pos msg) _ = Left $ ParsingError pos (T.pack msg)
 
     takeHeadChunk :: BSL.ByteString -> Maybe BS.ByteString
     takeHeadChunk lbs =
@@ -613,13 +596,13 @@ runGetM get =
 
 -- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
 -- Assumes i >= 0.
-byteStringSafeIndex :: ReadCtx m => ByteString -> Int32 -> m Word8
+byteStringSafeIndex :: ByteString -> Int32 -> Either ReadError Word8
 byteStringSafeIndex !cs0 !i =
   index' cs0 i
-  where index' BSL.Empty _ = throwError $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
+  where index' BSL.Empty _ = Left $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
         index' (BSL.Chunk c cs) n
           -- NOTE: this might overflow in systems where Int has less than 32 bits
           | fromIntegral @Int32 @Int n >= BS.length c =
               -- Note: it's safe to narrow `BS.length` to an int32 here, the line above proves it.
               index' cs (n - fromIntegral @Int @Int32 (BS.length c))
-          | otherwise = pure $! BSU.unsafeIndex c (fromIntegral @Int32 @Int n)
+          | otherwise = Right $! BSU.unsafeIndex c (fromIntegral @Int32 @Int n)

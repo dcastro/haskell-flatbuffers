@@ -63,7 +63,7 @@ spec =
                 somePerson :: Maybe Int32 -> WriteTable SomePerson
                 somePerson personAge = writeTable [ optionalDef 0 writeInt32TableField personAge ]
 
-                somePersonPersonAge :: forall m. ReadCtx m => Table SomePerson -> m Int32
+                somePersonPersonAge :: Table SomePerson -> Either ReadError Int32
                 somePersonPersonAge = readTableFieldWithDef readInt32 0 0
               |]
         [r| table some_person  { person_age: int; }|] `shouldCompileTo` expected
@@ -120,27 +120,27 @@ spec =
                   , optionalDef False writeBoolTableField k
                   ]
 
-              scalarsA :: forall m. ReadCtx m => Table Scalars -> m Word8
+              scalarsA :: Table Scalars -> Either ReadError Word8
               scalarsA = readTableFieldWithDef readWord8   0 0
-              scalarsB :: forall m. ReadCtx m => Table Scalars -> m Word16
+              scalarsB :: Table Scalars -> Either ReadError Word16
               scalarsB = readTableFieldWithDef readWord16  1 0
-              scalarsC :: forall m. ReadCtx m => Table Scalars -> m Word32
+              scalarsC :: Table Scalars -> Either ReadError Word32
               scalarsC = readTableFieldWithDef readWord32  2 0
-              scalarsD :: forall m. ReadCtx m => Table Scalars -> m Word64
+              scalarsD :: Table Scalars -> Either ReadError Word64
               scalarsD = readTableFieldWithDef readWord64  3 0
-              scalarsE :: forall m. ReadCtx m => Table Scalars -> m Int8
+              scalarsE :: Table Scalars -> Either ReadError Int8
               scalarsE = readTableFieldWithDef readInt8    4 0
-              scalarsF :: forall m. ReadCtx m => Table Scalars -> m Int16
+              scalarsF :: Table Scalars -> Either ReadError Int16
               scalarsF = readTableFieldWithDef readInt16   5 0
-              scalarsG :: forall m. ReadCtx m => Table Scalars -> m Int32
+              scalarsG :: Table Scalars -> Either ReadError Int32
               scalarsG = readTableFieldWithDef readInt32   6 0
-              scalarsH :: forall m. ReadCtx m => Table Scalars -> m Int64
+              scalarsH :: Table Scalars -> Either ReadError Int64
               scalarsH = readTableFieldWithDef readInt64   7 0
-              scalarsI :: forall m. ReadCtx m => Table Scalars -> m Float
+              scalarsI :: Table Scalars -> Either ReadError Float
               scalarsI = readTableFieldWithDef readFloat   8 0.0
-              scalarsJ :: forall m. ReadCtx m => Table Scalars -> m Double
+              scalarsJ :: Table Scalars -> Either ReadError Double
               scalarsJ = readTableFieldWithDef readDouble  9 0.0
-              scalarsK :: forall m. ReadCtx m => Table Scalars -> m Bool
+              scalarsK :: Table Scalars -> Either ReadError Bool
               scalarsK = readTableFieldWithDef readBool    10 False
             |]
 
@@ -218,27 +218,27 @@ spec =
                   , optionalDef True writeBoolTableField        k
                   ]
 
-              scalarsA :: forall m. ReadCtx m => Table Scalars -> m Word8
+              scalarsA :: Table Scalars -> Either ReadError Word8
               scalarsA = readTableFieldWithDef readWord8   0 8
-              scalarsB :: forall m. ReadCtx m => Table Scalars -> m Word16
+              scalarsB :: Table Scalars -> Either ReadError Word16
               scalarsB = readTableFieldWithDef readWord16  1 16
-              scalarsC :: forall m. ReadCtx m => Table Scalars -> m Word32
+              scalarsC :: Table Scalars -> Either ReadError Word32
               scalarsC = readTableFieldWithDef readWord32  2 32
-              scalarsD :: forall m. ReadCtx m => Table Scalars -> m Word64
+              scalarsD :: Table Scalars -> Either ReadError Word64
               scalarsD = readTableFieldWithDef readWord64  3 64
-              scalarsE :: forall m. ReadCtx m => Table Scalars -> m Int8
+              scalarsE :: Table Scalars -> Either ReadError Int8
               scalarsE = readTableFieldWithDef readInt8    4 (-1)
-              scalarsF :: forall m. ReadCtx m => Table Scalars -> m Int16
+              scalarsF :: Table Scalars -> Either ReadError Int16
               scalarsF = readTableFieldWithDef readInt16   5 -2
-              scalarsG :: forall m. ReadCtx m => Table Scalars -> m Int32
+              scalarsG :: Table Scalars -> Either ReadError Int32
               scalarsG = readTableFieldWithDef readInt32   6 -4
-              scalarsH :: forall m. ReadCtx m => Table Scalars -> m Int64
+              scalarsH :: Table Scalars -> Either ReadError Int64
               scalarsH = readTableFieldWithDef readInt64   7 -8
-              scalarsI :: forall m. ReadCtx m => Table Scalars -> m Float
+              scalarsI :: Table Scalars -> Either ReadError Float
               scalarsI = readTableFieldWithDef readFloat   8 3.9
-              scalarsJ :: forall m. ReadCtx m => Table Scalars -> m Double
+              scalarsJ :: Table Scalars -> Either ReadError Double
               scalarsJ = readTableFieldWithDef readDouble  9 -2.3e10
-              scalarsK :: forall m. ReadCtx m => Table Scalars -> m Bool
+              scalarsK :: Table Scalars -> Either ReadError Bool
               scalarsK = readTableFieldWithDef readBool    10 True
             |]
 
@@ -251,7 +251,7 @@ spec =
               t :: Maybe Text -> WriteTable T
               t s = writeTable [optional writeTextTableField s]
 
-              tS :: forall m. ReadCtx m => Table T -> m (Maybe Text)
+              tS :: Table T -> Either ReadError (Maybe Text)
               tS = readTableFieldOpt readText 0
             |]
         it "deprecated" $
@@ -270,7 +270,7 @@ spec =
               t :: Text -> WriteTable T
               t s = writeTable [writeTextTableField s]
 
-              tS :: forall m. ReadCtx m => Table T -> m Text
+              tS :: Table T -> Either ReadError Text
               tS = readTableFieldReq readText 0 (T.pack "s")
             |]
 
@@ -304,7 +304,7 @@ spec =
               t :: Maybe Int8 -> WriteTable T
               t x = writeTable [ optionalDef 2 writeInt8TableField x ]
 
-              tX :: forall m. ReadCtx m => Table T -> m Int8
+              tX :: Table T -> Either ReadError Int8
               tX = readTableFieldWithDef readInt8 0 2
             |]
 
@@ -323,14 +323,14 @@ spec =
               s :: Int32 -> WriteStruct S
               s x = WriteStruct (buildInt32 x)
 
-              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX :: Struct S -> Either ReadError Int32
               sX = readStructField readInt32 0
 
               data T
               t :: Maybe (WriteStruct S) -> WriteTable T
               t x = writeTable [optional writeStructTableField x]
 
-              tX :: forall m. ReadCtx m => Table T -> m (Maybe (Struct S))
+              tX :: Table T -> Either ReadError (Maybe (Struct S))
               tX = readTableFieldOpt readStruct' 0
             |]
 
@@ -348,7 +348,7 @@ spec =
               s :: Int32 -> WriteStruct S
               s x = WriteStruct (buildInt32 x)
 
-              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX :: Struct S -> Either ReadError Int32
               sX = readStructField readInt32 0
 
               data T
@@ -370,14 +370,14 @@ spec =
               s :: Int32 -> WriteStruct S
               s x = WriteStruct (buildInt32 x)
 
-              sX :: forall m. ReadCtx m => Struct S -> m Int32
+              sX :: Struct S -> Either ReadError Int32
               sX = readStructField readInt32 0
 
               data T
               t :: WriteStruct S -> WriteTable T
               t x = writeTable [writeStructTableField x]
 
-              tX :: forall m. ReadCtx m => Table T -> m (Struct S)
+              tX :: Table T -> Either ReadError (Struct S)
               tX = readTableFieldReq readStruct' 0 (T.pack "X")
             |]
 
@@ -392,7 +392,7 @@ spec =
               t1 :: Maybe (WriteTable T2) -> WriteTable T1
               t1 x = writeTable [optional writeTableTableField x]
 
-              t1X :: forall m. ReadCtx m => Table T1 -> m (Maybe (Table T2))
+              t1X :: Table T1 -> Either ReadError (Maybe (Table T2))
               t1X = readTableFieldOpt readTable 0
 
               data T2
@@ -423,7 +423,7 @@ spec =
               t1 :: WriteTable T2 -> WriteTable T1
               t1 x = writeTable [writeTableTableField x]
 
-              t1X :: forall m. ReadCtx m => Table T1 -> m (Table T2)
+              t1X :: Table T1 -> Either ReadError (Table T2)
               t1X = readTableFieldReq readTable 0 (T.pack "x")
 
               data T2
@@ -445,7 +445,7 @@ spec =
                 , writeUnionValueTableField x
                 ]
 
-              t1X :: forall m. ReadCtx m => Table T1 -> m (Union U1)
+              t1X :: Table T1 -> Either ReadError (Union U1)
               t1X = readTableFieldUnion readU1 1
 
               data U1
@@ -454,7 +454,7 @@ spec =
               u1T1 :: WriteTable T1 -> WriteUnion U1
               u1T1 = writeUnion 1
 
-              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
                   1  -> Union . U1T1 <$> readTable pos
@@ -480,7 +480,7 @@ spec =
               u1T1 :: WriteTable T1 -> WriteUnion U1
               u1T1 = writeUnion 1
 
-              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
                   1  -> Union . U1T1 <$> readTable pos
@@ -500,7 +500,7 @@ spec =
                 , writeUnionValueTableField x
                 ]
 
-              t1X :: forall m. ReadCtx m => Table T1 -> m (Union U1)
+              t1X :: Table T1 -> Either ReadError (Union U1)
               t1X = readTableFieldUnion readU1 1
 
               data U1
@@ -509,7 +509,7 @@ spec =
               u1T1 :: WriteTable T1 -> WriteUnion U1
               u1T1 = writeUnion 1
 
-              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
                   1  -> Union . U1T1 <$> readTable pos
@@ -537,7 +537,7 @@ spec =
               u1T1 :: WriteTable T1 -> WriteUnion U1
               u1T1 = writeUnion 1
 
-              readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+              readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
                   1  -> Union . U1T1 <$> readTable pos
@@ -591,27 +591,27 @@ spec =
                     , optional writeVectorTableField k
                     ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word8))
+                t1A :: Table T1 -> Either ReadError (Maybe (Vector Word8))
                 t1A = readTableFieldOpt (readPrimVector VectorWord8)   0
-                t1B :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word16))
+                t1B :: Table T1 -> Either ReadError (Maybe (Vector Word16))
                 t1B = readTableFieldOpt (readPrimVector VectorWord16)  1
-                t1C :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word32))
+                t1C :: Table T1 -> Either ReadError (Maybe (Vector Word32))
                 t1C = readTableFieldOpt (readPrimVector VectorWord32)  2
-                t1D :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Word64))
+                t1D :: Table T1 -> Either ReadError (Maybe (Vector Word64))
                 t1D = readTableFieldOpt (readPrimVector VectorWord64)  3
-                t1E :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int8))
+                t1E :: Table T1 -> Either ReadError (Maybe (Vector Int8))
                 t1E = readTableFieldOpt (readPrimVector VectorInt8)    4
-                t1F :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
+                t1F :: Table T1 -> Either ReadError (Maybe (Vector Int16))
                 t1F = readTableFieldOpt (readPrimVector VectorInt16)   5
-                t1G :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int32))
+                t1G :: Table T1 -> Either ReadError (Maybe (Vector Int32))
                 t1G = readTableFieldOpt (readPrimVector VectorInt32)   6
-                t1H :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int64))
+                t1H :: Table T1 -> Either ReadError (Maybe (Vector Int64))
                 t1H = readTableFieldOpt (readPrimVector VectorInt64)   7
-                t1I :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Float))
+                t1I :: Table T1 -> Either ReadError (Maybe (Vector Float))
                 t1I = readTableFieldOpt (readPrimVector VectorFloat)   8
-                t1J :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Double))
+                t1J :: Table T1 -> Either ReadError (Maybe (Vector Double))
                 t1J = readTableFieldOpt (readPrimVector VectorDouble)  9
-                t1K :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Bool))
+                t1K :: Table T1 -> Either ReadError (Maybe (Vector Bool))
                 t1K = readTableFieldOpt (readPrimVector VectorBool)    10
               |]
 
@@ -662,27 +662,27 @@ spec =
                     , writeVectorTableField k
                     ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Word8)
+                t1A :: Table T1 -> Either ReadError (Vector Word8)
                 t1A = readTableFieldReq (readPrimVector VectorWord8)   0 (T.pack "a")
-                t1B :: forall m. ReadCtx m => Table T1 -> m (Vector Word16)
+                t1B :: Table T1 -> Either ReadError (Vector Word16)
                 t1B = readTableFieldReq (readPrimVector VectorWord16)  1 (T.pack "b")
-                t1C :: forall m. ReadCtx m => Table T1 -> m (Vector Word32)
+                t1C :: Table T1 -> Either ReadError (Vector Word32)
                 t1C = readTableFieldReq (readPrimVector VectorWord32)  2 (T.pack "c")
-                t1D :: forall m. ReadCtx m => Table T1 -> m (Vector Word64)
+                t1D :: Table T1 -> Either ReadError (Vector Word64)
                 t1D = readTableFieldReq (readPrimVector VectorWord64)  3 (T.pack "d")
-                t1E :: forall m. ReadCtx m => Table T1 -> m (Vector Int8)
+                t1E :: Table T1 -> Either ReadError (Vector Int8)
                 t1E = readTableFieldReq (readPrimVector VectorInt8)    4 (T.pack "e")
-                t1F :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
+                t1F :: Table T1 -> Either ReadError (Vector Int16)
                 t1F = readTableFieldReq (readPrimVector VectorInt16)   5 (T.pack "f")
-                t1G :: forall m. ReadCtx m => Table T1 -> m (Vector Int32)
+                t1G :: Table T1 -> Either ReadError (Vector Int32)
                 t1G = readTableFieldReq (readPrimVector VectorInt32)   6 (T.pack "g")
-                t1H :: forall m. ReadCtx m => Table T1 -> m (Vector Int64)
+                t1H :: Table T1 -> Either ReadError (Vector Int64)
                 t1H = readTableFieldReq (readPrimVector VectorInt64)   7 (T.pack "h")
-                t1I :: forall m. ReadCtx m => Table T1 -> m (Vector Float)
+                t1I :: Table T1 -> Either ReadError (Vector Float)
                 t1I = readTableFieldReq (readPrimVector VectorFloat)   8 (T.pack "i")
-                t1J :: forall m. ReadCtx m => Table T1 -> m (Vector Double)
+                t1J :: Table T1 -> Either ReadError (Vector Double)
                 t1J = readTableFieldReq (readPrimVector VectorDouble)  9 (T.pack "j")
-                t1K :: forall m. ReadCtx m => Table T1 -> m (Vector Bool)
+                t1K :: Table T1 -> Either ReadError (Vector Bool)
                 t1K = readTableFieldReq (readPrimVector VectorBool)    10 (T.pack "k")
               |]
 
@@ -696,7 +696,7 @@ spec =
                 t1 :: Maybe (WriteVector Text) -> WriteTable T1
                 t1 a = writeTable [ optional writeVectorTableField a ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Text))
+                t1A :: Table T1 -> Either ReadError (Maybe (Vector Text))
                 t1A = readTableFieldOpt (readPrimVector VectorText) 0
               |]
           it "required" $
@@ -708,7 +708,7 @@ spec =
                 t1 :: WriteVector Text -> WriteTable T1
                 t1 a = writeTable [ writeVectorTableField a ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Text)
+                t1A :: Table T1 -> Either ReadError (Vector Text)
                 t1A = readTableFieldReq (readPrimVector VectorText) 0 (T.pack "a")
               |]
 
@@ -739,7 +739,7 @@ spec =
                   [ optional writeVectorTableField a
                   ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector Int16))
+                t1A :: Table T1 -> Either ReadError (Maybe (Vector Int16))
                 t1A = readTableFieldOpt (readPrimVector VectorInt16) 0
               |]
           it "required" $
@@ -768,7 +768,7 @@ spec =
                   [ writeVectorTableField a
                   ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector Int16)
+                t1A :: Table T1 -> Either ReadError (Vector Int16)
                 t1A = readTableFieldReq (readPrimVector VectorInt16) 0 (T.pack "a")
               |]
 
@@ -787,7 +787,7 @@ spec =
                 s1 :: Word8 -> WriteStruct S1
                 s1 a = WriteStruct (buildWord8 a <> buildPadding 7)
 
-                s1A :: forall m. ReadCtx m => Struct S1 -> m Word8
+                s1A :: Struct S1 -> Either ReadError Word8
                 s1A = readStructField readWord8 0
 
                 data T1
@@ -796,7 +796,7 @@ spec =
                   [ optional writeVectorTableField a
                   ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Struct S1)))
+                t1A :: Table T1 -> Either ReadError (Maybe (Vector (Struct S1)))
                 t1A = readTableFieldOpt readStructVector 0
               |]
 
@@ -814,7 +814,7 @@ spec =
                 s1 :: Word8 -> WriteStruct S1
                 s1 a = WriteStruct (buildWord8 a <> buildPadding 7)
 
-                s1A :: forall m. ReadCtx m => Struct S1 -> m Word8
+                s1A :: Struct S1 -> Either ReadError Word8
                 s1A = readStructField readWord8 0
 
                 data T1
@@ -823,7 +823,7 @@ spec =
                   [ writeVectorTableField a
                   ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector (Struct S1))
+                t1A :: Table T1 -> Either ReadError (Vector (Struct S1))
                 t1A = readTableFieldReq readStructVector 0 (T.pack "a")
               |]
 
@@ -839,7 +839,7 @@ spec =
                   [ optional writeVectorTableField a
                   ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Table T1)))
+                t1A :: Table T1 -> Either ReadError (Maybe (Vector (Table T1)))
                 t1A = readTableFieldOpt readTableVector 0
               |]
           it "required" $
@@ -853,7 +853,7 @@ spec =
                   [ writeVectorTableField a
                   ]
 
-                t1A :: forall m. ReadCtx m => Table T1 -> m (Vector (Table T1))
+                t1A :: Table T1 -> Either ReadError (Vector (Table T1))
                 t1A = readTableFieldReq readTableVector 0 (T.pack "a")
               |]
 
@@ -871,7 +871,7 @@ spec =
                   , optional writeUnionValuesVectorTableField x
                   ]
 
-                t1X :: forall m. ReadCtx m => Table T1 -> m (Maybe (Vector (Union U1)))
+                t1X :: Table T1 -> Either ReadError (Maybe (Vector (Union U1)))
                 t1X = readTableFieldUnionVectorOpt readU1 1
 
                 data U1
@@ -880,7 +880,7 @@ spec =
                 u1T1 :: WriteTable T1 -> WriteUnion U1
                 u1T1 = writeUnion 1
 
-                readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+                readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
                 readU1 n pos =
                   case getPositive n of
                     1  -> Union . U1T1 <$> readTable pos
@@ -900,7 +900,7 @@ spec =
                   , writeUnionValuesVectorTableField x
                   ]
 
-                t1X :: forall m. ReadCtx m => Table T1 -> m (Vector (Union U1))
+                t1X :: Table T1 -> Either ReadError (Vector (Union U1))
                 t1X = readTableFieldUnionVectorReq readU1 1 (T.pack "x")
 
                 data U1
@@ -909,7 +909,7 @@ spec =
                 u1T1 :: WriteTable T1 -> WriteUnion U1
                 u1T1 = writeUnion 1
 
-                readU1 :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union U1)
+                readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
                 readU1 n pos =
                   case getPositive n of
                     1  -> Union . U1T1 <$> readTable pos
@@ -956,7 +956,7 @@ spec =
                 myStruct :: Int32 -> WriteStruct MyStruct
                 myStruct myField = WriteStruct (buildInt32 myField)
 
-                myStructMyField :: forall m. ReadCtx m => Struct MyStruct -> m Int32
+                myStructMyField :: Struct MyStruct -> Either ReadError Int32
                 myStructMyField = readStructField readInt32 0
               |]
         [r| struct my_struct { my_field: int; } |] `shouldCompileTo` expected
@@ -1010,27 +1010,27 @@ spec =
                 <> buildBool k <> buildPadding 7
               )
 
-            scalarsA :: forall m. ReadCtx m => Struct Scalars -> m Word8
+            scalarsA :: Struct Scalars -> Either ReadError Word8
             scalarsA = readStructField readWord8 0
-            scalarsB :: forall m. ReadCtx m => Struct Scalars -> m Word16
+            scalarsB :: Struct Scalars -> Either ReadError Word16
             scalarsB = readStructField readWord16 2
-            scalarsC :: forall m. ReadCtx m => Struct Scalars -> m Word32
+            scalarsC :: Struct Scalars -> Either ReadError Word32
             scalarsC = readStructField readWord32 4
-            scalarsD :: forall m. ReadCtx m => Struct Scalars -> m Word64
+            scalarsD :: Struct Scalars -> Either ReadError Word64
             scalarsD = readStructField readWord64 8
-            scalarsE :: forall m. ReadCtx m => Struct Scalars -> m Int8
+            scalarsE :: Struct Scalars -> Either ReadError Int8
             scalarsE = readStructField readInt8 16
-            scalarsF :: forall m. ReadCtx m => Struct Scalars -> m Int16
+            scalarsF :: Struct Scalars -> Either ReadError Int16
             scalarsF = readStructField readInt16 18
-            scalarsG :: forall m. ReadCtx m => Struct Scalars -> m Int32
+            scalarsG :: Struct Scalars -> Either ReadError Int32
             scalarsG = readStructField readInt32 20
-            scalarsH :: forall m. ReadCtx m => Struct Scalars -> m Int64
+            scalarsH :: Struct Scalars -> Either ReadError Int64
             scalarsH = readStructField readInt64 24
-            scalarsI :: forall m. ReadCtx m => Struct Scalars -> m Float
+            scalarsI :: Struct Scalars -> Either ReadError Float
             scalarsI = readStructField readFloat 32
-            scalarsJ :: forall m. ReadCtx m => Struct Scalars -> m Double
+            scalarsJ :: Struct Scalars -> Either ReadError Double
             scalarsJ = readStructField readDouble 40
-            scalarsK :: forall m. ReadCtx m => Struct Scalars -> m Bool
+            scalarsK :: Struct Scalars -> Either ReadError Bool
             scalarsK = readStructField readBool 48
           |]
 
@@ -1061,7 +1061,7 @@ spec =
             s :: Int8 -> WriteStruct S
             s e = WriteStruct (buildInt8 e)
 
-            sE :: forall m. ReadCtx m => Struct S -> m Int8
+            sE :: Struct S -> Either ReadError Int8
             sE = readStructField readInt8 0
           |]
 
@@ -1090,7 +1090,7 @@ spec =
             s2 :: Int8 -> WriteStruct S2
             s2 x = WriteStruct (buildInt8 x)
 
-            s2X :: forall m. ReadCtx m => Struct S2 -> m Int8
+            s2X :: Struct S2 -> Either ReadError Int8
             s2X = readStructField readInt8 0
           |]
 
@@ -1112,7 +1112,7 @@ spec =
                 myWeaponMyAlias :: WriteTable MySword -> WriteUnion MyWeapon
                 myWeaponMyAlias = writeUnion 2
 
-                readMyWeapon :: forall m. ReadCtx m => Positive Word8 -> PositionInfo -> m (Union MyWeapon)
+                readMyWeapon :: Positive Word8 -> PositionInfo -> Either ReadError (Union MyWeapon)
                 readMyWeapon n pos =
                   case getPositive n of
                     1  -> Union . MyWeaponMySword <$> readTable pos

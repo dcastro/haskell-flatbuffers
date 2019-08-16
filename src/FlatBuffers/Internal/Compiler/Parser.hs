@@ -1,6 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module FlatBuffers.Internal.Compiler.Parser where

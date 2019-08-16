@@ -26,32 +26,32 @@ groups :: [Benchmark]
 groups =
   [ bgroup "decode vectors"
     [ bgroup "toList"
-        [ bench "bool" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Bool]) $ vectorsTable >>= vectorsK
-        , bench "word8" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Word8]) $ vectorsTable >>= vectorsA
-        , bench "word16" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Word16]) $ vectorsTable >>= vectorsB
-        , bench "word32" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Word32]) $ vectorsTable >>= vectorsC
-        , bench "word64" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Word64]) $ vectorsTable >>= vectorsD
-        , bench "int8"  $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Int8]) $ vectorsTable >>= vectorsE
-        , bench "int16" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Int16]) $ vectorsTable >>= vectorsF
-        , bench "int32" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Int32]) $ vectorsTable >>= vectorsG
-        , bench "int64" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Int64]) $ vectorsTable >>= vectorsH
-        , bench "float" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Float]) $ vectorsTable >>= vectorsI
-        , bench "double" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Double]) $ vectorsTable >>= vectorsJ
-        , bench "string" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Text]) $ vectorsTable >>= vectorsL
+        [ bench "bool" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsK
+        , bench "word8" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsA
+        , bench "word16" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsB
+        , bench "word32" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsC
+        , bench "word64" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsD
+        , bench "int8"  $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsE
+        , bench "int16" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsF
+        , bench "int32" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsG
+        , bench "int64" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsH
+        , bench "float" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsI
+        , bench "double" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsJ
+        , bench "string" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsL
         ]
     , bgroup "index"
         [ bench "word8" $ nf (\(Right (Just vec)) ->
-              forM [0..(n-1)] (\i -> vec `index` i) :: Either ReadError [Word8]
+              forM [0..(n-1)] (\i -> vec `index` i)
             )
             $ vectorsTable >>= vectorsA
 
         , bench "int32" $ nf (\(Right (Just vec)) ->
-              forM [0..(n-1)] (\i -> vec `index` i) :: Either ReadError [Int32]
+              forM [0..(n-1)] (\i -> vec `index` i)
             )
             $ vectorsTable >>= vectorsG
 
         , bench "string" $ nf (\(Right (Just vec)) ->
-              forM [0..(n-1)] (\i -> vec `index` i) :: Either ReadError [Text]
+              forM [0..(n-1)] (\i -> vec `index` i)
             )
             $ vectorsTable >>= vectorsL
         ]
