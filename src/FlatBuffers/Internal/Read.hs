@@ -249,7 +249,7 @@ instance VectorElement Bool where
   newtype Vector Bool = VectorBool Position
   vectorLength (VectorBool pos) = readInt32 pos
   index (VectorBool pos) = readBool . moveToElem' pos boolSize . checkNegIndex
-  toList vec = inlineVectorToList (word8ToBool <$> G.getWord8) (coerce vec)
+  toList (VectorBool pos) = fmap word8ToBool <$> toList (VectorWord8 pos)
 
 instance VectorElement Text where
   newtype Vector Text = VectorText Position
