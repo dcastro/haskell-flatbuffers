@@ -40,7 +40,12 @@ groups =
         , bench "string" $ nf (\(Right (Just vec)) -> toList vec :: Either ReadError [Text]) $ vectorsTable >>= vectorsL
         ]
     , bgroup "index"
-        [ bench "int32" $ nf (\(Right (Just vec)) ->
+        [ bench "word8" $ nf (\(Right (Just vec)) ->
+              forM [0..(n-1)] (\i -> vec `index` i) :: Either ReadError [Word8]
+            )
+            $ vectorsTable >>= vectorsA
+
+        , bench "int32" $ nf (\(Right (Just vec)) ->
               forM [0..(n-1)] (\i -> vec `index` i) :: Either ReadError [Int32]
             )
             $ vectorsTable >>= vectorsG
