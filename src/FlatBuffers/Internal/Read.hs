@@ -147,16 +147,19 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 ----------------------------------
 ------------ Vectors -------------
 ----------------------------------
+{-# INLINE moveToElem' #-}
 moveToElem' :: Position -> Int32 -> Int32 -> Position
 moveToElem' pos elemSize ix =
   let elemOffset = int32Size + (ix * elemSize)
   in move' pos (fromIntegral @Int32 @Int64 elemOffset)
 
+{-# INLINE moveToElem #-}
 moveToElem :: PositionInfo -> Int32 -> Int32 -> PositionInfo
 moveToElem pos elemSize ix =
   let elemOffset = int32Size + (ix * elemSize)
   in move pos elemOffset
 
+{-# INLINE checkNegIndex #-}
 checkNegIndex :: Int32 -> Int32
 checkNegIndex !n
   | n < 0     = error ("FlatBuffers.Read.index: negative index: " <> show n)
@@ -165,7 +168,7 @@ checkNegIndex !n
 {-# INLINE inlineVectorToList #-}
 inlineVectorToList :: Get a -> ByteString -> Either ReadError [a]
 inlineVectorToList get bs =
-  flip runGetM bs $ do
+  flip runGet bs $ do
     len <- G.getInt32le
     sequence $ L.replicate (fromIntegral @Int32 @Int len) get
 
@@ -265,7 +268,7 @@ instance VectorElement Text where
       readTexts [] _ acc = Right acc
       readTexts (offset : xs) ix acc = do
         let pos' = move' pos (fromIntegral (offset + (ix * 4) + 4))
-        text <- join $ runGetM readText' pos'
+        text <- join $ runGet readText' pos'
         readTexts xs (ix + 1) (text : acc)
 
 instance VectorElement (Struct a) where
@@ -418,38 +421,39 @@ readTableFieldUnionVectorReq read ix name t =
 ------ Read from `Position` ------
 ----------------------------------
 readInt8 :: HasPosition a => a -> Either ReadError Int8
-readInt8 (getPosition -> pos) = runGetM G.getInt8 pos
+readInt8 (getPosition -> pos) = runGet G.getInt8 pos
 
 readInt16 :: HasPosition a => a -> Either ReadError Int16
-readInt16 (getPosition -> pos) = runGetM G.getInt16le pos
+readInt16 (getPosition -> pos) = runGet G.getInt16le pos
 
 readInt32 :: HasPosition a => a -> Either ReadError Int32
-readInt32 (getPosition -> pos) = runGetM G.getInt32le pos
+readInt32 (getPosition -> pos) = runGet G.getInt32le pos
 
 readInt64 :: HasPosition a => a -> Either ReadError Int64
-readInt64 (getPosition -> pos) = runGetM G.getInt64le pos
+readInt64 (getPosition -> pos) = runGet G.getInt64le pos
 
 readWord8 :: HasPosition a => a -> Either ReadError Word8
-readWord8 (getPosition -> pos) = runGetM G.getWord8 pos
+readWord8 (getPosition -> pos) = runGet G.getWord8 pos
 
 readWord16 :: HasPosition a => a -> Either ReadError Word16
-readWord16 (getPosition -> pos) = runGetM G.getWord16le pos
+readWord16 (getPosition -> pos) = runGet G.getWord16le pos
 
 readWord32 :: HasPosition a => a -> Either ReadError Word32
-readWord32 (getPosition -> pos) = runGetM G.getWord32le pos
+readWord32 (getPosition -> pos) = runGet G.getWord32le pos
 
 readWord64 :: HasPosition a => a -> Either ReadError Word64
-readWord64 (getPosition -> pos) = runGetM G.getWord64le pos
+readWord64 (getPosition -> pos) = runGet G.getWord64le pos
 
 readFloat :: HasPosition a => a -> Either ReadError Float
-readFloat (getPosition -> pos) = runGetM G.getFloatle pos
+readFloat (getPosition -> pos) = runGet G.getFloatle pos
 
 readDouble :: HasPosition a => a -> Either ReadError Double
-readDouble (getPosition -> pos) = runGetM G.getDoublele pos
+readDouble (getPosition -> pos) = runGet G.getDoublele pos
 
 readBool :: HasPosition a => a -> Either ReadError Bool
 readBool p = word8ToBool <$> readWord8 p
 
+{-# INLINE word8ToBool #-}
 word8ToBool :: Word8 -> Bool
 word8ToBool 0 = False
 word8ToBool _ = True
@@ -493,7 +497,7 @@ readUnionVector readUnion typesPos valuesPos =
 -- | Follow a pointer to the position of a string and read it.
 readText :: HasPosition a => a -> Either ReadError Text
 readText (getPosition -> pos) =
-  join $ runGetM (readAndSkipUOffset >> readText') pos
+  join $ runGet (readAndSkipUOffset >> readText') pos
 
 -- | Read a string from the current buffer position.
 {-# INLINE readText' #-}
@@ -518,7 +522,7 @@ readStruct (getPosition -> pos) = Struct pos
 
 readTable :: PositionInfo -> Either ReadError (Table t)
 readTable pos@PositionInfo{..} =
-  flip runGetM posCurrent $ do
+  flip runGet posCurrent $ do
     tableOffset <- readAndSkipUOffset
     soffset <- G.getInt32le
 
@@ -532,7 +536,7 @@ readTable pos@PositionInfo{..} =
 ----------------------------------
 tableIndexToVOffset :: Table t -> TableIndex -> Either ReadError (Maybe VOffset)
 tableIndexToVOffset Table{..} ix =
-  flip runGetM vtable $ do
+  flip runGet vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unTableIndex ix * 2)
     if vtableIndex >= vtableSize
@@ -574,28 +578,16 @@ data ReadError
   deriving stock (Show, Eq, Generic)
   deriving anyclass (NFData, Exception)
 
-runGetM :: Get a -> ByteString -> Either ReadError a
-runGetM get =
-  feedAll (G.runGetIncremental get)
-  where
-    feedAll (G.Done _ _ x) _ = Right x
-    feedAll (G.Partial k) lbs = feedAll (k (takeHeadChunk lbs)) (dropHeadChunk lbs)
-    feedAll (G.Fail _ pos msg) _ = Left $ ParsingError pos (T.pack msg)
-
-    takeHeadChunk :: BSL.ByteString -> Maybe BS.ByteString
-    takeHeadChunk lbs =
-      case lbs of
-        (BSL.Chunk bs _) -> Just bs
-        _ -> Nothing
-
-    dropHeadChunk :: BSL.ByteString -> BSL.ByteString
-    dropHeadChunk lbs =
-      case lbs of
-        (BSL.Chunk _ lbs') -> lbs'
-        _ -> BSL.Empty
+{-# INLINE runGet #-}
+runGet :: Get a -> ByteString -> Either ReadError a
+runGet get bs =
+  case G.runGetOrFail get bs of
+    Right (_, _, a) -> Right a
+    Left (_, pos, msg) -> Left $ ParsingError pos (T.pack msg)
 
 -- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
 -- Assumes i >= 0.
+{-# INLINE byteStringSafeIndex #-}
 byteStringSafeIndex :: ByteString -> Int32 -> Either ReadError Word8
 byteStringSafeIndex !cs0 !i =
   index' cs0 i
