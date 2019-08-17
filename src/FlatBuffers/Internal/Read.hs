@@ -262,14 +262,14 @@ instance VectorElement Text where
   toList :: Vector Text -> Either ReadError [Text]
   toList (VectorText pos) = do
     positions <- toList (VectorInt32 pos)
-    L.reverse <$> readTexts positions 0 []
+    L.reverse <$> go positions 0 []
     where
-      readTexts :: [Int32] -> Int32 -> [Text] -> Either ReadError [Text]
-      readTexts [] _ acc = Right acc
-      readTexts (offset : xs) ix acc = do
-        let pos' = move' pos (fromIntegral (offset + (ix * 4) + 4))
-        text <- join $ runGet readText' pos'
-        readTexts xs (ix + 1) (text : acc)
+      go :: [Int32] -> Int32 -> [Text] -> Either ReadError [Text]
+      go [] _ acc = Right acc
+      go (offset : xs) ix acc = do
+        let textPos = move' pos (fromIntegral (offset + (ix * 4) + 4))
+        text <- join $ runGet readText' textPos
+        go xs (ix + 1) (text : acc)
 
 instance VectorElement (Struct a) where
   data Vector (Struct a) = VectorStruct
@@ -280,19 +280,15 @@ instance VectorElement (Struct a) where
   index vec ix =
     let elemSize = fromIntegral @InlineSize @Int32 (vectorStructStructSize vec)
     in readStruct' . moveToElem' (vectorStructPos vec) elemSize . checkNegIndex $ ix
-  toList vec = do
-    len <- vectorLength vec
-    if len == 0
-      then Right []
-      else Right $ go len (move' (vectorStructPos vec) int32Size)
+  toList vec =
+    vectorLength vec <&> \len ->
+      go len (move' (vectorStructPos vec) int32Size)
     where
       go :: Int32 -> Position -> [Struct a]
-      go !len !pos =
+      go 0 _ = []
+      go !len pos =
         let head = readStruct pos
-            tail =
-              if len == 1
-                then []
-                else go (len - 1) (move' pos (fromIntegral @InlineSize @Int64 (vectorStructStructSize vec)))
+            tail = go (len - 1) (move' pos (fromIntegral @InlineSize @Int64 (vectorStructStructSize vec)))
         in  head : tail
 
 instance VectorElement (Table a) where
