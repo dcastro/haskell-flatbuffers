@@ -29,9 +29,8 @@ table Vectors {
   k: [bool];
   l: [string];
   m: [StructWithOneInt];
-  n: [Pair];
-  o: [PairTable];
-  p: [WeaponUnion];
+  n: [PairTable];
+  o: [WeaponUnion];
 }
 
 table VectorOfInts {

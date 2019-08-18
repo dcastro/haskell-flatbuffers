@@ -26,8 +26,7 @@ groups :: [Benchmark]
 groups =
   [ bgroup "decode vectors"
     [ bgroup "toList"
-        [ bench "bool" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsK
-        , bench "word8" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsA
+        [ bench "word8" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsA
         , bench "word16" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsB
         , bench "word32" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsC
         , bench "word64" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsD
@@ -37,7 +36,10 @@ groups =
         , bench "int64" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsH
         , bench "float" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsI
         , bench "double" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsJ
+        , bench "bool" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsK
         , bench "string" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsL
+        , bench "struct" $ nf (\(Right (Just vec)) -> toList vec >>= traverse structWithOneIntX) $ vectorsTable >>= vectorsM
+        , bench "table" $ nf (\(Right (Just vec)) -> toList vec >>= traverse pairTableX) $ vectorsTable >>= vectorsN
         ]
     , bgroup "index"
         [ bench "word8" $ nf (\(Right (Just vec)) ->
@@ -76,9 +78,8 @@ vectorsTable =
       mkNumVec mkNumVec
       (Just . vector n . L.replicate n $ True)
       (Just . vector n $ [1..n] <&> \i -> T.take (i `rem` 15) "abcghjkel;jhgx")
-      Nothing
-      Nothing
-      Nothing
+      (Just . vector n . fmap structWithOneInt $ mkNumList n)
+      (Just . vector n . fmap (\i -> pairTable (Just i) (Just i)) $ mkNumList n)
       Nothing
 
 
