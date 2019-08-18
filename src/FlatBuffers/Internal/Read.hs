@@ -295,17 +295,24 @@ instance VectorElement (Table a) where
   newtype Vector (Table a) = VectorTable PositionInfo
   vectorLength (VectorTable pos) = readInt32 pos
   index vec = readTable . moveToElem (coerce vec) tableRefSize . checkNegIndex
-  toList vec = do
-    len <- vectorLength vec
-    go len (coerce vec)
+  toList (VectorTable vectorPos) = do
+    positions <- toList (VectorInt32 (posCurrent vectorPos))
+    go positions 0
     where
-      go :: Int32 -> PositionInfo -> Either ReadError [Table a]
-      go 0 _ = Right []
-      go !len !pos = do
-        let pos' = move pos tableRefSize
-        head <- readTable pos'
-        tail <- go (len - 1) pos'
-        Right $! head : tail
+      go :: [Int32] -> Int32 -> Either ReadError [Table a]
+      go [] _ = Right []
+      go (offset : offsets) !ix = do
+        let tableOffsetFromVectorPos = offset + (ix * 4) + 4
+        let tablePos = move vectorPos tableOffsetFromVectorPos
+
+        soffset <- readInt32 tablePos
+
+        let vtableOffsetFromRoot = coerce (posOffsetFromRoot tablePos) - soffset
+        let vtable = move' (posRoot tablePos) (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
+        let table = Table vtable tablePos
+
+        tables <- go offsets (ix + 1)
+        pure (table : tables)
 
 instance VectorElement (Union a) where
   data Vector (Union a) = VectorUnion
