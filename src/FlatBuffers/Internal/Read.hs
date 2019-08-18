@@ -79,10 +79,6 @@ newtype TableIndex = TableIndex { unTableIndex :: Word16 }
 newtype VOffset = VOffset { unVOffset :: Word16 }
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
--- NOTE: a uoffset should really be a Word32, but because buffers should not exceed 2^31 - 1, we use a Int32 instead.
-newtype UOffset = UOffset Int32
-  deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
-
 -- NOTE: this is an Int32 because a buffer is assumed to respect the size limit of 2^31 - 1.
 newtype OffsetFromRoot = OffsetFromRoot Int32
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
@@ -302,15 +298,8 @@ instance VectorElement (Table a) where
       go :: [Int32] -> Int32 -> Either ReadError [Table a]
       go [] _ = Right []
       go (offset : offsets) !ix = do
-        let tableOffsetFromVectorPos = offset + (ix * 4) + 4
-        let tablePos = move vectorPos tableOffsetFromVectorPos
-
-        soffset <- readInt32 tablePos
-
-        let vtableOffsetFromRoot = coerce (posOffsetFromRoot tablePos) - soffset
-        let vtable = move' (posRoot tablePos) (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
-        let table = Table vtable tablePos
-
+        let tablePos = move vectorPos (offset + (ix * 4) + 4)
+        table <- readTable' tablePos
         tables <- go offsets (ix + 1)
         pure (table : tables)
 
@@ -500,7 +489,11 @@ readUnionVector readUnion typesPos valuesPos =
 -- | Follow a pointer to the position of a string and read it.
 readText :: HasPosition a => a -> Either ReadError Text
 readText (getPosition -> pos) =
-  join $ runGet (readAndSkipUOffset >> readText') pos
+  join $ flip runGet pos $ do
+    uoffset <- G.getInt32le
+    -- NOTE: this might overflow in systems where Int has less than 32 bits
+    G.skip (fromIntegral @Int32 @Int (uoffset - uoffsetSize))
+    readText'
 
 -- | Read a string from the current buffer position.
 {-# INLINE readText' #-}
@@ -516,23 +509,28 @@ readText' = do
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
 
+-- | Follow a pointer to the position of a table and read it.
+readTable :: PositionInfo -> Either ReadError (Table t)
+readTable pos = do
+  uoffset <- readInt32 pos
+  let tablePos = move pos uoffset
+  readTable' tablePos
+
+-- | Read a table from the current buffer position.
+{-# INLINE readTable' #-}
+readTable' :: PositionInfo -> Either ReadError (Table t)
+readTable' tablePos =
+  readInt32 tablePos <&> \soffset ->
+    let vtableOffsetFromRoot = coerce (posOffsetFromRoot tablePos) - soffset
+        vtable = move' (posRoot tablePos) (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
+    in  Table vtable tablePos
+
 -- | Convenience function for reading structs from table fields / vectors
 readStruct' :: HasPosition a => a -> Either ReadError (Struct s)
 readStruct' = Right . readStruct
 
 readStruct :: HasPosition a => a -> Struct s
 readStruct (getPosition -> pos) = Struct pos
-
-readTable :: PositionInfo -> Either ReadError (Table t)
-readTable pos@PositionInfo{..} =
-  flip runGet posCurrent $ do
-    tableOffset <- readAndSkipUOffset
-    soffset <- G.getInt32le
-
-    let vtableOffsetFromRoot = coerce posOffsetFromRoot + coerce tableOffset - soffset
-    let vtable = move' posRoot (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
-    pure $ Table vtable (move pos (coerce tableOffset))
-
 
 ----------------------------------
 ---------- Primitives ------------
@@ -563,13 +561,6 @@ move PositionInfo{..} offset =
 
 move' :: Position -> Int64 -> ByteString
 move' bs offset = BSL.drop offset bs
-
-readAndSkipUOffset :: Get UOffset
-readAndSkipUOffset = do
-  uoffset <- G.getInt32le
-  -- NOTE: this might overflow in systems where Int has less than 32 bits
-  G.skip (fromIntegral @Int32 @Int (uoffset - uoffsetSize))
-  pure (UOffset uoffset)
 
 data ReadError
   = ParsingError { position :: !G.ByteOffset
