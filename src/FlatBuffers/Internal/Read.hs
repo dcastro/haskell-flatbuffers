@@ -68,7 +68,7 @@ import           Data.Word
 
 import           FlatBuffers.Constants
 import           FlatBuffers.FileIdentifier    ( FileIdentifier(..), HasFileIdentifier(..) )
-import           FlatBuffers.Internal.Positive ( Positive, positive )
+import           FlatBuffers.Internal.Util     ( Positive, positive )
 import           FlatBuffers.Types
 
 import           GHC.Generics                  ( Generic )

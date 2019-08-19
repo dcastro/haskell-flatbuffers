@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module FlatBuffers.Internal.Util where
 
 import           Data.Bits          ( (.&.), Bits )
@@ -22,3 +25,11 @@ nonEmptyUnzip3 xs =
   , (\(_, x, _) -> x) <$> xs
   , (\(_, _, x) -> x) <$> xs
   )
+
+-- | Proof that a number is strictly positive.
+newtype Positive a = Positive { getPositive :: a }
+  deriving newtype (Eq, Show)
+
+{-# INLINE positive #-}
+positive :: (Num a, Ord a) => a -> Maybe (Positive a)
+positive n = if n > 0 then Just (Positive n) else Nothing

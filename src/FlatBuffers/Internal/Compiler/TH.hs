@@ -25,10 +25,9 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(.
 import qualified FlatBuffers.Internal.Compiler.SemanticAnalysis  as SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree        as SyntaxTree
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.Positive                   ( Positive(getPositive) )
-import           FlatBuffers.Internal.Util                       ( nonEmptyUnzip3 )
-import           FlatBuffers.Internal.Write
 import           FlatBuffers.Internal.Read
+import           FlatBuffers.Internal.Util                       ( Positive(getPositive), nonEmptyUnzip3 )
+import           FlatBuffers.Internal.Write
 import           FlatBuffers.Types
 
 import           Language.Haskell.TH
