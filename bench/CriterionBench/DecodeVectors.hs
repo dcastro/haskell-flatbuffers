@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module CriterionBench.DecodeVectors where
 
@@ -40,6 +41,12 @@ groups =
         , bench "string" $ nf (\(Right (Just vec)) -> toList vec ) $ vectorsTable >>= vectorsL
         , bench "struct" $ nf (\(Right (Just vec)) -> toList vec >>= traverse structWithOneIntX) $ vectorsTable >>= vectorsM
         , bench "table" $ nf (\(Right (Just vec)) -> toList vec >>= traverse pairTableX) $ vectorsTable >>= vectorsN
+        , bench "union" $ nf (\(Right (Just vec)) -> do
+            list <- toList vec
+            forM list $ \case
+              Union (WeaponUnionSword sword) -> swordTableX sword
+              Union (WeaponUnionAxe axe)     -> axeTableX axe
+          ) $ vectorsTable >>= vectorsO
         ]
     , bgroup "index"
         [ bench "word8" $ nf (\(Right (Just vec)) ->
@@ -80,6 +87,12 @@ vectorsTable =
       (Just . vector n $ [1..n] <&> \i -> T.take (i `rem` 15) "abcghjkel;jhgx")
       (Just . vector n . fmap structWithOneInt $ mkNumList n)
       (Just . vector n . fmap (\i -> pairTable (Just i) (Just i)) $ mkNumList n)
-      Nothing
+      (Just . vector n . fmap mkUnion $ mkNumList n
+      )
+  where
+    mkUnion i =
+      if odd i
+        then weaponUnionSword (swordTable (Just i))
+        else weaponUnionAxe  (axeTable (Just i))
 
 
