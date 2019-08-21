@@ -351,15 +351,18 @@ instance VectorElement (Union a) where
 ----------------------------------
 ----- Read from Struct/Table -----
 ----------------------------------
+{-# INLINE readStructField #-}
 readStructField :: (Position -> a) -> VOffset -> Struct s -> a
 readStructField read voffset (Struct bs) =
   read (move bs voffset)
 
+{-# INLINE readTableFieldOpt #-}
 readTableFieldOpt :: (PositionInfo -> Either ReadError a) -> TableIndex -> Table t -> Either ReadError (Maybe a)
 readTableFieldOpt read ix t = do
   mbOffset <- tableIndexToVOffset t ix
   traverse (\offset -> read (move (tablePos t) offset)) mbOffset
 
+{-# INLINE readTableFieldReq #-}
 readTableFieldReq :: (PositionInfo -> Either ReadError a) -> TableIndex -> Text -> Table t -> Either ReadError a
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
@@ -367,12 +370,14 @@ readTableFieldReq read ix name t = do
     Nothing -> Left $ MissingField name
     Just offset -> read (move (tablePos t) offset)
 
+{-# INLINE readTableFieldWithDef #-}
 readTableFieldWithDef :: (PositionInfo -> Either ReadError a) -> TableIndex -> a -> Table t -> Either ReadError a
 readTableFieldWithDef read ix dflt t =
   tableIndexToVOffset t ix >>= \case
     Nothing -> Right dflt
     Just offset -> read (move (tablePos t) offset)
 
+{-# INLINE readTableFieldUnion #-}
 readTableFieldUnion :: (Positive Word8 -> PositionInfo -> Either ReadError (Union a)) -> TableIndex -> Table t -> Either ReadError (Union a)
 readTableFieldUnion read ix t =
   readTableFieldWithDef readWord8 (ix - 1) 0 t >>= \unionType ->
@@ -415,36 +420,47 @@ readTableFieldUnionVectorReq read ix name t =
 ----------------------------------
 ------ Read from `Position` ------
 ----------------------------------
+{-# INLINE readInt8 #-}
 readInt8 :: HasPosition a => a -> Either ReadError Int8
 readInt8 (getPosition -> pos) = runGet G.getInt8 pos
 
+{-# INLINE readInt16 #-}
 readInt16 :: HasPosition a => a -> Either ReadError Int16
 readInt16 (getPosition -> pos) = runGet G.getInt16le pos
 
+{-# INLINE readInt32 #-}
 readInt32 :: HasPosition a => a -> Either ReadError Int32
 readInt32 (getPosition -> pos) = runGet G.getInt32le pos
 
+{-# INLINE readInt64 #-}
 readInt64 :: HasPosition a => a -> Either ReadError Int64
 readInt64 (getPosition -> pos) = runGet G.getInt64le pos
 
+{-# INLINE readWord8 #-}
 readWord8 :: HasPosition a => a -> Either ReadError Word8
 readWord8 (getPosition -> pos) = runGet G.getWord8 pos
 
+{-# INLINE readWord16 #-}
 readWord16 :: HasPosition a => a -> Either ReadError Word16
 readWord16 (getPosition -> pos) = runGet G.getWord16le pos
 
+{-# INLINE readWord32 #-}
 readWord32 :: HasPosition a => a -> Either ReadError Word32
 readWord32 (getPosition -> pos) = runGet G.getWord32le pos
 
+{-# INLINE readWord64 #-}
 readWord64 :: HasPosition a => a -> Either ReadError Word64
 readWord64 (getPosition -> pos) = runGet G.getWord64le pos
 
+{-# INLINE readFloat #-}
 readFloat :: HasPosition a => a -> Either ReadError Float
 readFloat (getPosition -> pos) = runGet G.getFloatle pos
 
+{-# INLINE readDouble #-}
 readDouble :: HasPosition a => a -> Either ReadError Double
 readDouble (getPosition -> pos) = runGet G.getDoublele pos
 
+{-# INLINE readBool #-}
 readBool :: HasPosition a => a -> Either ReadError Bool
 readBool p = word8ToBool <$> readWord8 p
 
@@ -483,6 +499,7 @@ readUnionVector readUnion typesPos valuesPos =
       readUnion
 
 -- | Follow a pointer to the position of a string and read it.
+{-# INLINE readText #-}
 readText :: HasPosition a => a -> Either ReadError Text
 readText (getPosition -> pos) =
   join $ flip runGet pos $ do
@@ -506,6 +523,7 @@ readText' = do
     Left _ -> error "the impossible happened"
 
 -- | Follow a pointer to the position of a table and read it.
+{-# INLINE readTable #-}
 readTable :: PositionInfo -> Either ReadError (Table t)
 readTable = readUOffsetAndSkip >=> readTable'
 
@@ -519,15 +537,18 @@ readTable' tablePos =
     in  Table vtable tablePos
 
 -- | Convenience function for reading structs from table fields / vectors
+{-# INLINE readStruct' #-}
 readStruct' :: HasPosition a => a -> Either ReadError (Struct s)
 readStruct' = Right . readStruct
 
+{-# INLINE readStruct #-}
 readStruct :: HasPosition a => a -> Struct s
 readStruct = Struct . getPosition
 
 ----------------------------------
 ---------- Primitives ------------
 ----------------------------------
+{-# INLINE tableIndexToVOffset #-}
 tableIndexToVOffset :: Table t -> TableIndex -> Either ReadError (Maybe VOffset)
 tableIndexToVOffset Table{..} ix =
   flip runGet vtable $ do
