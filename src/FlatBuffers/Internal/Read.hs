@@ -31,6 +31,7 @@ module FlatBuffers.Internal.Read
   , readBool, readFloat, readDouble
   , readText
   , readTable
+  , readTable'
   , readPrimVector
   , readTableVector
   , readStructVector
@@ -47,7 +48,7 @@ module FlatBuffers.Internal.Read
 
 import           Control.DeepSeq               ( NFData )
 import           Control.Exception             ( Exception )
-import           Control.Monad                 ( join )
+import           Control.Monad                 ( join, (>=>) )
 
 import           Data.Binary.Get               ( Get )
 import qualified Data.Binary.Get               as G
@@ -109,9 +110,20 @@ data PositionInfo = PositionInfo
 
 class HasPosition a where
   getPosition :: a -> Position
+  move :: Integral i => a -> i -> a
 
-instance HasPosition ByteString   where getPosition = id
-instance HasPosition PositionInfo where getPosition = posCurrent
+instance HasPosition ByteString where
+  getPosition = id
+  move bs offset = BSL.drop (fromIntegral @_ @Int64 offset) bs
+
+instance HasPosition PositionInfo where
+  getPosition = posCurrent
+  move PositionInfo{..} offset =
+    PositionInfo
+    { posRoot = posRoot
+    , posCurrent = move posCurrent offset
+    , posOffsetFromRoot = posOffsetFromRoot + OffsetFromRoot (fromIntegral @_ @Int32 offset)
+    }
 
 decode :: ByteString -> Either ReadError (Table a)
 decode root = readTable initialPos
@@ -143,14 +155,8 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 ----------------------------------
 ------------ Vectors -------------
 ----------------------------------
-{-# INLINE moveToElem' #-}
-moveToElem' :: Position -> Int32 -> Int32 -> Position
-moveToElem' pos elemSize ix =
-  let elemOffset = int32Size + (ix * elemSize)
-  in move' pos (fromIntegral @Int32 @Int64 elemOffset)
-
 {-# INLINE moveToElem #-}
-moveToElem :: PositionInfo -> Int32 -> Int32 -> PositionInfo
+moveToElem :: HasPosition pos => pos -> Int32 -> Int32 -> pos
 moveToElem pos elemSize ix =
   let elemOffset = int32Size + (ix * elemSize)
   in move pos elemOffset
@@ -193,67 +199,67 @@ instance VectorElement Word8 where
 instance VectorElement Word16 where
   newtype Vector Word16 = VectorWord16 Position
   vectorLength (VectorWord16 pos) = readInt32 pos
-  index (VectorWord16 pos) = readWord16 . moveToElem' pos word16Size . checkNegIndex
+  index (VectorWord16 pos) = readWord16 . moveToElem pos word16Size . checkNegIndex
   toList vec = inlineVectorToList G.getWord16le (coerce vec)
 
 instance VectorElement Word32 where
   newtype Vector Word32 = VectorWord32 Position
   vectorLength (VectorWord32 pos) = readInt32 pos
-  index (VectorWord32 pos) = readWord32 . moveToElem' pos word32Size . checkNegIndex
+  index (VectorWord32 pos) = readWord32 . moveToElem pos word32Size . checkNegIndex
   toList vec = inlineVectorToList G.getWord32le (coerce vec)
 
 instance VectorElement Word64 where
   newtype Vector Word64 = VectorWord64 Position
   vectorLength (VectorWord64 pos) = readInt32 pos
-  index (VectorWord64 pos) = readWord64 . moveToElem' pos word64Size . checkNegIndex
+  index (VectorWord64 pos) = readWord64 . moveToElem pos word64Size . checkNegIndex
   toList vec = inlineVectorToList G.getWord64le (coerce vec)
 
 instance VectorElement Int8 where
   newtype Vector Int8 = VectorInt8 Position
   vectorLength (VectorInt8 pos) = readInt32 pos
-  index (VectorInt8 pos) = readInt8 . moveToElem' pos int8Size . checkNegIndex
+  index (VectorInt8 pos) = readInt8 . moveToElem pos int8Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt8 (coerce vec)
 
 instance VectorElement Int16 where
   newtype Vector Int16 = VectorInt16 Position
   vectorLength (VectorInt16 pos) = readInt32 pos
-  index (VectorInt16 pos) = readInt16 . moveToElem' pos int16Size . checkNegIndex
+  index (VectorInt16 pos) = readInt16 . moveToElem pos int16Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt16le (coerce vec)
 
 instance VectorElement Int32 where
   newtype Vector Int32 = VectorInt32 Position
   vectorLength (VectorInt32 pos) = readInt32 pos
-  index (VectorInt32 pos) = readInt32 . moveToElem' pos int32Size . checkNegIndex
+  index (VectorInt32 pos) = readInt32 . moveToElem pos int32Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt32le (coerce vec)
 
 instance VectorElement Int64 where
   newtype Vector Int64 = VectorInt64 Position
   vectorLength (VectorInt64 pos) = readInt32 pos
-  index (VectorInt64 pos) = readInt64 . moveToElem' pos int64Size . checkNegIndex
+  index (VectorInt64 pos) = readInt64 . moveToElem pos int64Size . checkNegIndex
   toList vec = inlineVectorToList G.getInt64le (coerce vec)
 
 instance VectorElement Float where
   newtype Vector Float = VectorFloat Position
   vectorLength (VectorFloat pos) = readInt32 pos
-  index (VectorFloat pos) = readFloat . moveToElem' pos floatSize . checkNegIndex
+  index (VectorFloat pos) = readFloat . moveToElem pos floatSize . checkNegIndex
   toList vec = inlineVectorToList G.getFloatle (coerce vec)
 
 instance VectorElement Double where
   newtype Vector Double = VectorDouble Position
   vectorLength (VectorDouble pos) = readInt32 pos
-  index (VectorDouble pos) = readDouble . moveToElem' pos doubleSize . checkNegIndex
+  index (VectorDouble pos) = readDouble . moveToElem pos doubleSize . checkNegIndex
   toList vec = inlineVectorToList G.getDoublele (coerce vec)
 
 instance VectorElement Bool where
   newtype Vector Bool = VectorBool Position
   vectorLength (VectorBool pos) = readInt32 pos
-  index (VectorBool pos) = readBool . moveToElem' pos boolSize . checkNegIndex
+  index (VectorBool pos) = readBool . moveToElem pos boolSize . checkNegIndex
   toList (VectorBool pos) = fmap word8ToBool <$> toList (VectorWord8 pos)
 
 instance VectorElement Text where
   newtype Vector Text = VectorText Position
   vectorLength (VectorText pos) = readInt32 pos
-  index (VectorText pos) = readText . moveToElem' pos textRefSize . checkNegIndex
+  index (VectorText pos) = readText . moveToElem pos textRefSize . checkNegIndex
 
   toList :: Vector Text -> Either ReadError [Text]
   toList (VectorText pos) = do
@@ -263,28 +269,28 @@ instance VectorElement Text where
       go :: [Int32] -> Int32 -> [Text] -> Either ReadError [Text]
       go [] _ acc = Right acc
       go (offset : xs) ix acc = do
-        let textPos = move' pos (fromIntegral (offset + (ix * 4) + 4))
+        let textPos = move pos (offset + (ix * 4) + 4)
         text <- join $ runGet readText' textPos
         go xs (ix + 1) (text : acc)
 
 instance VectorElement (Struct a) where
   data Vector (Struct a) = VectorStruct
-    { vectorStructPos        :: !Position
-    , vectorStructStructSize :: !InlineSize
+    { vectorStructStructSize :: !InlineSize
+    , vectorStructPos        :: !Position
     }
   vectorLength = readInt32 . vectorStructPos
-  index vec ix =
-    let elemSize = fromIntegral @InlineSize @Int32 (vectorStructStructSize vec)
-    in readStruct' . moveToElem' (vectorStructPos vec) elemSize . checkNegIndex $ ix
-  toList vec =
+  index (VectorStruct structSize pos) ix =
+    let elemSize = fromIntegral @InlineSize @Int32 structSize
+    in readStruct' . moveToElem pos elemSize . checkNegIndex $ ix
+  toList vec@(VectorStruct structSize pos) =
     vectorLength vec <&> \len ->
-      go len (move' (vectorStructPos vec) int32Size)
+      go len (move pos int32Size)
     where
       go :: Int32 -> Position -> [Struct a]
       go 0 _ = []
       go !len pos =
         let head = readStruct pos
-            tail = go (len - 1) (move' pos (fromIntegral @InlineSize @Int64 (vectorStructStructSize vec)))
+            tail = go (len - 1) (move pos structSize)
         in  head : tail
 
 instance VectorElement (Table a) where
@@ -309,37 +315,35 @@ instance VectorElement (Union a) where
     -- ^ A byte-vector, where each byte represents the type of each "union value" in the vector
     , vectorUnionValuesPos :: !PositionInfo
     -- ^ A table vector, with the actual union values
-    , vectorUnionElemRead  :: !(Positive Word8 -> PositionInfo -> Either ReadError (Union a))
+    , vectorUnionReadElem  :: !(Positive Word8 -> PositionInfo -> Either ReadError (Union a))
     -- ^ A function to read a union value from this vector
     }
   -- NOTE: we assume the two vectors have the same length
   vectorLength = readInt32 . vectorUnionValuesPos
 
-  index vec ix = do
-    unionType <- index (vectorUnionTypesPos vec) ix
+  index (VectorUnion typesPos valuesPos readElem) ix = do
+    unionType <- index typesPos ix
     case positive unionType of
       Nothing         -> Right UnionNone
       Just unionType' ->
-        let readElem = (vectorUnionElemRead vec) unionType'
-        in  readElem (moveToElem (vectorUnionValuesPos vec) tableRefSize ix)
+        let tablePos = moveToElem valuesPos tableRefSize ix
+        in  readElem unionType' tablePos
 
-  toList vec = do
+  toList vec@(VectorUnion typesPos valuesPos readElem) = do
     len <- vectorLength vec
     if len == 0
       then Right []
       else go
             len
-            (move' (coerce vectorUnionTypesPos vec) 4)
-            (move (vectorUnionValuesPos vec) 4)
+            (move (coerce typesPos) 4)
+            (move valuesPos 4)
     where
       go :: Int32 -> Position -> PositionInfo -> Either ReadError [Union a]
       go !len !valuesPos !typesPos = do
         unionType <- readWord8 valuesPos
         head <- case positive unionType of
                   Nothing -> Right UnionNone
-                  Just unionType' ->
-                    let readElem = (vectorUnionElemRead vec) unionType'
-                    in  readElem typesPos
+                  Just unionType' -> readElem unionType' typesPos
         tail <- if len == 1
                   then Right []
                   else go (len - 1) (BSL.drop 1 valuesPos) (move typesPos 4)
@@ -350,25 +354,25 @@ instance VectorElement (Union a) where
 ----------------------------------
 readStructField :: (Position -> a) -> VOffset -> Struct s -> a
 readStructField read voffset (Struct bs) =
-  read (move' bs (fromIntegral @VOffset @Int64 voffset))
+  read (move bs voffset)
 
 readTableFieldOpt :: (PositionInfo -> Either ReadError a) -> TableIndex -> Table t -> Either ReadError (Maybe a)
 readTableFieldOpt read ix t = do
   mbOffset <- tableIndexToVOffset t ix
-  traverse (\offset -> read (moveV (tablePos t) offset)) mbOffset
+  traverse (\offset -> read (move (tablePos t) offset)) mbOffset
 
 readTableFieldReq :: (PositionInfo -> Either ReadError a) -> TableIndex -> Text -> Table t -> Either ReadError a
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
     Nothing -> Left $ MissingField name
-    Just offset -> read (moveV (tablePos t) offset)
+    Just offset -> read (move (tablePos t) offset)
 
 readTableFieldWithDef :: (PositionInfo -> Either ReadError a) -> TableIndex -> a -> Table t -> Either ReadError a
 readTableFieldWithDef read ix dflt t =
   tableIndexToVOffset t ix >>= \case
     Nothing -> Right dflt
-    Just offset -> read (moveV (tablePos t) offset)
+    Just offset -> read (move (tablePos t) offset)
 
 readTableFieldUnion :: (Positive Word8 -> PositionInfo -> Either ReadError (Union a)) -> TableIndex -> Table t -> Either ReadError (Union a)
 readTableFieldUnion read ix t =
@@ -378,7 +382,7 @@ readTableFieldUnion read ix t =
       Just unionType' ->
         tableIndexToVOffset t ix >>= \case
           Nothing     -> Left $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
-          Just offset -> read unionType' (moveV (tablePos t) offset)
+          Just offset -> read unionType' (move (tablePos t) offset)
 
 readTableFieldUnionVectorOpt ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
@@ -392,7 +396,7 @@ readTableFieldUnionVectorOpt read ix t =
       tableIndexToVOffset t ix >>= \case
         Nothing -> Left $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
-          Just <$> readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
+          Just <$> readUnionVector read (move (tablePos t) typesOffset) (move (tablePos t) valuesOffset)
 
 readTableFieldUnionVectorReq ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
@@ -407,7 +411,7 @@ readTableFieldUnionVectorReq read ix name t =
       tableIndexToVOffset t ix >>= \case
         Nothing -> Left $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
-          readUnionVector read (moveV (tablePos t) typesOffset) (moveV (tablePos t) valuesOffset)
+          readUnionVector read (move (tablePos t) typesOffset) (move (tablePos t) valuesOffset)
 
 ----------------------------------
 ------ Read from `Position` ------
@@ -454,23 +458,16 @@ readPrimVector ::
      (Position -> Vector a)
   -> PositionInfo
   -> Either ReadError (Vector a)
-readPrimVector vecConstructor (posCurrent -> pos) = do
-  uoffset <- readInt32 pos
-  Right $! vecConstructor
-    (move' pos (fromIntegral @Int32 @Int64 uoffset))
+readPrimVector vecConstructor (posCurrent -> pos) =
+  vecConstructor <$> readUOffsetAndSkip pos
 
 readTableVector :: PositionInfo -> Either ReadError (Vector (Table a))
-readTableVector pos = do
-  uoffset <- readInt32 pos
-  Right $! VectorTable
-    (move pos (coerce uoffset))
+readTableVector pos =
+  VectorTable <$> readUOffsetAndSkip pos
 
 readStructVector :: forall a. IsStruct a => PositionInfo -> Either ReadError (Vector (Struct a))
-readStructVector (posCurrent -> pos) = do
-  uoffset <- readInt32 pos
-  Right $! VectorStruct
-    (move' pos (fromIntegral @Int32 @Int64 uoffset))
-    (structSizeOf @a)
+readStructVector (posCurrent -> pos) =
+  VectorStruct (structSizeOf @a) <$> readUOffsetAndSkip pos
 
 readUnionVector ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
@@ -480,10 +477,10 @@ readUnionVector ::
 readUnionVector readUnion typesPos valuesPos =
   do
     typesVec <- readPrimVector VectorWord8 typesPos
-    valuesVecUOffset <- readInt32 valuesPos
+    valuesVec <- readUOffsetAndSkip valuesPos
     Right $! VectorUnion
       typesVec
-      (move valuesPos valuesVecUOffset)
+      valuesVec
       readUnion
 
 -- | Follow a pointer to the position of a string and read it.
@@ -511,10 +508,7 @@ readText' = do
 
 -- | Follow a pointer to the position of a table and read it.
 readTable :: PositionInfo -> Either ReadError (Table t)
-readTable pos = do
-  uoffset <- readInt32 pos
-  let tablePos = move pos uoffset
-  readTable' tablePos
+readTable = readUOffsetAndSkip >=> readTable'
 
 -- | Read a table from the current buffer position.
 {-# INLINE readTable' #-}
@@ -522,7 +516,7 @@ readTable' :: PositionInfo -> Either ReadError (Table t)
 readTable' tablePos =
   readInt32 tablePos <&> \soffset ->
     let vtableOffsetFromRoot = coerce (posOffsetFromRoot tablePos) - soffset
-        vtable = move' (posRoot tablePos) (fromIntegral @Int32 @Int64 vtableOffsetFromRoot)
+        vtable = move (posRoot tablePos) vtableOffsetFromRoot
     in  Table vtable tablePos
 
 -- | Convenience function for reading structs from table fields / vectors
@@ -530,7 +524,7 @@ readStruct' :: HasPosition a => a -> Either ReadError (Struct s)
 readStruct' = Right . readStruct
 
 readStruct :: HasPosition a => a -> Struct s
-readStruct (getPosition -> pos) = Struct pos
+readStruct = Struct . getPosition
 
 ----------------------------------
 ---------- Primitives ------------
@@ -548,19 +542,10 @@ tableIndexToVOffset Table{..} ix =
           0 -> Nothing
           word16 -> Just (VOffset word16)
 
-moveV :: PositionInfo -> VOffset -> PositionInfo
-moveV pos offset = move pos (fromIntegral @VOffset @Int32 offset)
-
-move :: PositionInfo -> Int32 -> PositionInfo
-move PositionInfo{..} offset =
-  PositionInfo
-  { posRoot = posRoot
-  , posCurrent = move' posCurrent (fromIntegral @Int32 @Int64 offset)
-  , posOffsetFromRoot = posOffsetFromRoot + OffsetFromRoot offset
-  }
-
-move' :: Position -> Int64 -> ByteString
-move' bs offset = BSL.drop offset bs
+{-# INLINE readUOffsetAndSkip #-}
+readUOffsetAndSkip :: HasPosition pos => pos -> Either ReadError pos
+readUOffsetAndSkip pos =
+  move pos <$> readInt32 pos
 
 data ReadError
   = ParsingError { position :: !G.ByteOffset
