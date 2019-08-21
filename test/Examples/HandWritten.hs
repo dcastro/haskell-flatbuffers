@@ -340,7 +340,7 @@ axeY :: Table Axe -> Either ReadError Int32
 axeY = readTableFieldWithDef readInt32 0 0
 
 ----------------------------------
-------------- Weapon --------------
+------------- Weapon -------------
 ----------------------------------
 data Weapon
   = WeaponSword !(Table Sword)
@@ -355,8 +355,8 @@ weaponAxe = writeUnion 2
 readWeapon :: Positive Word8 -> PositionInfo -> Either ReadError (Union Weapon)
 readWeapon n pos =
   case getPositive n of
-    1  -> Union . WeaponSword <$> readTable pos
-    2  -> Union . WeaponAxe <$> readTable pos
+    1  -> Union . WeaponSword <$> readTable' pos
+    2  -> Union . WeaponAxe <$> readTable' pos
     n' -> pure $! UnionUnknown n'
 
 ----------------------------------

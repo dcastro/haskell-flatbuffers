@@ -325,29 +325,28 @@ instance VectorElement (Union a) where
     unionType <- index typesPos ix
     case positive unionType of
       Nothing         -> Right UnionNone
-      Just unionType' ->
-        let tablePos = moveToElem valuesPos tableRefSize ix
-        in  readElem unionType' tablePos
+      Just unionType' -> do
+        tablePos <- readUOffsetAndSkip $ moveToElem valuesPos tableRefSize ix
+        readElem unionType' tablePos
 
-  toList vec@(VectorUnion typesPos valuesPos readElem) = do
-    len <- vectorLength vec
-    if len == 0
-      then Right []
-      else go
-            len
-            (move (coerce typesPos) 4)
-            (move valuesPos 4)
+  toList (VectorUnion typesPos valuesPos readElem) = do
+    unionTypes <- toList typesPos
+    offsets <- toList (VectorInt32 (posCurrent valuesPos))
+    go unionTypes offsets 0
     where
-      go :: Int32 -> Position -> PositionInfo -> Either ReadError [Union a]
-      go !len !valuesPos !typesPos = do
-        unionType <- readWord8 valuesPos
-        head <- case positive unionType of
-                  Nothing -> Right UnionNone
-                  Just unionType' -> readElem unionType' typesPos
-        tail <- if len == 1
-                  then Right []
-                  else go (len - 1) (BSL.drop 1 valuesPos) (move typesPos 4)
-        Right $! head : tail
+      go :: [Word8] -> [Int32] -> Int32 -> Either ReadError [Union a]
+      go [] [] _ = Right []
+      go (unionType : unionTypes) (offset : offsets) !ix = do
+        union <-
+          case positive unionType of
+            Nothing -> Right UnionNone
+            Just unionType' ->
+              let tablePos = move valuesPos (offset + (ix * 4) + 4)
+              in  readElem unionType' tablePos
+        unions <- go unionTypes offsets (ix + 1)
+        pure (union : unions)
+      go _ _ _ = Left $ MalformedBuffer
+        "Union vector: 'type vector' and 'value vector' do not have the same length."
 
 ----------------------------------
 ----- Read from Struct/Table -----
@@ -382,7 +381,7 @@ readTableFieldUnion read ix t =
       Just unionType' ->
         tableIndexToVOffset t ix >>= \case
           Nothing     -> Left $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
-          Just offset -> read unionType' (move (tablePos t) offset)
+          Just offset -> readUOffsetAndSkip (move (tablePos t) offset) >>= read unionType'
 
 readTableFieldUnionVectorOpt ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))

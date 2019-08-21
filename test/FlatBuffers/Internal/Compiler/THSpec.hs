@@ -457,7 +457,7 @@ spec =
               readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
-                  1  -> Union . U1T1 <$> readTable pos
+                  1  -> Union . U1T1 <$> readTable' pos
                   n' -> pure $! UnionUnknown n'
             |]
 
@@ -483,7 +483,7 @@ spec =
               readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
-                  1  -> Union . U1T1 <$> readTable pos
+                  1  -> Union . U1T1 <$> readTable' pos
                   n' -> pure $! UnionUnknown n'
             |]
 
@@ -512,7 +512,7 @@ spec =
               readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
-                  1  -> Union . U1T1 <$> readTable pos
+                  1  -> Union . U1T1 <$> readTable' pos
                   n' -> pure $! UnionUnknown n'
             |]
 
@@ -540,7 +540,7 @@ spec =
               readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
               readU1 n pos =
                 case getPositive n of
-                  1  -> Union . U1T1 <$> readTable pos
+                  1  -> Union . U1T1 <$> readTable' pos
                   n' -> pure $! UnionUnknown n'
             |]
         describe "vector of numeric types / booolean" $ do
@@ -883,7 +883,7 @@ spec =
                 readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
                 readU1 n pos =
                   case getPositive n of
-                    1  -> Union . U1T1 <$> readTable pos
+                    1  -> Union . U1T1 <$> readTable' pos
                     n' -> pure $! UnionUnknown n'
               |]
 
@@ -912,7 +912,7 @@ spec =
                 readU1 :: Positive Word8 -> PositionInfo -> Either ReadError (Union U1)
                 readU1 n pos =
                   case getPositive n of
-                    1  -> Union . U1T1 <$> readTable pos
+                    1  -> Union . U1T1 <$> readTable' pos
                     n' -> pure $! UnionUnknown n'
               |]
 
@@ -1115,8 +1115,8 @@ spec =
                 readMyWeapon :: Positive Word8 -> PositionInfo -> Either ReadError (Union MyWeapon)
                 readMyWeapon n pos =
                   case getPositive n of
-                    1  -> Union . MyWeaponMySword <$> readTable pos
-                    2  -> Union . MyWeaponMyAlias <$> readTable pos
+                    1  -> Union . MyWeaponMySword <$> readTable' pos
+                    2  -> Union . MyWeaponMyAlias <$> readTable' pos
                     n' -> pure $! UnionUnknown n'
               |]
 

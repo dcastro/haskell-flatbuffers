@@ -575,7 +575,7 @@ mkReadUnionFun unionName unionValNames union = do
           InfixE
             (Just (compose [ConE 'Union, ConE unionValName]))
             (VarE '(<$>))
-            (Just (VarE 'readTable `AppE` VarE posArg))
+            (Just (VarE 'readTable' `AppE` VarE posArg))
         )
         []
 
