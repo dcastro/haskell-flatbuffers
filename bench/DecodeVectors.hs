@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-module CriterionBench.DecodeVectors where
+module DecodeVectors where
 
 import           Control.Monad
 

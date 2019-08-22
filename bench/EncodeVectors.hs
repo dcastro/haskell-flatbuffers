@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-module CriterionBench.EncodeVectors where
+module EncodeVectors where
 
 import           Criterion
 

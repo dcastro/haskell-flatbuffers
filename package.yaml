@@ -79,17 +79,3 @@ benchmarks:
     ghc-options:
       - -threaded
       - -rtsopts
-
-executables:
-  weigh-bench:
-    main: WeighMain.hs
-    source-dirs: bench/
-    other-modules:
-      - Types
-      - WeighBench.Encode
-    dependencies:
-      - flatbuffers
-      - weigh
-    ghc-options:
-      - -threaded
-      - -rtsopts

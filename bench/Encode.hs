@@ -1,4 +1,4 @@
-module CriterionBench.Encode where
+module Encode where
 
 import           Criterion
 
