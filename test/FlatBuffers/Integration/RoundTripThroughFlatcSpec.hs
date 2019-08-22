@@ -17,7 +17,7 @@ import           Data.Proxy
 import           Data.Typeable              ( Typeable, typeRep )
 import           Data.Word
 
-import           Examples.Generated
+import           Examples
 
 import           FlatBuffers.FileIdentifier ( HasFileIdentifier )
 import           FlatBuffers.Internal.Write

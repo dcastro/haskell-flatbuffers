@@ -11,7 +11,7 @@ import qualified Data.List                  as L
 import           Data.Maybe                 ( isNothing )
 import           Data.Word
 
-import           Examples.Generated
+import           Examples
 
 import           FlatBuffers.Internal.Write
 import           FlatBuffers.Internal.Read
