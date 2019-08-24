@@ -1,16 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase #-}
 
 module FlatBuffers.ReadSpec where
 
-import           Data.Int
-import           Data.Text                  ( Text )
+import           Control.Exception          ( evaluate )
+
+import qualified Data.ByteString.Lazy       as BSL
+import           Data.Functor               ( ($>) )
+import qualified Data.Maybe                 as Maybe
 import           Data.Word
 
-import           FlatBuffers.Internal.Build
-import           FlatBuffers.Internal.Write
+import           Examples
+
 import           FlatBuffers.Internal.Read
-import           FlatBuffers.Types
+import           FlatBuffers.Internal.Write
 
 import           Test.Hspec
 
@@ -19,229 +23,144 @@ import           TestUtils
 spec :: Spec
 spec =
   describe "read" $ do
-    it "throws when buffer is exhausted" $
-      decode @(Table MyRoot) "" `shouldBeLeft` ParsingError 0 "not enough bytes"
+    it "fails when buffer is exhausted" $
+      decode @() "" `shouldBeLeft` ParsingError "not enough bytes"
 
-    let missingFields = encode $ encodeMyRoot Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-
-    it "throws when string is missing" $ do
-      s <- fromRight $ decode missingFields
-      myRootD s `shouldBeLeft` MissingField "d"
-
-    it "throws when table is missing" $ do
-      s <- fromRight $ decode missingFields
-      myRootC s `shouldBeLeft` MissingField "c"
-
-    it "throws when struct is missing" $ do
-      s <- fromRight $ decode missingFields
-      myRootE s `shouldBeLeft` MissingField "e"
-
-    it "throws when vector is missing" $ do
-      s <- fromRight $ decode missingFields
-      myRootF s `shouldBeLeft` MissingField "f"
-
-    it "throws when string is invalid utf-8" $ do
+    it "fails when decoding string with invalid UTF-8 bytes" $ do
       let text = vector' @Word8 [ 255 ]
-      let bs = encode $ writeTable [missing, missing, missing, writeVectorTableField text]
-      s <- fromRight $ decode bs
-      myRootD s `shouldBeLeft`
+      table <- fromRight $ decode $ encode $ writeTable
+        [ missing, missing, missing, missing
+        , missing, missing, missing, missing
+        , missing, missing, missing
+        , writeVectorTableField text
+        ]
+      primitivesL table `shouldBeLeft`
         Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
-    it "decodes inline table fields" $ do
-      let bs = encode $ encodeMyRoot (Just minBound) (Just maxBound) Nothing (Just "hello") Nothing (Just (vector' nil)) Nothing
-      s <- fromRight $ decode bs
+    it "fails when required field is missing" $ do
+      table <- fromRight $ decode @RequiredFields $ encode $ writeTable []
+      requiredFieldsA table `shouldBeLeft` MissingField "a"
+      requiredFieldsB table `shouldBeLeft` MissingField "b"
+      requiredFieldsC table `shouldBeLeft` MissingField "c"
+      requiredFieldsE table `shouldBeLeft` MissingField "e"
 
-      myRootA s `shouldBe` Right minBound
-      myRootB s `shouldBe` Right maxBound
-      myRootD s `shouldBe` Right "hello"
+      table <- fromRight $ decode @VectorOfUnions $ encode $ writeTable []
+      vectorOfUnionsXsReq table `shouldBeLeft` MissingField "xsReq"
 
-    it "decodes missing fields" $ do
-      let bs = encode $ encodeMyRoot Nothing Nothing (Just (encodeNested Nothing Nothing)) Nothing Nothing (Just (vector' nil)) Nothing
-      s <- fromRight $ decode bs
+    it "returns `UnionNone` when required union field is missing" $ do
+      table <- fromRight $ decode @RequiredFields $ encode $ writeTable []
+      requiredFieldsD table `shouldBeRightAndExpect` \case
+        UnionNone -> pure ()
 
-      myRootA s `shouldBe` Right 0
-      myRootB s `shouldBe` Right 0
+    describe "returns `UnionUnknown` when union type is not recognized" $ do
+      it "in union fields" $ do
+        let union = writeUnion 99 (writeTable [])
+        table <- fromRight $ decode $ encode $ tableWithUnion union
+        tableWithUnionUni table `shouldBeRightAndExpect` \case
+          UnionUnknown n -> n `shouldBe` 99
 
-      nested <- fromRight $ myRootC s
-      nestedA nested `shouldBe` Right 0
+      it "in union vector" $ do
+        let union = writeUnion 99 (writeTable [])
 
-    it "decodes nested tables" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) (Just (encodeNested (Just 123) (Just (encodeDeepNested (Just 234))))) (Just "hello") Nothing (Just (vector' nil)) Nothing
-      s <- fromRight $ decode bs
+        result <- fromRight $ do
+          table <- decode $ encode $ vectorOfUnions Nothing (vector' [union])
+          vec   <- vectorOfUnionsXsReq table
+          vec `index` 0
 
-      nested <- fromRight $ myRootC s
-      nestedA nested `shouldBe` Right 123
+        case result of
+          UnionUnknown n -> n `shouldBe` 99
 
-      deepNested <- fromRight $ nestedB nested
-      deepNestedA deepNested `shouldBe` Right 234
+    describe "vectors" $ do
+      let getIndex table getVector ix = do
+            vec <- getVector table
+            (Maybe.fromJust vec) `index` ix
 
-    it "decodes composite structs" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector' nil)) Nothing
-      s <- fromRight $ decode bs
+      let testInvalidIndex (Right table) getVector =
+            getIndex table getVector 100
+              `shouldBeLeft` ParsingError "not enough bytes"
 
-      sws <- fromRight $ myRootE s
-      let ms = swsA sws
-      myStructA ms `shouldBe` Right 1
-      myStructB ms `shouldBe` Right 2
-      myStructC ms `shouldBe` Right 3
+      let testNegativeIndex (Right table) getVector =
+            (case getIndex table getVector (-1) of
+              Right a -> evaluate a $> ()
+              Left e  -> evaluate e $> ()
+            ) `shouldThrow` errorCall "FlatBuffers.Internal.Read.index: negative index: -1"
 
-      let tb = swsB sws
-      threeBytesA tb `shouldBe` Right 4
-      threeBytesB tb `shouldBe` Right 5
-      threeBytesC tb `shouldBe` Right 6
+      describe "of primitives" $ do
+        let table = decode $ encode $ vectors
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
 
-    it "decodes vector of strings" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector' ["hello", "world"])) Nothing
-      s <- fromRight $ decode bs
+        it "`index` fails when index points to a location beyond the buffer's limits" $ do
+          testInvalidIndex table vectorsA
+          testInvalidIndex table vectorsB
+          testInvalidIndex table vectorsC
+          testInvalidIndex table vectorsD
+          testInvalidIndex table vectorsE
+          testInvalidIndex table vectorsF
+          testInvalidIndex table vectorsG
+          testInvalidIndex table vectorsH
+          testInvalidIndex table vectorsI
+          testInvalidIndex table vectorsJ
+          testInvalidIndex table vectorsK
+          testInvalidIndex table vectorsL
 
-      vec <- fromRight $ myRootF s
-      vectorLength vec `shouldBe` Right 2
-      vec `index` 0 `shouldBe` Right "hello"
-      vec `index` 1 `shouldBe` Right "world"
-      toList vec `shouldBe` Right ["hello", "world"]
+        it "`index` throws when index is negative" $ do
+          testNegativeIndex table vectorsA
+          testNegativeIndex table vectorsB
+          testNegativeIndex table vectorsC
+          testNegativeIndex table vectorsD
+          testNegativeIndex table vectorsE
+          testNegativeIndex table vectorsF
+          testNegativeIndex table vectorsG
+          testNegativeIndex table vectorsH
+          testNegativeIndex table vectorsI
+          testNegativeIndex table vectorsJ
+          testNegativeIndex table vectorsK
+          testNegativeIndex table vectorsL
 
-    it "decodes vectors of tables" $ do
-      let bs = encode $ encodeMyRoot (Just 99) (Just maxBound) Nothing (Just "hello") (Just (encodeSws 1 2 3 4 5 6)) (Just (vector' ["hello", "world"]))
-            (Just (vector' [encodeDeepNested (Just 11), encodeDeepNested (Just 22)]))
-      s <- fromRight $ decode bs
+      describe "of structs" $ do
+        let table = decode $ encode $ vectorOfStructs
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
+              (Just (vector' []))
 
-      vec <- fromRight $ myRootG s
-      vectorLength vec `shouldBe` Right 2
-      list <- fromRight $ toList vec
-      traverse deepNestedA list `shouldBe` Right [11, 22]
+        it "`index` returns struct pointing to empty string when index points to a location beyond the buffer's limits" $ do
+          table <- fromRight table
+          vec <- fromRightJust $ vectorOfStructsAs table
+          Struct bs <- fromRight $ vec `index` 100
+          BSL.null bs `shouldBe` True
 
--- | Helper to disambiguate `[]` in the presence of `OverloadedLists`
-nil :: [a]
-nil = []
+        it "`index` throws when index is negative" $
+          testNegativeIndex table vectorOfStructsAs
 
-data MyRoot
+      describe "of tables" $ do
+        let table = decode $ encode $ vectorOfTables
+              (Just (vector' []))
 
-encodeMyRoot ::
-     Maybe Int32
-  -> Maybe Int64
-  -> Maybe (WriteTable Nested)
-  -> Maybe Text
-  -> Maybe (WriteStruct SWS)
-  -> Maybe (WriteVector Text)
-  -> Maybe (WriteVector (WriteTable DeepNested))
-  -> WriteTable MyRoot
-encodeMyRoot a b c d e f g =
-  writeTable
-    [ optionalDef 0 writeInt32TableField a
-    , optionalDef 0 writeInt64TableField b
-    , optional writeTableTableField c
-    , optional writeTextTableField d
-    , optional writeStructTableField e
-    , optional writeVectorTableField f
-    , optional writeVectorTableField g
-    ]
+        it "`index` fails when index points to a location beyond the buffer's limits" $ do
+          testInvalidIndex table vectorOfTablesXs
 
-myRootA :: Table MyRoot -> Either ReadError Int32
-myRootA = readTableFieldWithDef readInt32 0 0
+        it "`index` throws when index is negative" $
+          testNegativeIndex table vectorOfTablesXs
 
-myRootB :: Table MyRoot -> Either ReadError Int64
-myRootB = readTableFieldWithDef readInt64 1 0
+      describe "of unions" $ do
+        let table = decode $ encode $ vectorOfUnions
+              (Just (vector' []))
+              (vector' [])
 
-myRootC :: Table MyRoot -> Either ReadError (Table Nested)
-myRootC = readTableFieldReq readTable 2 "c"
+        it "`index` fails when index points to a location beyond the buffer's limits" $ do
+          testInvalidIndex table vectorOfUnionsXs
 
-myRootD :: Table MyRoot -> Either ReadError Text
-myRootD = readTableFieldReq readText 3 "d"
-
-myRootE :: Table MyRoot -> Either ReadError (Struct SWS)
-myRootE = readTableFieldReq readStruct' 4 "e"
-
-myRootF :: Table MyRoot -> Either ReadError (Vector Text)
-myRootF = readTableFieldReq (readPrimVector VectorText) 5 "f"
-
-myRootG :: Table MyRoot -> Either ReadError (Vector (Table DeepNested))
-myRootG = readTableFieldReq readTableVector 6 "g"
-
-data Nested
-
-encodeNested :: Maybe Int32 -> Maybe (WriteTable DeepNested) -> WriteTable Nested
-encodeNested a b =
-  writeTable
-    [ optionalDef 0 writeInt32TableField a
-    , optional writeTableTableField b
-    ]
-
-nestedA :: Table Nested -> Either ReadError Int32
-nestedA = readTableFieldWithDef readInt32 0 0
-
-nestedB :: Table Nested -> Either ReadError (Table DeepNested)
-nestedB = readTableFieldReq readTable 1 "b"
-
-data DeepNested
-
-encodeDeepNested :: Maybe Int32 -> WriteTable DeepNested
-encodeDeepNested a =
-  writeTable
-    [ optionalDef 0 writeInt32TableField a
-    ]
-
-deepNestedA :: Table DeepNested -> Either ReadError Int32
-deepNestedA = readTableFieldWithDef readInt32 0 0
-
-data MyStruct
-instance IsStruct MyStruct where
-  structAlignmentOf = 8
-  structSizeOf = 16
-
-encodeMyStruct :: Int32 -> Word8 -> Int64 -> WriteStruct MyStruct
-encodeMyStruct a b c =
-  WriteStruct $
-    buildInt32 a
-    <> buildWord8 b <> buildPadding 3
-    <> buildInt64 c
-
-myStructA :: Struct MyStruct -> Either ReadError Int32
-myStructA = readStructField readInt32 0
-
-myStructB :: Struct MyStruct -> Either ReadError Word8
-myStructB = readStructField readWord8 4
-
-myStructC :: Struct MyStruct -> Either ReadError Int64
-myStructC = readStructField readInt64 8
-
-data ThreeBytes
-instance IsStruct ThreeBytes where
-  structAlignmentOf = 1
-  structSizeOf = 3
-
-encodeThreeBytes :: Word8 -> Word8 -> Word8 -> WriteStruct ThreeBytes
-encodeThreeBytes a b c =
-  WriteStruct $
-    buildWord8 a <> buildWord8 b <> buildWord8 c
-
-threeBytesA :: Struct ThreeBytes -> Either ReadError Word8
-threeBytesA = readStructField readWord8 0
-
-threeBytesB :: Struct ThreeBytes -> Either ReadError Word8
-threeBytesB = readStructField readWord8 1
-
-threeBytesC :: Struct ThreeBytes -> Either ReadError Word8
-threeBytesC = readStructField readWord8 2
-
--- struct with structs
-data SWS
-instance IsStruct SWS where
-  structAlignmentOf = 8
-  structSizeOf = 24
-
-encodeSws :: Int32 -> Word8 -> Int64 -> Word8 -> Word8 -> Word8 -> WriteStruct SWS
-encodeSws myStructA myStructB myStructC threeBytesA threeBytesB threeBytesC =
-  WriteStruct $
-    buildInt32 myStructA
-    <> buildWord8 myStructB <> buildPadding 3
-    <> buildInt64 myStructC
-    <> buildWord8 threeBytesA
-    <> buildWord8 threeBytesB
-    <> buildWord8 threeBytesC
-    <> buildPadding 5
-
-swsA :: Struct SWS -> Struct MyStruct
-swsA = readStructField readStruct 0
-
-swsB :: Struct SWS -> Struct ThreeBytes
-swsB = readStructField readStruct 16
+        it "`index` throws when index is negative" $
+          testNegativeIndex table vectorOfUnionsXs

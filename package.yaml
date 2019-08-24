@@ -64,13 +64,8 @@ tests:
 
 benchmarks:
   criterion-bench:
-    main: CriterionMain.hs
+    main: Main.hs
     source-dirs: bench/
-    other-modules:
-      - Types
-      - CriterionBench.Encode
-      - CriterionBench.EncodeVectors
-      - CriterionBench.DecodeVectors
     dependencies:
       - flatbuffers
       - criterion

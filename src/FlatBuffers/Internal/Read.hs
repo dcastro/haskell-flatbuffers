@@ -164,7 +164,7 @@ moveToElem pos elemSize ix =
 {-# INLINE checkNegIndex #-}
 checkNegIndex :: Int32 -> Int32
 checkNegIndex !n
-  | n < 0     = error ("FlatBuffers.Read.index: negative index: " <> show n)
+  | n < 0     = error ("FlatBuffers.Internal.Read.index: negative index: " <> show n)
   | otherwise = n
 
 {-# INLINE inlineVectorToList #-}
@@ -568,12 +568,11 @@ readUOffsetAndSkip pos =
   move pos <$> readInt32 pos
 
 data ReadError
-  = ParsingError { position :: !G.ByteOffset
-                 , msg      :: !Text }
+  = ParsingError { msg      :: !Text }
   | MissingField { fieldName :: !Text }
   | Utf8DecodingError { msg  :: !Text
                       , byte :: !(Maybe Word8) }
-  | MalformedBuffer !Text
+  | MalformedBuffer { msg :: !Text }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (NFData, Exception)
 
@@ -581,8 +580,8 @@ data ReadError
 runGet :: Get a -> ByteString -> Either ReadError a
 runGet get bs =
   case G.runGetOrFail get bs of
-    Right (_, _, a) -> Right a
-    Left (_, pos, msg) -> Left $ ParsingError pos (T.pack msg)
+    Right (_, _, a)  -> Right a
+    Left (_, _, msg) -> Left $ ParsingError (T.pack msg)
 
 -- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
 -- Assumes i >= 0.
@@ -590,7 +589,7 @@ runGet get bs =
 byteStringSafeIndex :: ByteString -> Int32 -> Either ReadError Word8
 byteStringSafeIndex !cs0 !i =
   index' cs0 i
-  where index' BSL.Empty _ = Left $ MalformedBuffer "Buffer has fewer bytes than indicated by the vector length"
+  where index' BSL.Empty _ = Left $ ParsingError "not enough bytes"
         index' (BSL.Chunk c cs) n
           -- NOTE: this might overflow in systems where Int has less than 32 bits
           | fromIntegral @Int32 @Int n >= BS.length c =
