@@ -16,9 +16,7 @@ import           FlatBuffers.Internal.Write
 import           Network.HTTP.Client
 import           Network.HTTP.Types.Status  ( statusCode )
 
-import           Test.Hspec
-
-import           TestUtils
+import           TestImports
 
 
 spec :: Spec

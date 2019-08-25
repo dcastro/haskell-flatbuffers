@@ -14,8 +14,7 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 
-import           Test.Hspec
-import           TestUtils
+import           TestImports
 
 import           Text.Megaparsec
 import           Text.RawString.QQ                              ( r )
@@ -1137,7 +1136,7 @@ shouldValidate input expectation =
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = FileTree "" schema []
-      in  validateSchemas schemas `pshouldBe` Right (FileTree "" expectation [])
+      in  validateSchemas schemas `shouldBe` Right (FileTree "" expectation [])
 
 shouldFail :: String -> Text -> Expectation
 shouldFail input expectedErrorMsg =
@@ -1145,7 +1144,7 @@ shouldFail input expectedErrorMsg =
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
       let schemas = FileTree "" schema []
-      in  validateSchemas schemas `pshouldBe` Left expectedErrorMsg
+      in  validateSchemas schemas `shouldBe` Left expectedErrorMsg
 
 showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty

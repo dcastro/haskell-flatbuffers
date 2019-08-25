@@ -8,11 +8,6 @@
 - extensions:
   - default: true
 
-- ignore: {
-    name: Use camelCase,
-    within: [FlatBuffers.RoundTripSpec, Examples.HandWritten]
-  }
-
 # Specify additional command line arguments
 #
 # - arguments: [--color, --cpp-simple, -XQuasiQuotes]

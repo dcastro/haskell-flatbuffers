@@ -30,7 +30,7 @@ import           Language.Haskell.TH.Syntax
 
 import           System.IO.Unsafe                               ( unsafePerformIO )
 
-import           Test.Hspec
+import           TestImports
 
 import           Text.Megaparsec                                ( ParseErrorBundle, ShowErrorComponent, Stream, errorBundlePretty, parse )
 import           Text.RawString.QQ                              ( r )

@@ -13,7 +13,7 @@ import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
 import           FlatBuffers.Types           ( Alignment(..), InlineSize(..) )
 
-import           Test.Hspec
+import           TestImports
 
 -- | Appends a flatbuffer to a given pre-built bytestring
 testEncode :: B.Builder -> WriteTable a -> BSL.ByteString
@@ -31,14 +31,8 @@ testEncode initialBuffer (WriteTable table) =
     initialLength =
       fromIntegral $ BSL.length (B.toLazyByteString initialBuffer)
 
-newtype PrettyBuffer = PrettyBuffer BSL.ByteString
-  deriving Eq
-
-instance Show PrettyBuffer where
-  show (PrettyBuffer bs) = showBuffer bs
-
 bufferShouldBe :: HasCallStack => BSL.ByteString -> [Word8] -> Expectation
-bufferShouldBe bs xs = PrettyBuffer bs `shouldBe` PrettyBuffer (BSL.pack xs)
+bufferShouldBe bs xs = showBuffer bs `shouldBe` showBuffer (BSL.pack xs)
 
 spec :: Spec
 spec =

@@ -26,9 +26,7 @@ import           FlatBuffers.Internal.Read
 import qualified System.Directory           as Dir
 import qualified System.Process             as Sys
 
-import           Test.Hspec
-
-import           TestUtils
+import           TestImports
 
 {-
 

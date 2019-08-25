@@ -1,20 +1,36 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ConstraintKinds #-}
 
-module TestUtils where
+module TestImports
+  ( module H
+  , HasCallStack
+  , shouldBeLeft
+  , shouldBeRightAnd
+  , shouldBeRightAndExpect
+  , fromRight
+  , fromJust
+  , fromRightJust
+  , liftA4
+  , PrettyJson(..)
+  , shouldBeJson
+  ) where
 
-import           Control.Monad             ( (>=>) )
+import           Control.Monad                  ( (>=>) )
 
-import qualified Data.Aeson                as J
-import           Data.Aeson.Encode.Pretty  ( encodePretty )
-import qualified Data.ByteString.Lazy.UTF8 as BSLU
-import qualified Data.Text.Lazy            as TL
+import qualified Data.Aeson                     as J
+import           Data.Aeson.Encode.Pretty       ( encodePretty )
+import qualified Data.ByteString.Lazy.UTF8      as BSLU
+import qualified Data.Text.Lazy                 as TL
 
-import           Test.HUnit                ( assertFailure )
-import           Test.Hspec
+import           GHC.Stack                      ( CallStack )
 
-import qualified Text.Pretty.Simple        as PP
+import           Test.HUnit                     ( assertFailure )
+import           Test.Hspec.Core.Hooks          as H
+import           Test.Hspec.Core.Spec           as H
+import           Test.Hspec.Expectations.Pretty as H
+import           Test.Hspec.Runner              as H
 
+type HasCallStack = ?loc :: CallStack
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
 shouldBeLeft :: HasCallStack => Show e => Eq e => Either e a -> e -> Expectation
@@ -48,20 +64,8 @@ fromRightJust = fromRight >=> fromJust
 -- | Like `expectationFailure`, but returns @IO a@ instead of @IO ()@.
 expectationFailure' :: HasCallStack => String -> IO a
 expectationFailure' = Test.HUnit.assertFailure
-
-
--- | Pretty-prints objects when a test fails.
-newtype Pretty a = Pretty a
-  deriving newtype Eq
-
-instance Show a => Show (Pretty a) where
-  show (Pretty a) = TL.unpack (PP.pShowOpt opt a)
-    where
-      opt = PP.defaultOutputOptionsNoColor { PP.outputOptionsIndentAmount = 2 }
-
-pshouldBe :: (Show a, Eq a, HasCallStack) => a -> a -> Expectation
-pshouldBe x y = Pretty x `shouldBe` Pretty y
-
+  where
+    ?callStack = ?loc
 
 -- | Allows Json documents to be compared (using e.g. `shouldBe`) and pretty-printed in case the comparison fails.
 newtype PrettyJson = PrettyJson J.Value

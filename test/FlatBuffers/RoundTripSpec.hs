@@ -16,9 +16,7 @@ import           Examples
 import           FlatBuffers.Internal.Write
 import           FlatBuffers.Internal.Read
 
-import           Test.Hspec
-
-import           TestUtils
+import           TestImports
 
 spec :: Spec
 spec =

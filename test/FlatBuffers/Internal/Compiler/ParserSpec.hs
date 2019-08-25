@@ -9,10 +9,9 @@ import           Data.Void                                ( Void )
 import           FlatBuffers.Internal.Compiler.Parser
 import           FlatBuffers.Internal.Compiler.SyntaxTree
 
-import           Test.Hspec
 import           Test.Hspec.Megaparsec
 
-import           TestUtils
+import           TestImports
 
 import           Text.Megaparsec
 import           Text.RawString.QQ                        ( r )
@@ -264,6 +263,6 @@ parses :: String -> Schema -> Expectation
 parses input expectedSchema =
   case parse schema "" input of
     l@(Left _) -> l `shouldParse` expectedSchema
-    Right result -> result `pshouldBe` expectedSchema
+    Right result -> result `shouldBe` expectedSchema
 
 

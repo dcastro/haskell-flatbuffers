@@ -48,6 +48,8 @@ tests:
     dependencies:
     - flatbuffers
     - hspec
+    - hspec-core
+    - hspec-expectations-pretty-diff
     - HUnit
     - hspec-megaparsec
     - hedgehog
@@ -59,7 +61,6 @@ tests:
     - raw-strings-qq
     - utf8-string
     - process
-    - pretty-simple
     - th-pprint
 
 benchmarks:
