@@ -205,6 +205,11 @@ otherKnownAttributes =
   , "native_default"
   , "native_custom_alloc"
   , "native_type"
+  , "cpp_type"
+  , "cpp_ptr_type"
+  , "cpp_str_type"
+  , "cpp_str_flex_ctor"
+  , "shared"
   ]
 
 ----------------------------------
