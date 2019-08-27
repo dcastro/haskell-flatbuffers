@@ -40,6 +40,8 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - th-pprint-0.2.0.0
+- git: https://github.com/myfreeweb/hspec-expectations-pretty-diff.git
+  commit: b0f3a8697db5c5a7d9ccf319381bcb8605c5992f
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
