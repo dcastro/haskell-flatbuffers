@@ -635,5 +635,5 @@ requiredFieldsD :: Table RequiredFields -> Either ReadError (Union Weapon)
 requiredFieldsD = readTableFieldUnion readWeapon 4
 
 requiredFieldsE :: Table RequiredFields -> Either ReadError (Vector Int32)
-requiredFieldsE = readTableFieldReq (readPrimVector VectorInt32) 5 "d"
+requiredFieldsE = readTableFieldReq (readPrimVector VectorInt32) 5 "e"
 

@@ -7,9 +7,9 @@ module TestImports
   , shouldBeLeft
   , shouldBeRightAnd
   , shouldBeRightAndExpect
-  , fromRight
-  , fromJust
-  , fromRightJust
+  , evalRight
+  , evalJust
+  , evalRightJust
   , liftA4
   , PrettyJson(..)
   , shouldBeJson
@@ -48,18 +48,18 @@ shouldBeRightAndExpect ea expect = case ea of
     Left e  -> expectationFailure $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> expect a
 
-fromRight :: HasCallStack => Show e => Either e a -> IO a
-fromRight ea = case ea of
+evalRight :: HasCallStack => Show e => Either e a -> IO a
+evalRight ea = case ea of
     Left e  -> expectationFailure' $ "Expected 'Right', got 'Left':\n" <> show e
     Right a -> pure a
 
-fromJust :: HasCallStack => Maybe a -> IO a
-fromJust mb = case mb of
+evalJust :: HasCallStack => Maybe a -> IO a
+evalJust mb = case mb of
   Nothing -> expectationFailure' "Expected 'Just', got 'Nothing'"
   Just a  -> pure a
 
-fromRightJust :: HasCallStack => Show e => Either e (Maybe a) -> IO a
-fromRightJust = fromRight >=> fromJust
+evalRightJust :: HasCallStack => Show e => Either e (Maybe a) -> IO a
+evalRightJust = evalRight >=> evalJust
 
 -- | Like `expectationFailure`, but returns @IO a@ instead of @IO ()@.
 expectationFailure' :: HasCallStack => String -> IO a

@@ -38,7 +38,7 @@ spec =
         checkFileIdentifier @Primitives bs2 `shouldBe` False
 
       it "present" $ do
-        x <- fromRight $ decode @Primitives $ encodeWithFileIdentifier $ primitives
+        x <- evalRight $ decode @Primitives $ encodeWithFileIdentifier $ primitives
               (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
               (Just maxBound) (Just maxBound) (Just maxBound) (Just maxBound)
               (Just 1234.56) (Just 2873242.82782) (Just True) (Just "hi 👬 bye")
@@ -58,7 +58,7 @@ spec =
 
 
       it "missing" $ do
-        x <- fromRight $ decode @Primitives $ encodeWithFileIdentifier $ primitives
+        x <- evalRight $ decode @Primitives $ encodeWithFileIdentifier $ primitives
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing Nothing
           Nothing Nothing Nothing Nothing
@@ -78,7 +78,7 @@ spec =
     describe "Enums" $ do
       let readStructWithEnum = (liftA3 . liftA3) (,,) structWithEnumX (fmap toColor <$> structWithEnumY) structWithEnumZ
       it "present" $ do
-        x <- fromRight $ decode $ encode $ enums
+        x <- evalRight $ decode $ encode $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
           (Just (vector' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
@@ -90,7 +90,7 @@ spec =
         (enumsYs x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Right (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
 
       it "present with defaults" $ do
-        x <- fromRight $ decode @Enums $ encode $ enums (Just (fromColor ColorGreen)) Nothing Nothing Nothing
+        x <- evalRight $ decode @Enums $ encode $ enums (Just (fromColor ColorGreen)) Nothing Nothing Nothing
 
         toColor <$> enumsX x `shouldBe` Right (Just ColorGreen)
         enumsY x `shouldBeRightAnd` isNothing
@@ -98,7 +98,7 @@ spec =
         enumsYs x `shouldBeRightAnd` isNothing
 
       it "missing" $ do
-        x <- fromRight $ decode @Enums $ encode $ enums Nothing Nothing Nothing Nothing
+        x <- evalRight $ decode @Enums $ encode $ enums Nothing Nothing Nothing Nothing
 
         toColor <$> enumsX x `shouldBe` Right (Just ColorGreen)
         enumsY x `shouldBeRightAnd` isNothing
@@ -111,16 +111,16 @@ spec =
       let readStruct3 = (liftA3 . liftA3) (,,) (struct2X . struct3X) struct3Y struct3Z
       let readStruct4 = (liftA4 . liftA4) (,,,) (struct2X . struct4W) struct4X struct4Y struct4Z
       it "present" $ do
-        root <- fromRight $ decode $ encode $ structs
+        root <- evalRight $ decode $ encode $ structs
                 (Just (struct1 1 2 3))
                 (Just (struct2 11))
                 (Just (struct3 (struct2 22) 33 44))
                 (Just (struct4 (struct2 55) 66 77 True))
 
-        s1 <- fromRightJust $ structsA root
-        s2 <- fromRightJust $ structsB root
-        s3 <- fromRightJust $ structsC root
-        s4 <- fromRightJust $ structsD root
+        s1 <- evalRightJust $ structsA root
+        s2 <- evalRightJust $ structsB root
+        s3 <- evalRightJust $ structsC root
+        s4 <- evalRightJust $ structsD root
 
         readStruct1 s1 `shouldBe` Right (1, 2, 3)
         readStruct2 s2 `shouldBe` Right 11
@@ -128,7 +128,7 @@ spec =
         readStruct4 s4 `shouldBe` Right (55, 66, 77, True)
 
       it "missing" $ do
-        root <- fromRight $ decode $ encode $ structs Nothing Nothing Nothing Nothing
+        root <- evalRight $ decode $ encode $ structs Nothing Nothing Nothing Nothing
 
         structsA root `shouldBeRightAnd` isNothing
         structsB root `shouldBeRightAnd` isNothing
@@ -137,57 +137,57 @@ spec =
 
     describe "Nested tables" $ do
       it "present" $ do
-        root <- fromRight $ decode $ encode $ nestedTables (Just (table1 (Just (table2 (Just 11))) (Just 22)))
+        root <- evalRight $ decode $ encode $ nestedTables (Just (table1 (Just (table2 (Just 11))) (Just 22)))
 
-        t1 <- fromRightJust $ nestedTablesX root
-        t2 <- fromRightJust $ table1X t1
+        t1 <- evalRightJust $ nestedTablesX root
+        t2 <- evalRightJust $ table1X t1
 
         table1Y t1 `shouldBe` Right 22
         table2X t2 `shouldBe` Right 11
 
       it "missing table2" $ do
-        root <- fromRight $ decode $ encode $ nestedTables (Just (table1 Nothing (Just 22)))
+        root <- evalRight $ decode $ encode $ nestedTables (Just (table1 Nothing (Just 22)))
 
-        t1 <- fromRightJust $ nestedTablesX root
+        t1 <- evalRightJust $ nestedTablesX root
         table1X t1 `shouldBeRightAnd` isNothing
         table1Y t1 `shouldBe` Right 22
 
       it "missing table1" $ do
-        root <- fromRight $ decode $ encode $ nestedTables Nothing
+        root <- evalRight $ decode $ encode $ nestedTables Nothing
 
         nestedTablesX root `shouldBeRightAnd` isNothing
 
     describe "Union" $ do
       it "present" $ do
-        x <- fromRight $ decode $ encode $ tableWithUnion (weaponSword (sword (Just "hi")))
+        x <- evalRight $ decode $ encode $ tableWithUnion (weaponSword (sword (Just "hi")))
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
           _                     -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion (weaponAxe (axe (Just maxBound)))
+        x <- evalRight $ decode $ encode $ tableWithUnion (weaponAxe (axe (Just maxBound)))
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
           _                   -> unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ tableWithUnion none
+        x <- evalRight $ decode $ encode $ tableWithUnion none
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
 
       it "returns none when union type is missing" $ do
-        x <- fromRight $ decode $ encode $ writeTable [ missing ]
+        x <- evalRight $ decode $ encode $ writeTable [ missing ]
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
           _         -> unexpectedUnionType
 
       it "returns `unknown` when union type is unknown" $ do
-        x <- fromRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 99, writeTableTableField $ writeTable []]
+        x <- evalRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 99, writeTableTableField $ writeTable []]
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionUnknown n -> n `shouldBe` 99
           _              -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
-        x <- fromRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 1]
+        x <- evalRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 1]
         tableWithUnionUni x `shouldBeLeft` MalformedBuffer "Union: 'union type' found but 'union value' is missing."
 
     describe "Vectors" $ do
@@ -222,13 +222,13 @@ spec =
           -> Spec
         testPrimVector getVec expectedList = do
           it "non empty" $ do
-            vec <- fromRightJust (getVec nonEmptyVecs)
+            vec <- evalRightJust (getVec nonEmptyVecs)
             vectorLength vec `shouldBe` Right (L.genericLength expectedList)
             toList vec       `shouldBe` Right expectedList
             traverse (\i -> vec `index` i) [0 .. L.genericLength expectedList - 1] `shouldBe` Right expectedList
 
           it "empty" $ do
-            vec <- fromRightJust (getVec emptyVecs)
+            vec <- evalRightJust (getVec emptyVecs)
             vectorLength vec `shouldBe` Right 0
             toList vec       `shouldBe` Right []
 
@@ -250,7 +250,7 @@ spec =
 
     describe "VectorOfTables" $ do
       it "non empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfTables
+        x <- evalRight $ decode $ encode $ vectorOfTables
           (Just $ vector'
             [ axe (Just minBound)
             , axe (Just 0)
@@ -258,20 +258,20 @@ spec =
             ]
           )
 
-        Just xs <- fromRight $ vectorOfTablesXs x
+        Just xs <- evalRight $ vectorOfTablesXs x
         vectorLength xs `shouldBe` Right 3
         (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
         (traverse (index xs) [0..2] >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfTables (Just (vector' []))
+        x <- evalRight $ decode $ encode $ vectorOfTables (Just (vector' []))
 
-        xs <- fromRightJust $ vectorOfTablesXs x
+        xs <- evalRightJust $ vectorOfTablesXs x
         vectorLength xs `shouldBe` Right 0
         (toList xs >>= traverse axeY) `shouldBe` Right []
 
       it "missing" $ do
-        x <- fromRight $ decode $ encode $ vectorOfTables Nothing
+        x <- evalRight $ decode $ encode $ vectorOfTables Nothing
         vectorOfTablesXs x `shouldBeRightAnd` isNothing
 
     describe "VectorOfStructs" $ do
@@ -281,16 +281,16 @@ spec =
       let readStruct4 = (liftA4 . liftA4) (,,,) (struct2X . struct4W) struct4X struct4Y struct4Z
 
       it "non empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfStructs
+        x <- evalRight $ decode $ encode $ vectorOfStructs
           (Just (vector' [struct1 1 2 3, struct1 4 5 6]))
           (Just (vector' [struct2 101, struct2 102, struct2 103]))
           (Just (vector' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
           (Just (vector' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
 
-        as <- fromRightJust $ vectorOfStructsAs x
-        bs <- fromRightJust $ vectorOfStructsBs x
-        cs <- fromRightJust $ vectorOfStructsCs x
-        ds <- fromRightJust $ vectorOfStructsDs x
+        as <- evalRightJust $ vectorOfStructsAs x
+        bs <- evalRightJust $ vectorOfStructsBs x
+        cs <- evalRightJust $ vectorOfStructsCs x
+        ds <- evalRightJust $ vectorOfStructsDs x
 
         vectorLength as `shouldBe` Right 2
         (toList as >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
@@ -309,13 +309,13 @@ spec =
         (traverse (index ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfStructs
+        x <- evalRight $ decode $ encode $ vectorOfStructs
               (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
 
-        as <- fromRightJust $ vectorOfStructsAs x
-        bs <- fromRightJust $ vectorOfStructsBs x
-        cs <- fromRightJust $ vectorOfStructsCs x
-        ds <- fromRightJust $ vectorOfStructsDs x
+        as <- evalRightJust $ vectorOfStructsAs x
+        bs <- evalRightJust $ vectorOfStructsBs x
+        cs <- evalRightJust $ vectorOfStructsCs x
+        ds <- evalRightJust $ vectorOfStructsDs x
 
         vectorLength as `shouldBe` Right 0
         (toList as >>= traverse readStruct1) `shouldBe` Right []
@@ -330,7 +330,7 @@ spec =
         (toList ds >>= traverse readStruct4) `shouldBe` Right []
 
       it "missing" $ do
-        x <- fromRight $ decode @VectorOfStructs $ encode $ vectorOfStructs Nothing Nothing Nothing Nothing
+        x <- evalRight $ decode @VectorOfStructs $ encode $ vectorOfStructs Nothing Nothing Nothing Nothing
         vectorOfStructsAs x `shouldBeRightAnd` isNothing
         vectorOfStructsBs x `shouldBeRightAnd` isNothing
         vectorOfStructsCs x `shouldBeRightAnd` isNothing
@@ -348,7 +348,7 @@ spec =
           shouldBeNone UnionNone = pure ()
           shouldBeNone _         = unexpectedUnionType
 
-        x <- fromRight $ decode $ encode $ vectorOfUnions
+        x <- evalRight $ decode $ encode $ vectorOfUnions
           (Just $ vector'
             [ weaponSword (sword (Just "hi"))
             , none
@@ -362,7 +362,7 @@ spec =
             ]
           )
 
-        Just xs <- fromRight $ vectorOfUnionsXs x
+        Just xs <- evalRight $ vectorOfUnionsXs x
         vectorLength xs `shouldBe` Right 3
         length <$> toList xs `shouldBe` Right 3
         xs `index` 0 `shouldBeRightAndExpect` shouldBeSword "hi"
@@ -372,7 +372,7 @@ spec =
         (toList xs <&> (!! 1)) `shouldBeRightAndExpect` shouldBeNone
         (toList xs <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 98
 
-        xsReq <- fromRight $ vectorOfUnionsXsReq x
+        xsReq <- evalRight $ vectorOfUnionsXsReq x
         vectorLength xsReq `shouldBe` Right 3
         length <$> toList xsReq `shouldBe` Right 3
         xsReq `index` 0 `shouldBeRightAndExpect` shouldBeSword "hi2"
@@ -383,23 +383,23 @@ spec =
         (toList xsReq <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 100
 
       it "empty" $ do
-        x <- fromRight $ decode $ encode $ vectorOfUnions (Just (vector' [])) (vector' [])
+        x <- evalRight $ decode $ encode $ vectorOfUnions (Just (vector' [])) (vector' [])
 
-        Just xs <- fromRight $ vectorOfUnionsXs x
+        Just xs <- evalRight $ vectorOfUnionsXs x
         vectorLength xs `shouldBe` Right 0
         length <$> toList xs `shouldBe` Right 0
 
-        xsReq <- fromRight $ vectorOfUnionsXsReq x
+        xsReq <- evalRight $ vectorOfUnionsXsReq x
         vectorLength xsReq `shouldBe` Right 0
         length <$> toList xsReq `shouldBe` Right 0
 
       it "missing" $ do
-        x <- fromRight $ decode $ encode $ vectorOfUnions Nothing (vector' [])
+        x <- evalRight $ decode $ encode $ vectorOfUnions Nothing (vector' [])
         vectorOfUnionsXs x `shouldBeRightAnd` isNothing
         (vectorOfUnionsXsReq x >>= vectorLength) `shouldBe` Right 0
 
       it "throws when union type vector is present, but union value vector is missing" $ do
-        x <- fromRight $ decode $ encode $ writeTable @VectorOfUnions
+        x <- evalRight $ decode $ encode $ writeTable @VectorOfUnions
           [ writeVectorTableField $ vector' @Word8 []
           , missing
           , missing
@@ -411,7 +411,7 @@ spec =
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do
-            x <- fromRight $ decode $ encode buffer
+            x <- evalRight $ decode $ encode buffer
 
             scalarsWithDefaultsA x `shouldBe` Right 8
             scalarsWithDefaultsB x `shouldBe` Right 16
@@ -441,7 +441,7 @@ spec =
         Nothing Nothing
 
     it "DeprecatedFields" $ do
-      x <- fromRight $ decode $ encode $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4)
+      x <- evalRight $ decode $ encode $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4)
 
       deprecatedFieldsA x `shouldBe` Right 1
       deprecatedFieldsC x `shouldBe` Right 2
@@ -450,7 +450,7 @@ spec =
 
     it "RequiredFields" $ do
       let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z
-      x <- fromRight $ decode $ encode $ requiredFields
+      x <- evalRight $ decode $ encode $ requiredFields
         "hello"
         (struct1 11 22 33)
         (axe (Just 44))

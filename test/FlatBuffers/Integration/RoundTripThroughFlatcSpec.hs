@@ -232,10 +232,10 @@ spec =
           , "d" .= object ["w" .= object ["x" .= Number 55], "x" .= Number 66, "y" .= Number 77, "z" .= True ]
           ]
 
-        s1 <- fromRightJust $ structsA decoded
-        s2 <- fromRightJust $ structsB decoded
-        s3 <- fromRightJust $ structsC decoded
-        s4 <- fromRightJust $ structsD decoded
+        s1 <- evalRightJust $ structsA decoded
+        s2 <- evalRightJust $ structsB decoded
+        s3 <- evalRightJust $ structsC decoded
+        s4 <- evalRightJust $ structsD decoded
 
         readStruct1 s1 `shouldBe` Right (1, 2, 3)
         readStruct2 s2 `shouldBe` Right 11
@@ -269,8 +269,8 @@ spec =
             ]
           ]
 
-        t1 <- fromRightJust $ nestedTablesX decoded
-        t2 <- fromRightJust $ table1X t1
+        t1 <- evalRightJust $ nestedTablesX decoded
+        t2 <- evalRightJust $ table1X t1
 
         table1Y t1 `shouldBe` Right 22
         table2X t2 `shouldBe` Right 11
@@ -284,7 +284,7 @@ spec =
             ]
           ]
 
-        t1 <- fromRightJust $ nestedTablesX decoded
+        t1 <- evalRightJust $ nestedTablesX decoded
         table1X t1 `shouldBeRightAnd` isNothing
         table1Y t1 `shouldBe` Right 22
 
@@ -449,7 +449,7 @@ spec =
             ]
           ]
 
-        xs <- fromRightJust $ vectorOfTablesXs decoded
+        xs <- evalRightJust $ vectorOfTablesXs decoded
         (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
@@ -457,7 +457,7 @@ spec =
 
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
-        xs <- fromRightJust $ vectorOfTablesXs decoded
+        xs <- evalRightJust $ vectorOfTablesXs decoded
         vectorLength xs `shouldBe` Right 0
 
       it "missing" $ do
@@ -502,10 +502,10 @@ spec =
             ]
           ]
 
-        as <- fromRightJust (vectorOfStructsAs decoded) >>= (fromRight . toList)
-        bs <- fromRightJust (vectorOfStructsBs decoded) >>= (fromRight . toList)
-        cs <- fromRightJust (vectorOfStructsCs decoded) >>= (fromRight . toList)
-        ds <- fromRightJust (vectorOfStructsDs decoded) >>= (fromRight . toList)
+        as <- evalRightJust (vectorOfStructsAs decoded) >>= (evalRight . toList)
+        bs <- evalRightJust (vectorOfStructsBs decoded) >>= (evalRight . toList)
+        cs <- evalRightJust (vectorOfStructsCs decoded) >>= (evalRight . toList)
+        ds <- evalRightJust (vectorOfStructsDs decoded) >>= (evalRight . toList)
 
         traverse readStruct1 as `shouldBe` Right [(1,2,3), (4,5,6)]
         traverse readStruct2 bs `shouldBe` Right [101, 102, 103]
@@ -518,10 +518,10 @@ spec =
 
         json `shouldBeJson` object [ "as" .= [] @Value, "bs" .= [] @Value, "cs" .= [] @Value, "ds" .= [] @Value ]
 
-        as <- fromRightJust $ vectorOfStructsAs decoded
-        bs <- fromRightJust $ vectorOfStructsBs decoded
-        cs <- fromRightJust $ vectorOfStructsCs decoded
-        ds <- fromRightJust $ vectorOfStructsCs decoded
+        as <- evalRightJust $ vectorOfStructsAs decoded
+        bs <- evalRightJust $ vectorOfStructsBs decoded
+        cs <- evalRightJust $ vectorOfStructsCs decoded
+        ds <- evalRightJust $ vectorOfStructsCs decoded
         vectorLength as `shouldBe` Right 0
         vectorLength bs `shouldBe` Right 0
         vectorLength cs `shouldBe` Right 0

@@ -26,7 +26,7 @@ spec =
 
     it "fails when decoding string with invalid UTF-8 bytes" $ do
       let text = vector' @Word8 [ 255 ]
-      table <- fromRight $ decode $ encode $ writeTable
+      table <- evalRight $ decode $ encode $ writeTable
         [ missing, missing, missing, missing
         , missing, missing, missing, missing
         , missing, missing, missing
@@ -36,31 +36,31 @@ spec =
         Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
 
     it "fails when required field is missing" $ do
-      table <- fromRight $ decode @RequiredFields $ encode $ writeTable []
+      table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
       requiredFieldsA table `shouldBeLeft` MissingField "a"
       requiredFieldsB table `shouldBeLeft` MissingField "b"
       requiredFieldsC table `shouldBeLeft` MissingField "c"
       requiredFieldsE table `shouldBeLeft` MissingField "e"
 
-      table <- fromRight $ decode @VectorOfUnions $ encode $ writeTable []
+      table <- evalRight $ decode @VectorOfUnions $ encode $ writeTable []
       vectorOfUnionsXsReq table `shouldBeLeft` MissingField "xsReq"
 
     it "returns `UnionNone` when required union field is missing" $ do
-      table <- fromRight $ decode @RequiredFields $ encode $ writeTable []
+      table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
       requiredFieldsD table `shouldBeRightAndExpect` \case
         UnionNone -> pure ()
 
     describe "returns `UnionUnknown` when union type is not recognized" $ do
       it "in union fields" $ do
         let union = writeUnion 99 (writeTable [])
-        table <- fromRight $ decode $ encode $ tableWithUnion union
+        table <- evalRight $ decode $ encode $ tableWithUnion union
         tableWithUnionUni table `shouldBeRightAndExpect` \case
           UnionUnknown n -> n `shouldBe` 99
 
       it "in union vector" $ do
         let union = writeUnion 99 (writeTable [])
 
-        result <- fromRight $ do
+        result <- evalRight $ do
           table <- decode $ encode $ vectorOfUnions Nothing (vector' [union])
           vec   <- vectorOfUnionsXsReq table
           vec `index` 0
@@ -134,9 +134,9 @@ spec =
               (Just (vector' []))
 
         it "`index` returns struct pointing to empty string when index points to a location beyond the buffer's limits" $ do
-          table <- fromRight table
-          vec <- fromRightJust $ vectorOfStructsAs table
-          Struct bs <- fromRight $ vec `index` 100
+          table <- evalRight table
+          vec <- evalRightJust $ vectorOfStructsAs table
+          Struct bs <- evalRight $ vec `index` 100
           BSL.null bs `shouldBe` True
 
         it "`index` throws when index is negative" $

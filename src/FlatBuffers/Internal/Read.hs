@@ -263,8 +263,8 @@ instance VectorElement Text where
 
   toList :: Vector Text -> Either ReadError [Text]
   toList (VectorText pos) = do
-    positions <- toList (VectorInt32 pos)
-    L.reverse <$> go positions 0 []
+    offsets <- toList (VectorInt32 pos)
+    L.reverse <$> go offsets 0 []
     where
       go :: [Int32] -> Int32 -> [Text] -> Either ReadError [Text]
       go [] _ acc = Right acc
@@ -298,8 +298,8 @@ instance VectorElement (Table a) where
   vectorLength (VectorTable pos) = readInt32 pos
   index vec = readTable . moveToElem (coerce vec) tableRefSize . checkNegIndex
   toList (VectorTable vectorPos) = do
-    positions <- toList (VectorInt32 (posCurrent vectorPos))
-    go positions 0
+    offsets <- toList (VectorInt32 (posCurrent vectorPos))
+    go offsets 0
     where
       go :: [Int32] -> Int32 -> Either ReadError [Table a]
       go [] _ = Right []
