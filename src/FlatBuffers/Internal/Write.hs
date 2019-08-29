@@ -71,12 +71,12 @@ encode (WriteTable table) =
   B.toLazyByteString $
   builder $
   execState
-    (do loc <- table
+    (do pos <- table
         maxAlignment <- gets (getMax . maxAlign)
         modify' $ alignTo maxAlignment uoffsetSize
-        modify' $ uoffsetFrom loc
+        modify' $ uoffsetFrom pos
     )
-    (FBState mempty 0 1 mempty)
+    (FBState mempty (Sum 0) (Max 1) mempty)
 
 {-# INLINE encodeWithFileIdentifier #-}
 encodeWithFileIdentifier :: forall a. HasFileIdentifier a => WriteTable a -> BSL.ByteString
@@ -89,13 +89,13 @@ encodeWithFileIdentifier' fi (WriteTable table) =
   B.toLazyByteString $
   builder $
   execState
-    (do loc <- table
+    (do pos <- table
         maxAlignment <- gets (getMax . maxAlign)
         modify' $ alignTo maxAlignment (uoffsetSize + fileIdentifierSize)
         modify' $ writeFileIdentifier fi
-        modify' $ uoffsetFrom loc
+        modify' $ uoffsetFrom pos
     )
-    (FBState mempty 0 1 mempty)
+    (FBState mempty (Sum 0) (Max 1) mempty)
 
 
 -- | Writes something (unaligned) to the buffer.
@@ -680,9 +680,10 @@ uoffsetFromHere = gets (uoffsetFrom . coerce . bufferSize)
 
 {-# INLINE uoffsetFrom #-}
 uoffsetFrom :: Position -> FBState -> FBState
-uoffsetFrom !pos fbs = writeInt32 (currentPos - pos + uoffsetSize) fbs
+uoffsetFrom !pos fbs = writeInt32 (currentPos - pos + uoffsetSize) aligned
   where
-    currentPos = coerce bufferSize fbs
+    aligned = alignTo int32Size 0 fbs
+    currentPos = coerce bufferSize aligned
 
 {-# INLINE utf8length #-}
 utf8length :: Text -> Int32

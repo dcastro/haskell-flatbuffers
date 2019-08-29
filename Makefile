@@ -59,10 +59,6 @@ test-api-detached: ## Generate java flatbuffers and launch test-api in detached 
 		sbt -Djline.terminal=jline.UnsupportedTerminal run &
 .PHONY: test-api-detached
 
-benchalloc: ## Run benchmarks and `weigh`
-	stack bench && stack run weigh-bench
-.PHONY: benchalloc
-
 
 hlint: ## Runs hlint on the project
 	hlint .

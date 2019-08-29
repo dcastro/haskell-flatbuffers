@@ -23,7 +23,7 @@ spec :: Spec
 spec =
   describe "Haskell encoders should be consistent with Scala decoders" $
     it "VectorOfUnions" $ do
-      test
+      testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions
           (Just (vector' [weaponSword (sword (Just "hi"))]))
@@ -34,14 +34,14 @@ spec =
           , "xsReq" .= [object ["x" .= String "hi2"]]
           ]
         )
-      test
+      testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions
           (Just (vector' [weaponSword (sword Nothing)]))
           (vector' [weaponAxe (axe Nothing)])
           )
         (object ["xs" .= [object ["x" .= Null]], "xsReq" .= [object ["y" .= Number 0]]])
-      test
+      testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions
           (Just $ vector'
@@ -73,18 +73,18 @@ spec =
             , object ["x" .= String "oi2"]
             ]
           ])
-      test
+      testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions (Just (vector' [])) (vector' []))
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
-      test
+      testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions Nothing (vector' []))
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
 
 
-test :: HasCallStack => String -> BSL.ByteString -> J.Value -> IO ()
-test flatbufferName bs expectedJson = do
+testCase :: HasCallStack => String -> BSL.ByteString -> J.Value -> IO ()
+testCase flatbufferName bs expectedJson = do
   man <- newManager defaultManagerSettings
   req <- parseRequest ("http://localhost:8080/" ++ flatbufferName)
   let req' = req {method = "POST", requestBody = RequestBodyLBS bs}

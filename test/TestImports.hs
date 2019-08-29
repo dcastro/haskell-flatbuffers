@@ -1,5 +1,6 @@
 module TestImports
-  ( module H
+  ( module Hspec
+  , module Hedgehog
   , HasCallStack
   , shouldBeLeft
   , shouldBeRightAnd
@@ -21,11 +22,15 @@ import qualified Data.Text.Lazy                 as TL
 
 import           GHC.Stack                      ( HasCallStack )
 
+import           HaskellWorks.Hspec.Hedgehog    as Hedgehog
+import           Hedgehog                       as Hedgehog
+
 import           Test.HUnit                     ( assertFailure )
-import           Test.Hspec.Core.Hooks          as H
-import           Test.Hspec.Core.Spec           as H
-import           Test.Hspec.Expectations.Pretty as H
-import           Test.Hspec.Runner              as H
+import           Test.Hspec.Core.Hooks          as Hspec
+import           Test.Hspec.Core.Spec           as Hspec
+import           Test.Hspec.Expectations.Pretty as Hspec
+import           Test.Hspec.Runner              as Hspec
+
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
 shouldBeLeft :: HasCallStack => Show e => Eq e => Either e a -> e -> Expectation
