@@ -23,6 +23,9 @@ import           FlatBuffers.Internal.Write
 
 import           Types
 
+n :: Num a => a
+n = 10000
+
 groups :: [Benchmark]
 groups =
   [ bgroup "decode vectors"
@@ -66,9 +69,6 @@ groups =
         ]
     ]
   ]
-
-n :: Num a => a
-n = 10000
 
 mkNumList :: Num a => Int32 -> [a]
 mkNumList len = fromIntegral <$> [1 .. len]

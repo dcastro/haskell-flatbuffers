@@ -271,7 +271,7 @@ writeTable fields = WriteTable $ do
   -- table
   tableEnd <- gets (getSum . bufferSize)
 
-  inlineFieldLocations <-
+  inlineFieldPositions <-
     forM inlineFields $ \f -> do
       before <- gets bufferSize
       modify' f
@@ -281,33 +281,33 @@ writeTable fields = WriteTable $ do
         else pure (getSum after)
 
   modify' $ alignTo soffsetSize 0
-  tableFieldsLocation <- gets (getSum . bufferSize)
+  tableFieldsPosition <- gets (getSum . bufferSize)
 
-  let tableLocation = tableFieldsLocation + soffsetSize
+  let tablePosition = tableFieldsPosition + soffsetSize
   -- Note: This might overflow if the table has too many fields
-  let tableSize = fromIntegral @Int32 @Word16 $ tableLocation - tableEnd
-  let fieldVOffsets = flip fmap inlineFieldLocations $ \case
+  let tableSize = fromIntegral @Int32 @Word16 $ tablePosition - tableEnd
+  let fieldVOffsets = flip fmap inlineFieldPositions $ \case
                   0 -> 0
                   -- Note: This might overflow if the table has too many fields
-                  fieldLocation -> fromIntegral @Int32 @Word16 (tableLocation - fieldLocation)
+                  fieldPosition -> fromIntegral @Int32 @Word16 (tablePosition - fieldPosition)
 
   -- TODO: trim trailing 0 voffsets
 
   let newVtable = vtable fieldVOffsets tableSize
   let newVtableSize = fromIntegral @Int64 @Int32 (BSL.length newVtable)
-  let newVtableLocation = tableLocation + newVtableSize
+  let newVtablePosition = tablePosition + newVtableSize
 
   map <- gets cache
-  case M.insertLookupWithKey (\_k _new old -> old) newVtable newVtableLocation map of
+  case M.insertLookupWithKey (\_k _new old -> old) newVtable newVtablePosition map of
     (Nothing, map') ->
       -- vtable, pointer to vtable, update the cache
       modify' (writeVtable map' newVtable newVtableSize . writeVtableSoffset newVtableSize)
 
-    (Just oldVtableLocation, _) ->
+    (Just oldVtablePosition, _) ->
       -- pointer to vtable
-      modify' . writeInt32 . negate $ tableLocation - oldVtableLocation
+      modify' . writeInt32 . negate $ tablePosition - oldVtablePosition
 
-  pure $! tableLocation
+  pure $! tablePosition
 
   where
     writeVtable newCache newVtable newVtableSize fbs = fbs
@@ -476,7 +476,6 @@ data OffsetInfo = OffsetInfo
   , oiOffsets :: ![Int32]
   }
 
-
 instance WriteVectorElement Text where
   newtype WriteVector Text = WriteVectorText WriteTableField
 
@@ -484,68 +483,77 @@ instance WriteVectorElement Text where
   vector :: Foldable f => Int32 -> f Text -> WriteVector Text
   vector elemCount texts = WriteVectorText . WriteTableField $ do
     modify' $ \fbs ->
-
-      let bsize1 = bufferSize fbs
-          builder1 = builder fbs
-
+      let (builder2, bsize2) =
+            writeVectorSizePrefix . writeOffsets . align . writeStrings $ (builder fbs, bufferSize fbs)
+      in  fbs
+            { builder = builder2
+            , bufferSize = bsize2
+            , maxAlign = maxAlign fbs <> Max int32Size
+            }
+    uoffsetFromHere
+    where
+      writeStrings :: (Builder, BufferSize) -> (Builder, BufferSize, [TextInfo])
+      writeStrings (builder1, bsize1) =
           -- Collect info about the strings.
           -- NOTE: this loop *could* be merged with the one below, but
-          -- we have loops dedicated to merging Builders to avoid wrapping builders in data structures.
-          -- See: http://hackage.haskell.org/package/fast-builder-0.1.0.1/docs/Data-ByteString-FastBuilder.html
-          TextInfos textInfos bsize2 =
-            foldr
-              (\t (TextInfos infos bsize) ->
-                let textLength = utf8length t
-                    padding = calcPadding 4 (textLength + 1) bsize
-                    newBsize = bsize <> Sum (padding + textLength + 1 + 4)
-                in  TextInfos (TextInfo t textLength padding (getSum newBsize) : infos) newBsize
-              )
-              (TextInfos [] bsize1)
-              texts
+          -- we have loops dedicated to merging Builders to avoid wrapping Builders in data structures.
+          -- See "Performance tips": http://hackage.haskell.org/package/fast-builder-0.1.0.1/docs/Data-ByteString-FastBuilder.html
+        let TextInfos textInfos bsize2 =
+              foldr
+                (\t (TextInfos infos bsize) ->
+                  let textLength = utf8length t
+                      padding = calcPadding 4 (textLength + 1) bsize
+                      newBsize = bsize <> Sum (padding + textLength + 1 + 4)
+                  in  TextInfos (TextInfo t textLength padding (getSum newBsize) : infos) newBsize
+                )
+                (TextInfos [] bsize1)
+                texts
 
-          -- Write strings
-          builder2 =
-            foldr
-              (\(TextInfo t tlength padding _) b ->
-                B.int32LE tlength
-                <> T.encodeUtf8Builder t
-                <> B.word8 0 -- strings must have a trailing zero
-                <> buildPadding padding
-                <> b
-              )
-              mempty
-              textInfos
+            builder2 =
+              foldr
+                (\(TextInfo t tlength padding _) b ->
+                  B.int32LE tlength
+                  <> T.encodeUtf8Builder t
+                  <> B.word8 0 -- strings must have a trailing zero
+                  <> buildPadding padding
+                  <> b
+                )
+                mempty
+                textInfos
+        in (builder2 <> builder1, bsize2, textInfos)
 
-          -- Alignment
-          vectorPadding = calcPadding int32Size 0 bsize2
-          bsize3 = bsize2 <> Sum vectorPadding
-          builder3 = buildPadding vectorPadding
+      align :: (Builder, BufferSize, [TextInfo]) -> (Builder, BufferSize, [TextInfo])
+      align (builder1, bsize1, textInfos) =
+        let vectorPadding = calcPadding int32Size 0 bsize1
+            bsize2 = bsize1 <> Sum vectorPadding
+            builder2 = buildPadding vectorPadding
+        in  (builder2 <> builder1, bsize2, textInfos)
 
-          -- Write offsets
-          OffsetInfo _ offsets =
-            foldr
-              (\(TextInfo _ _ _ position) (OffsetInfo ix os) ->
-                OffsetInfo
-                  (ix + 1)
-                  (getSum bsize3 + (ix * 4) + 4 - position : os)
-              )
-              (OffsetInfo 0 [])
-              textInfos
+      writeOffsets :: (Builder, BufferSize, [TextInfo]) -> (Builder, BufferSize)
+      writeOffsets (builder1, bsize1, textInfos) =
+        let OffsetInfo _ offsets =
+              foldr
+                (\(TextInfo _ _ _ position) (OffsetInfo ix os) ->
+                  OffsetInfo
+                    (ix + 1)
+                    (getSum bsize1 + (ix * 4) + 4 - position : os)
+                )
+                (OffsetInfo 0 [])
+                textInfos
 
-          bsize4 = bsize3 <> Sum (elemCount * 4)
-          builder4 =
-            foldr
-              (\o b -> B.int32LE o <> b)
-              mempty
-              offsets
+            bsize2 = bsize1 <> Sum (elemCount * 4)
+            builder2 =
+              foldr
+                (\o b -> B.int32LE o <> b)
+                mempty
+                offsets
+        in  (builder2 <> builder1, bsize2)
+
+      writeVectorSizePrefix :: (Builder, BufferSize) -> (Builder, BufferSize)
+      writeVectorSizePrefix (builder1, bsize1) =
+        (B.int32LE elemCount <> builder1, bsize1 + int32Size)
 
 
-          -- Write vector size
-          bsize5 = bsize4 + 4
-          builder5 = B.int32LE elemCount <> builder4 <> builder3 <> builder2 <> builder1
-      in  fbs { builder = builder5, bufferSize = bsize5, maxAlign = maxAlign fbs <> Max int32Size }
-
-    uoffsetFromHere
 
 data TableInfo = TableInfo
   { tiState          :: !FBState
@@ -680,10 +688,12 @@ uoffsetFromHere = gets (uoffsetFrom . coerce . bufferSize)
 
 {-# INLINE uoffsetFrom #-}
 uoffsetFrom :: Position -> FBState -> FBState
-uoffsetFrom !pos fbs = writeInt32 (currentPos - pos + uoffsetSize) aligned
+uoffsetFrom pos = writeUOffset . align
   where
-    aligned = alignTo int32Size 0 fbs
-    currentPos = coerce bufferSize aligned
+    align fbs = alignTo int32Size 0 fbs
+    writeUOffset fbs =
+      let currentPos = coerce bufferSize fbs
+      in  writeInt32 (currentPos - pos + uoffsetSize) fbs
 
 {-# INLINE utf8length #-}
 utf8length :: Text -> Int32
