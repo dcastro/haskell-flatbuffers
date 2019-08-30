@@ -3,59 +3,100 @@
 
 module FlatBuffers.AlignmentSpec where
 
-import           Control.Monad.State.Strict  ( runState )
+import           Control.Monad.State.Strict
 
-import qualified Data.ByteString             as BS
-import qualified Data.ByteString.Builder     as B
-import qualified Data.ByteString.Lazy        as BSL
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Builder    as B
+import qualified Data.ByteString.Lazy       as BSL
 import           Data.Coerce
-import           Data.Foldable               ( fold )
+import           Data.Foldable              ( fold )
 import           Data.Int
-import qualified Data.List                   as List
-import           Data.Monoid                 ( Sum(..) )
-import           Data.Semigroup              ( Max(..) )
+import qualified Data.List                  as List
+import           Data.Monoid                ( Sum(..) )
+import           Data.Semigroup             ( Max(..) )
+import qualified Data.Text.Encoding         as T
+import           Data.Word
 
 import           Examples
 
 import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types           ( Alignment(..), InlineSize(..), IsStruct(..) )
+import           FlatBuffers.Types          ( Alignment(..), InlineSize(..), IsStruct(..) )
 
-import qualified Hedgehog.Gen                as Gen
-import qualified Hedgehog.Range              as Range
+import qualified Hedgehog.Gen               as Gen
+import qualified Hedgehog.Range             as Range
 
 import           TestImports
 
 spec :: Spec
 spec =
   describe "alignment" $ do
-    describe "int64 are aligned to 8 bytes" $ do
+
+    describe "Int8 are aligned to 1 byte" $ do
       it "in table fields" $ require $
-        prop_inlineTableFieldAlignment 8 8 (writeInt64TableField maxBound)
-
+        prop_inlineTableFieldAlignment 1 1 (writeInt8TableField maxBound)
       it "in vectors" $ require $
-        prop_vectorAlignment 8 8 (maxBound @Int64)
+        prop_vectorAlignment 1 1 (maxBound @Int8)
 
-    describe "int32 are aligned to 4 bytes" $ do
-      it "in table fields" $ require $
-        prop_inlineTableFieldAlignment 4 4 (writeInt32TableField maxBound)
-
-      it "in vectors" $ require $
-        prop_vectorAlignment 4 4 (maxBound @Int32)
-
-    describe "int16 are aligned to 4 bytes" $ do
+    describe "Int16 are aligned to 2 bytes" $ do
       it "in table fields" $ require $
         prop_inlineTableFieldAlignment 2 2 (writeInt16TableField maxBound)
-
       it "in vectors" $ require $
         prop_vectorAlignment 2 2 (maxBound @Int16)
 
-    describe "int8 are aligned to 4 bytes" $ do
+    describe "Int32 are aligned to 4 bytes" $ do
       it "in table fields" $ require $
-        prop_inlineTableFieldAlignment 1 1 (writeInt8TableField maxBound)
-
+        prop_inlineTableFieldAlignment 4 4 (writeInt32TableField maxBound)
       it "in vectors" $ require $
-        prop_vectorAlignment 1 1 (maxBound @Int8)
+        prop_vectorAlignment 4 4 (maxBound @Int32)
+
+    describe "Int64 are aligned to 8 bytes" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 8 8 (writeInt64TableField maxBound)
+      it "in vectors" $ require $
+        prop_vectorAlignment 8 8 (maxBound @Int64)
+
+    describe "Word8 are aligned to 1 byte" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 1 1 (writeWord8TableField maxBound)
+      it "in vectors" $ require $
+        prop_vectorAlignment 1 1 (maxBound @Word8)
+
+    describe "Word16 are aligned to 2 bytes" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 2 2 (writeWord16TableField maxBound)
+      it "in vectors" $ require $
+        prop_vectorAlignment 2 2 (maxBound @Word16)
+
+    describe "Word32 are aligned to 4 bytes" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 4 4 (writeWord32TableField maxBound)
+      it "in vectors" $ require $
+        prop_vectorAlignment 4 4 (maxBound @Word32)
+
+    describe "Word64 are aligned to 8 bytes" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 8 8 (writeWord64TableField maxBound)
+      it "in vectors" $ require $
+        prop_vectorAlignment 8 8 (maxBound @Word64)
+
+    describe "Float are aligned to 4 bytes" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 4 4 (writeFloatTableField 999.5)
+      it "in vectors" $ require $
+        prop_vectorAlignment 4 4 (999.5 :: Float)
+
+    describe "Double are aligned to 8 bytes" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 8 8 (writeDoubleTableField 999.5)
+      it "in vectors" $ require $
+        prop_vectorAlignment 8 8 (999.5 :: Double)
+
+    describe "Bool are aligned to 1 byte" $ do
+      it "in table fields" $ require $
+        prop_inlineTableFieldAlignment 1 1 (writeBoolTableField maxBound)
+      it "in vectors" $ require $
+        prop_vectorAlignment 1 1 (maxBound @Bool)
 
 
     describe "structs are aligned to the specified alignment" $ do
@@ -93,25 +134,28 @@ spec =
           prop_vectorAlignment (fromIntegral (structSizeOf @Struct4)) (structAlignmentOf @Struct4)
             (struct4 (struct2 maxBound) maxBound maxBound True)
 
+    describe "Text are aligned to 4 bytes" $
+      it "in table fields" $ require $
+        prop_textTableFieldAlignment
 
 
 prop_inlineTableFieldAlignment :: Int32 -> Alignment -> WriteTableField -> Property
 prop_inlineTableFieldAlignment size alignment tableField = property $ do
-  state1 <- forAllWith printFBState genInitialState
-  let (f, state2) = runState (unWriteTableField tableField) state1
-  let state3 = f state2
+  initialState <- forAllWith printFBState genInitialState
+  let (f, interimState) = runState (unWriteTableField tableField) initialState
+  let finalState = f interimState
 
   -- `maxAlign` is either the previous `maxAlign` or the alignment of the last thing we wrote
   -- to the buffer, whichever's greatest
-  maxAlign state3 === Max alignment `max` maxAlign state1
-  fromIntegral (BSL.length (B.toLazyByteString (builder state3))) === bufferSize state3
+  maxAlign finalState === Max alignment `max` maxAlign initialState
+  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
 
   -- At most (alignment - 1) bytes can be added to the buffer as padding
-  let padding = coerce bufferSize state3 - coerce bufferSize state1 - size
+  let padding = coerce bufferSize finalState - coerce bufferSize initialState - size
   padding `isLessThan` fromIntegral alignment
 
   -- The buffer is aligned to `alignment` bytes
-  getSum (bufferSize state3) `mod` fromIntegral alignment === 0
+  getSum (bufferSize finalState) `mod` fromIntegral alignment === 0
 
 
 prop_vectorAlignment ::
@@ -119,42 +163,67 @@ prop_vectorAlignment ::
   => Coercible (WriteVector a) WriteTableField
   => Int32 -> Alignment -> a -> Property
 prop_vectorAlignment elemSize elemAlignment sampleElem = property $ do
-  state1 <- forAllWith printFBState genInitialState
+  initialState <- forAllWith printFBState genInitialState
   vectorLength <- forAll $ Gen.int (Range.linear 0 5)
 
   let vec = vector' (List.replicate vectorLength sampleElem)
-  let (writeUOffset, state2) = runState (unWriteTableField (writeVectorTableField vec)) state1
+  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField vec)) initialState
   let vectorByteCount = 4 + elemSize * fromIntegral vectorLength
 
   -- `maxAlign` is the greatest of: the previous alignment, the vector's elements alignment,
   -- or the vector size prefix alignment
-  maxAlign state2 === maximum [Max elemAlignment, maxAlign state1, 4]
-  fromIntegral (BSL.length (B.toLazyByteString (builder state2))) === bufferSize state2
+  maxAlign finalState === maximum [Max elemAlignment, maxAlign initialState, 4]
+  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
 
   -- At most `n` bytes can be added to the  buffer as padding,
   -- `n` being the biggest thing we're aligning to: the vector's elements or the size prefix.
-  let padding = coerce bufferSize state2 - coerce bufferSize state1 - vectorByteCount
+  let padding = coerce bufferSize finalState - coerce bufferSize initialState - vectorByteCount
   padding `isLessThan` (fromIntegral elemAlignment `max` 4)
 
   -- The entire vector, with the size prefix, is aligned to 4 bytes
-  getSum (bufferSize state2) `mod` 4 === 0
+  getSum (bufferSize finalState) `mod` 4 === 0
   -- The vector, without the size prefix, is aligned to `elemAlignment` bytes
-  getSum (bufferSize state2 - 4) `mod` fromIntegral elemAlignment === 0
+  getSum (bufferSize finalState - 4) `mod` fromIntegral elemAlignment === 0
+
+  testUOffsetAlignment writeUOffset
 
 
-  -- Write UOffset
-  let state3 = writeUOffset state1
+prop_textTableFieldAlignment :: Property
+prop_textTableFieldAlignment = property $ do
+  initialState <- forAllWith printFBState genInitialState
+  text <- forAll $ Gen.text (Range.linear 0 30) Gen.unicode
+  let textByteCount = BS.length (T.encodeUtf8 text) + 1
 
-  maxAlign state3 === 4 `max` maxAlign state1
-  fromIntegral (BSL.length (B.toLazyByteString (builder state3))) === bufferSize state3
+  let (writeUOffset, finalState) = runState (unWriteTableField (writeTextTableField text)) initialState
+
+  -- `maxAlign` is either the previous `maxAlign` or 4, whichever's greatest
+  maxAlign finalState === 4 `max` maxAlign initialState
+  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
 
   -- At most 4 bytes can be added to the buffer as padding
-  let padding = bufferSize state3 - bufferSize state1 - 4
+  let padding = bufferSize finalState - bufferSize initialState - fromIntegral textByteCount - 4
   padding `isLessThan` 4
 
   -- The buffer is aligned to 4 bytes
-  getSum (bufferSize state3) `mod` 4 === 0
+  getSum (bufferSize finalState) `mod` 4 === 0
 
+  testUOffsetAlignment writeUOffset
+
+
+testUOffsetAlignment :: Monad m => (FBState -> FBState) -> PropertyT m ()
+testUOffsetAlignment writeUOffset = do
+  initialState <- forAllWith printFBState genInitialState
+  let finalState = writeUOffset initialState
+
+  maxAlign finalState === 4 `max` maxAlign initialState
+  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
+
+  -- At most 4 bytes can be added to the buffer as padding
+  let padding = bufferSize finalState - bufferSize initialState - 4
+  padding `isLessThan` 4
+
+  -- The buffer is aligned to 4 bytes
+  getSum (bufferSize finalState) `mod` 4 === 0
 
 isLessThan :: (HasCallStack, MonadTest m, Show a, Num a, Ord a) => a -> a -> m ()
 isLessThan x upper = do

@@ -183,14 +183,15 @@ writeBoolTableField = writeWord8TableField . boolToWord8
 {-# INLINE writeTextTableField #-}
 writeTextTableField :: Text -> WriteTableField
 writeTextTableField text = WriteTableField $ do
-  modify' (writeInt32 len . encodeText . alignTo int32Size len)
+  modify' (writeInt32 len . encodeText . alignTo int32Size (len + 1))
   uoffsetFromHere
   where
     len = utf8length text
     encodeText fbs =
       fbs
-        { builder = T.encodeUtf8Builder text <> builder fbs
-        , bufferSize = Sum len <> bufferSize fbs
+        -- strings must have a trailing zero
+        { builder = T.encodeUtf8Builder text <> B.word8 0 <> builder fbs
+        , bufferSize = Sum len <> Sum 1 <> bufferSize fbs
         }
 
 {-# INLINE writeTableTableField #-}
