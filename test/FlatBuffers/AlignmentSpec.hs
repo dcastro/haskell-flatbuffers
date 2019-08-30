@@ -149,10 +149,8 @@ prop_inlineTableFieldAlignment size alignment tableField = property $ do
   let (f, interimState) = runState (unWriteTableField tableField) initialState
   let finalState = f interimState
 
-  -- `maxAlign` is either the previous `maxAlign` or the alignment of the last thing we wrote
-  -- to the buffer, whichever's greatest
-  maxAlign finalState === Max alignment `max` maxAlign initialState
-  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
+  testBufferSizeIntegrity finalState
+  testMaxAlign initialState finalState alignment
 
   -- At most (alignment - 1) bytes can be added to the buffer as padding
   let padding = coerce bufferSize finalState - coerce bufferSize initialState - size
@@ -172,15 +170,14 @@ prop_vectorAlignment elemSize elemAlignment sampleElem = property $ do
 
   let vec = vector' (List.replicate vectorLength sampleElem)
   let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField vec)) initialState
-  let vectorByteCount = 4 + elemSize * fromIntegral vectorLength
 
-  -- `maxAlign` is the greatest of: the previous alignment, the vector's elements alignment,
-  -- or the vector size prefix alignment
-  maxAlign finalState === maximum [Max elemAlignment, maxAlign initialState, 4]
-  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
+  testBufferSizeIntegrity finalState
+  testMaxAlign initialState finalState (elemAlignment `max` 4)
+  testUOffsetAlignment writeUOffset
 
   -- At most `n` bytes can be added to the  buffer as padding,
   -- `n` being the biggest thing we're aligning to: the vector's elements or the size prefix.
+  let vectorByteCount = 4 + elemSize * fromIntegral vectorLength
   let padding = coerce bufferSize finalState - coerce bufferSize initialState - vectorByteCount
   padding `isLessThan` (fromIntegral elemAlignment `max` 4)
 
@@ -189,29 +186,27 @@ prop_vectorAlignment elemSize elemAlignment sampleElem = property $ do
   -- The vector, without the size prefix, is aligned to `elemAlignment` bytes
   getSum (bufferSize finalState - 4) `mod` fromIntegral elemAlignment === 0
 
-  testUOffsetAlignment writeUOffset
 
 
 prop_textTableFieldAlignment :: Property
 prop_textTableFieldAlignment = property $ do
   initialState <- forAllWith printFBState genInitialState
   text <- forAll $ Gen.text (Range.linear 0 30) Gen.unicode
-  let textByteCount = BS.length (T.encodeUtf8 text) + 1
 
   let (writeUOffset, finalState) = runState (unWriteTableField (writeTextTableField text)) initialState
 
-  -- `maxAlign` is either the previous `maxAlign` or 4, whichever's greatest
-  maxAlign finalState === 4 `max` maxAlign initialState
-  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
+  testBufferSizeIntegrity finalState
+  testMaxAlign initialState finalState 4
+  testUOffsetAlignment writeUOffset
 
   -- At most 4 bytes can be added to the buffer as padding
+  let textByteCount = BS.length (T.encodeUtf8 text) + 1
   let padding = bufferSize finalState - bufferSize initialState - fromIntegral textByteCount - 4
   padding `isLessThan` 4
 
   -- The buffer is aligned to 4 bytes
   getSum (bufferSize finalState) `mod` 4 === 0
 
-  testUOffsetAlignment writeUOffset
 
 
 prop_textVectorAlignment :: Property
@@ -220,6 +215,10 @@ prop_textVectorAlignment = property $ do
   texts <- forAll $ Gen.list (Range.linear 0 5) (Gen.text (Range.linear 0 30) Gen.unicode)
 
   let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField (vector' texts))) initialState
+
+  testBufferSizeIntegrity finalState
+  testMaxAlign initialState finalState 4
+  testUOffsetAlignment writeUOffset
 
   let finalBuffer = (B.toLazyByteString (builder finalState))
 
@@ -256,21 +255,16 @@ prop_textVectorAlignment = property $ do
   -- The buffer is aligned to 4 bytes
   getSum (bufferSize finalState) `mod` 4 === 0
 
-  -- `maxAlign` is either the previous `maxAlign` or 4, whichever's greatest
-  maxAlign finalState === 4 `max` maxAlign initialState
-  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
-
-  testUOffsetAlignment writeUOffset
 
 
 
-testUOffsetAlignment :: Monad m => (FBState -> FBState) -> PropertyT m ()
+testUOffsetAlignment :: (FBState -> FBState) -> PropertyT IO ()
 testUOffsetAlignment writeUOffset = do
   initialState <- forAllWith printFBState genInitialState
   let finalState = writeUOffset initialState
 
-  maxAlign finalState === 4 `max` maxAlign initialState
-  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
+  testBufferSizeIntegrity finalState
+  testMaxAlign initialState finalState 4
 
   -- At most 4 bytes can be added to the buffer as padding
   let padding = bufferSize finalState - bufferSize initialState - 4
@@ -278,6 +272,21 @@ testUOffsetAlignment writeUOffset = do
 
   -- The buffer is aligned to 4 bytes
   getSum (bufferSize finalState) `mod` 4 === 0
+
+
+-- | `bufferSize` should always be equal to the size of the bytestring produced by the builder
+testBufferSizeIntegrity :: FBState -> PropertyT IO ()
+testBufferSizeIntegrity state =
+  bufferSize state === fromIntegral (BSL.length (B.toLazyByteString (builder state)))
+
+-- | `maxAlign` is either the previous `maxAlign` or the alignment of the last thing we wrote
+-- to the buffer, whichever's greatest
+testMaxAlign :: FBState -> FBState -> Alignment -> PropertyT IO ()
+testMaxAlign initialState finalState alignment =
+  maxAlign finalState === maxAlign initialState `max` coerce alignment
+
+
+
 
 isLessThan :: (HasCallStack, MonadTest m, Show a, Num a, Ord a) => a -> a -> m ()
 isLessThan x upper = do
