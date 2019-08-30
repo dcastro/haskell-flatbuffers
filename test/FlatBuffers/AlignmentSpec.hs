@@ -5,15 +5,17 @@ module FlatBuffers.AlignmentSpec where
 
 import           Control.Monad.State.Strict
 
+import qualified Data.Binary.Get            as G
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Builder    as B
 import qualified Data.ByteString.Lazy       as BSL
 import           Data.Coerce
-import           Data.Foldable              ( fold )
+import           Data.Foldable              ( fold, foldrM )
 import           Data.Int
 import qualified Data.List                  as List
 import           Data.Monoid                ( Sum(..) )
 import           Data.Semigroup             ( Max(..) )
+import           Data.Text                  ( Text )
 import qualified Data.Text.Encoding         as T
 import           Data.Word
 
@@ -27,6 +29,7 @@ import qualified Hedgehog.Gen               as Gen
 import qualified Hedgehog.Range             as Range
 
 import           TestImports
+
 
 spec :: Spec
 spec =
@@ -134,9 +137,10 @@ spec =
           prop_vectorAlignment (fromIntegral (structSizeOf @Struct4)) (structAlignmentOf @Struct4)
             (struct4 (struct2 maxBound) maxBound maxBound True)
 
-    describe "Text are aligned to 4 bytes" $
-      it "in table fields" $ require $
-        prop_textTableFieldAlignment
+    describe "Text are aligned to 4 bytes" $ do
+      it "in table fields" $ require prop_textTableFieldAlignment
+      it "in vectors" $ require prop_textVectorAlignment
+
 
 
 prop_inlineTableFieldAlignment :: Int32 -> Alignment -> WriteTableField -> Property
@@ -208,6 +212,56 @@ prop_textTableFieldAlignment = property $ do
   getSum (bufferSize finalState) `mod` 4 === 0
 
   testUOffsetAlignment writeUOffset
+
+
+prop_textVectorAlignment :: Property
+prop_textVectorAlignment = property $ do
+  initialState <- forAllWith printFBState genInitialState
+  texts <- forAll $ Gen.list (Range.linear 0 5) (Gen.text (Range.linear 0 30) Gen.unicode)
+
+  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField (vector' texts))) initialState
+
+  let finalBuffer = (B.toLazyByteString (builder finalState))
+
+  let jumpToTextAtIndex :: Int -> BSL.ByteString
+      jumpToTextAtIndex index =
+        flip G.runGet finalBuffer $ do
+          G.skip 4 -- size prefix
+          G.skip (index * 4)
+          offset <- G.getInt32le
+          G.skip (fromIntegral offset - 4)
+          G.getRemainingLazyByteString
+
+  let checkTextAlignment :: (Text, Int) -> BSL.ByteString -> PropertyT IO BSL.ByteString
+      checkTextAlignment (text, index) previousBuffer = do
+        let newBuffer = jumpToTextAtIndex index
+        let textByteCount = BS.length (T.encodeUtf8 text) + 1
+
+        -- At most 4 bytes can be added to the buffer as padding
+        let padding = BSL.length newBuffer - BSL.length previousBuffer - fromIntegral textByteCount - 4
+        padding `isLessThan` 4
+
+        -- The buffer is aligned to 4 bytes
+        BSL.length newBuffer `mod` 4 === 0
+
+        pure $ newBuffer
+
+  bufferWithTexts <- foldrM checkTextAlignment (B.toLazyByteString (builder initialState)) (texts `zip` [0..])
+
+  -- At most 4 bytes can be added to the buffer as padding
+  -- at the point where we finish writing the texts and begin writing the vector of offsets
+  let padding = BSL.length finalBuffer - BSL.length bufferWithTexts - (4 + 4 * fromIntegral (List.length texts))
+  padding `isLessThan` 4
+
+  -- The buffer is aligned to 4 bytes
+  getSum (bufferSize finalState) `mod` 4 === 0
+
+  -- `maxAlign` is either the previous `maxAlign` or 4, whichever's greatest
+  maxAlign finalState === 4 `max` maxAlign initialState
+  fromIntegral (BSL.length (B.toLazyByteString (builder finalState))) === bufferSize finalState
+
+  testUOffsetAlignment writeUOffset
+
 
 
 testUOffsetAlignment :: Monad m => (FBState -> FBState) -> PropertyT m ()
