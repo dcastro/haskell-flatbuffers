@@ -143,9 +143,9 @@ spec =
       it "in table fields" $ require prop_textTableFieldAlignment
       it "in vectors" $ require prop_textVectorAlignment
 
-    describe "Tables are properly aligned" $
+    describe "Tables are properly aligned" $ do
       it "in table fields" $ require prop_tableTableFieldAlignment
-
+      it "in vectors" $ require prop_tableVectorAlignment
 
 
 prop_inlineTableFieldAlignment :: Int32 -> Alignment -> WriteTableField -> Property
@@ -282,6 +282,64 @@ prop_tableTableFieldAlignment = property $ do
 
   tablePadding `isLessThan` 4
   vtablePadding === 0
+
+
+prop_tableVectorAlignment :: Property
+prop_tableVectorAlignment = property $  do
+  initialState <- forAllWith printFBState genInitialState
+  byteFieldsList <- forAll $ Gen.list (Range.linear 0 20) (Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded))
+
+  let tables = vector' (writeTable . fmap writeWord8TableField <$> byteFieldsList)
+  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField tables)) initialState
+
+  testBufferSizeIntegrity finalState
+  testMaxAlign initialState finalState 4
+  testUOffsetAlignment writeUOffset
+  bufferSize finalState `isAlignedTo` 4
+
+  let initialBuffer = B.toLazyByteString (builder initialState)
+  let finalBuffer = B.toLazyByteString (builder finalState)
+
+  let jumpToTableAtIndex :: Int -> (ByteString, Maybe ByteString)
+      jumpToTableAtIndex index =
+        flip G.runGet finalBuffer $ do
+          G.skip (4 + index * 4)
+          offset <- G.getInt32le
+          G.skip (fromIntegral offset - 4)
+          soffset <- G.getInt32le
+          let table = BSL.drop (4 + (fromIntegral index * 4) + fromIntegral offset) finalBuffer
+          let vtableMaybe =
+                if soffset < 0
+                  then Nothing -- used a cached vtable, so there's no need to do any further checking
+                  else Just $ BSL.drop (4 + (fromIntegral index * 4) + fromIntegral offset - fromIntegral soffset) finalBuffer
+          pure (table, vtableMaybe)
+
+  let checkTableAlignment :: ([Word8], Int) -> ByteString -> PropertyT IO ByteString
+      checkTableAlignment (fields, index) previousBuffer = do
+        let (bufferWithTable, bufferWithVtableMaybe) = jumpToTableAtIndex index
+
+        BSL.length bufferWithTable `isAlignedTo` 4
+
+        let tablePadding = BSL.length bufferWithTable - BSL.length previousBuffer - 4 - fromIntegral (List.length fields)
+        tablePadding `isLessThan` 4
+
+        case bufferWithVtableMaybe of
+          Nothing ->
+            pure bufferWithTable
+          Just bufferWithVtable -> do
+            BSL.length bufferWithVtable `isAlignedTo` 2
+
+            let vtablePadding = BSL.length bufferWithVtable - BSL.length bufferWithTable - 2 - 2 - fromIntegral (2 * List.length fields)
+            vtablePadding === 0
+
+            pure bufferWithVtable
+
+  bufferWithTable <- foldrM checkTableAlignment initialBuffer (byteFieldsList `zip` [0..])
+
+  -- At most 4 bytes can be added to the buffer as padding,
+  -- between the vector of offsets and the tables.
+  let padding = BSL.length finalBuffer - BSL.length bufferWithTable - (4 + 4 * fromIntegral (List.length byteFieldsList))
+  padding `isLessThan` 4
 
 
 testUOffsetAlignment :: (FBState -> FBState) -> PropertyT IO ()
