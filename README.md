@@ -17,7 +17,7 @@ WIP. An implementation of the flatbuffers protocol in Haskell.
     - [flatbuffers/63](https://github.com/google/flatbuffers/issues/63)
     - [flatbuffers/3987](https://github.com/google/flatbuffers/pull/3987)
     - [flatbuffers/5313](https://github.com/google/flatbuffers/pull/5313)
-    - [FlatCC](https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#fixed-length-arrays))
+    - [FlatCC](https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#fixed-length-arrays)
 - [ ] unions of strings / structs
     - [FlatCC](https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions)
 - [ ] `key` attribute (See ["Storing dictionaries in a FlatBuffer" section](https://google.github.io/flatbuffers/flatbuffers_guide_use_java_c-sharp.html))

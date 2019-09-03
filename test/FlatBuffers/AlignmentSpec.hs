@@ -3,6 +3,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module FlatBuffers.AlignmentSpec where
 
@@ -147,7 +148,13 @@ spec =
 
     describe "Tables are properly aligned" $ do
       it "in table fields" $ require prop_tableTableFieldAlignment
-      it "in vectors" $ require prop_tableVectorAlignment
+      it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
+        writeVectorTableField (vector' (writeTable . fmap writeWord8TableField <$> byteFieldsList))
+
+    describe "Unions tables are properly aligned" $
+      it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
+        writeUnionValuesVectorTableField (vector' (writeUnion 1 . writeTable . fmap writeWord8TableField <$> byteFieldsList))
+
 
     it "Root is aligned to `maxAlign`" $ require prop_rootAlignment
     it "Root with file identifier is aligned to `maxAlign`" $ require prop_rootWithFileIdentifierAlignment
@@ -291,13 +298,12 @@ prop_tableTableFieldAlignment = property $ do
   vtablePadding === 0
 
 
-prop_tableVectorAlignment :: Property
-prop_tableVectorAlignment = property $  do
+prop_tableVectorAlignment :: ([[Word8]] -> WriteTableField) -> Property
+prop_tableVectorAlignment toVectorOfTables = property $  do
   initialState <- forAllWith printFBState genInitialState
   byteFieldsList <- forAll $ Gen.list (Range.linear 0 20) (Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded))
 
-  let tables = vector' (writeTable . fmap writeWord8TableField <$> byteFieldsList)
-  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField tables)) initialState
+  let (writeUOffset, finalState) = runState (unWriteTableField (toVectorOfTables byteFieldsList)) initialState
 
   testBufferSizeIntegrity finalState
   testMaxAlign initialState finalState 4
@@ -347,6 +353,7 @@ prop_tableVectorAlignment = property $  do
   -- between the vector of offsets and the tables.
   let padding = BSL.length finalBuffer - BSL.length bufferWithTable - (4 + 4 * fromIntegral (List.length byteFieldsList))
   padding `isLessThan` 4
+
 
 
 prop_rootAlignment :: Property

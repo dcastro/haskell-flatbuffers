@@ -614,8 +614,8 @@ instance WriteVectorElement (WriteUnion a) where
             go
             (Vecs [] [])
             unions
-        go wu (Vecs types values) =
-          case wu of
+        go writeUnion (Vecs types values) =
+          case writeUnion of
             None         -> Vecs (0 : types) (Nothing : values)
             Some typ val -> Vecs (typ : types) (Just val : values)
 
