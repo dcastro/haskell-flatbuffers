@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module FlatBuffers.AlignmentSpec where
 
@@ -24,6 +25,7 @@ import           Data.Word
 
 import           Examples
 
+import           FlatBuffers.FileIdentifier ( unsafeFileIdentifier )
 import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
 import           FlatBuffers.Types          ( Alignment(..), InlineSize(..), IsStruct(..) )
@@ -146,6 +148,11 @@ spec =
     describe "Tables are properly aligned" $ do
       it "in table fields" $ require prop_tableTableFieldAlignment
       it "in vectors" $ require prop_tableVectorAlignment
+
+    it "Root is aligned to `maxAlign`" $ require prop_rootAlignment
+    it "Root with file identifier is aligned to `maxAlign`" $ require prop_rootWithFileIdentifierAlignment
+
+
 
 
 prop_inlineTableFieldAlignment :: Int32 -> Alignment -> WriteTableField -> Property
@@ -340,6 +347,62 @@ prop_tableVectorAlignment = property $  do
   -- between the vector of offsets and the tables.
   let padding = BSL.length finalBuffer - BSL.length bufferWithTable - (4 + 4 * fromIntegral (List.length byteFieldsList))
   padding `isLessThan` 4
+
+
+prop_rootAlignment :: Property
+prop_rootAlignment = property $ do
+  initialState <- forAllWith printFBState genInitialState
+  byteFields <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded)
+
+  let finalBuffer = encodeState initialState $ writeTable (writeWord8TableField <$> byteFields)
+
+  let bufferWithVtable =
+        flip G.runGet finalBuffer $ do
+          uoffset <- G.getInt32le
+          G.skip (fromIntegral uoffset - 4)
+          soffset <- G.getInt32le
+          pure $ BSL.drop (fromIntegral (uoffset - soffset)) finalBuffer
+
+  BSL.length finalBuffer `isAlignedTo` ((fromIntegral (getMax (maxAlign initialState))) `max` 4)
+
+  -- At most 14 bytes can be used as padding.
+  -- E.g. If the buffer contains 30 bytes and we need to align to 16 bytes,
+  -- we need to write 14 zeroes + 4 bytes for the root uoffste
+  -- (and end up with a buffer with 48 bytes, a multiple of 16).
+  --
+  -- Note that the buffer cannot possibly contain 29 or 31 bytes because the last thing to be written
+  -- is a table or a vtable (aligned to 2 or 4 bytes).
+  -- If the buffer had 28 bytes, we wouldn't need to pad it.
+  -- If the buffer had 32 bytes, we'd pad it with 12 zeroes.
+  let padding = BSL.length finalBuffer - BSL.length bufferWithVtable - 4
+  padding `isLessThan` 15
+
+
+prop_rootWithFileIdentifierAlignment :: Property
+prop_rootWithFileIdentifierAlignment = property $ do
+  initialState <- forAllWith printFBState genInitialState
+  byteFields <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded)
+
+  let finalBuffer =
+        encodeStateWithFileIdentifier initialState (unsafeFileIdentifier "ABCD") $
+          writeTable (writeWord8TableField <$> byteFields)
+
+  let bufferWithVtable =
+        flip G.runGet finalBuffer $ do
+          uoffset <- G.getInt32le
+          G.skip (fromIntegral uoffset - 4)
+          soffset <- G.getInt32le
+          pure $ BSL.drop (fromIntegral (uoffset - soffset)) finalBuffer
+
+  BSL.length finalBuffer `isAlignedTo` ((fromIntegral (getMax (maxAlign initialState))) `max` 4)
+
+  -- At most 14 bytes can be used as padding.
+  -- E.g. If the buffer contains 26 bytes and we need to align to 16 bytes,
+  -- we need to write 14 zeroes + 4 bytes for the file identifier + 4 bytes for the root uoffset
+  -- (and end up with a buffer with 48 bytes, a multiple of 16).
+  let padding = BSL.length finalBuffer - BSL.length bufferWithVtable - 4 - 4
+  padding `isLessThan` 15
+
 
 
 testUOffsetAlignment :: (FBState -> FBState) -> PropertyT IO ()

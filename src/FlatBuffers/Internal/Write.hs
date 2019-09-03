@@ -67,35 +67,39 @@ data WriteUnion a
 
 {-# INLINE encode #-}
 encode :: WriteTable a -> BSL.ByteString
-encode (WriteTable table) =
+encode = encodeState (FBState mempty (Sum 0) (Max 1) mempty)
+
+{-# INLINE encodeState #-}
+encodeState :: FBState -> WriteTable a -> BSL.ByteString
+encodeState state (WriteTable writeTable) =
   B.toLazyByteString $
   builder $
   execState
-    (do pos <- table
+    (do pos <- writeTable
         maxAlignment <- gets (getMax . maxAlign)
         modify' $ alignTo maxAlignment uoffsetSize
         modify' $ uoffsetFrom pos
     )
-    (FBState mempty (Sum 0) (Max 1) mempty)
+    state
 
 {-# INLINE encodeWithFileIdentifier #-}
 encodeWithFileIdentifier :: forall a. HasFileIdentifier a => WriteTable a -> BSL.ByteString
 encodeWithFileIdentifier =
-  encodeWithFileIdentifier' (getFileIdentifier @a)
+  encodeStateWithFileIdentifier (FBState mempty (Sum 0) (Max 1) mempty) (getFileIdentifier @a)
 
-{-# INLINE encodeWithFileIdentifier' #-}
-encodeWithFileIdentifier' :: forall a. FileIdentifier -> WriteTable a -> BSL.ByteString
-encodeWithFileIdentifier' fi (WriteTable table) =
+{-# INLINE encodeStateWithFileIdentifier #-}
+encodeStateWithFileIdentifier :: FBState -> FileIdentifier -> WriteTable a -> BSL.ByteString
+encodeStateWithFileIdentifier state fi (WriteTable writeTable) =
   B.toLazyByteString $
   builder $
   execState
-    (do pos <- table
+    (do pos <- writeTable
         maxAlignment <- gets (getMax . maxAlign)
         modify' $ alignTo maxAlignment (uoffsetSize + fileIdentifierSize)
         modify' $ writeFileIdentifier fi
         modify' $ uoffsetFrom pos
     )
-    (FBState mempty (Sum 0) (Max 1) mempty)
+    state
 
 
 -- | Writes something (unaligned) to the buffer.
@@ -196,8 +200,8 @@ writeTextTableField text = WriteTableField $ do
 
 {-# INLINE writeTableTableField #-}
 writeTableTableField :: WriteTable a -> WriteTableField
-writeTableTableField (WriteTable st) = WriteTableField $ do
-  loc <- st
+writeTableTableField (WriteTable writeTable) = WriteTableField $ do
+  loc <- writeTable
   pure $! uoffsetFrom loc
 
 {-# INLINE writeStructTableField #-}
@@ -570,8 +574,8 @@ instance WriteVectorElement (WriteTable a) where
     fbs1 <- get
     let !(TableInfo fbs2 positions) =
           foldr
-            (\(WriteTable t) (TableInfo fbs positions) ->
-              let (pos, fbs') = runState t fbs
+            (\(WriteTable writeTable) (TableInfo fbs positions) ->
+              let (pos, fbs') = runState writeTable fbs
               in  TableInfo fbs' (pos : positions)
             )
             (TableInfo fbs1 [])
