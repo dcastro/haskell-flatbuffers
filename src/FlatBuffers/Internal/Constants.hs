@@ -1,7 +1,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-module FlatBuffers.Constants where
+module FlatBuffers.Internal.Constants where
 
 voffsetSize, uoffsetSize, soffsetSize :: Num a => a
 voffsetSize = word16Size

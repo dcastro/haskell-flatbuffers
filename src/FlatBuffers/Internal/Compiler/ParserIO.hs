@@ -14,9 +14,9 @@ import qualified Data.Map.Strict                          as Map
 import           Data.Text                                ( Text )
 import qualified Data.Text                                as T
 
+import           FlatBuffers.Internal.Compiler.Display    ( display )
 import           FlatBuffers.Internal.Compiler.Parser     ( schema )
 import           FlatBuffers.Internal.Compiler.SyntaxTree ( FileTree(..), Include(..), Schema, StringLiteral(..), includes )
-import           FlatBuffers.Internal.Display             ( display )
 
 import qualified System.Directory                         as Dir
 import qualified System.FilePath                          as FP

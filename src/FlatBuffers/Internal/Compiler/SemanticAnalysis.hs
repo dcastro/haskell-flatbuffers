@@ -34,13 +34,13 @@ import qualified Data.Text                                     as T
 import           Data.Traversable                              ( for )
 import           Data.Word
 
-import           FlatBuffers.Constants
+import           FlatBuffers.Internal.Compiler.Display         ( Display(..) )
 import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasIdent(..), HasMetadata(..), Ident, Namespace, Schema, TypeRef(..), qualify )
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.Display                  ( Display(..) )
+import           FlatBuffers.Internal.Constants
+import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Util                     ( isPowerOfTwo, roundUpToNearestMultipleOf )
-import           FlatBuffers.Types
 
 import           Text.Read                                     ( readMaybe )
 

@@ -11,30 +11,30 @@ module FlatBuffers.AlignmentSpec where
 
 import           Control.Monad.State.Strict
 
-import qualified Data.Binary.Get            as G
-import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Builder    as B
-import qualified Data.ByteString.Lazy       as BSL
-import           Data.ByteString.Lazy       ( ByteString )
+import qualified Data.Binary.Get                     as G
+import qualified Data.ByteString                     as BS
+import qualified Data.ByteString.Builder             as B
+import qualified Data.ByteString.Lazy                as BSL
+import           Data.ByteString.Lazy                ( ByteString )
 import           Data.Coerce
-import           Data.Foldable              ( fold, foldrM )
+import           Data.Foldable                       ( fold, foldrM )
 import           Data.Int
-import qualified Data.List                  as List
-import           Data.Monoid                ( Sum(..) )
-import           Data.Semigroup             ( Max(..) )
-import           Data.Text                  ( Text )
-import qualified Data.Text.Encoding         as T
+import qualified Data.List                           as List
+import           Data.Monoid                         ( Sum(..) )
+import           Data.Semigroup                      ( Max(..) )
+import           Data.Text                           ( Text )
+import qualified Data.Text.Encoding                  as T
 import           Data.Word
 
 import           Examples
 
-import           FlatBuffers.FileIdentifier ( unsafeFileIdentifier )
 import           FlatBuffers.Internal.Debug
+import           FlatBuffers.Internal.FileIdentifier ( unsafeFileIdentifier )
+import           FlatBuffers.Internal.Types          ( Alignment(..), IsStruct(..) )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types          ( Alignment(..), IsStruct(..) )
 
-import qualified Hedgehog.Gen               as Gen
-import qualified Hedgehog.Range             as Range
+import qualified Hedgehog.Gen                        as Gen
+import qualified Hedgehog.Range                      as Range
 
 import           TestImports
 

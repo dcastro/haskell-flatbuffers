@@ -19,8 +19,8 @@ import qualified Data.Text.Encoding                       as T
 import           Data.Void                                ( Void )
 import           Data.Word                                ( Word8 )
 
-import           FlatBuffers.Constants                    ( fileIdentifierSize )
 import           FlatBuffers.Internal.Compiler.SyntaxTree
+import           FlatBuffers.Internal.Constants           ( fileIdentifierSize )
 
 import           Text.Megaparsec
 import           Text.Megaparsec.Char

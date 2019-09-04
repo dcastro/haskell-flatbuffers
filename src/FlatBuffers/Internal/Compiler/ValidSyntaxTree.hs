@@ -36,7 +36,7 @@ import           Data.Text                                ( Text )
 import           Data.Word
 
 import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
-import           FlatBuffers.Types
+import           FlatBuffers.Internal.Types
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
 instance HasIdent EnumVal     where getIdent = enumValIdent

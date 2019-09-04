@@ -5,26 +5,26 @@
 
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
-import           Control.Applicative        ( liftA3 )
-import           Control.Exception          ( throwIO )
+import           Control.Applicative                 ( liftA3 )
+import           Control.Exception                   ( throwIO )
 
-import           Data.Aeson                 ( (.=), Value(..), object )
-import qualified Data.Aeson                 as J
-import qualified Data.ByteString.Lazy       as BSL
+import           Data.Aeson                          ( (.=), Value(..), object )
+import qualified Data.Aeson                          as J
+import qualified Data.ByteString.Lazy                as BSL
 import           Data.Int
-import           Data.Maybe                 ( isNothing )
+import           Data.Maybe                          ( isNothing )
 import           Data.Proxy
-import           Data.Typeable              ( Typeable, typeRep )
+import           Data.Typeable                       ( Typeable, typeRep )
 import           Data.Word
 
 import           Examples
 
-import           FlatBuffers.FileIdentifier ( HasFileIdentifier )
-import           FlatBuffers.Internal.Write
+import           FlatBuffers.Internal.FileIdentifier ( HasFileIdentifier )
 import           FlatBuffers.Internal.Read
+import           FlatBuffers.Internal.Write
 
-import qualified System.Directory           as Dir
-import qualified System.Process             as Sys
+import qualified System.Directory                    as Dir
+import qualified System.Process                      as Sys
 
 import           TestImports
 

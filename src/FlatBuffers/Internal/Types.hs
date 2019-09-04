@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module FlatBuffers.Types where
+module FlatBuffers.Internal.Types where
 
 import Data.Word
 

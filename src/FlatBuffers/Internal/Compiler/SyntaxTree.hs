@@ -5,14 +5,14 @@
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
-import           Data.List.NonEmpty           ( NonEmpty )
-import           Data.Map.Strict              ( Map )
-import           Data.Scientific              ( Scientific )
-import           Data.String                  ( IsString(..) )
-import           Data.Text                    ( Text )
-import qualified Data.Text                    as T
+import           Data.List.NonEmpty                    ( NonEmpty )
+import           Data.Map.Strict                       ( Map )
+import           Data.Scientific                       ( Scientific )
+import           Data.String                           ( IsString(..) )
+import           Data.Text                             ( Text )
+import qualified Data.Text                             as T
 
-import           FlatBuffers.Internal.Display ( Display(..) )
+import           FlatBuffers.Internal.Compiler.Display ( Display(..) )
 
 data FileTree a = FileTree
   { fileTreeFilePath :: !FilePath

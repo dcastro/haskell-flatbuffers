@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module FlatBuffers.FileIdentifier
+module FlatBuffers.Internal.FileIdentifier
   ( HasFileIdentifier(..)
   , FileIdentifier(unFileIdentifier)
   , fileIdentifier
@@ -10,12 +10,12 @@ module FlatBuffers.FileIdentifier
   ) where
 
 
-import           Data.ByteString       ( ByteString )
-import qualified Data.ByteString       as BS
-import           Data.Text             ( Text )
-import qualified Data.Text.Encoding    as T
+import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString                as BS
+import           Data.Text                      ( Text )
+import qualified Data.Text.Encoding             as T
 
-import           FlatBuffers.Constants ( fileIdentifierSize )
+import           FlatBuffers.Internal.Constants ( fileIdentifierSize )
 
 -- | An identifier that's used to "mark" a buffer.
 -- To add this mark to a buffer, use `FlatBuffers.Write.encodeWithFileIdentifier`.

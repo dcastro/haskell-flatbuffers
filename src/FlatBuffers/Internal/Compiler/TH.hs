@@ -16,7 +16,6 @@ import           Data.Text                                       ( Text )
 import qualified Data.Text                                       as T
 import           Data.Word
 
-import           FlatBuffers.FileIdentifier                      ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Build
 import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import qualified FlatBuffers.Internal.Compiler.ParserIO          as ParserIO
@@ -24,10 +23,11 @@ import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(.
 import qualified FlatBuffers.Internal.Compiler.SemanticAnalysis  as SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree        as SyntaxTree
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
+import           FlatBuffers.Internal.FileIdentifier             ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Read
+import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Util                       ( Positive(getPositive), nonEmptyUnzip3 )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax                      ( lift )

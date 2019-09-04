@@ -13,16 +13,16 @@ import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
 import           Data.Word
 
-import           FlatBuffers.FileIdentifier                     ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Build
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( validateSchemas )
 import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
 import           FlatBuffers.Internal.Compiler.TH
+import           FlatBuffers.Internal.FileIdentifier            ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Read
+import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Util                      ( Positive(getPositive) )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Cleanup                    ( simplifiedTH )

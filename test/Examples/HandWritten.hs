@@ -2,17 +2,17 @@
 
 module Examples.HandWritten where
 
-import           Data.Coerce                ( coerce )
+import           Data.Coerce                         ( coerce )
 import           Data.Int
-import           Data.Text                  ( Text )
+import           Data.Text                           ( Text )
 import           Data.Word
 
-import           FlatBuffers.FileIdentifier ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Build
+import           FlatBuffers.Internal.FileIdentifier ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Read
-import           FlatBuffers.Internal.Util  ( Positive(getPositive) )
+import           FlatBuffers.Internal.Types
+import           FlatBuffers.Internal.Util           ( Positive(getPositive) )
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types
 
 ----------------------------------
 ---------- Empty table -----------
