@@ -13,7 +13,6 @@ import           Data.Text                  ( Text )
 import qualified Data.Vector                as V
 
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Internal.Read
 
 import           Types
 
@@ -66,7 +65,7 @@ groups =
 
       , bench "of tables (1 int field, 1 string field)" $ nf (\xs ->
           encode . vectorOfUsers . Just . vector (fromIntegral (F.length xs)) $
-            (\(User id age name) -> userTable (Just id) (Just name)) <$> xs
+            (\(User id _ name) -> userTable (Just id) (Just name)) <$> xs
         ) $ mkUserList n
 
       , bench "of unions (1 int field each)" $ nf (\xs ->
@@ -120,7 +119,7 @@ groups =
 
       , bench "of tables (1 int field, 1 string field)" $ nf (\xs ->
           encode . vectorOfUsers . Just . vector (fromIntegral (F.length xs)) $
-            (\(User id age name) -> userTable (Just id) (Just name)) <$> xs
+            (\(User id _ name) -> userTable (Just id) (Just name)) <$> xs
         ) $ mkUserVector n
 
       , bench "of unions (1 int field each)" $ nf (\xs ->

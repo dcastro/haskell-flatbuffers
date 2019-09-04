@@ -10,7 +10,7 @@ Exceeding them might result in overflows.
 
 ### Imports - scope
 
-Juts like in the official implementation, when a schema is imported, it becomes available to all other imported schemas.
+Just like in the official implementation, when a schema is imported, it becomes available to all other imported schemas.
 For example: Schema X imports schemas Y and Z. Schema Y now has access to all definitions declared in Schema Z and vice-versa.
 
 ### Imports - relative paths

@@ -284,7 +284,7 @@ instance VectorElement (Struct a) where
     in readStruct' . moveToElem pos elemSize . checkNegIndex $ ix
   toList vec@(VectorStruct structSize pos) =
     vectorLength vec <&> \len ->
-      go len (move pos int32Size)
+      go len (move pos (int32Size :: Int64))
     where
       go :: Int32 -> Position -> [Struct a]
       go 0 _ = []

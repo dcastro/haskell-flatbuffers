@@ -6,7 +6,6 @@ module FlatBuffers.Internal.Compiler.TH where
 import           Control.Monad                                   ( forM, join )
 import           Control.Monad.Except                            ( runExceptT )
 
-import           Data.Bitraversable                              ( bitraverse )
 import           Data.Coerce                                     ( coerce )
 import           Data.Foldable                                   ( traverse_ )
 import           Data.Int

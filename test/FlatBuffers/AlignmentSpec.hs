@@ -5,6 +5,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module FlatBuffers.AlignmentSpec where
 
 import           Control.Monad.State.Strict
@@ -29,7 +31,7 @@ import           Examples
 import           FlatBuffers.FileIdentifier ( unsafeFileIdentifier )
 import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Types          ( Alignment(..), InlineSize(..), IsStruct(..) )
+import           FlatBuffers.Types          ( Alignment(..), IsStruct(..) )
 
 import qualified Hedgehog.Gen               as Gen
 import qualified Hedgehog.Range             as Range

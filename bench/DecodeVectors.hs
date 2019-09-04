@@ -8,15 +8,10 @@ import           Control.Monad
 
 import           Criterion
 
-import qualified Data.ByteString.Lazy       as BSL
 import           Data.Functor               ( (<&>) )
 import           Data.Int
 import qualified Data.List                  as L
-import           Data.Text                  ( Text )
 import qualified Data.Text                  as T
-import           Data.Word
-
-import           Debug.Trace
 
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Write

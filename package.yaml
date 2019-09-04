@@ -15,7 +15,8 @@ extra-source-files:
 
 ghc-options:
   - -fdefer-typed-holes
-  # - -Wall
+  - -Wall
+  - -Wno-name-shadowing
   - -Wincomplete-record-updates
   - -Wredundant-constraints
   - -O1
@@ -62,6 +63,8 @@ tests:
     - utf8-string
     - process
     - th-pprint
+    ghc-options:
+    - -Wno-incomplete-patterns
 
 benchmarks:
   criterion-bench:
