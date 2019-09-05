@@ -13,8 +13,8 @@ import           Data.Word
 
 import           Examples
 
+import           FlatBuffers.Internal.Read  as F
 import           FlatBuffers.Internal.Write
-import           FlatBuffers.Internal.Read
 
 import           TestImports
 
@@ -223,13 +223,13 @@ spec =
         testPrimVector getVec expectedList = do
           it "non empty" $ do
             vec <- evalRightJust (getVec nonEmptyVecs)
-            vectorLength vec `shouldBe` Right (L.genericLength expectedList)
+            F.length vec `shouldBe` Right (L.genericLength expectedList)
             toList vec       `shouldBe` Right expectedList
             traverse (\i -> vec `index` i) [0 .. L.genericLength expectedList - 1] `shouldBe` Right expectedList
 
           it "empty" $ do
             vec <- evalRightJust (getVec emptyVecs)
-            vectorLength vec `shouldBe` Right 0
+            F.length vec `shouldBe` Right 0
             toList vec       `shouldBe` Right []
 
           it "missing" $
@@ -259,7 +259,7 @@ spec =
           )
 
         Just xs <- evalRight $ vectorOfTablesXs x
-        vectorLength xs `shouldBe` Right 3
+        F.length xs `shouldBe` Right 3
         (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
         (traverse (index xs) [0..2] >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
@@ -267,7 +267,7 @@ spec =
         x <- evalRight $ decode $ encode $ vectorOfTables (Just (vector' []))
 
         xs <- evalRightJust $ vectorOfTablesXs x
-        vectorLength xs `shouldBe` Right 0
+        F.length xs `shouldBe` Right 0
         (toList xs >>= traverse axeY) `shouldBe` Right []
 
       it "missing" $ do
@@ -292,19 +292,19 @@ spec =
         cs <- evalRightJust $ vectorOfStructsCs x
         ds <- evalRightJust $ vectorOfStructsDs x
 
-        vectorLength as `shouldBe` Right 2
+        F.length as `shouldBe` Right 2
         (toList as >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
         (traverse (index as) [0..1] >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
 
-        vectorLength bs `shouldBe` Right 3
+        F.length bs `shouldBe` Right 3
         (toList bs >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
         (traverse (index bs) [0..2] >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
 
-        vectorLength cs `shouldBe` Right 3
+        F.length cs `shouldBe` Right 3
         (toList cs >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
         (traverse (index cs) [0..2] >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
 
-        vectorLength ds `shouldBe` Right 3
+        F.length ds `shouldBe` Right 3
         (toList ds >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
         (traverse (index ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
@@ -317,16 +317,16 @@ spec =
         cs <- evalRightJust $ vectorOfStructsCs x
         ds <- evalRightJust $ vectorOfStructsDs x
 
-        vectorLength as `shouldBe` Right 0
+        F.length as `shouldBe` Right 0
         (toList as >>= traverse readStruct1) `shouldBe` Right []
 
-        vectorLength bs `shouldBe` Right 0
+        F.length bs `shouldBe` Right 0
         (toList bs >>= traverse readStruct2) `shouldBe` Right []
 
-        vectorLength cs `shouldBe` Right 0
+        F.length cs `shouldBe` Right 0
         (toList cs >>= traverse readStruct3) `shouldBe` Right []
 
-        vectorLength ds `shouldBe` Right 0
+        F.length ds `shouldBe` Right 0
         (toList ds >>= traverse readStruct4) `shouldBe` Right []
 
       it "missing" $ do
@@ -363,8 +363,8 @@ spec =
           )
 
         Just xs <- evalRight $ vectorOfUnionsXs x
-        vectorLength xs `shouldBe` Right 3
-        length <$> toList xs `shouldBe` Right 3
+        F.length xs `shouldBe` Right 3
+        L.length <$> toList xs `shouldBe` Right 3
         xs `index` 0 `shouldBeRightAndExpect` shouldBeSword "hi"
         xs `index` 1 `shouldBeRightAndExpect` shouldBeNone
         xs `index` 2 `shouldBeRightAndExpect` shouldBeAxe 98
@@ -373,8 +373,8 @@ spec =
         (toList xs <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 98
 
         xsReq <- evalRight $ vectorOfUnionsXsReq x
-        vectorLength xsReq `shouldBe` Right 3
-        length <$> toList xsReq `shouldBe` Right 3
+        F.length xsReq `shouldBe` Right 3
+        L.length <$> toList xsReq `shouldBe` Right 3
         xsReq `index` 0 `shouldBeRightAndExpect` shouldBeSword "hi2"
         xsReq `index` 1 `shouldBeRightAndExpect` shouldBeNone
         xsReq `index` 2 `shouldBeRightAndExpect` shouldBeAxe 100
@@ -386,17 +386,17 @@ spec =
         x <- evalRight $ decode $ encode $ vectorOfUnions (Just (vector' [])) (vector' [])
 
         Just xs <- evalRight $ vectorOfUnionsXs x
-        vectorLength xs `shouldBe` Right 0
-        length <$> toList xs `shouldBe` Right 0
+        F.length xs `shouldBe` Right 0
+        L.length <$> toList xs `shouldBe` Right 0
 
         xsReq <- evalRight $ vectorOfUnionsXsReq x
-        vectorLength xsReq `shouldBe` Right 0
-        length <$> toList xsReq `shouldBe` Right 0
+        F.length xsReq `shouldBe` Right 0
+        L.length <$> toList xsReq `shouldBe` Right 0
 
       it "missing" $ do
         x <- evalRight $ decode $ encode $ vectorOfUnions Nothing (vector' [])
         vectorOfUnionsXs x `shouldBeRightAnd` isNothing
-        (vectorOfUnionsXsReq x >>= vectorLength) `shouldBe` Right 0
+        (vectorOfUnionsXsReq x >>= F.length) `shouldBe` Right 0
 
       it "throws when union type vector is present, but union value vector is missing" $ do
         x <- evalRight $ decode $ encode $ writeTable @VectorOfUnions

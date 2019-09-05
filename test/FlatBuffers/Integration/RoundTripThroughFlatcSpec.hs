@@ -20,7 +20,7 @@ import           Data.Word
 import           Examples
 
 import           FlatBuffers.Internal.FileIdentifier ( HasFileIdentifier )
-import           FlatBuffers.Internal.Read
+import           FlatBuffers.Internal.Read           as F
 import           FlatBuffers.Internal.Write
 
 import qualified System.Directory                    as Dir
@@ -458,7 +458,7 @@ spec =
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
         xs <- evalRightJust $ vectorOfTablesXs decoded
-        vectorLength xs `shouldBe` Right 0
+        F.length xs `shouldBe` Right 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfTables Nothing
@@ -522,10 +522,10 @@ spec =
         bs <- evalRightJust $ vectorOfStructsBs decoded
         cs <- evalRightJust $ vectorOfStructsCs decoded
         ds <- evalRightJust $ vectorOfStructsCs decoded
-        vectorLength as `shouldBe` Right 0
-        vectorLength bs `shouldBe` Right 0
-        vectorLength cs `shouldBe` Right 0
-        vectorLength ds `shouldBe` Right 0
+        F.length as `shouldBe` Right 0
+        F.length bs `shouldBe` Right 0
+        F.length cs `shouldBe` Right 0
+        F.length ds `shouldBe` Right 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfStructs Nothing Nothing Nothing Nothing
