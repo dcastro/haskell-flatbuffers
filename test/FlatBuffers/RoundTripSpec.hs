@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative        ( liftA3 )
@@ -162,29 +164,24 @@ spec =
         x <- evalRight $ decode $ encode $ tableWithUnion (weaponSword (sword (Just "hi")))
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
-          _                     -> unexpectedUnionType
 
         x <- evalRight $ decode $ encode $ tableWithUnion (weaponAxe (axe (Just maxBound)))
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
-          _                   -> unexpectedUnionType
 
         x <- evalRight $ decode $ encode $ tableWithUnion none
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
-          _         -> unexpectedUnionType
 
       it "returns none when union type is missing" $ do
         x <- evalRight $ decode $ encode $ writeTable [ missing ]
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
-          _         -> unexpectedUnionType
 
       it "returns `unknown` when union type is unknown" $ do
         x <- evalRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 99, writeTableTableField $ writeTable []]
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionUnknown n -> n `shouldBe` 99
-          _              -> unexpectedUnionType
 
       it "throws when union type is present, but union value is missing" $ do
         x <- evalRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 1]
@@ -340,13 +337,10 @@ spec =
       it "non empty" $ do
         let
           shouldBeSword x (Union (WeaponSword s)) = swordX s `shouldBe` Right (Just x)
-          shouldBeSword _ _                       = unexpectedUnionType
 
           shouldBeAxe y (Union (WeaponAxe s)) = axeY s `shouldBe` Right y
-          shouldBeAxe _ _                     = unexpectedUnionType
 
           shouldBeNone UnionNone = pure ()
-          shouldBeNone _         = unexpectedUnionType
 
         x <- evalRight $ decode $ encode $ vectorOfUnions
           (Just $ vector'
@@ -462,9 +456,4 @@ spec =
       (requiredFieldsC x >>= axeY) `shouldBe` Right 44
       requiredFieldsD x `shouldBeRightAndExpect` \case
         Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "a")
-        _                     -> unexpectedUnionType
       (requiredFieldsE x >>= toList) `shouldBe` Right [55, 66]
-
-
-unexpectedUnionType :: HasCallStack => Expectation
-unexpectedUnionType = expectationFailure "Unexpected union type"

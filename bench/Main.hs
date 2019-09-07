@@ -5,6 +5,7 @@ import           Encode
 import           EncodeVectors
 import           Criterion.Main
 
+main :: IO ()
 main =
   defaultMain $
     mconcat

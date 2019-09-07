@@ -3,6 +3,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
 import           Control.Applicative                 ( liftA3 )
@@ -308,7 +310,6 @@ spec =
 
           tableWithUnionUni decoded `shouldBeRightAndExpect` \case
             Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
-            _                     -> unexpectedUnionType
 
         it "with axe" $ do
           (json, decoded) <- flatc $ tableWithUnion (weaponAxe (axe (Just maxBound)))
@@ -320,7 +321,6 @@ spec =
 
           tableWithUnionUni decoded `shouldBeRightAndExpect` \case
             Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
-            _                   -> unexpectedUnionType
 
         it "with none" $ do
           (json, decoded) <- flatc $ tableWithUnion none
@@ -329,7 +329,6 @@ spec =
 
           tableWithUnionUni decoded `shouldBeRightAndExpect` \case
             UnionNone -> pure ()
-            _         -> unexpectedUnionType
 
 
     describe "Vectors" $ do
@@ -609,12 +608,8 @@ spec =
       (requiredFieldsC decoded >>= axeY) `shouldBe` Right 44
       requiredFieldsD decoded `shouldBeRightAndExpect` \case
         Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "a")
-        _                     -> unexpectedUnionType
       (requiredFieldsE decoded >>= toList) `shouldBe` Right [55, 66]
 
-
-unexpectedUnionType :: HasCallStack => Expectation
-unexpectedUnionType = expectationFailure "Unexpected union type"
 
 flatc :: forall a. Typeable a => WriteTable a -> IO (J.Value, Table a)
 flatc table = flatcAux False (encode table)

@@ -63,8 +63,6 @@ tests:
     - utf8-string
     - process
     - th-pprint
-    ghc-options:
-    - -Wno-incomplete-patterns
 
 benchmarks:
   criterion-bench:

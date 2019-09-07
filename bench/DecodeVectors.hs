@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module DecodeVectors where
 
 import           Control.Monad

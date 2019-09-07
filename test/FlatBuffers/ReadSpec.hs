@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module FlatBuffers.ReadSpec where
 
 import           Control.Exception          ( evaluate )
