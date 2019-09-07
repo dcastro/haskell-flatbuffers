@@ -52,14 +52,44 @@ spec =
       requiredFieldsD table `shouldBeRightAndExpect` \case
         UnionNone -> pure ()
 
+      table <- evalRight $ decode @RequiredFields $ encode $ writeTable [ missing ]
+      requiredFieldsD table `shouldBeRightAndExpect` \case
+        UnionNone -> pure ()
+
+    it "throws when union type is present, but union value is missing" $ do
+      table <- evalRight $ decode $ encode $ writeTable [ writeWord8TableField 1]
+      tableWithUnionUni table `shouldBeLeft` MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+
+    it "throws when union type vector is present, but union value vector is missing" $ do
+      table <- evalRight $ decode $ encode $ writeTable
+        [ writeVectorWord8TableField $ vector' @Word8 []
+        , missing
+        , missing
+        , missing
+        , writeVectorWord8TableField $ vector' @Word8 []
+        , missing
+        ]
+      vectorOfUnionsXs table `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+      vectorOfUnionsXsReq table `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+
+    it "throws when union type vector and union value vector have different sizes" $ do
+      let typesVec = vector' [ 1 ]
+      let valuesVec = vector' []
+      table <- evalRight $ decode $ encode $ writeTable
+        [ writeVectorWord8TableField typesVec
+        , writeVectorTableTableField valuesVec
+        ]
+      vec <- evalRightJust $ vectorOfUnionsXs table
+      toList vec `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' and 'value vector' do not have the same length."
+
     describe "returns `UnionUnknown` when union type is not recognized" $ do
-      it "in union fields" $ do
+      it "in union table fields" $ do
         let union = writeUnion 99 (writeTable [])
         table <- evalRight $ decode $ encode $ tableWithUnion union
         tableWithUnionUni table `shouldBeRightAndExpect` \case
           UnionUnknown n -> n `shouldBe` 99
 
-      it "in union vector" $ do
+      it "in union vectors" $ do
         let union = writeUnion 99 (writeTable [])
 
         result <- evalRight $ do

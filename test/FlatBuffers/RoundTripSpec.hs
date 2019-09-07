@@ -173,20 +173,6 @@ spec =
         tableWithUnionUni x `shouldBeRightAndExpect` \case
           UnionNone -> pure ()
 
-      it "returns none when union type is missing" $ do
-        x <- evalRight $ decode $ encode $ writeTable [ missing ]
-        tableWithUnionUni x `shouldBeRightAndExpect` \case
-          UnionNone -> pure ()
-
-      it "returns `unknown` when union type is unknown" $ do
-        x <- evalRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 99, writeTableTableField $ writeTable []]
-        tableWithUnionUni x `shouldBeRightAndExpect` \case
-          UnionUnknown n -> n `shouldBe` 99
-
-      it "throws when union type is present, but union value is missing" $ do
-        x <- evalRight $ decode $ encode $ writeTable @TableWithUnion [ writeWord8TableField 1]
-        tableWithUnionUni x `shouldBeLeft` MalformedBuffer "Union: 'union type' found but 'union value' is missing."
-
     describe "Vectors" $ do
       let Right nonEmptyVecs = decode $ encode $ vectors
             (Just (vector' [minBound, 0, maxBound]))
@@ -391,17 +377,6 @@ spec =
         x <- evalRight $ decode $ encode $ vectorOfUnions Nothing (vector' [])
         vectorOfUnionsXs x `shouldBeRightAnd` isNothing
         (vectorOfUnionsXsReq x >>= F.length) `shouldBe` Right 0
-
-      it "throws when union type vector is present, but union value vector is missing" $ do
-        x <- evalRight $ decode $ encode $ writeTable @VectorOfUnions
-          [ writeVectorWord8TableField $ vector' @Word8 []
-          , missing
-          , missing
-          , missing
-          , writeVectorWord8TableField $ vector' @Word8 []
-          ]
-        vectorOfUnionsXs x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
-        vectorOfUnionsXsReq x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do
