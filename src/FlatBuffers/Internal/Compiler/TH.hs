@@ -3,11 +3,12 @@
 
 module FlatBuffers.Internal.Compiler.TH where
 
-import           Control.Monad                                   ( forM, join )
+import           Control.Monad                                   ( join )
 import           Control.Monad.Except                            ( runExceptT )
 
 import           Data.Coerce                                     ( coerce )
 import           Data.Foldable                                   ( traverse_ )
+import           Data.Functor                                    ( (<&>) )
 import           Data.Int
 import           Data.List.NonEmpty                              ( NonEmpty(..) )
 import qualified Data.List.NonEmpty                              as NE
@@ -104,9 +105,8 @@ mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) = do
   enumName <- newName' $ NC.dataTypeName enum
 
-  enumValNames <-
-    forM (enumVals enum) $ \enumVal ->
-      newName $ T.unpack $ NC.enumUnionMember enum enumVal
+  let enumValNames = enumVals enum <&> \enumVal ->
+        mkName $ T.unpack $ NC.enumUnionMember enum enumVal
 
   let enumDec = mkEnumDataDec enumName enumValNames
   toEnumDecs <- mkToEnum enumName enum (enumVals enum `NE.zip` enumValNames)
@@ -181,7 +181,7 @@ mkFromEnum enumName enum enumValsAndNames = do
 
 mkStruct :: (Namespace, StructDecl) -> Q [Dec]
 mkStruct (_, struct) = do
-  structName <- newName' $ NC.dataTypeName struct
+  let structName = mkName' $ NC.dataTypeName struct
   isStructInstance <- mkIsStructInstance structName struct
 
   let dataDec = DataD [] structName [] Nothing [] []
@@ -299,7 +299,7 @@ mkStructFieldGetter structName struct sf =
 
 mkTable :: (Namespace, TableDecl) -> Q [Dec]
 mkTable (_, table) = do
-  tableName <- newName' $ NC.dataTypeName table
+  let tableName = mkName' $ NC.dataTypeName table
   (consSig, cons) <- mkTableConstructor tableName table
 
   let fileIdentifierDec = mkTableFileIdentifier tableName (tableIsRoot table)
@@ -508,9 +508,8 @@ mkTableFieldGetter tableName table tf =
 mkUnion :: (Namespace, UnionDecl) -> Q [Dec]
 mkUnion (_, union) = do
   unionName <- newName' $ NC.dataTypeName union
-  unionValNames <-
-    forM (unionVals union) $ \unionVal ->
-      newName $ T.unpack $ NC.enumUnionMember union unionVal
+  let unionValNames = unionVals union <&> \unionVal ->
+        mkName $ T.unpack $ NC.enumUnionMember union unionVal
 
   unionConstructors <- mkUnionConstructors unionName union
 
