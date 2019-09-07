@@ -6,7 +6,6 @@ module FlatBuffers.Internal.Compiler.TH where
 import           Control.Monad                                   ( join )
 import           Control.Monad.Except                            ( runExceptT )
 
-import           Data.Coerce                                     ( coerce )
 import           Data.Foldable                                   ( traverse_ )
 import           Data.Functor                                    ( (<&>) )
 import           Data.Int
@@ -243,7 +242,7 @@ mkStructConstructorArg sf = do
           SDouble          -> VarE 'buildDouble
           SBool            -> VarE 'buildBool
           SEnum _ enumType -> mkWriteExp (enumTypeToStructFieldType enumType)
-          SStruct _        -> VarE 'coerce
+          SStruct _        -> VarE 'buildStruct
 
   let exp = mkWriteExp (structFieldType sf) `AppE` argRef
 
@@ -399,11 +398,25 @@ mkTableContructorArg tf =
     mkExpForVector :: Exp -> Required -> VectorElementType -> [Exp]
     mkExpForVector argRef req vecElemType =
         case vecElemType of
+          VInt8            -> [ expForNonScalar req (VarE 'writeVectorInt8TableField) argRef ]
+          VInt16           -> [ expForNonScalar req (VarE 'writeVectorInt16TableField) argRef ]
+          VInt32           -> [ expForNonScalar req (VarE 'writeVectorInt32TableField) argRef ]
+          VInt64           -> [ expForNonScalar req (VarE 'writeVectorInt64TableField) argRef ]
+          VWord8           -> [ expForNonScalar req (VarE 'writeVectorWord8TableField) argRef ]
+          VWord16          -> [ expForNonScalar req (VarE 'writeVectorWord16TableField) argRef ]
+          VWord32          -> [ expForNonScalar req (VarE 'writeVectorWord32TableField) argRef ]
+          VWord64          -> [ expForNonScalar req (VarE 'writeVectorWord64TableField) argRef ]
+          VFloat           -> [ expForNonScalar req (VarE 'writeVectorFloatTableField) argRef ]
+          VDouble          -> [ expForNonScalar req (VarE 'writeVectorDoubleTableField) argRef ]
+          VBool            -> [ expForNonScalar req (VarE 'writeVectorBoolTableField) argRef ]
+          VString          -> [ expForNonScalar req (VarE 'writeVectorTextTableField) argRef ]
+          VEnum _ enumType -> mkExpForVector argRef req (enumTypeToVectorElementType enumType)
+          VStruct _        -> [ expForNonScalar req (VarE 'writeVectorStructTableField) argRef ]
+          VTable _         -> [ expForNonScalar req (VarE 'writeVectorTableTableField) argRef ]
           VUnion _ ->
             [ expForNonScalar req (VarE 'writeUnionTypesVectorTableField) argRef
             , expForNonScalar req (VarE 'writeUnionValuesVectorTableField) argRef
             ]
-          _ -> pure $ expForNonScalar req (VarE 'writeVectorTableField) argRef
 
 mkTableFieldGetter :: Name -> TableDecl -> TableField -> [Dec]
 mkTableFieldGetter tableName table tf =

@@ -2,7 +2,6 @@
 
 module Examples.HandWritten where
 
-import           Data.Coerce                         ( coerce )
 import           Data.Int
 import           Data.Text                           ( Text )
 import           Data.Word
@@ -131,8 +130,8 @@ enums ::
 enums x y xs ys = writeTable
   [ optionalDef 0 writeInt16TableField x
   , optional writeStructTableField y
-  , optional writeVectorTableField xs
-  , optional writeVectorTableField ys
+  , optional writeVectorInt16TableField xs
+  , optional writeVectorStructTableField ys
   ]
 
 enumsX :: Table Enums -> Either ReadError Int16
@@ -213,7 +212,7 @@ instance IsStruct Struct3 where
 
 struct3 :: WriteStruct Struct2 -> Word64 -> Word8 -> WriteStruct Struct3
 struct3 x y z = WriteStruct $
-  coerce x <> buildPadding 4
+  buildStruct x <> buildPadding 4
   <> buildWord64 y
   <> buildWord8 z <> buildPadding 7
 
@@ -234,7 +233,7 @@ instance IsStruct Struct4 where
 
 struct4 :: WriteStruct Struct2 -> Int8 -> Int64 -> Bool -> WriteStruct Struct4
 struct4 w x y z = WriteStruct $
-  coerce w
+  buildStruct w
   <> buildInt8 x <> buildPadding 3
   <> buildInt64 y
   <> buildBool z <> buildPadding 7
@@ -394,18 +393,18 @@ vectors ::
   -> WriteTable Vectors
 vectors a b c d e f g h i j k l =
   writeTable
-    [ optional writeVectorTableField a
-    , optional writeVectorTableField b
-    , optional writeVectorTableField c
-    , optional writeVectorTableField d
-    , optional writeVectorTableField e
-    , optional writeVectorTableField f
-    , optional writeVectorTableField g
-    , optional writeVectorTableField h
-    , optional writeVectorTableField i
-    , optional writeVectorTableField j
-    , optional writeVectorTableField k
-    , optional writeVectorTableField l
+    [ optional writeVectorWord8TableField  a
+    , optional writeVectorWord16TableField b
+    , optional writeVectorWord32TableField c
+    , optional writeVectorWord64TableField d
+    , optional writeVectorInt8TableField   e
+    , optional writeVectorInt16TableField  f
+    , optional writeVectorInt32TableField  g
+    , optional writeVectorInt64TableField  h
+    , optional writeVectorFloatTableField  i
+    , optional writeVectorDoubleTableField j
+    , optional writeVectorBoolTableField   k
+    , optional writeVectorTextTableField   l
     ]
 
 vectorsA :: Table Vectors -> Either ReadError (Maybe (Vector Word8))
@@ -440,7 +439,7 @@ data VectorOfTables
 
 vectorOfTables :: Maybe (WriteVector (WriteTable Axe)) -> WriteTable VectorOfTables
 vectorOfTables xs = writeTable
-  [ optional writeVectorTableField xs
+  [ optional writeVectorTableTableField xs
   ]
 
 vectorOfTablesXs :: Table VectorOfTables -> Either ReadError (Maybe (Vector (Table Axe)))
@@ -458,10 +457,10 @@ vectorOfStructs ::
   -> Maybe (WriteVector (WriteStruct Struct4))
   -> WriteTable VectorOfStructs
 vectorOfStructs as bs cs ds = writeTable
-  [ optional writeVectorTableField as
-  , optional writeVectorTableField bs
-  , optional writeVectorTableField cs
-  , optional writeVectorTableField ds
+  [ optional writeVectorStructTableField as
+  , optional writeVectorStructTableField bs
+  , optional writeVectorStructTableField cs
+  , optional writeVectorStructTableField ds
   ]
 
 vectorOfStructsAs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct1)))
@@ -619,7 +618,7 @@ requiredFields a b c d e = writeTable
   , writeTableTableField c
   , writeUnionTypeTableField d
   , writeUnionValueTableField d
-  , writeVectorTableField e
+  , writeVectorInt32TableField e
   ]
 
 requiredFieldsA :: Table RequiredFields -> Either ReadError Text

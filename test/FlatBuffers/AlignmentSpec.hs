@@ -151,7 +151,7 @@ spec =
     describe "Tables are properly aligned" $ do
       it "in table fields" $ require prop_tableTableFieldAlignment
       it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
-        writeVectorTableField (vector' (writeTable . fmap writeWord8TableField <$> byteFieldsList))
+        writeVectorTableTableField (vector' (writeTable . fmap writeWord8TableField <$> byteFieldsList))
 
     describe "Unions tables are properly aligned" $
       it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
@@ -190,7 +190,7 @@ prop_inlineVectorAlignment elemSize elemAlignment sampleElem = property $ do
   vectorLength <- forAll $ Gen.int (Range.linear 0 5)
 
   let vec = vector' (List.replicate vectorLength sampleElem)
-  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField vec)) initialState
+  let (writeUOffset, finalState) = runState (unWriteTableField (coerce vec)) initialState
 
   testBufferSizeIntegrity finalState
   testMaxAlign initialState finalState (elemAlignment `max` 4)
@@ -231,7 +231,7 @@ prop_textVectorAlignment = property $ do
   initialState <- forAllWith printFBState genInitialState
   texts <- forAll $ Gen.list (Range.linear 0 5) (Gen.text (Range.linear 0 30) Gen.unicode)
 
-  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTableField (vector' texts))) initialState
+  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTextTableField (vector' texts))) initialState
 
   testBufferSizeIntegrity finalState
   testMaxAlign initialState finalState 4

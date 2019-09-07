@@ -15,7 +15,7 @@ import           Control.Monad.State.Strict
 import           Data.ByteString.Builder             ( Builder )
 import qualified Data.ByteString.Builder             as B
 import qualified Data.ByteString.Lazy                as BSL
-import           Data.Coerce                         ( Coercible, coerce )
+import           Data.Coerce                         ( coerce )
 import qualified Data.Foldable                       as Foldable
 import           Data.Int
 import qualified Data.List                           as L
@@ -54,7 +54,7 @@ data FBState = FBState
 
 newtype WriteTableField = WriteTableField { unWriteTableField :: State FBState (FBState -> FBState) }
 
-newtype WriteStruct a = WriteStruct Builder
+newtype WriteStruct a = WriteStruct { buildStruct :: Builder }
 
 newtype WriteTable a = WriteTable (State FBState Position)
 
@@ -219,10 +219,6 @@ writeStructTableField' structAlignment structSize structBuilder =
       , bufferSize = bufferSize fbs <> Sum (fromIntegral @InlineSize @Int32 structSize)
       }
 
-{-# INLINE writeVectorTableField #-}
-writeVectorTableField :: Coercible (WriteVector a) WriteTableField => WriteVector a -> WriteTableField
-writeVectorTableField = coerce
-
 {-# INLINE writeUnionTypesVectorTableField #-}
 writeUnionTypesVectorTableField :: WriteVector (WriteUnion a) -> WriteTableField
 writeUnionTypesVectorTableField (WriteVectorUnion tf _) = tf
@@ -382,85 +378,84 @@ inlineVector build elemAlignment elemSize elemCount elems = WriteTableField $ do
         }
 
 instance WriteVectorElement Word8 where
-  newtype WriteVector Word8 = WriteVectorWord8 WriteTableField
+  newtype WriteVector Word8 = WriteVectorWord8 { writeVectorWord8TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Word8 -> WriteVector Word8
   vector n = WriteVectorWord8 . inlineVector B.word8 word8Size word8Size n
 
 instance WriteVectorElement Word16 where
-  newtype WriteVector Word16 = WriteVectorWord16 WriteTableField
+  newtype WriteVector Word16 = WriteVectorWord16 { writeVectorWord16TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Word16 -> WriteVector Word16
   vector n = WriteVectorWord16 . inlineVector B.word16LE word16Size word16Size n
 
 instance WriteVectorElement Word32 where
-  newtype WriteVector Word32 = WriteVectorWord32 WriteTableField
+  newtype WriteVector Word32 = WriteVectorWord32 { writeVectorWord32TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Word32 -> WriteVector Word32
   vector n = WriteVectorWord32 . inlineVector B.word32LE word32Size word32Size n
 
 instance WriteVectorElement Word64 where
-  newtype WriteVector Word64 = WriteVectorWord64 WriteTableField
+  newtype WriteVector Word64 = WriteVectorWord64 { writeVectorWord64TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Word64 -> WriteVector Word64
   vector n = WriteVectorWord64 . inlineVector B.word64LE word64Size word64Size n
 
 instance WriteVectorElement Int8 where
-  newtype WriteVector Int8 = WriteVectorInt8 WriteTableField
+  newtype WriteVector Int8 = WriteVectorInt8 { writeVectorInt8TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Int8 -> WriteVector Int8
   vector n = WriteVectorInt8 . inlineVector B.int8 int8Size int8Size n
 
 instance WriteVectorElement Int16 where
-  newtype WriteVector Int16 = WriteVectorInt16 WriteTableField
+  newtype WriteVector Int16 = WriteVectorInt16 { writeVectorInt16TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Int16 -> WriteVector Int16
   vector n = WriteVectorInt16 . inlineVector B.int16LE int16Size int16Size n
 
 instance WriteVectorElement Int32 where
-  newtype WriteVector Int32 = WriteVectorInt32 WriteTableField
+  newtype WriteVector Int32 = WriteVectorInt32 { writeVectorInt32TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Int32 -> WriteVector Int32
   vector n = WriteVectorInt32 . inlineVector B.int32LE int32Size int32Size n
 
 instance WriteVectorElement Int64 where
-  newtype WriteVector Int64 = WriteVectorInt64 WriteTableField
+  newtype WriteVector Int64 = WriteVectorInt64 { writeVectorInt64TableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Int64 -> WriteVector Int64
   vector n = WriteVectorInt64 . inlineVector B.int64LE int64Size int64Size n
 
-
 instance WriteVectorElement Float where
-  newtype WriteVector Float = WriteVectorFloat WriteTableField
+  newtype WriteVector Float = WriteVectorFloat { writeVectorFloatTableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Float -> WriteVector Float
   vector n = WriteVectorFloat . inlineVector B.floatLE floatSize floatSize n
 
 instance WriteVectorElement Double where
-  newtype WriteVector Double = WriteVectorDouble WriteTableField
+  newtype WriteVector Double = WriteVectorDouble { writeVectorDoubleTableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Double -> WriteVector Double
   vector n = WriteVectorDouble . inlineVector B.doubleLE doubleSize doubleSize n
 
 instance WriteVectorElement Bool where
-  newtype WriteVector Bool = WriteVectorBool WriteTableField
+  newtype WriteVector Bool = WriteVectorBool { writeVectorBoolTableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Bool -> WriteVector Bool
   vector n = WriteVectorBool . inlineVector (B.word8 . boolToWord8) word8Size word8Size n
 
 instance IsStruct a => WriteVectorElement (WriteStruct a) where
-  newtype WriteVector (WriteStruct a) = WriteVectorStruct WriteTableField
+  newtype WriteVector (WriteStruct a) = WriteVectorStruct { writeVectorStructTableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f (WriteStruct a) -> WriteVector (WriteStruct a)
@@ -482,7 +477,7 @@ data OffsetInfo = OffsetInfo
   }
 
 instance WriteVectorElement Text where
-  newtype WriteVector Text = WriteVectorText WriteTableField
+  newtype WriteVector Text = WriteVectorText { writeVectorTextTableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f Text -> WriteVector Text
@@ -566,7 +561,7 @@ data TableInfo = TableInfo
   }
 
 instance WriteVectorElement (WriteTable a) where
-  newtype WriteVector (WriteTable a) = WriteVectorTable WriteTableField
+  newtype WriteVector (WriteTable a) = WriteVectorTable { writeVectorTableTableField :: WriteTableField }
 
   {-# INLINE vector #-}
   vector :: Foldable f => Int32 -> f (WriteTable a) -> WriteVector (WriteTable a)

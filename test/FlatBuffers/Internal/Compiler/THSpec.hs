@@ -7,7 +7,6 @@ module FlatBuffers.Internal.Compiler.THSpec where
 
 import           Control.Arrow                                  ( second )
 
-import           Data.Coerce                                    ( coerce )
 import           Data.Int
 import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
@@ -578,17 +577,17 @@ spec =
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable
-                    [ optional writeVectorTableField a
-                    , optional writeVectorTableField b
-                    , optional writeVectorTableField c
-                    , optional writeVectorTableField d
-                    , optional writeVectorTableField e
-                    , optional writeVectorTableField f
-                    , optional writeVectorTableField g
-                    , optional writeVectorTableField h
-                    , optional writeVectorTableField i
-                    , optional writeVectorTableField j
-                    , optional writeVectorTableField k
+                    [ optional writeVectorWord8TableField  a
+                    , optional writeVectorWord16TableField b
+                    , optional writeVectorWord32TableField c
+                    , optional writeVectorWord64TableField d
+                    , optional writeVectorInt8TableField   e
+                    , optional writeVectorInt16TableField  f
+                    , optional writeVectorInt32TableField  g
+                    , optional writeVectorInt64TableField  h
+                    , optional writeVectorFloatTableField  i
+                    , optional writeVectorDoubleTableField j
+                    , optional writeVectorBoolTableField   k
                     ]
 
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector Word8))
@@ -649,17 +648,17 @@ spec =
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable
-                    [ writeVectorTableField a
-                    , writeVectorTableField b
-                    , writeVectorTableField c
-                    , writeVectorTableField d
-                    , writeVectorTableField e
-                    , writeVectorTableField f
-                    , writeVectorTableField g
-                    , writeVectorTableField h
-                    , writeVectorTableField i
-                    , writeVectorTableField j
-                    , writeVectorTableField k
+                    [ writeVectorWord8TableField  a
+                    , writeVectorWord16TableField b
+                    , writeVectorWord32TableField c
+                    , writeVectorWord64TableField d
+                    , writeVectorInt8TableField   e
+                    , writeVectorInt16TableField  f
+                    , writeVectorInt32TableField  g
+                    , writeVectorInt64TableField  h
+                    , writeVectorFloatTableField  i
+                    , writeVectorDoubleTableField j
+                    , writeVectorBoolTableField   k
                     ]
 
                 t1A :: Table T1 -> Either ReadError (Vector Word8)
@@ -694,7 +693,7 @@ spec =
               [d|
                 data T1
                 t1 :: Maybe (WriteVector Text) -> WriteTable T1
-                t1 a = writeTable [ optional writeVectorTableField a ]
+                t1 a = writeTable [ optional writeVectorTextTableField a ]
 
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector Text))
                 t1A = readTableFieldOpt (readPrimVector VectorText) 0
@@ -706,7 +705,7 @@ spec =
               [d|
                 data T1
                 t1 :: WriteVector Text -> WriteTable T1
-                t1 a = writeTable [ writeVectorTableField a ]
+                t1 a = writeTable [ writeVectorTextTableField a ]
 
                 t1A :: Table T1 -> Either ReadError (Vector Text)
                 t1A = readTableFieldReq (readPrimVector VectorText) 0 (T.pack "a")
@@ -736,7 +735,7 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector Int16) -> WriteTable T1
                 t1 a = writeTable
-                  [ optional writeVectorTableField a
+                  [ optional writeVectorInt16TableField a
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector Int16))
@@ -765,7 +764,7 @@ spec =
                 data T1
                 t1 :: WriteVector Int16 -> WriteTable T1
                 t1 a = writeTable
-                  [ writeVectorTableField a
+                  [ writeVectorInt16TableField a
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector Int16)
@@ -793,7 +792,7 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector (WriteStruct S1)) -> WriteTable T1
                 t1 a = writeTable
-                  [ optional writeVectorTableField a
+                  [ optional writeVectorStructTableField a
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector (Struct S1)))
@@ -820,7 +819,7 @@ spec =
                 data T1
                 t1 :: WriteVector (WriteStruct S1) -> WriteTable T1
                 t1 a = writeTable
-                  [ writeVectorTableField a
+                  [ writeVectorStructTableField a
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector (Struct S1))
@@ -836,7 +835,7 @@ spec =
                 data T1
                 t1 :: Maybe (WriteVector (WriteTable T1)) -> WriteTable T1
                 t1 a = writeTable
-                  [ optional writeVectorTableField a
+                  [ optional writeVectorTableTableField a
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector (Table T1)))
@@ -850,7 +849,7 @@ spec =
                 data T1
                 t1 :: WriteVector (WriteTable T1) -> WriteTable T1
                 t1 a = writeTable
-                  [ writeVectorTableField a
+                  [ writeVectorTableTableField a
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector (Table T1))
@@ -1077,7 +1076,7 @@ spec =
               structSizeOf = 2
 
             s1 :: WriteStruct S2 -> WriteStruct S1
-            s1 s2 = WriteStruct (coerce s2 <> buildPadding 1)
+            s1 s2 = WriteStruct (buildStruct s2 <> buildPadding 1)
 
             s1S2 :: Struct S1 -> Struct S2
             s1S2 = readStructField readStruct 0

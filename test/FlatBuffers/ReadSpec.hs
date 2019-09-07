@@ -30,7 +30,7 @@ spec =
         [ missing, missing, missing, missing
         , missing, missing, missing, missing
         , missing, missing, missing
-        , writeVectorTableField text
+        , writeVectorWord8TableField text
         ]
       primitivesL table `shouldBeLeft`
         Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)

@@ -400,11 +400,11 @@ spec =
 
       it "throws when union type vector is present, but union value vector is missing" $ do
         x <- evalRight $ decode $ encode $ writeTable @VectorOfUnions
-          [ writeVectorTableField $ vector' @Word8 []
+          [ writeVectorWord8TableField $ vector' @Word8 []
           , missing
           , missing
           , missing
-          , writeVectorTableField $ vector' @Word8 []
+          , writeVectorWord8TableField $ vector' @Word8 []
           ]
         vectorOfUnionsXs x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
         vectorOfUnionsXsReq x `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
