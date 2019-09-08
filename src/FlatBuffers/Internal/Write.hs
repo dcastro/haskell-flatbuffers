@@ -8,6 +8,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 
+{-# OPTIONS_HADDOCK not-home #-}
+
 module FlatBuffers.Internal.Write where
 
 import           Control.Monad.State.Strict
@@ -183,7 +185,6 @@ writeDoubleTableField n = WriteTableField . pure $! write doubleSize (B.doubleLE
 writeBoolTableField :: Bool -> WriteTableField
 writeBoolTableField = writeWord8TableField . boolToWord8
 
--- | The input is assumed not to exceed the buffer size limit of 2^31 - 1 bytes.
 {-# INLINE writeTextTableField #-}
 writeTextTableField :: Text -> WriteTableField
 writeTextTableField text = WriteTableField $ do
@@ -327,12 +328,21 @@ class WriteVectorElement a where
 
   data WriteVector a
 
-  -- |
-  -- Implementer's note: We choose to ask for the collection's length to be passed in as an argument rather than use `Foldable.length` because:
-  -- 1. `Foldable.length` is often O(1), and in some use cases there may be a better way to know the collection's length.
-  -- 2. Calling `Foldable.length` inside `vector` can inhibit some fusions which would otherwise be possible.
+  -- | Constructs a flatbuffers vector.
   --
-  -- For example, this version of `vector` that calls `Foldable.length` internally:
+  -- If @n@ is larger than the length of @xs@, this will result in a malformed buffer.
+  -- If @n@ is smaller than the length of @xs@, all elements of @xs@ will still be written to the buffer,
+  -- but the client will only be able to read the first @n@ elements.
+  --
+  -- Note: `vector` asks for the collection's length to be passed in as an argument rather than use @Foldable.length@ because:
+  --
+  -- 1. @Foldable.length@ is often O(n), and in some use cases there may be a better way to know the collection's length ahead of time.
+  -- 2. Calling @Foldable.length@ inside `vector` can inhibit some fusions which would otherwise be possible.
+
+
+  -- Implementer's note:
+  -- To elaborate on point 2., here's an example.
+  -- This version of `vector` that calls @Foldable.length@ internally:
   --
   -- > encodeUserIds' :: [User] -> BSL.ByteString
   -- > encodeUserIds' = encode . userIdsTable $ vector (userId <$> users))
@@ -343,19 +353,25 @@ class WriteVectorElement a where
   -- >       buffer = foldr ... ... xs
   -- >   in  ...
   --
-  -- ...prevents `<$>` and `foldr` from being fused, and so it's 4x slower than when the length is passed in:
+  -- ...prevents `<$>` and `foldr` from being fused, and so it's much slower than when the length is passed in:
   --
   -- > encodeUserIds :: [User] -> BSL.ByteString
-  -- > encodeUserIds = encode . userIdsTable $ vector (userId <$> users) (fromIntegral (F.length users))
+  -- > encodeUserIds = encode . userIdsTable $ vector (userId <$> users) (fromIntegral (Foldable.length users))
   -- >
   -- > {-# INLINE vector #-}
   -- > vector xs length =
   -- >   let buffer = foldr ... ... xs
   -- >   in  ...
-  vector :: Foldable f => Int32 -> f a -> WriteVector a
+  vector ::
+       Foldable f
+    => Int32      -- ^ @n@: the number of elements in @xs@
+    -> f a        -- ^ @xs@: a collection
+    -> WriteVector a
 
 -- | Convenience function, equivalent to
--- > vector' xs = vector (fromIntegral $ Foldable.length xs) xs
+--
+-- > vector' xs = vector (fromIntegral (Foldable.length xs)) xs
+--
 -- In some cases it may be slower than using `vector` directly.
 {-# INLINE vector' #-}
 vector' :: WriteVectorElement a => Foldable f => f a -> WriteVector a

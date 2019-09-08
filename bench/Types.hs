@@ -2,6 +2,6 @@
 
 module Types where
 
-import           FlatBuffers.Internal.Compiler.TH
+import           FlatBuffers
 
 $(mkFlatBuffers "bench/types.fbs" defaultOptions)

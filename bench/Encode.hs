@@ -2,7 +2,7 @@ module Encode where
 
 import           Criterion
 
-import           FlatBuffers.Internal.Write
+import           FlatBuffers
 
 import           Types
 

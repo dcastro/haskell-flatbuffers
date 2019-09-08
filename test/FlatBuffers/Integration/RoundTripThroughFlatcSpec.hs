@@ -7,26 +7,25 @@
 
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
-import           Control.Applicative                 ( liftA3 )
-import           Control.Exception                   ( throwIO )
+import           Control.Applicative  ( liftA3 )
+import           Control.Exception    ( throwIO )
 
-import           Data.Aeson                          ( (.=), Value(..), object )
-import qualified Data.Aeson                          as J
-import qualified Data.ByteString.Lazy                as BSL
+import           Data.Aeson           ( (.=), Value(..), object )
+import qualified Data.Aeson           as J
+import qualified Data.ByteString.Lazy as BSL
 import           Data.Int
-import           Data.Maybe                          ( isNothing )
+import           Data.Maybe           ( isNothing )
 import           Data.Proxy
-import           Data.Typeable                       ( Typeable, typeRep )
+import           Data.Typeable        ( Typeable, typeRep )
 import           Data.Word
 
 import           Examples
 
-import           FlatBuffers.Internal.FileIdentifier ( HasFileIdentifier )
-import           FlatBuffers.Internal.Read           as F
-import           FlatBuffers.Internal.Write
+import           FlatBuffers
+import qualified FlatBuffers.Vector   as Vec
 
-import qualified System.Directory                    as Dir
-import qualified System.Process                      as Sys
+import qualified System.Directory     as Dir
+import qualified System.Process       as Sys
 
 import           TestImports
 
@@ -169,8 +168,8 @@ spec =
         (json, decoded) <- flatc $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          (Just (vector' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
-          (Just (vector' [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
+          (Just (Vec.vector' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
+          (Just (Vec.vector' [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
 
         json `shouldBeJson` object
           [ "x" .= String "Gray"
@@ -184,8 +183,8 @@ spec =
 
         toColor <$> enumsX decoded `shouldBe` Right (Just ColorGray)
         (enumsY decoded >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
-        (enumsXs decoded >>= traverse toList) `shouldBe` Right (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
-        (enumsYs decoded >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe`
+        (enumsXs decoded >>= traverse Vec.toList) `shouldBe` Right (Just [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen])
+        (enumsYs decoded >>= traverse Vec.toList >>= traverse (traverse readStructWithEnum)) `shouldBe`
           Right (Just
             [ (33, Just ColorRed, 44)
             , (55, Just ColorGreen, 66)
@@ -334,18 +333,18 @@ spec =
     describe "Vectors" $ do
       it "non-empty" $ do
         (json, decoded) <- flatc $ vectors
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [minBound, 0, maxBound]))
-          (Just (vector' [-12e9, 0, 3.333333]))
-          (Just (vector' [-12e98, 0, 3.33333333333333333333]))
-          (Just (vector' [True, False, True]))
-          (Just (vector' ["hi 👬 bye", "", "world"]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [minBound, 0, maxBound]))
+          (Just (Vec.vector' [-12e9, 0, 3.333333]))
+          (Just (Vec.vector' [-12e98, 0, 3.33333333333333333333]))
+          (Just (Vec.vector' [True, False, True]))
+          (Just (Vec.vector' ["hi 👬 bye", "", "world"]))
 
         json `shouldBeJson` object
           [ "a" .= [ minBound @Word8, 0, maxBound @Word8 ]
@@ -362,24 +361,24 @@ spec =
           , "l" .= [ String "hi 👬 bye", String "", String "world"]
           ]
 
-        (vectorsA decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsB decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsC decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsD decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsE decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsF decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsG decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsH decoded >>= traverse toList) `shouldBe` Right (Just [minBound, 0, maxBound])
-        (vectorsI decoded >>= traverse toList) `shouldBe` Right (Just [-12e9, 0, 3.333333])
-        (vectorsJ decoded >>= traverse toList) `shouldBe` Right (Just [-12e98, 0, 3.333333333333])
-        (vectorsK decoded >>= traverse toList) `shouldBe` Right (Just [True, False, True])
-        (vectorsL decoded >>= traverse toList) `shouldBe` Right (Just ["hi 👬 bye", "", "world"])
+        (vectorsA decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsB decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsC decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsD decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsE decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsF decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsG decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsH decoded >>= traverse Vec.toList) `shouldBe` Right (Just [minBound, 0, maxBound])
+        (vectorsI decoded >>= traverse Vec.toList) `shouldBe` Right (Just [-12e9, 0, 3.333333])
+        (vectorsJ decoded >>= traverse Vec.toList) `shouldBe` Right (Just [-12e98, 0, 3.333333333333])
+        (vectorsK decoded >>= traverse Vec.toList) `shouldBe` Right (Just [True, False, True])
+        (vectorsL decoded >>= traverse Vec.toList) `shouldBe` Right (Just ["hi 👬 bye", "", "world"])
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectors
-          (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
-          (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
-          (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
+          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
+          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
+          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
 
         json `shouldBeJson` object
           [ "a" .= [] @Value
@@ -396,18 +395,18 @@ spec =
           , "l" .= [] @Value
           ]
 
-        (vectorsA decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsB decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsC decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsD decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsE decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsF decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsG decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsH decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsI decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsJ decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsK decoded >>= traverse toList) `shouldBe` Right (Just [])
-        (vectorsL decoded >>= traverse toList) `shouldBe` Right (Just [])
+        (vectorsA decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsB decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsC decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsD decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsE decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsF decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsG decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsH decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsI decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsJ decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsK decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
+        (vectorsL decoded >>= traverse Vec.toList) `shouldBe` Right (Just [])
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectors
@@ -433,7 +432,7 @@ spec =
     describe "VectorOfTables" $ do
       it "non empty" $ do
         (json, decoded) <- flatc $ vectorOfTables
-          (Just $ vector'
+          (Just $ Vec.vector'
             [ axe (Just minBound)
             , axe (Just 0)
             , axe (Just maxBound)
@@ -449,15 +448,15 @@ spec =
           ]
 
         xs <- evalRightJust $ vectorOfTablesXs decoded
-        (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
+        (Vec.toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
-        (json, decoded) <- flatc $ vectorOfTables (Just (vector' []))
+        (json, decoded) <- flatc $ vectorOfTables (Just (Vec.vector' []))
 
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
         xs <- evalRightJust $ vectorOfTablesXs decoded
-        F.length xs `shouldBe` Right 0
+        Vec.length xs `shouldBe` Right 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfTables Nothing
@@ -474,10 +473,10 @@ spec =
 
       it "non empty" $ do
         (json, decoded) <- flatc $ vectorOfStructs
-          (Just (vector' [struct1 1 2 3, struct1 4 5 6]))
-          (Just (vector' [struct2 101, struct2 102, struct2 103]))
-          (Just (vector' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
-          (Just (vector' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
+          (Just (Vec.vector' [struct1 1 2 3, struct1 4 5 6]))
+          (Just (Vec.vector' [struct2 101, struct2 102, struct2 103]))
+          (Just (Vec.vector' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
+          (Just (Vec.vector' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
 
         json `shouldBeJson` object
           [ "as" .=
@@ -501,10 +500,10 @@ spec =
             ]
           ]
 
-        as <- evalRightJust (vectorOfStructsAs decoded) >>= (evalRight . toList)
-        bs <- evalRightJust (vectorOfStructsBs decoded) >>= (evalRight . toList)
-        cs <- evalRightJust (vectorOfStructsCs decoded) >>= (evalRight . toList)
-        ds <- evalRightJust (vectorOfStructsDs decoded) >>= (evalRight . toList)
+        as <- evalRightJust (vectorOfStructsAs decoded) >>= (evalRight . Vec.toList)
+        bs <- evalRightJust (vectorOfStructsBs decoded) >>= (evalRight . Vec.toList)
+        cs <- evalRightJust (vectorOfStructsCs decoded) >>= (evalRight . Vec.toList)
+        ds <- evalRightJust (vectorOfStructsDs decoded) >>= (evalRight . Vec.toList)
 
         traverse readStruct1 as `shouldBe` Right [(1,2,3), (4,5,6)]
         traverse readStruct2 bs `shouldBe` Right [101, 102, 103]
@@ -513,7 +512,7 @@ spec =
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectorOfStructs
-          (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
+          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
 
         json `shouldBeJson` object [ "as" .= [] @Value, "bs" .= [] @Value, "cs" .= [] @Value, "ds" .= [] @Value ]
 
@@ -521,10 +520,10 @@ spec =
         bs <- evalRightJust $ vectorOfStructsBs decoded
         cs <- evalRightJust $ vectorOfStructsCs decoded
         ds <- evalRightJust $ vectorOfStructsCs decoded
-        F.length as `shouldBe` Right 0
-        F.length bs `shouldBe` Right 0
-        F.length cs `shouldBe` Right 0
-        F.length ds `shouldBe` Right 0
+        Vec.length as `shouldBe` Right 0
+        Vec.length bs `shouldBe` Right 0
+        Vec.length cs `shouldBe` Right 0
+        Vec.length ds `shouldBe` Right 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfStructs Nothing Nothing Nothing Nothing
@@ -592,7 +591,7 @@ spec =
         (struct1 11 22 33)
         (axe (Just 44))
         (weaponSword (sword (Just "a")))
-        (vector' [55, 66])
+        (Vec.vector' [55, 66])
 
       json `shouldBeJson` object
         [ "a" .= String "hello"
@@ -608,7 +607,7 @@ spec =
       (requiredFieldsC decoded >>= axeY) `shouldBe` Right 44
       requiredFieldsD decoded `shouldBeRightAndExpect` \case
         Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "a")
-      (requiredFieldsE decoded >>= toList) `shouldBe` Right [55, 66]
+      (requiredFieldsE decoded >>= Vec.toList) `shouldBe` Right [55, 66]
 
 
 flatc :: forall a. Typeable a => WriteTable a -> IO (J.Value, Table a)

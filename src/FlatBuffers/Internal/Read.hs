@@ -13,39 +13,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE InstanceSigs #-}
 
-module FlatBuffers.Internal.Read
-  ( TableIndex(..)
-  , VOffset(..)
-  , ReadError(..)
-  , Struct(..)
-  , Table(..)
-  , OffsetFromRoot(..)
-  , HasPosition(..)
-  , Position
-  , PositionInfo(..)
-  , Vector(..), VectorElement(..)
-  , Union(..)
-  , decode
-  , checkFileIdentifier, checkFileIdentifier'
-  , readWord8, readWord16, readWord32, readWord64
-  , readInt8, readInt16, readInt32, readInt64
-  , readBool, readFloat, readDouble
-  , readText
-  , readTable
-  , readTable'
-  , readPrimVector
-  , readTableVector
-  , readStructVector
-  , readStruct
-  , readStruct'
-  , readStructField
-  , readTableFieldOpt
-  , readTableFieldReq
-  , readTableFieldWithDef
-  , readTableFieldUnion
-  , readTableFieldUnionVectorOpt
-  , readTableFieldUnionVectorReq
-  ) where
+{-# OPTIONS_HADDOCK not-home #-}
+
+module FlatBuffers.Internal.Read where
 
 import           Control.DeepSeq                     ( NFData )
 import           Control.Exception                   ( Exception )
@@ -134,7 +104,7 @@ decode root = readTable initialPos
     initialPos = PositionInfo root root 0
 
 -- | Checks if a buffer contains the file identifier for a root table @a@, to see if it's
--- safe to decode it to a table @a@.
+-- safe to decode it to a `Table`.
 -- It should be used in conjunction with @-XTypeApplications@.
 --
 -- > {-# LANGUAGE TypeApplications #-}
@@ -182,8 +152,12 @@ class VectorElement a where
 
   length :: Vector a -> Either ReadError Int32
 
-  -- | If the index is too large, this might read garbage data, or fail with a `ReadError`.
+  -- | Returns the element at the given index.
   -- If the index is negative, an exception will be thrown.
+  -- If the index is too large, this might:
+  --
+  -- 1. read garbage data (but not from outside the buffer's boundaries)
+  -- 2. fail with a `ReadError`
   index :: Vector a -> Int32 -> Either ReadError a
 
   toList :: Vector a -> Either ReadError [a]
@@ -586,8 +560,10 @@ runGet get bs =
     Right (_, _, a)  -> Right a
     Left (_, _, msg) -> Left $ ParsingError (T.pack msg)
 
+-- | Safer version of `Data.ByteString.Lazy.index` that doesn't throw when index is too large.
+-- Assumes @i > 0@.
+
 -- Adapted from `Data.ByteString.Lazy.index`: https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/src/Data.ByteString.Lazy.html#index
--- Assumes i >= 0.
 {-# INLINE byteStringSafeIndex #-}
 byteStringSafeIndex :: ByteString -> Int32 -> Either ReadError Word8
 byteStringSafeIndex !cs0 !i =
