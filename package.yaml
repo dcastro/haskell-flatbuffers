@@ -1,17 +1,26 @@
 name:                flatbuffers
 version:             0.1.0.0
-#synopsis:
-#description:
-homepage:            https://github.com/dcastro/haskell-flatbuffers#readme
+homepage:            https://github.com/dcastro/haskell-flatbuffers
+github:              dcastro/haskell-flatbuffers
 license:             BSD3
 author:              Diogo Castro
 maintainer:          dc@diogocastro.com
-copyright:           2017 Diogo Castro
-category:            Web
+copyright:           2019 Diogo Castro
+category:            Data, Serialization, Network
+tested-with:         GHC == 8.6.5
+
+synopsis:            Haskell implementation of the FlatBuffers protocol.
+description:
+  Haskell implementation of the FlatBuffers protocol,
+  a protocol for memory efficient serialization, originally designed by Google.
+
 
 extra-source-files:
-- README.md
-- cbits/cbits.c
+  - README.md
+  - cbits/cbits.c
+
+extra-doc-files:
+  - README.md
 
 ghc-options:
   - -fdefer-typed-holes
