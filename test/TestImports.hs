@@ -11,17 +11,24 @@ module TestImports
   , liftA4
   , PrettyJson(..)
   , shouldBeJson
+  , showBuffer
+  , traceBufferM
   ) where
 
 import           Control.Monad                  ( (>=>) )
 
 import qualified Data.Aeson                     as J
 import           Data.Aeson.Encode.Pretty       ( encodePretty )
+import qualified Data.ByteString.Lazy           as BSL
 import qualified Data.ByteString.Lazy.UTF8      as BSLU
+import qualified Data.List                      as List
+
+import           Debug.Trace
 
 import           GHC.Stack                      ( HasCallStack )
 
 import           HaskellWorks.Hspec.Hedgehog    as Hedgehog
+
 import           Hedgehog                       as Hedgehog
 
 import           Test.HUnit                     ( assertFailure )
@@ -79,3 +86,17 @@ liftA4 ::
    (a -> b -> c -> d -> r) -> m a -> m b -> m c -> m d -> m r
 liftA4 fn a b c d = fn <$> a <*> b <*> c <*> d
 
+
+traceBufferM :: Applicative m => BSL.ByteString -> m ()
+traceBufferM = traceM . showBuffer
+
+showBuffer :: BSL.ByteString -> String
+showBuffer bs =
+  List.intercalate "\n" . fmap (List.intercalate ", ") . groupsOf 4 . fmap show $
+  BSL.unpack bs
+
+groupsOf :: Int -> [a] -> [[a]]
+groupsOf n xs =
+  case take n xs of
+    [] -> []
+    group -> group : groupsOf n (drop n xs)

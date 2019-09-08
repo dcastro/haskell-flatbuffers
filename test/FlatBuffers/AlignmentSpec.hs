@@ -28,7 +28,6 @@ import           Data.Word
 
 import           Examples
 
-import           FlatBuffers.Internal.Debug
 import           FlatBuffers.Internal.FileIdentifier ( unsafeFileIdentifier )
 import           FlatBuffers.Internal.Types          ( Alignment(..), IsStruct(..) )
 import           FlatBuffers.Internal.Write
