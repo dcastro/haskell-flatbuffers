@@ -5,9 +5,6 @@
 
 :set +t
 
-:set -package pretty-simple
-import Text.Pretty.Simple (pPrint)
-
 :set -package th-pprint
 :seti -XTemplateHaskell -XTypeApplications -XFlexibleContexts -XOverloadedStrings
 import Language.Haskell.TH

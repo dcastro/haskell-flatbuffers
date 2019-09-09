@@ -8,6 +8,12 @@ hoogle: ## Launch a hoogle server
 	stack hoogle --server
 .PHONY: hoogle
 
+ghci:		## Launch ghci with some default settings
+	stack ghci \
+		--package=pretty-simple \
+		--ghci-options=-interactive-print=Text.Pretty.Simple.pPrint
+.PHONY: ghci
+
 ghcid:  ## Launch ghcid
 	ghcid \
 		--command "stack ghci --test --bench --ghci-options='-dsuppress-uniques -dsuppress-module-prefixes'" \
