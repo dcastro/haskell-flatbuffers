@@ -270,7 +270,7 @@ spec =
               t s = writeTable [writeTextTableField s]
 
               tS :: Table T -> Either ReadError Text
-              tS = readTableFieldReq readText 0 (T.pack "s")
+              tS = readTableFieldReq readText 0 "s"
             |]
 
       describe "enum fields" $
@@ -377,7 +377,7 @@ spec =
               t x = writeTable [writeStructTableField x]
 
               tX :: Table T -> Either ReadError (Struct S)
-              tX = readTableFieldReq readStruct' 0 (T.pack "X")
+              tX = readTableFieldReq readStruct' 0 "X"
             |]
 
       describe "table fields" $ do
@@ -423,7 +423,7 @@ spec =
               t1 x = writeTable [writeTableTableField x]
 
               t1X :: Table T1 -> Either ReadError (Table T2)
-              t1X = readTableFieldReq readTable 0 (T.pack "x")
+              t1X = readTableFieldReq readTable 0 "x"
 
               data T2
               t2 :: WriteTable T2
@@ -662,27 +662,27 @@ spec =
                     ]
 
                 t1A :: Table T1 -> Either ReadError (Vector Word8)
-                t1A = readTableFieldReq (readPrimVector VectorWord8)   0 (T.pack "a")
+                t1A = readTableFieldReq (readPrimVector VectorWord8)   0 "a"
                 t1B :: Table T1 -> Either ReadError (Vector Word16)
-                t1B = readTableFieldReq (readPrimVector VectorWord16)  1 (T.pack "b")
+                t1B = readTableFieldReq (readPrimVector VectorWord16)  1 "b"
                 t1C :: Table T1 -> Either ReadError (Vector Word32)
-                t1C = readTableFieldReq (readPrimVector VectorWord32)  2 (T.pack "c")
+                t1C = readTableFieldReq (readPrimVector VectorWord32)  2 "c"
                 t1D :: Table T1 -> Either ReadError (Vector Word64)
-                t1D = readTableFieldReq (readPrimVector VectorWord64)  3 (T.pack "d")
+                t1D = readTableFieldReq (readPrimVector VectorWord64)  3 "d"
                 t1E :: Table T1 -> Either ReadError (Vector Int8)
-                t1E = readTableFieldReq (readPrimVector VectorInt8)    4 (T.pack "e")
+                t1E = readTableFieldReq (readPrimVector VectorInt8)    4 "e"
                 t1F :: Table T1 -> Either ReadError (Vector Int16)
-                t1F = readTableFieldReq (readPrimVector VectorInt16)   5 (T.pack "f")
+                t1F = readTableFieldReq (readPrimVector VectorInt16)   5 "f"
                 t1G :: Table T1 -> Either ReadError (Vector Int32)
-                t1G = readTableFieldReq (readPrimVector VectorInt32)   6 (T.pack "g")
+                t1G = readTableFieldReq (readPrimVector VectorInt32)   6 "g"
                 t1H :: Table T1 -> Either ReadError (Vector Int64)
-                t1H = readTableFieldReq (readPrimVector VectorInt64)   7 (T.pack "h")
+                t1H = readTableFieldReq (readPrimVector VectorInt64)   7 "h"
                 t1I :: Table T1 -> Either ReadError (Vector Float)
-                t1I = readTableFieldReq (readPrimVector VectorFloat)   8 (T.pack "i")
+                t1I = readTableFieldReq (readPrimVector VectorFloat)   8 "i"
                 t1J :: Table T1 -> Either ReadError (Vector Double)
-                t1J = readTableFieldReq (readPrimVector VectorDouble)  9 (T.pack "j")
+                t1J = readTableFieldReq (readPrimVector VectorDouble)  9 "j"
                 t1K :: Table T1 -> Either ReadError (Vector Bool)
-                t1K = readTableFieldReq (readPrimVector VectorBool)    10 (T.pack "k")
+                t1K = readTableFieldReq (readPrimVector VectorBool)    10 "k"
               |]
 
         describe "vector of strings" $ do
@@ -708,7 +708,7 @@ spec =
                 t1 a = writeTable [ writeVectorTextTableField a ]
 
                 t1A :: Table T1 -> Either ReadError (Vector Text)
-                t1A = readTableFieldReq (readPrimVector VectorText) 0 (T.pack "a")
+                t1A = readTableFieldReq (readPrimVector VectorText) 0 "a"
               |]
 
         describe "vector of enums" $ do
@@ -768,7 +768,7 @@ spec =
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector Int16)
-                t1A = readTableFieldReq (readPrimVector VectorInt16) 0 (T.pack "a")
+                t1A = readTableFieldReq (readPrimVector VectorInt16) 0 "a"
               |]
 
         describe "vector of structs" $ do
@@ -823,7 +823,7 @@ spec =
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector (Struct S1))
-                t1A = readTableFieldReq readStructVector 0 (T.pack "a")
+                t1A = readTableFieldReq readStructVector 0 "a"
               |]
 
         describe "vector of tables" $ do
@@ -853,7 +853,7 @@ spec =
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector (Table T1))
-                t1A = readTableFieldReq readTableVector 0 (T.pack "a")
+                t1A = readTableFieldReq readTableVector 0 "a"
               |]
 
         describe "vector of unions" $ do
@@ -900,7 +900,7 @@ spec =
                   ]
 
                 t1X :: Table T1 -> Either ReadError (Vector (Union U1))
-                t1X = readTableFieldUnionVectorReq readU1 1 (T.pack "x")
+                t1X = readTableFieldUnionVectorReq readU1 1 "x"
 
                 data U1
                   = U1T1 !(Table T1)

@@ -33,7 +33,6 @@ import           Data.Functor                        ( (<&>) )
 import           Data.Int
 import qualified Data.List                           as L
 import           Data.Text                           ( Text )
-import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import qualified Data.Text.Encoding.Error            as T
 import           Data.Word
@@ -340,7 +339,7 @@ readTableFieldOpt read ix t = do
   traverse (\offset -> read (move (tablePos t) offset)) mbOffset
 
 {-# INLINE readTableFieldReq #-}
-readTableFieldReq :: (PositionInfo -> Either ReadError a) -> TableIndex -> Text -> Table t -> Either ReadError a
+readTableFieldReq :: (PositionInfo -> Either ReadError a) -> TableIndex -> String -> Table t -> Either ReadError a
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
@@ -382,7 +381,7 @@ readTableFieldUnionVectorOpt read ix t =
 readTableFieldUnionVectorReq ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
   -> TableIndex
-  -> Text
+  -> String
   -> Table t
   -> Either ReadError (Vector (Union a))
 readTableFieldUnionVectorReq read ix name t =
@@ -494,7 +493,7 @@ readText' = do
   bs <- G.getByteString $ fromIntegral @Int32 @Int strLength
   pure $! case T.decodeUtf8' bs of
     Right t -> Right t
-    Left (T.DecodeError msg b) -> Left $ Utf8DecodingError (T.pack msg) b
+    Left (T.DecodeError msg b) -> Left $ Utf8DecodingError msg b
     -- The `EncodeError` constructor is deprecated and not used
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
@@ -545,11 +544,12 @@ readUOffsetAndSkip pos =
   move pos <$> readInt32 pos
 
 data ReadError
-  = ParsingError { msg      :: !Text }
-  | MissingField { fieldName :: !Text }
-  | Utf8DecodingError { msg  :: !Text
-                      , byte :: !(Maybe Word8) }
-  | MalformedBuffer { msg :: !Text }
+  = ParsingError    { msg       :: String }
+  | MalformedBuffer { msg       :: String }
+  | MissingField    { fieldName :: String }
+  | Utf8DecodingError { msg  :: String
+                      , byte :: Maybe Word8
+                      }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (NFData, Exception)
 
@@ -558,7 +558,7 @@ runGet :: Get a -> ByteString -> Either ReadError a
 runGet get bs =
   case G.runGetOrFail get bs of
     Right (_, _, a)  -> Right a
-    Left (_, _, msg) -> Left $ ParsingError (T.pack msg)
+    Left (_, _, msg) -> Left $ ParsingError msg
 
 -- | Safer version of `Data.ByteString.Lazy.index` that doesn't throw when index is too large.
 -- Assumes @i > 0@.

@@ -487,7 +487,7 @@ mkTableFieldGetter tableName table tf =
                 [ VarE 'readTableFieldUnionVectorReq
                 , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident
                 , fieldIndex
-                , textLitE . unIdent . getIdent $ tf
+                , stringLitE . unIdent . getIdent $ tf
                 ]
 
 
@@ -501,7 +501,7 @@ mkTableFieldGetter tableName table tf =
             [ VarE 'readTableFieldReq
             , readExp
             , fieldIndex
-            , textLitE . unIdent . getIdent $ tf
+            , stringLitE . unIdent . getIdent $ tf
             ]
         Opt ->
           app
@@ -810,6 +810,9 @@ realLitE = LitE . RationalL . toRational
 
 textLitE :: Text -> Exp
 textLitE t = VarE 'T.pack `AppE` LitE (StringL (T.unpack t))
+
+stringLitE :: Text -> Exp
+stringLitE t = LitE (StringL (T.unpack t))
 
 -- | Applies a function to multiple arguments. Assumes the list is not empty.
 app :: [Exp] -> Exp
