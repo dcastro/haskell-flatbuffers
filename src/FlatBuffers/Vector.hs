@@ -2,7 +2,7 @@ module FlatBuffers.Vector
   (
     -- * Creating a vector
     W.WriteVectorElement(..)
-  , W.vector'
+  , W.fromFoldable'
 
     -- * Reading a vector
   , R.VectorElement(..)

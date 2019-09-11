@@ -168,8 +168,8 @@ spec =
         (json, decoded) <- flatc $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          (Just (Vec.vector' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
-          (Just (Vec.vector' [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
+          (Just (Vec.fromFoldable' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
+          (Just (Vec.fromFoldable' [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
 
         json `shouldBeJson` object
           [ "x" .= String "Gray"
@@ -333,18 +333,18 @@ spec =
     describe "Vectors" $ do
       it "non-empty" $ do
         (json, decoded) <- flatc $ vectors
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [minBound, 0, maxBound]))
-          (Just (Vec.vector' [-12e9, 0, 3.333333]))
-          (Just (Vec.vector' [-12e98, 0, 3.33333333333333333333]))
-          (Just (Vec.vector' [True, False, True]))
-          (Just (Vec.vector' ["hi 👬 bye", "", "world"]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+          (Just (Vec.fromFoldable' [-12e9, 0, 3.333333]))
+          (Just (Vec.fromFoldable' [-12e98, 0, 3.33333333333333333333]))
+          (Just (Vec.fromFoldable' [True, False, True]))
+          (Just (Vec.fromFoldable' ["hi 👬 bye", "", "world"]))
 
         json `shouldBeJson` object
           [ "a" .= [ minBound @Word8, 0, maxBound @Word8 ]
@@ -376,9 +376,9 @@ spec =
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectors
-          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
-          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
-          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
+          (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
+          (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
+          (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
 
         json `shouldBeJson` object
           [ "a" .= [] @Value
@@ -432,7 +432,7 @@ spec =
     describe "VectorOfTables" $ do
       it "non empty" $ do
         (json, decoded) <- flatc $ vectorOfTables
-          (Just $ Vec.vector'
+          (Just $ Vec.fromFoldable'
             [ axe (Just minBound)
             , axe (Just 0)
             , axe (Just maxBound)
@@ -451,7 +451,7 @@ spec =
         (Vec.toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
-        (json, decoded) <- flatc $ vectorOfTables (Just (Vec.vector' []))
+        (json, decoded) <- flatc $ vectorOfTables (Just (Vec.fromFoldable' []))
 
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
@@ -473,10 +473,10 @@ spec =
 
       it "non empty" $ do
         (json, decoded) <- flatc $ vectorOfStructs
-          (Just (Vec.vector' [struct1 1 2 3, struct1 4 5 6]))
-          (Just (Vec.vector' [struct2 101, struct2 102, struct2 103]))
-          (Just (Vec.vector' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
-          (Just (Vec.vector' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
+          (Just (Vec.fromFoldable' [struct1 1 2 3, struct1 4 5 6]))
+          (Just (Vec.fromFoldable' [struct2 101, struct2 102, struct2 103]))
+          (Just (Vec.fromFoldable' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
+          (Just (Vec.fromFoldable' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
 
         json `shouldBeJson` object
           [ "as" .=
@@ -512,7 +512,7 @@ spec =
 
       it "empty" $ do
         (json, decoded) <- flatc $ vectorOfStructs
-          (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' [])) (Just (Vec.vector' []))
+          (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
 
         json `shouldBeJson` object [ "as" .= [] @Value, "bs" .= [] @Value, "cs" .= [] @Value, "ds" .= [] @Value ]
 
@@ -591,7 +591,7 @@ spec =
         (struct1 11 22 33)
         (axe (Just 44))
         (weaponSword (sword (Just "a")))
-        (Vec.vector' [55, 66])
+        (Vec.fromFoldable' [55, 66])
 
       json `shouldBeJson` object
         [ "a" .= String "hello"

@@ -88,7 +88,7 @@ mkNumList :: Num a => Int32 -> [a]
 mkNumList len = fromIntegral <$> [1 .. len]
 
 mkNumVec :: (Num a, Vec.WriteVectorElement a) => Maybe (Vec.WriteVector a)
-mkNumVec = Just (Vec.vector n (mkNumList n))
+mkNumVec = Just (Vec.fromFoldable n (mkNumList n))
 
 vectorsTable :: Either ReadError (Table Vectors)
 vectorsTable =
@@ -97,11 +97,11 @@ vectorsTable =
       mkNumVec mkNumVec mkNumVec mkNumVec
       mkNumVec mkNumVec mkNumVec mkNumVec
       mkNumVec mkNumVec
-      (Just . Vec.vector n . L.replicate n $ True)
-      (Just . Vec.vector n $ [1..n] <&> \i -> T.take (i `rem` 15) "abcghjkel;jhgx")
-      (Just . Vec.vector n . fmap structWithOneInt $ mkNumList n)
-      (Just . Vec.vector n . fmap (\i -> pairTable (Just i) (Just i)) $ mkNumList n)
-      (Just . Vec.vector n . fmap mkUnion $ mkNumList n
+      (Just . Vec.fromFoldable n . L.replicate n $ True)
+      (Just . Vec.fromFoldable n $ [1..n] <&> \i -> T.take (i `rem` 15) "abcghjkel;jhgx")
+      (Just . Vec.fromFoldable n . fmap structWithOneInt $ mkNumList n)
+      (Just . Vec.fromFoldable n . fmap (\i -> pairTable (Just i) (Just i)) $ mkNumList n)
+      (Just . Vec.fromFoldable n . fmap mkUnion $ mkNumList n
       )
   where
     mkUnion i =

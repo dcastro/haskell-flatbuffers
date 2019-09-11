@@ -83,8 +83,8 @@ spec =
         x <- evalRight $ decode $ encode $ enums
           (Just (fromColor ColorGray))
           (Just (structWithEnum 11 (fromColor ColorRed) 22))
-          (Just (vector' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
-          (Just (vector' [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
+          (Just (Vec.fromFoldable' [fromColor ColorBlack, fromColor ColorBlue, fromColor ColorGreen]))
+          (Just (Vec.fromFoldable' [structWithEnum 33 (fromColor ColorRed) 44, structWithEnum 55 (fromColor ColorGreen) 66]))
 
         toColor <$> enumsX x `shouldBe` Right (Just ColorGray)
         (enumsY x >>= traverse readStructWithEnum) `shouldBe` Right (Just (11, Just ColorRed, 22))
@@ -175,23 +175,23 @@ spec =
 
     describe "Vectors" $ do
       let Right nonEmptyVecs = decode $ encode $ vectors
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [minBound, 0, maxBound]))
-            (Just (vector' [-12e9, 0, 3.33333333333333333333]))
-            (Just (vector' [-12e98, 0, 3.33333333333333333333]))
-            (Just (vector' [True, False, True]))
-            (Just (vector' ["hi 👬 bye", "", "world"]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [minBound, 0, maxBound]))
+            (Just (Vec.fromFoldable' [-12e9, 0, 3.33333333333333333333]))
+            (Just (Vec.fromFoldable' [-12e98, 0, 3.33333333333333333333]))
+            (Just (Vec.fromFoldable' [True, False, True]))
+            (Just (Vec.fromFoldable' ["hi 👬 bye", "", "world"]))
 
       let Right emptyVecs = decode $ encode $ vectors
-            (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
-            (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
-            (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
+            (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
+            (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
+            (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
 
       let Right missingVecs = decode $ encode $ vectors
             Nothing Nothing Nothing Nothing
@@ -234,7 +234,7 @@ spec =
     describe "VectorOfTables" $ do
       it "non empty" $ do
         x <- evalRight $ decode $ encode $ vectorOfTables
-          (Just $ vector'
+          (Just $ Vec.fromFoldable'
             [ axe (Just minBound)
             , axe (Just 0)
             , axe (Just maxBound)
@@ -247,7 +247,7 @@ spec =
         (traverse (unsafeIndex xs) [0..2] >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
-        x <- evalRight $ decode $ encode $ vectorOfTables (Just (vector' []))
+        x <- evalRight $ decode $ encode $ vectorOfTables (Just (Vec.fromFoldable' []))
 
         xs <- evalRightJust $ vectorOfTablesXs x
         Vec.length xs `shouldBe` Right 0
@@ -265,10 +265,10 @@ spec =
 
       it "non empty" $ do
         x <- evalRight $ decode $ encode $ vectorOfStructs
-          (Just (vector' [struct1 1 2 3, struct1 4 5 6]))
-          (Just (vector' [struct2 101, struct2 102, struct2 103]))
-          (Just (vector' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
-          (Just (vector' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
+          (Just (Vec.fromFoldable' [struct1 1 2 3, struct1 4 5 6]))
+          (Just (Vec.fromFoldable' [struct2 101, struct2 102, struct2 103]))
+          (Just (Vec.fromFoldable' [struct3 (struct2 104) 105 106, struct3 (struct2 107) 108 109, struct3 (struct2 110) 111 112]))
+          (Just (Vec.fromFoldable' [struct4 (struct2 120) 121 122 True, struct4 (struct2 123) 124 125 False, struct4 (struct2 126) 127 128 True]))
 
         as <- evalRightJust $ vectorOfStructsAs x
         bs <- evalRightJust $ vectorOfStructsBs x
@@ -293,7 +293,7 @@ spec =
 
       it "empty" $ do
         x <- evalRight $ decode $ encode $ vectorOfStructs
-              (Just (vector' [])) (Just (vector' [])) (Just (vector' [])) (Just (vector' []))
+              (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' [])) (Just (Vec.fromFoldable' []))
 
         as <- evalRightJust $ vectorOfStructsAs x
         bs <- evalRightJust $ vectorOfStructsBs x
@@ -329,13 +329,13 @@ spec =
           shouldBeNone UnionNone = pure ()
 
         x <- evalRight $ decode $ encode $ vectorOfUnions
-          (Just $ vector'
+          (Just $ Vec.fromFoldable'
             [ weaponSword (sword (Just "hi"))
             , none
             , weaponAxe (axe (Just 98))
             ]
           )
-          (vector'
+          (Vec.fromFoldable'
             [ weaponSword (sword (Just "hi2"))
             , none
             , weaponAxe (axe (Just 100))
@@ -363,7 +363,7 @@ spec =
         (toList xsReq <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 100
 
       it "empty" $ do
-        x <- evalRight $ decode $ encode $ vectorOfUnions (Just (vector' [])) (vector' [])
+        x <- evalRight $ decode $ encode $ vectorOfUnions (Just (Vec.fromFoldable' [])) (Vec.fromFoldable' [])
 
         Just xs <- evalRight $ vectorOfUnionsXs x
         Vec.length xs `shouldBe` Right 0
@@ -374,7 +374,7 @@ spec =
         L.length <$> toList xsReq `shouldBe` Right 0
 
       it "missing" $ do
-        x <- evalRight $ decode $ encode $ vectorOfUnions Nothing (vector' [])
+        x <- evalRight $ decode $ encode $ vectorOfUnions Nothing (Vec.fromFoldable' [])
         vectorOfUnionsXs x `shouldBeRightAnd` isNothing
         (vectorOfUnionsXsReq x >>= Vec.length) `shouldBe` Right 0
 
@@ -424,7 +424,7 @@ spec =
         (struct1 11 22 33)
         (axe (Just 44))
         (weaponSword (sword (Just "a")))
-        (vector' [55, 66])
+        (Vec.fromFoldable' [55, 66])
 
       requiredFieldsA x `shouldBe` Right "hello"
       (requiredFieldsB x >>= readStruct1) `shouldBe` Right (11, 22, 33)

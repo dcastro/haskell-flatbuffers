@@ -334,21 +334,21 @@ class WriteVectorElement a where
   -- If @n@ is smaller than the length of @xs@, all elements of @xs@ will still be written to the buffer,
   -- but the client will only be able to read the first @n@ elements.
   --
-  -- Note: `vector` asks for the collection's length to be passed in as an argument rather than use @Foldable.length@ because:
+  -- Note: `fromFoldable` asks for the collection's length to be passed in as an argument rather than use @Foldable.length@ because:
   --
   -- 1. @Foldable.length@ is often O(n), and in some use cases there may be a better way to know the collection's length ahead of time.
-  -- 2. Calling @Foldable.length@ inside `vector` can inhibit some fusions which would otherwise be possible.
+  -- 2. Calling @Foldable.length@ inside `fromFoldable` can inhibit some fusions which would otherwise be possible.
 
 
   -- Implementer's note:
   -- To elaborate on point 2., here's an example.
-  -- This version of `vector` that calls @Foldable.length@ internally:
+  -- This version of `fromFoldable` that calls @Foldable.length@ internally:
   --
   -- > encodeUserIds' :: [User] -> BSL.ByteString
-  -- > encodeUserIds' = encode . userIdsTable $ vector (userId <$> users))
+  -- > encodeUserIds' = encode . userIdsTable $ fromFoldable (userId <$> users))
   -- >
-  -- > {-# INLINE vector #-}
-  -- > vector xs =
+  -- > {-# INLINE fromFoldable #-}
+  -- > fromFoldable xs =
   -- >   let length = Foldable.length xs
   -- >       buffer = foldr ... ... xs
   -- >   in  ...
@@ -356,13 +356,13 @@ class WriteVectorElement a where
   -- ...prevents `<$>` and `foldr` from being fused, and so it's much slower than when the length is passed in:
   --
   -- > encodeUserIds :: [User] -> BSL.ByteString
-  -- > encodeUserIds = encode . userIdsTable $ vector (userId <$> users) (fromIntegral (Foldable.length users))
+  -- > encodeUserIds = encode . userIdsTable $ fromFoldable (userId <$> users) (fromIntegral (Foldable.length users))
   -- >
-  -- > {-# INLINE vector #-}
-  -- > vector xs length =
+  -- > {-# INLINE fromFoldable #-}
+  -- > fromFoldable xs length =
   -- >   let buffer = foldr ... ... xs
   -- >   in  ...
-  vector ::
+  fromFoldable ::
        Foldable f
     => Int32      -- ^ @n@: the number of elements in @xs@
     -> f a        -- ^ @xs@: a collection
@@ -370,12 +370,13 @@ class WriteVectorElement a where
 
 -- | Convenience function, equivalent to
 --
--- > vector' xs = vector (fromIntegral (Foldable.length xs)) xs
+-- > fromFoldable' xs = fromFoldable (fromIntegral (Foldable.length xs)) xs
 --
--- In some cases it may be slower than using `vector` directly.
-{-# INLINE vector' #-}
-vector' :: WriteVectorElement a => Foldable f => f a -> WriteVector a
-vector' xs = vector (fromIntegral $ Foldable.length xs) xs
+-- In some cases it may be slower than using `fromFoldable` directly.
+{-# INLINE fromFoldable' #-}
+fromFoldable' :: WriteVectorElement a => Foldable f => f a -> WriteVector a
+fromFoldable' xs = fromFoldable (fromIntegral $ Foldable.length xs) xs
+
 
 {-# INLINE inlineVector #-}
 inlineVector :: Foldable f => (a -> Builder) -> Alignment -> InlineSize -> Int32 -> f a -> WriteTableField
@@ -396,86 +397,86 @@ inlineVector build elemAlignment elemSize elemCount elems = WriteTableField $ do
 instance WriteVectorElement Word8 where
   newtype WriteVector Word8 = WriteVectorWord8 { writeVectorWord8TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Word8 -> WriteVector Word8
-  vector n = WriteVectorWord8 . inlineVector B.word8 word8Size word8Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Word8 -> WriteVector Word8
+  fromFoldable n = WriteVectorWord8 . inlineVector B.word8 word8Size word8Size n
 
 instance WriteVectorElement Word16 where
   newtype WriteVector Word16 = WriteVectorWord16 { writeVectorWord16TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Word16 -> WriteVector Word16
-  vector n = WriteVectorWord16 . inlineVector B.word16LE word16Size word16Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Word16 -> WriteVector Word16
+  fromFoldable n = WriteVectorWord16 . inlineVector B.word16LE word16Size word16Size n
 
 instance WriteVectorElement Word32 where
   newtype WriteVector Word32 = WriteVectorWord32 { writeVectorWord32TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Word32 -> WriteVector Word32
-  vector n = WriteVectorWord32 . inlineVector B.word32LE word32Size word32Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Word32 -> WriteVector Word32
+  fromFoldable n = WriteVectorWord32 . inlineVector B.word32LE word32Size word32Size n
 
 instance WriteVectorElement Word64 where
   newtype WriteVector Word64 = WriteVectorWord64 { writeVectorWord64TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Word64 -> WriteVector Word64
-  vector n = WriteVectorWord64 . inlineVector B.word64LE word64Size word64Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Word64 -> WriteVector Word64
+  fromFoldable n = WriteVectorWord64 . inlineVector B.word64LE word64Size word64Size n
 
 instance WriteVectorElement Int8 where
   newtype WriteVector Int8 = WriteVectorInt8 { writeVectorInt8TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Int8 -> WriteVector Int8
-  vector n = WriteVectorInt8 . inlineVector B.int8 int8Size int8Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Int8 -> WriteVector Int8
+  fromFoldable n = WriteVectorInt8 . inlineVector B.int8 int8Size int8Size n
 
 instance WriteVectorElement Int16 where
   newtype WriteVector Int16 = WriteVectorInt16 { writeVectorInt16TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Int16 -> WriteVector Int16
-  vector n = WriteVectorInt16 . inlineVector B.int16LE int16Size int16Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Int16 -> WriteVector Int16
+  fromFoldable n = WriteVectorInt16 . inlineVector B.int16LE int16Size int16Size n
 
 instance WriteVectorElement Int32 where
   newtype WriteVector Int32 = WriteVectorInt32 { writeVectorInt32TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Int32 -> WriteVector Int32
-  vector n = WriteVectorInt32 . inlineVector B.int32LE int32Size int32Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Int32 -> WriteVector Int32
+  fromFoldable n = WriteVectorInt32 . inlineVector B.int32LE int32Size int32Size n
 
 instance WriteVectorElement Int64 where
   newtype WriteVector Int64 = WriteVectorInt64 { writeVectorInt64TableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Int64 -> WriteVector Int64
-  vector n = WriteVectorInt64 . inlineVector B.int64LE int64Size int64Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Int64 -> WriteVector Int64
+  fromFoldable n = WriteVectorInt64 . inlineVector B.int64LE int64Size int64Size n
 
 instance WriteVectorElement Float where
   newtype WriteVector Float = WriteVectorFloat { writeVectorFloatTableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Float -> WriteVector Float
-  vector n = WriteVectorFloat . inlineVector B.floatLE floatSize floatSize n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Float -> WriteVector Float
+  fromFoldable n = WriteVectorFloat . inlineVector B.floatLE floatSize floatSize n
 
 instance WriteVectorElement Double where
   newtype WriteVector Double = WriteVectorDouble { writeVectorDoubleTableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Double -> WriteVector Double
-  vector n = WriteVectorDouble . inlineVector B.doubleLE doubleSize doubleSize n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Double -> WriteVector Double
+  fromFoldable n = WriteVectorDouble . inlineVector B.doubleLE doubleSize doubleSize n
 
 instance WriteVectorElement Bool where
   newtype WriteVector Bool = WriteVectorBool { writeVectorBoolTableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Bool -> WriteVector Bool
-  vector n = WriteVectorBool . inlineVector (B.word8 . boolToWord8) word8Size word8Size n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Bool -> WriteVector Bool
+  fromFoldable n = WriteVectorBool . inlineVector (B.word8 . boolToWord8) word8Size word8Size n
 
 instance IsStruct a => WriteVectorElement (WriteStruct a) where
   newtype WriteVector (WriteStruct a) = WriteVectorStruct { writeVectorStructTableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f (WriteStruct a) -> WriteVector (WriteStruct a)
-  vector n = WriteVectorStruct . inlineVector coerce (structAlignmentOf @a) (structSizeOf @a) n
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f (WriteStruct a) -> WriteVector (WriteStruct a)
+  fromFoldable n = WriteVectorStruct . inlineVector coerce (structAlignmentOf @a) (structSizeOf @a) n
 
 
 data TextInfos = TextInfos ![TextInfo] {-# UNPACK #-} !BufferSize
@@ -495,9 +496,9 @@ data OffsetInfo = OffsetInfo
 instance WriteVectorElement Text where
   newtype WriteVector Text = WriteVectorText { writeVectorTextTableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f Text -> WriteVector Text
-  vector elemCount texts = WriteVectorText . WriteTableField $ do
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f Text -> WriteVector Text
+  fromFoldable elemCount texts = WriteVectorText . WriteTableField $ do
     modify' $ \fbs ->
       let (builder2, bsize2) =
             writeVectorSizePrefix . writeOffsets . align . writeStrings $ (builder fbs, bufferSize fbs)
@@ -579,9 +580,9 @@ data TableInfo = TableInfo
 instance WriteVectorElement (WriteTable a) where
   newtype WriteVector (WriteTable a) = WriteVectorTable { writeVectorTableTableField :: WriteTableField }
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f (WriteTable a) -> WriteVector (WriteTable a)
-  vector elemCount tables = WriteVectorTable . WriteTableField $ do
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f (WriteTable a) -> WriteVector (WriteTable a)
+  fromFoldable elemCount tables = WriteVectorTable . WriteTableField $ do
     fbs1 <- get
     let !(TableInfo fbs2 positions) =
           foldr
@@ -605,7 +606,7 @@ instance WriteVectorElement (WriteTable a) where
             (OffsetInfo 0 [])
             positions
 
-    coerce $ vector elemCount offsets
+    coerce $ fromFoldable elemCount offsets
 
 data Vecs a = Vecs ![Word8] ![Maybe (State FBState Position)]
 
@@ -617,9 +618,9 @@ data UnionTableInfo = UnionTableInfo
 instance WriteVectorElement (WriteUnion a) where
   data WriteVector (WriteUnion a) = WriteVectorUnion !WriteTableField !WriteTableField
 
-  {-# INLINE vector #-}
-  vector :: Foldable f => Int32 -> f (WriteUnion a) -> WriteVector (WriteUnion a)
-  vector elemCount unions =
+  {-# INLINE fromFoldable #-}
+  fromFoldable :: Foldable f => Int32 -> f (WriteUnion a) -> WriteVector (WriteUnion a)
+  fromFoldable elemCount unions =
     let Vecs types values =
           foldr
             go
@@ -664,9 +665,9 @@ instance WriteVectorElement (WriteUnion a) where
                       (OffsetInfo 0 [])
                       positions
 
-              coerce $ vector elemCount offsets
+              coerce $ fromFoldable elemCount offsets
 
-    in  WriteVectorUnion (coerce $ vector elemCount types) writeUnionTables
+    in  WriteVectorUnion (coerce $ fromFoldable elemCount types) writeUnionTables
 
 
 
