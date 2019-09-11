@@ -151,11 +151,11 @@ spec =
     describe "Tables are properly aligned" $ do
       it "in table fields" $ require prop_tableTableFieldAlignment
       it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
-        writeVectorTableTableField (Vec.fromFoldable' (writeTable . fmap writeWord8TableField <$> byteFieldsList))
+        writeVectorTableTableField (Vec.fromList' (writeTable . fmap writeWord8TableField <$> byteFieldsList))
 
     describe "Unions tables are properly aligned" $
       it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
-        writeUnionValuesVectorTableField (Vec.fromFoldable' (writeUnion 1 . writeTable . fmap writeWord8TableField <$> byteFieldsList))
+        writeUnionValuesVectorTableField (Vec.fromList' (writeUnion 1 . writeTable . fmap writeWord8TableField <$> byteFieldsList))
 
 
     it "Root is aligned to `maxAlign`" $ require prop_rootAlignment
@@ -189,7 +189,7 @@ prop_inlineVectorAlignment elemSize elemAlignment sampleElem = property $ do
   initialState <- forAllWith printFBState genInitialState
   vectorLength <- forAll $ Gen.int (Range.linear 0 5)
 
-  let vec = Vec.fromFoldable' (List.replicate vectorLength sampleElem)
+  let vec = Vec.fromList' (List.replicate vectorLength sampleElem)
   let (writeUOffset, finalState) = runState (unWriteTableField (coerce vec)) initialState
 
   testBufferSizeIntegrity finalState
@@ -202,7 +202,7 @@ prop_inlineVectorAlignment elemSize elemAlignment sampleElem = property $ do
   (bufferSize finalState - 4) `isAlignedTo` fromIntegral elemAlignment
 
   -- At most `n` bytes can be added to the  buffer as padding,
-  -- `n` being the biggest thing we're aligning to: the Vec.fromFoldable's elements or the size prefix.
+  -- `n` being the biggest thing we're aligning to: the vector's elements or the size prefix.
   let vectorByteCount = 4 + elemSize * fromIntegral vectorLength
   let padding = coerce bufferSize finalState - coerce bufferSize initialState - vectorByteCount
   padding `isLessThan` (fromIntegral elemAlignment `max` 4)
@@ -231,7 +231,7 @@ prop_textVectorAlignment = property $ do
   initialState <- forAllWith printFBState genInitialState
   texts <- forAll $ Gen.list (Range.linear 0 5) (Gen.text (Range.linear 0 30) Gen.unicode)
 
-  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTextTableField (Vec.fromFoldable' texts))) initialState
+  let (writeUOffset, finalState) = runState (unWriteTableField (writeVectorTextTableField (Vec.fromList' texts))) initialState
 
   testBufferSizeIntegrity finalState
   testMaxAlign initialState finalState 4

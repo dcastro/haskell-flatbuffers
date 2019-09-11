@@ -368,7 +368,7 @@ class WriteVectorElement a where
     -> f a        -- ^ @xs@: a collection
     -> WriteVector a
 
--- | Convenience function, equivalent to
+-- | Convenience function, equivalent to:
 --
 -- > fromFoldable' xs = fromFoldable (fromIntegral (Foldable.length xs)) xs
 --
@@ -376,6 +376,23 @@ class WriteVectorElement a where
 {-# INLINE fromFoldable' #-}
 fromFoldable' :: WriteVectorElement a => Foldable f => f a -> WriteVector a
 fromFoldable' xs = fromFoldable (fromIntegral $ Foldable.length xs) xs
+
+-- | `fromFoldable` specialized to list
+fromList :: WriteVectorElement a => Int32 -> [a] -> WriteVector a
+fromList = fromFoldable
+
+-- | `fromFoldable'` specialized to list
+fromList' :: WriteVectorElement a => [a] -> WriteVector a
+fromList' = fromFoldable'
+
+-- | Creates a flatbuffers vector with a single element
+singleton :: WriteVectorElement a => a -> WriteVector a
+singleton a = fromList 1 [a]
+
+-- | Creates an empty flatbuffers vector
+empty :: WriteVectorElement a => WriteVector a
+empty = fromList 0 []
+
 
 
 {-# INLINE inlineVector #-}

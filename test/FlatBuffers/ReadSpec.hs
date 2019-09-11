@@ -11,7 +11,6 @@ import           Control.Exception          ( evaluate )
 import           Data.Functor               ( ($>) )
 import           Data.Int
 import qualified Data.Maybe                 as Maybe
-import           Data.Word
 
 import           Examples
 
@@ -28,7 +27,7 @@ spec =
       decode @() "" `shouldBeLeft` ParsingError "not enough bytes"
 
     it "fails when decoding string with invalid UTF-8 bytes" $ do
-      let text = Vec.fromFoldable' @Word8 [ 255 ]
+      let text = Vec.singleton 255
       table <- evalRight $ decode $ encode $ writeTable
         [ missing, missing, missing, missing
         , missing, missing, missing, missing
@@ -63,19 +62,19 @@ spec =
 
     it "throws when union type vector is present, but union value vector is missing" $ do
       table <- evalRight $ decode $ encode $ writeTable
-        [ writeVectorWord8TableField $ Vec.fromFoldable' @Word8 []
+        [ writeVectorWord8TableField $ Vec.empty
         , missing
         , missing
         , missing
-        , writeVectorWord8TableField $ Vec.fromFoldable' @Word8 []
+        , writeVectorWord8TableField $ Vec.empty
         , missing
         ]
       vectorOfUnionsXs table `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
       vectorOfUnionsXsReq table `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
 
     it "throws when union type vector and union value vector have different sizes" $ do
-      let typesVec = Vec.fromFoldable' [ 1 ]
-      let valuesVec = Vec.fromFoldable' []
+      let typesVec = Vec.singleton 1
+      let valuesVec = Vec.empty
       table <- evalRight $ decode $ encode $ writeTable
         [ writeVectorWord8TableField typesVec
         , writeVectorTableTableField valuesVec
@@ -94,7 +93,7 @@ spec =
         let union = writeUnion 99 (writeTable [])
 
         result <- evalRight $ do
-          table <- decode $ encode $ vectorOfUnions Nothing (Vec.fromFoldable' [union])
+          table <- decode $ encode $ vectorOfUnions Nothing (Vec.singleton union)
           vec   <- vectorOfUnionsXsReq table
           vec `unsafeIndex` 0
 
@@ -134,18 +133,18 @@ spec =
 
       describe "of primitives" $ do
         let Right table = decode $ encode $ vectors
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
 
         it "`unsafeIndex` does not throw when index is negative / too large" $ do
           testLargeUnsafeIndex table vectorsA
@@ -191,10 +190,10 @@ spec =
 
       describe "of structs" $ do
         let Right table = decode $ encode $ vectorOfStructs
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
-              (Just (Vec.fromFoldable' []))
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
+              (Just Vec.empty)
 
         it "`unsafeIndex` does not throw when index is negative / too large" $ do
           testLargeUnsafeIndex table vectorOfStructsAs
@@ -207,7 +206,7 @@ spec =
 
       describe "of tables" $ do
         let Right table = decode $ encode $ vectorOfTables
-              (Just (Vec.fromFoldable' []))
+              (Just Vec.empty)
 
         it "`unsafeIndex` does not throw when index is negative / too large" $ do
           testLargeUnsafeIndex table vectorOfTablesXs
@@ -220,8 +219,8 @@ spec =
 
       describe "of unions" $ do
         let Right table = decode $ encode $ vectorOfUnions
-              (Just (Vec.fromFoldable' []))
-              (Vec.fromFoldable' [])
+              (Just Vec.empty)
+              Vec.empty
 
         it "`unsafeIndex` does not throw when index is negative / too large" $ do
           testLargeUnsafeIndex table vectorOfUnionsXs

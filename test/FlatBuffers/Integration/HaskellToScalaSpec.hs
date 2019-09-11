@@ -27,8 +27,8 @@ spec =
       testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just (Vec.fromFoldable' [weaponSword (sword (Just "hi"))]))
-          (Vec.fromFoldable' [weaponSword (sword (Just "hi2"))])
+          (Just (Vec.singleton (weaponSword (sword (Just "hi")))))
+          (Vec.singleton (weaponSword (sword (Just "hi2"))))
           )
         (object
           [ "xs" .= [object ["x" .= String "hi"]]
@@ -38,21 +38,21 @@ spec =
       testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just (Vec.fromFoldable' [weaponSword (sword Nothing)]))
-          (Vec.fromFoldable' [weaponAxe (axe Nothing)])
+          (Just (Vec.singleton (weaponSword (sword Nothing))))
+          (Vec.singleton (weaponAxe (axe Nothing)))
           )
         (object ["xs" .= [object ["x" .= Null]], "xsReq" .= [object ["y" .= Number 0]]])
       testCase
         "VectorOfUnions"
         (encode $ vectorOfUnions
-          (Just $ Vec.fromFoldable'
+          (Just $ Vec.fromList'
             [ weaponSword (sword (Just "hi"))
             , none
             , weaponAxe (axe (Just maxBound))
             , weaponSword (sword (Just "oi"))
             ]
           )
-          (Vec.fromFoldable'
+          (Vec.fromList'
             [ weaponSword (sword (Just "hi2"))
             , none
             , weaponAxe (axe (Just minBound))
@@ -76,11 +76,11 @@ spec =
           ])
       testCase
         "VectorOfUnions"
-        (encode $ vectorOfUnions (Just (Vec.fromFoldable' [])) (Vec.fromFoldable' []))
+        (encode $ vectorOfUnions (Just Vec.empty) Vec.empty)
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
       testCase
         "VectorOfUnions"
-        (encode $ vectorOfUnions Nothing (Vec.fromFoldable' []))
+        (encode $ vectorOfUnions Nothing Vec.empty)
         (object ["xs" .= [] @Value, "xsReq" .= [] @Value])
 
 
