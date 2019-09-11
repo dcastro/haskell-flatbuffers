@@ -17,7 +17,7 @@ import qualified Data.Text          as T
 
 import           FlatBuffers
 import qualified FlatBuffers.Vector as Vec
-import           FlatBuffers.Vector ( index )
+import           FlatBuffers.Vector ( index, unsafeIndex )
 
 import           Types
 
@@ -48,6 +48,22 @@ groups =
               Union (WeaponUnionSword sword) -> swordTableX sword
               Union (WeaponUnionAxe axe)     -> axeTableX axe
           ) $ vectorsTable >>= vectorsO
+        ]
+    , bgroup "unsafeIndex"
+        [ bench "word8" $ nf (\(Right (Just vec)) ->
+              forM [0..(n-1)] (\i -> vec `unsafeIndex` i)
+            )
+            $ vectorsTable >>= vectorsA
+
+        , bench "int32" $ nf (\(Right (Just vec)) ->
+              forM [0..(n-1)] (\i -> vec `unsafeIndex` i)
+            )
+            $ vectorsTable >>= vectorsG
+
+        , bench "string" $ nf (\(Right (Just vec)) ->
+              forM [0..(n-1)] (\i -> vec `unsafeIndex` i)
+            )
+            $ vectorsTable >>= vectorsL
         ]
     , bgroup "index"
         [ bench "word8" $ nf (\(Right (Just vec)) ->

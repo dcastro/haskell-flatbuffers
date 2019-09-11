@@ -34,5 +34,7 @@ WIP. An implementation of the flatbuffers protocol in Haskell.
 
 - [ ] TH: sort table fields by size + support `original_order` attribute.
 - [ ] Add support for storing unboxed vectors, which do not have a `Foldable` instance. Maybe use `MonoFoldable` from the `mono-traversable` package.
-- [ ] Improve error messages during `SemanticAnalysis` stage, provide source code position.
+- [ ] Enrich `Vector` API: drop, take, null, folds, sum, elem, for_, traverse_, ideally support most of operations in `Data.Foldable`.
+- [ ] Add `MonoFoldable (Vector a)` instance
+- [ ] Improve error messages during `SemanticAnalysis` stage, provide source code location.
 

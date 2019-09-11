@@ -8,8 +8,8 @@ module FlatBuffers.ReadSpec where
 
 import           Control.Exception          ( evaluate )
 
-import qualified Data.ByteString.Lazy       as BSL
 import           Data.Functor               ( ($>) )
+import           Data.Int
 import qualified Data.Maybe                 as Maybe
 import           Data.Word
 
@@ -17,6 +17,7 @@ import           Examples
 
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Write
+import qualified FlatBuffers.Vector         as Vec
 
 import           TestImports
 
@@ -95,28 +96,44 @@ spec =
         result <- evalRight $ do
           table <- decode $ encode $ vectorOfUnions Nothing (vector' [union])
           vec   <- vectorOfUnionsXsReq table
-          vec `index` 0
+          vec `unsafeIndex` 0
 
         case result of
           UnionUnknown n -> n `shouldBe` 99
 
     describe "vectors" $ do
-      let getIndex table getVector ix = do
+      let getIndex :: Table b
+                  -> (Table b -> Either ReadError (Maybe (Vector a)))
+                  -> (Vector a -> Int32 -> Either ReadError a)
+                  -> Int32
+                  -> Either ReadError a
+          getIndex table getVector indexFn ix = do
             vec <- getVector table
-            (Maybe.fromJust vec) `index` ix
+            (Maybe.fromJust vec) `indexFn` ix
 
-      let testInvalidIndex (Right table) getVector =
-            getIndex table getVector 100
-              `shouldBeLeft` ParsingError "not enough bytes"
 
-      let testNegativeIndex (Right table) getVector =
-            (case getIndex table getVector (-1) of
+      let testNegativeIndex table getVector =
+            (case getIndex table getVector Vec.index (-1) of
               Right a -> evaluate a $> ()
               Left e  -> evaluate e $> ()
             ) `shouldThrow` errorCall "FlatBuffers.Internal.Read.index: negative index: -1"
 
+      let testLargeIndex table getVector =
+            (case getIndex table getVector Vec.index 98 of
+              Right a -> evaluate a $> ()
+              Left e  -> evaluate e $> ()
+            ) `shouldThrow` errorCall "FlatBuffers.Internal.Read.index: index too large: 98"
+
+      let testLargeUnsafeIndex table getVector = do
+            case getIndex table getVector Vec.unsafeIndex 100 of
+              Right a -> evaluate a $> ()
+              Left e -> evaluate e $> ()
+            case getIndex table getVector Vec.unsafeIndex (-100) of
+              Right a -> evaluate a $> ()
+              Left e -> evaluate e $> ()
+
       describe "of primitives" $ do
-        let table = decode $ encode $ vectors
+        let Right table = decode $ encode $ vectors
               (Just (vector' []))
               (Just (vector' []))
               (Just (vector' []))
@@ -130,19 +147,19 @@ spec =
               (Just (vector' []))
               (Just (vector' []))
 
-        it "`index` fails when index points to a location beyond the buffer's limits" $ do
-          testInvalidIndex table vectorsA
-          testInvalidIndex table vectorsB
-          testInvalidIndex table vectorsC
-          testInvalidIndex table vectorsD
-          testInvalidIndex table vectorsE
-          testInvalidIndex table vectorsF
-          testInvalidIndex table vectorsG
-          testInvalidIndex table vectorsH
-          testInvalidIndex table vectorsI
-          testInvalidIndex table vectorsJ
-          testInvalidIndex table vectorsK
-          testInvalidIndex table vectorsL
+        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+          testLargeUnsafeIndex table vectorsA
+          testLargeUnsafeIndex table vectorsB
+          testLargeUnsafeIndex table vectorsC
+          testLargeUnsafeIndex table vectorsD
+          testLargeUnsafeIndex table vectorsE
+          testLargeUnsafeIndex table vectorsF
+          testLargeUnsafeIndex table vectorsG
+          testLargeUnsafeIndex table vectorsH
+          testLargeUnsafeIndex table vectorsI
+          testLargeUnsafeIndex table vectorsJ
+          testLargeUnsafeIndex table vectorsK
+          testLargeUnsafeIndex table vectorsL
 
         it "`index` throws when index is negative" $ do
           testNegativeIndex table vectorsA
@@ -158,39 +175,59 @@ spec =
           testNegativeIndex table vectorsK
           testNegativeIndex table vectorsL
 
+        it "`index` throws when index is too large" $ do
+          testLargeIndex table vectorsA
+          testLargeIndex table vectorsB
+          testLargeIndex table vectorsC
+          testLargeIndex table vectorsD
+          testLargeIndex table vectorsE
+          testLargeIndex table vectorsF
+          testLargeIndex table vectorsG
+          testLargeIndex table vectorsH
+          testLargeIndex table vectorsI
+          testLargeIndex table vectorsJ
+          testLargeIndex table vectorsK
+          testLargeIndex table vectorsL
+
       describe "of structs" $ do
-        let table = decode $ encode $ vectorOfStructs
+        let Right table = decode $ encode $ vectorOfStructs
               (Just (vector' []))
               (Just (vector' []))
               (Just (vector' []))
               (Just (vector' []))
 
-        it "`index` returns struct pointing to empty string when index points to a location beyond the buffer's limits" $ do
-          table <- evalRight table
-          vec <- evalRightJust $ vectorOfStructsAs table
-          Struct bs <- evalRight $ vec `index` 100
-          BSL.null bs `shouldBe` True
+        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+          testLargeUnsafeIndex table vectorOfStructsAs
 
         it "`index` throws when index is negative" $
           testNegativeIndex table vectorOfStructsAs
 
+        it "`index` throws when index is too large" $
+          testLargeIndex table vectorOfStructsAs
+
       describe "of tables" $ do
-        let table = decode $ encode $ vectorOfTables
+        let Right table = decode $ encode $ vectorOfTables
               (Just (vector' []))
 
-        it "`index` fails when index points to a location beyond the buffer's limits" $ do
-          testInvalidIndex table vectorOfTablesXs
+        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+          testLargeUnsafeIndex table vectorOfTablesXs
 
         it "`index` throws when index is negative" $
           testNegativeIndex table vectorOfTablesXs
 
+        it "`index` throws when index is too large" $
+          testLargeIndex table vectorOfTablesXs
+
       describe "of unions" $ do
-        let table = decode $ encode $ vectorOfUnions
+        let Right table = decode $ encode $ vectorOfUnions
               (Just (vector' []))
               (vector' [])
 
-        it "`index` fails when index points to a location beyond the buffer's limits" $ do
-          testInvalidIndex table vectorOfUnionsXs
+        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+          testLargeUnsafeIndex table vectorOfUnionsXs
 
         it "`index` throws when index is negative" $
           testNegativeIndex table vectorOfUnionsXs
+
+        it "`index` throws when index is too large" $
+          testLargeIndex table vectorOfUnionsXs

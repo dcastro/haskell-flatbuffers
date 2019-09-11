@@ -208,7 +208,7 @@ spec =
             vec <- evalRightJust (getVec nonEmptyVecs)
             Vec.length vec `shouldBe` Right (L.genericLength expectedList)
             toList vec       `shouldBe` Right expectedList
-            traverse (\i -> vec `index` i) [0 .. L.genericLength expectedList - 1] `shouldBe` Right expectedList
+            traverse (\i -> vec `unsafeIndex` i) [0 .. L.genericLength expectedList - 1] `shouldBe` Right expectedList
 
           it "empty" $ do
             vec <- evalRightJust (getVec emptyVecs)
@@ -244,7 +244,7 @@ spec =
         Just xs <- evalRight $ vectorOfTablesXs x
         Vec.length xs `shouldBe` Right 3
         (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
-        (traverse (index xs) [0..2] >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
+        (traverse (unsafeIndex xs) [0..2] >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
       it "empty" $ do
         x <- evalRight $ decode $ encode $ vectorOfTables (Just (vector' []))
@@ -277,19 +277,19 @@ spec =
 
         Vec.length as `shouldBe` Right 2
         (toList as >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
-        (traverse (index as) [0..1] >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
+        (traverse (unsafeIndex as) [0..1] >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
 
         Vec.length bs `shouldBe` Right 3
         (toList bs >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
-        (traverse (index bs) [0..2] >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
+        (traverse (unsafeIndex bs) [0..2] >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
 
         Vec.length cs `shouldBe` Right 3
         (toList cs >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
-        (traverse (index cs) [0..2] >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
+        (traverse (unsafeIndex cs) [0..2] >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
 
         Vec.length ds `shouldBe` Right 3
         (toList ds >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
-        (traverse (index ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
+        (traverse (unsafeIndex ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
       it "empty" $ do
         x <- evalRight $ decode $ encode $ vectorOfStructs
@@ -345,9 +345,9 @@ spec =
         Just xs <- evalRight $ vectorOfUnionsXs x
         Vec.length xs `shouldBe` Right 3
         L.length <$> toList xs `shouldBe` Right 3
-        xs `index` 0 `shouldBeRightAndExpect` shouldBeSword "hi"
-        xs `index` 1 `shouldBeRightAndExpect` shouldBeNone
-        xs `index` 2 `shouldBeRightAndExpect` shouldBeAxe 98
+        xs `unsafeIndex` 0 `shouldBeRightAndExpect` shouldBeSword "hi"
+        xs `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeNone
+        xs `unsafeIndex` 2 `shouldBeRightAndExpect` shouldBeAxe 98
         (toList xs <&> (!! 0)) `shouldBeRightAndExpect` shouldBeSword "hi"
         (toList xs <&> (!! 1)) `shouldBeRightAndExpect` shouldBeNone
         (toList xs <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 98
@@ -355,9 +355,9 @@ spec =
         xsReq <- evalRight $ vectorOfUnionsXsReq x
         Vec.length xsReq `shouldBe` Right 3
         L.length <$> toList xsReq `shouldBe` Right 3
-        xsReq `index` 0 `shouldBeRightAndExpect` shouldBeSword "hi2"
-        xsReq `index` 1 `shouldBeRightAndExpect` shouldBeNone
-        xsReq `index` 2 `shouldBeRightAndExpect` shouldBeAxe 100
+        xsReq `unsafeIndex` 0 `shouldBeRightAndExpect` shouldBeSword "hi2"
+        xsReq `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeNone
+        xsReq `unsafeIndex` 2 `shouldBeRightAndExpect` shouldBeAxe 100
         (toList xsReq <&> (!! 0)) `shouldBeRightAndExpect` shouldBeSword "hi2"
         (toList xsReq <&> (!! 1)) `shouldBeRightAndExpect` shouldBeNone
         (toList xsReq <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 100
