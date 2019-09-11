@@ -330,7 +330,7 @@ spec =
               t x = writeTable [optional writeStructTableField x]
 
               tX :: Table T -> Either ReadError (Maybe (Struct S))
-              tX = readTableFieldOpt readStruct' 0
+              tX = readTableFieldOpt (Right . readStruct) 0
             |]
 
         it "deprecated" $
@@ -377,7 +377,7 @@ spec =
               t x = writeTable [writeStructTableField x]
 
               tX :: Table T -> Either ReadError (Struct S)
-              tX = readTableFieldReq readStruct' 0 "X"
+              tX = readTableFieldReq (Right . readStruct) 0 "X"
             |]
 
       describe "table fields" $ do

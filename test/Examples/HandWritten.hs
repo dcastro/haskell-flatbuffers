@@ -138,7 +138,7 @@ enumsX :: Table Enums -> Either ReadError Int16
 enumsX = readTableFieldWithDef readInt16 0 0
 
 enumsY :: Table Enums -> Either ReadError (Maybe (Struct StructWithEnum))
-enumsY = readTableFieldOpt readStruct' 1
+enumsY = readTableFieldOpt (Right . readStruct) 1
 
 enumsXs :: Table Enums -> Either ReadError (Maybe (Vector Int16))
 enumsXs = readTableFieldOpt (readPrimVector VectorInt16) 2
@@ -267,16 +267,16 @@ structs a b c d = writeTable
   ]
 
 structsA :: Table Structs -> Either ReadError (Maybe (Struct Struct1))
-structsA = readTableFieldOpt readStruct' 0
+structsA = readTableFieldOpt (Right . readStruct) 0
 
 structsB :: Table Structs -> Either ReadError (Maybe (Struct Struct2))
-structsB = readTableFieldOpt readStruct' 1
+structsB = readTableFieldOpt (Right . readStruct) 1
 
 structsC :: Table Structs -> Either ReadError (Maybe (Struct Struct3))
-structsC = readTableFieldOpt readStruct' 2
+structsC = readTableFieldOpt (Right . readStruct) 2
 
 structsD :: Table Structs -> Either ReadError (Maybe (Struct Struct4))
-structsD = readTableFieldOpt readStruct' 3
+structsD = readTableFieldOpt (Right . readStruct) 3
 
 
 ----------------------------------
@@ -625,7 +625,7 @@ requiredFieldsA :: Table RequiredFields -> Either ReadError Text
 requiredFieldsA = readTableFieldReq readText 0 "a"
 
 requiredFieldsB :: Table RequiredFields -> Either ReadError (Struct Struct1)
-requiredFieldsB = readTableFieldReq readStruct' 1 "b"
+requiredFieldsB = readTableFieldReq (Right . readStruct) 1 "b"
 
 requiredFieldsC :: Table RequiredFields -> Either ReadError (Table Axe)
 requiredFieldsC = readTableFieldReq readTable 2 "c"

@@ -286,7 +286,7 @@ instance VectorElement (Struct a) where
   length = readInt32 . vectorStructPos
   unsafeIndex (VectorStruct structSize pos) =
     let elemSize = fromIntegral @InlineSize @Int32 structSize
-    in readStruct' . moveToElem pos elemSize
+    in Right . readStruct . moveToElem pos elemSize
   toList vec@(VectorStruct structSize pos) =
     length vec <&> \len ->
       go len (move pos (int32Size :: Int64))
@@ -325,6 +325,7 @@ instance VectorElement (Union a) where
     , vectorUnionReadElem  :: !(Positive Word8 -> PositionInfo -> Either ReadError (Union a))
     -- ^ A function to read a union value from this vector
     }
+
   -- NOTE: we assume the two vectors have the same length
   length = length . vectorUnionTypesPos
 
@@ -542,11 +543,6 @@ readTable' tablePos =
     let vtableOffsetFromRoot = coerce (posOffsetFromRoot tablePos) - soffset
         vtable = move (posRoot tablePos) vtableOffsetFromRoot
     in  Table vtable tablePos
-
--- | Convenience function for reading structs from table fields / vectors
-{-# INLINE readStruct' #-}
-readStruct' :: HasPosition a => a -> Either ReadError (Struct s)
-readStruct' = Right . readStruct
 
 {-# INLINE readStruct #-}
 readStruct :: HasPosition a => a -> Struct s

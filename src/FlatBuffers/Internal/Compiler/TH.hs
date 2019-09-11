@@ -447,7 +447,7 @@ mkTableFieldGetter tableName table tf =
         TBool (DefaultVal b)    -> mkFunWithBody (bodyForScalar (if b then ConE 'True else ConE 'False) (VarE 'readBool))
         TString req             -> mkFunWithBody (bodyForNonScalar req (VarE 'readText))
         TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
-        TStruct _ req           -> mkFunWithBody (bodyForNonScalar req (VarE 'readStruct'))
+        TStruct _ req           -> mkFunWithBody (bodyForNonScalar req (compose [ConE 'Right, VarE 'readStruct]))
         TTable _ req            -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
         TUnion (TypeRef ns ident) _req ->
           mkFunWithBody $ app
