@@ -8,7 +8,6 @@
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
 import           Control.Applicative  ( liftA3 )
-import           Control.Exception    ( throwIO )
 
 import           Data.Aeson           ( (.=), Value(..), object )
 import qualified Data.Aeson           as J
@@ -653,4 +652,4 @@ flatcAux withFileIdentifier bs = do
 
   case decode bs' of
     Right table -> pure (json, table)
-    Left err    -> throwIO err
+    Left err    -> fail err

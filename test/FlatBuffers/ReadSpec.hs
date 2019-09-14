@@ -24,7 +24,7 @@ spec :: Spec
 spec =
   describe "read" $ do
     it "fails when buffer is exhausted" $
-      decode @() "" `shouldBeLeft` ParsingError "not enough bytes"
+      decode @() "" `shouldBeLeft` "not enough bytes"
 
     it "fails when decoding string with invalid UTF-8 bytes" $ do
       let text = Vec.singleton 255
@@ -35,17 +35,17 @@ spec =
         , writeVectorWord8TableField text
         ]
       primitivesL table `shouldBeLeft`
-        Utf8DecodingError "Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream" (Just 255)
+        "UTF8 decoding error (byte 255): Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream"
 
     it "fails when required field is missing" $ do
       table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
-      requiredFieldsA table `shouldBeLeft` MissingField "a"
-      requiredFieldsB table `shouldBeLeft` MissingField "b"
-      requiredFieldsC table `shouldBeLeft` MissingField "c"
-      requiredFieldsE table `shouldBeLeft` MissingField "e"
+      requiredFieldsA table `shouldBeLeft` "Missing required table field: a"
+      requiredFieldsB table `shouldBeLeft` "Missing required table field: b"
+      requiredFieldsC table `shouldBeLeft` "Missing required table field: c"
+      requiredFieldsE table `shouldBeLeft` "Missing required table field: e"
 
       table <- evalRight $ decode @VectorOfUnions $ encode $ writeTable []
-      vectorOfUnionsXsReq table `shouldBeLeft` MissingField "xsReq"
+      vectorOfUnionsXsReq table `shouldBeLeft` "Missing required table field: xsReq"
 
     it "returns `UnionNone` when required union field is missing" $ do
       table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
@@ -58,7 +58,7 @@ spec =
 
     it "throws when union type is present, but union value is missing" $ do
       table <- evalRight $ decode $ encode $ writeTable [ writeWord8TableField 1]
-      tableWithUnionUni table `shouldBeLeft` MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+      tableWithUnionUni table `shouldBeLeft` "Union: 'union type' found but 'union value' is missing."
 
     it "throws when union type vector is present, but union value vector is missing" $ do
       table <- evalRight $ decode $ encode $ writeTable
@@ -69,8 +69,8 @@ spec =
         , writeVectorWord8TableField $ Vec.empty
         , missing
         ]
-      vectorOfUnionsXs table `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
-      vectorOfUnionsXsReq table `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+      vectorOfUnionsXs table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
+      vectorOfUnionsXsReq table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
 
     it "throws when union type vector and union value vector have different sizes" $ do
       let typesVec = Vec.singleton 1
@@ -80,7 +80,7 @@ spec =
         , writeVectorTableTableField valuesVec
         ]
       vec <- evalRightJust $ vectorOfUnionsXs table
-      toList vec `shouldBeLeft` MalformedBuffer "Union vector: 'type vector' and 'value vector' do not have the same length."
+      toList vec `shouldBeLeft` "Union vector: 'type vector' and 'value vector' do not have the same length."
 
     describe "returns `UnionUnknown` when union type is not recognized" $ do
       it "in union table fields" $ do

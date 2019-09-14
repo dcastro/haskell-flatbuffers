@@ -28,7 +28,7 @@ module FlatBuffers
   , T.Alignment(..)
   , T.IsStruct(..)
   , TH.Options(..)
-  , R.ReadError(..)
+  , R.ReadError
   ) where
 
 import           FlatBuffers.Internal.Compiler.TH    as TH

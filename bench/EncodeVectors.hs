@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
@@ -22,7 +23,7 @@ n = 10000
 
 groups :: [Benchmark]
 groups =
-  [ bgroup "encode vectors"
+  [ bgroup ("encode vectors (" <> show @Int n <> " elements)")
     [ bgroup "from list"
       [ bench "of ints" $ nf (\xs ->
           encode . vectorOfInts . Just . Vec.fromList (fromIntegral (F.length xs)) $

@@ -44,7 +44,6 @@ dependencies:
   - filepath
   - directory
   - text-manipulate
-  - deepseq
 
 library:
   source-dirs:      src

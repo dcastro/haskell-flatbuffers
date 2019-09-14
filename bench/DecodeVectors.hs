@@ -26,7 +26,7 @@ n = 10000
 
 groups :: [Benchmark]
 groups =
-  [ bgroup "decode vectors"
+  [ bgroup ("decode vectors (" <> show @Int n <> " elements)")
     [ bgroup "toList"
         [ bench "word8" $ nf (\(Right (Just vec)) -> Vec.toList vec ) $ vectorsTable >>= vectorsA
         , bench "word16" $ nf (\(Right (Just vec)) -> Vec.toList vec ) $ vectorsTable >>= vectorsB

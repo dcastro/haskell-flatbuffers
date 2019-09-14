@@ -17,8 +17,6 @@
 
 module FlatBuffers.Internal.Read where
 
-import           Control.DeepSeq                     ( NFData )
-import           Control.Exception                   ( Exception )
 import           Control.Monad                       ( (>=>), join )
 
 import           Data.Binary.Get                     ( Get )
@@ -42,9 +40,9 @@ import           FlatBuffers.Internal.FileIdentifier ( FileIdentifier(..), HasFi
 import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Util           ( Positive, positive )
 
-import           GHC.Generics                        ( Generic )
-
 import           Prelude                             hiding ( length )
+
+type ReadError = String
 
 newtype TableIndex = TableIndex { unTableIndex :: Word16 }
   deriving newtype (Show, Num)
@@ -353,8 +351,7 @@ instance VectorElement (Union a) where
               in  readElem unionType' tablePos
         unions <- go unionTypes offsets (ix + 1)
         pure (union : unions)
-      go _ _ _ = Left $ MalformedBuffer
-        "Union vector: 'type vector' and 'value vector' do not have the same length."
+      go _ _ _ = Left "Union vector: 'type vector' and 'value vector' do not have the same length."
 
 ----------------------------------
 ----- Read from Struct/Table -----
@@ -375,7 +372,7 @@ readTableFieldReq :: (PositionInfo -> Either ReadError a) -> TableIndex -> Strin
 readTableFieldReq read ix name t = do
   mbOffset <- tableIndexToVOffset t ix
   case mbOffset of
-    Nothing -> Left $ MissingField name
+    Nothing     -> missingField name
     Just offset -> read (move (tablePos t) offset)
 
 {-# INLINE readTableFieldWithDef #-}
@@ -393,7 +390,7 @@ readTableFieldUnion read ix t =
       Nothing         -> Right UnionNone
       Just unionType' ->
         tableIndexToVOffset t ix >>= \case
-          Nothing     -> Left $ MalformedBuffer "Union: 'union type' found but 'union value' is missing."
+          Nothing     -> Left "Union: 'union type' found but 'union value' is missing."
           Just offset -> readUOffsetAndSkip (move (tablePos t) offset) >>= read unionType'
 
 readTableFieldUnionVectorOpt ::
@@ -406,7 +403,7 @@ readTableFieldUnionVectorOpt read ix t =
     Nothing -> Right Nothing
     Just typesOffset ->
       tableIndexToVOffset t ix >>= \case
-        Nothing -> Left $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Nothing -> Left "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           Just <$> readUnionVector read (move (tablePos t) typesOffset) (move (tablePos t) valuesOffset)
 
@@ -418,10 +415,10 @@ readTableFieldUnionVectorReq ::
   -> Either ReadError (Vector (Union a))
 readTableFieldUnionVectorReq read ix name t =
   tableIndexToVOffset t (ix - 1) >>= \case
-    Nothing -> Left $ MissingField name
+    Nothing -> missingField name
     Just typesOffset ->
       tableIndexToVOffset t ix >>= \case
-        Nothing -> Left $ MalformedBuffer "Union vector: 'type vector' found but 'value vector' is missing."
+        Nothing -> Left "Union vector: 'type vector' found but 'value vector' is missing."
         Just valuesOffset ->
           readUnionVector read (move (tablePos t) typesOffset) (move (tablePos t) valuesOffset)
 
@@ -525,7 +522,10 @@ readText' = do
   bs <- G.getByteString $ fromIntegral @Int32 @Int strLength
   pure $! case T.decodeUtf8' bs of
     Right t -> Right t
-    Left (T.DecodeError msg b) -> Left $ Utf8DecodingError msg b
+    Left (T.DecodeError msg byteMaybe) ->
+      case byteMaybe of
+        Just byte -> Left $ "UTF8 decoding error (byte " <> show byte <> "): " <> msg
+        Nothing   -> Left $ "UTF8 decoding error: " <> msg
     -- The `EncodeError` constructor is deprecated and not used
     -- https://hackage.haskell.org/package/text-1.2.3.1/docs/Data-Text-Encoding-Error.html#t:UnicodeException
     Left _ -> error "the impossible happened"
@@ -570,22 +570,17 @@ readUOffsetAndSkip :: HasPosition pos => pos -> Either ReadError pos
 readUOffsetAndSkip pos =
   move pos <$> readInt32 pos
 
-data ReadError
-  = ParsingError    { msg       :: String }
-  | MalformedBuffer { msg       :: String }
-  | MissingField    { fieldName :: String }
-  | Utf8DecodingError { msg  :: String
-                      , byte :: Maybe Word8
-                      }
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (NFData, Exception)
-
 {-# INLINE runGet #-}
 runGet :: Get a -> ByteString -> Either ReadError a
 runGet get bs =
   case G.runGetOrFail get bs of
     Right (_, _, a)  -> Right a
-    Left (_, _, msg) -> Left $ ParsingError msg
+    Left (_, _, msg) -> Left msg
+
+{-# NOINLINE missingField #-}
+missingField :: String -> Either ReadError a
+missingField fieldName =
+  Left $ "Missing required table field: " <> fieldName
 
 -- | Safer version of `Data.ByteString.Lazy.index` that doesn't throw when index is too large.
 -- Assumes @i > 0@.
@@ -595,7 +590,7 @@ runGet get bs =
 byteStringSafeIndex :: ByteString -> Int32 -> Either ReadError Word8
 byteStringSafeIndex !cs0 !i =
   index' cs0 i
-  where index' BSL.Empty _ = Left $ ParsingError "not enough bytes"
+  where index' BSL.Empty _ = Left "not enough bytes"
         index' (BSL.Chunk c cs) n
           -- NOTE: this might overflow in systems where Int has less than 32 bits
           | fromIntegral @Int32 @Int n >= BS.length c =
