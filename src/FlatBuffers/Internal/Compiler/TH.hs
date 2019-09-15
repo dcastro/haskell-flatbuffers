@@ -40,26 +40,50 @@ import qualified Language.Haskell.TH.Syntax                      as TH
 a ~> b = ArrowT `AppT` a `AppT` b
 infixr 1 ~>
 
+-- | Options to control how/which flatbuffers constructors/accessor should be generated.
+--
+-- Options can be set using record syntax on `defaultOptions` with the fields below.
 data Options = Options
   { -- | Directories to search for @include@s (same as flatc @-I@ option).
-    includeDirs :: [FilePath]
+    includeDirectories :: [FilePath]
     -- | Generate code not just for the root schema,
     -- but for all schemas it includes as well
     -- (same as flatc @--gen-all@ option).
   , compileAllSchemas :: Bool
   }
+  deriving (Show, Eq)
 
+-- | Default flatbuffers options:
+--
+-- > Options
+-- >   { includeDirectories = []
+-- >   , compileAllSchemas = False
+-- >   }
 defaultOptions :: Options
 defaultOptions = Options
-  { includeDirs = []
+  { includeDirectories = []
   , compileAllSchemas = False
   }
 
+-- | Generates constructors and accessors for all data types declared in the given flatbuffers
+-- schema whose namespace matches the current module.
+--
+-- > namespace Data.Game;
+-- >
+-- > table Monster {}
+--
+-- > {-# LANGUAGE TemplateHaskell #-}
+-- >
+-- > module Data.Game where
+-- >
+-- > import FlatBuffers
+-- >
+-- > $(mkFlatBuffers "schemas/game.fbs" defaultOptions)
 mkFlatBuffers :: FilePath -> Options -> Q [Dec]
 mkFlatBuffers rootFilePath opts = do
   currentModule <- T.pack . loc_module <$> location
 
-  parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirs opts)
+  parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirectories opts)
 
   schemaFileTree <- either (fail . T.unpack) pure parseResult
 

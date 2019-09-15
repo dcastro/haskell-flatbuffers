@@ -3,6 +3,7 @@ module FlatBuffers
     -- * TemplateHaskell
     TH.mkFlatBuffers
   , TH.defaultOptions
+  , TH.Options(..)
 
     -- * Creating a flatbuffer
   , W.encode
@@ -27,7 +28,6 @@ module FlatBuffers
   , T.InlineSize(..)
   , T.Alignment(..)
   , T.IsStruct(..)
-  , TH.Options(..)
   , R.ReadError
   ) where
 

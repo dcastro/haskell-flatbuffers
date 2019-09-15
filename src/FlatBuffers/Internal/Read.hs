@@ -148,6 +148,7 @@ inlineVectorToList get (getPosition -> pos) =
 class VectorElement a where
   data Vector a
 
+  -- | Returns the size of the vector.
   length :: Vector a -> Either ReadError Int32
 
   -- | Returns the item at the given index.

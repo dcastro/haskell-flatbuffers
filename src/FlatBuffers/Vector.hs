@@ -1,3 +1,8 @@
+-- | This module is intended to be imported qualified to avoid name clashes with Prelude.
+-- E.g.:
+--
+-- > import           FlatBuffers.Vector (Vector, WriteVector)
+-- > import qualified FlatBuffers.Vector as Vector
 module FlatBuffers.Vector
   (
     -- * Creating a vector

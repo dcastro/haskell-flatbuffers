@@ -5,7 +5,7 @@ STACK:=stack $(STACK_ARGS)
 ################################################################################
 
 hoogle: ## Launch a hoogle server
-	stack hoogle --server
+	stack hoogle --rebuild --server
 .PHONY: hoogle
 
 ghci:		## Launch ghci with some default settings
