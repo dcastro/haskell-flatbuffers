@@ -5,12 +5,11 @@
 <!-- TOC depthFrom:2 updateOnSave:false -->
 
 - [Getting started](#getting-started)
-  - [Vectors](#vectors)
   - [Enums](#enums)
   - [Structs](#structs)
   - [Unions](#unions)
+  - [File Identifiers](#file-identifiers)
 - [Codegen](#codegen)
-  - [Codegen Examples](#codegen-examples)
 - [TODO](#todo)
   - [Features](#features)
   - [Other](#other)
@@ -22,7 +21,7 @@ An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
 ## Getting started
 
 1. Start off by writing a [flatbuffers schema][schema] with the data structures you want to serialize/deserialize.
-    ```cpp
+    ```
     namespace Data.Game;
 
     table Monster {
@@ -44,7 +43,7 @@ An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
 
     $(mkFlatBuffers "schemas/game.fbs" defaultOptions)
     ```
-4. In this simple example, the following declarations will be generated for you.
+4. The following declarations will be generated for you.
     ```haskell
     data Monster
 
@@ -57,21 +56,14 @@ An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
     monsterLocations :: Table Monster -> Either ReadError (Vector Text)
     ```
 
-<!-- In this simple example, `mkFlatBuffers` will generate the following declarations: -->
-
-Before using these, go ahead and add these imports/extensions to your module:
+We can now construct a flatbuffer using `encode` and read it using `decode`:
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import           Data.Text          ( Text )
 import           FlatBuffers
 import qualified FlatBuffers.Vector as Vector
-```
 
-We can now construct a flatbuffer using `encode` and read it using `decode`:
-
-```haskell
 -- Writing
 let byteString = encode $
       monster
@@ -88,30 +80,15 @@ do
   Right ("Monster: " <> show name <> " (" <> show hp <> " HP) can be found in " <> show locations)
 ```
 
-### Vectors
-
-To work with vectors, you should import `FlatBuffers.Vector` (preferably qualified).
-
-The most generic way of creating a vector is with `fromFoldable`.
-Check out the module's docs for other more specialized functions.
-
-```haskell
-fromFoldable ::
-     Foldable f
-  => Int32      -- ^ n: the number of elements in xs
-  -> f a        -- ^ xs: a collection
-  -> WriteVector a
-```
+For more info on code generation and examples, see [codegen](#codegen).
 
 ### Enums
 
-Given the following enum declaration:
-
-```cpp
+```
 enum Color: short { Red, Green, Blue }
 ```
 
-The following code will be generated:
+Given the enum declarationa above, the following code will be generated:
 
 ```haskell
 data Color
@@ -155,16 +132,14 @@ do
 
 ### Structs
 
-Given the following struct declaration:
-
-```cpp
+```
 struct Coord {
   x: long;
   y: long;
 }
 ```
 
-The following code will be generated:
+Given the struct declaration above, the following code will be generated:
 
 ```haskell
 data Coord
@@ -180,7 +155,7 @@ coordY :: Struct Coord -> Either ReadError Int64
 
 Usage:
 
-```cpp
+```
 table Monster {
   position: Coord (required);
 }
@@ -207,15 +182,13 @@ do
 
 ### Unions
 
-Given the following union declaration:
-
-```cpp
+```
 table Sword { power: int (required); }
 table Axe { power: int (required); }
 union Weapon { Sword, Axe }
 ```
 
-The following code will be generated:
+Given the union declaration above, the following code will be generated:
 
 ```haskell
 -- Accessors
@@ -230,7 +203,7 @@ weaponAxe   :: WriteTable Axe   -> WriteUnion Weapon
 
 Usage:
 
-```cpp
+```
 table Character {
   weapon: Weapon;
 }
@@ -262,7 +235,7 @@ do
     UnionUnknown byte -> Left "Unknown weapon" -- Forwards compatibility
 ```
 
-Note that unions are *always* optional. Adding the `required` attribute to an union field has no effect.
+Note that, like in the official FlatBuffers implementation, unions are *always* optional. Adding the `required` attribute to an union field has no effect.
 
 To create a character with no weapon, use `none :: WriteUnion a`
 
@@ -271,7 +244,52 @@ let byteString = encode $
       character none
 ```
 
-For more info on code generation and examples, see [codegen](#codegen).
+
+### File Identifiers
+
+From ["File identification and extension"][schema]:
+
+> Typically, a FlatBuffer binary buffer is not self-describing, i.e. it needs you to know its schema to parse it correctly. But if you want to use a FlatBuffer as a file format, it would be convenient to be able to have a "magic number" in there, like most file formats have, to be able to do a sanity check to see if you're reading the kind of file you're expecting.
+>
+> Now, you can always prefix a FlatBuffer with your own file header, but FlatBuffers has a built-in way to add an identifier to a FlatBuffer that takes up minimal space, and keeps the buffer compatible with buffers that don't have such an identifier.
+
+```
+table Monster { name: string; }
+
+root_type Monster;
+file_identifier "MONS";
+```
+
+```haskell
+data Monster
+
+instance HasFileIdentifier Monster where
+  ...
+
+-- Usual constructor and accessors...
+```
+
+We can now construct a flatbuffer using `encodeWithFileIdentifier` and use `checkFileIdentifier` to check if it's safe to decode it to a specific type:
+
+```haskell
+{-# LANGUAGE TypeApplications #-}
+
+-- Writing
+let byteString = encodeWithFileIdentifier $
+      monster (Just "Poring")
+
+-- Reading
+if checkFileIdentifier @Monster byteString
+  then do
+    someMonster <- decode byteString
+    monsterName someMonster
+  else if checkFileIdentifier @Character byteString
+    then do
+      someCharacter <- decode byteString
+      characterName someCharacter
+    else
+      Left "Unexpected flatbuffer identifier"
+```
 
 ## Codegen
 
@@ -291,12 +309,9 @@ Or by launching a local hoogle server with Stack:
 > stack hoogle --rebuild --server
 ```
 
-### Codegen Examples
-
 There are lots of examples in the [test/Examples][examples] folder and the [`THSpec`][thspec] module.
 
 In particular, `test/Examples/schema.fbs` and `test/Examples/vector_of_unions.fbs` contain a variety of data structures and `Examples.HandWritten` demonstrates what the code generated by `mkFlatBuffers` would look like.
-
 
 ## TODO
 
