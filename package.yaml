@@ -23,12 +23,10 @@ extra-doc-files:
   - README.md
 
 ghc-options:
-  - -fdefer-typed-holes
   - -Wall
   - -Wno-name-shadowing
   - -Wincomplete-record-updates
   - -Wredundant-constraints
-  - -O1
 
 dependencies:
   - base >= 4.7 && < 5
