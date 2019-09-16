@@ -262,9 +262,7 @@ file_identifier "MONS";
 
 ```haskell
 data Monster
-
-instance HasFileIdentifier Monster where
-  ...
+instance HasFileIdentifier Monster
 
 -- Usual constructor and accessors...
 ```
@@ -279,16 +277,14 @@ let byteString = encodeWithFileIdentifier $
       monster (Just "Poring")
 
 -- Reading
-if checkFileIdentifier @Monster byteString
-  then do
-    someMonster <- decode byteString
-    monsterName someMonster
-  else if checkFileIdentifier @Character byteString
-    then do
-      someCharacter <- decode byteString
-      characterName someCharacter
-    else
-      Left "Unexpected flatbuffer identifier"
+if checkFileIdentifier @Monster byteString then do
+  someMonster <- decode byteString
+  monsterName someMonster
+else if checkFileIdentifier @Character byteString then do
+  someCharacter <- decode byteString
+  characterName someCharacter
+else
+  Left "Unexpected flatbuffer identifier"
 ```
 
 ## Codegen
