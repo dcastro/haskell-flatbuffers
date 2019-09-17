@@ -433,7 +433,7 @@ validateTable symbolTables (currentNamespace, table) =
         case tableFieldType field of
           TUnion _ _ ->
             when (tableFieldId field /= lastId + 2) $
-              throwErrorMsg "the id of an union field must be the last field's id + 2"
+              throwErrorMsg "the id of a union field must be the last field's id + 2"
           TVector _ (VUnion _) ->
             when (tableFieldId field /= lastId + 2) $
               throwErrorMsg "the id of a vector of unions field must be the last field's id + 2"

@@ -21,8 +21,10 @@ import           FlatBuffers.Internal.Constants ( fileIdentifierSize )
 -- To add this marker to a buffer, use `FlatBuffers.encodeWithFileIdentifier`.
 -- To check whether a buffer contains the marker before decoding it, use `FlatBuffers.checkFileIdentifier`.
 --
--- For more information on file identifiers, see section "File identification and extension"
--- here: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html.
+-- For more information on file identifiers, see :
+--
+-- * The [library's docs](https://github.com/dcastro/haskell-flatbuffers#file-identifiers)
+-- * Section "File identification and extension" of the [official docs](https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html)
 newtype FileIdentifier = FileIdentifier { unFileIdentifier :: ByteString }
   deriving (Eq, Show)
 

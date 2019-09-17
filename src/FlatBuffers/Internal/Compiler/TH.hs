@@ -40,9 +40,11 @@ import qualified Language.Haskell.TH.Syntax                      as TH
 a ~> b = ArrowT `AppT` a `AppT` b
 infixr 1 ~>
 
--- | Options to control how/which flatbuffers constructors/accessor should be generated.
+-- | Options to control how\/which flatbuffers constructors\/accessor should be generated.
 --
 -- Options can be set using record syntax on `defaultOptions` with the fields below.
+--
+-- > defaultOptions { compileAllSchemas = True }
 data Options = Options
   { -- | Directories to search for @include@s (same as flatc @-I@ option).
     includeDirectories :: [FilePath]

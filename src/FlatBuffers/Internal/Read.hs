@@ -54,15 +54,19 @@ newtype VOffset = VOffset { unVOffset :: Word16 }
 newtype OffsetFromRoot = OffsetFromRoot Int32
   deriving newtype (Show, Num, Real, Ord, Enum, Integral, Eq)
 
+-- | A table that is being read from a flatbuffer.
 data Table a = Table
   { vtable   :: !Position
   , tablePos :: !PositionInfo
   }
 
+-- | A struct that is being read from a flatbuffer.
 newtype Struct a = Struct
   { structPos :: Position
   }
 
+
+-- | A union that is being read from a flatbuffer.
 data Union a
   = Union !a
   | UnionNone
@@ -95,6 +99,7 @@ instance HasPosition PositionInfo where
     , posOffsetFromRoot = posOffsetFromRoot + OffsetFromRoot (fromIntegral @_ @Int32 offset)
     }
 
+-- | Deserializes a flatbuffer from a lazy `ByteString`.
 decode :: ByteString -> Either ReadError (Table a)
 decode root = readTable initialPos
   where
@@ -146,6 +151,8 @@ inlineVectorToList get (getPosition -> pos) =
     sequence $ L.replicate (fromIntegral @Int32 @Int len) get
 
 class VectorElement a where
+
+  -- | A vector that is being read from a flatbuffer.
   data Vector a
 
   -- | Returns the size of the vector.
@@ -163,6 +170,7 @@ class VectorElement a where
   -- (i.e. reading from outside the buffer's  boundaries).
   unsafeIndex :: Vector a -> Int32 -> Either ReadError a
 
+  -- | Converts the vector to a list.
   toList :: Vector a -> Either ReadError [a]
 
 

@@ -1,8 +1,9 @@
 # Haskell Flatbuffers
 
-[![Build Status](https://travis-ci.com/dcastro/haskell-flatbuffers.svg?branch=master)](https://travis-ci.com/dcastro/haskell-flatbuffers)
+An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
 
-<!-- TOC depthFrom:2 updateOnSave:false -->
+[![Build Status](https://travis-ci.com/dcastro/haskell-flatbuffers.svg?branch=master)](https://travis-ci.com/dcastro/haskell-flatbuffers)
+[![Hackage](https://img.shields.io/hackage/v/flatbuffers)](http://hackage.haskell.org/package/flatbuffers)
 
 - [Getting started](#getting-started)
   - [Enums](#enums)
@@ -11,12 +12,7 @@
   - [File Identifiers](#file-identifiers)
 - [Codegen](#codegen)
 - [TODO](#todo)
-  - [Features](#features)
-  - [Other](#other)
 
-<!-- /TOC -->
-
-An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
 
 ## Getting started
 
@@ -235,7 +231,8 @@ do
     UnionUnknown byte -> Left "Unknown weapon" -- Forwards compatibility
 ```
 
-Note that, like in the official FlatBuffers implementation, unions are *always* optional. Adding the `required` attribute to an union field has no effect.
+Note that, like in the official FlatBuffers implementation, unions are *always* optional.
+Adding the `required` attribute to a union field has no effect.
 
 To create a character with no weapon, use `none :: WriteUnion a`
 

@@ -10,10 +10,10 @@ category:            Data, Serialization, Network
 tested-with:         GHC == 8.6.5
 
 synopsis:            Haskell implementation of the FlatBuffers protocol.
-description:
-  Haskell implementation of the FlatBuffers protocol,
-  a protocol for memory efficient serialization, originally designed by Google.
+description: |
+  Haskell implementation of the FlatBuffers protocol.
 
+  See the GitHub page for documentation: <https://github.com/dcastro/haskell-flatbuffers>
 
 extra-source-files:
   - README.md

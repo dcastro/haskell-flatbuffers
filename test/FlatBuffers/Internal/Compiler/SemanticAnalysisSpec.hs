@@ -912,7 +912,7 @@ spec =
               z: byte (id: 0);
             }
           |] `shouldFail`
-            "[T.x]: the id of an union field must be the last field's id + 2"
+            "[T.x]: the id of a union field must be the last field's id + 2"
 
         it "id must be skipped when field is a vector of unions" $ do
           [r|

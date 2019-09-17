@@ -56,10 +56,13 @@ data FBState = FBState
 
 newtype WriteTableField = WriteTableField { unWriteTableField :: State FBState (FBState -> FBState) }
 
+-- | A struct to be written to a flatbuffer.
 newtype WriteStruct a = WriteStruct { buildStruct :: Builder }
 
+-- | A table to be written to a flatbuffer.
 newtype WriteTable a = WriteTable (State FBState Position)
 
+-- | A union to be written to a flatbuffer.
 data WriteUnion a
   = Some
       {-# UNPACK #-} !Word8
@@ -67,6 +70,7 @@ data WriteUnion a
   | None
 
 
+-- | Serializes a flatbuffer table as a lazy `BSL.ByteString`.
 {-# INLINE encode #-}
 encode :: WriteTable a -> BSL.ByteString
 encode = encodeState (FBState mempty (Sum 0) (Max 1) mempty)
@@ -84,6 +88,7 @@ encodeState state (WriteTable writeTable) =
     )
     state
 
+-- | Serializes a flatbuffer table as a lazy `BSL.ByteString` and adds a File Identifier.
 {-# INLINE encodeWithFileIdentifier #-}
 encodeWithFileIdentifier :: forall a. HasFileIdentifier a => WriteTable a -> BSL.ByteString
 encodeWithFileIdentifier =
@@ -244,6 +249,7 @@ writeUnionValueTableField !wu =
     None              -> missing
     Some _ unionValue -> writeTableTableField (WriteTable unionValue)
 
+-- | Constructs a missing union table field / vector element.
 {-# INLINE none #-}
 none :: WriteUnion a
 none = None
@@ -326,6 +332,7 @@ writeTable fields = WriteTable $ do
 
 class WriteVectorElement a where
 
+  -- | A vector to be written to a flatbuffer.
   data WriteVector a
 
   -- | Constructs a flatbuffers vector.
