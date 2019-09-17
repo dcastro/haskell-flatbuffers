@@ -26,7 +26,7 @@ An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
 
     table Monster {
       name: string;
-      hp: int (required);
+      hp: int;
       locations: [string] (required);
     }
     ```
@@ -48,7 +48,7 @@ An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
     data Monster
 
     -- Constructor
-    monster :: Maybe Text -> Int32 -> WriteVector Text -> WriteTable Monster
+    monster :: Maybe Text -> Maybe Int32 -> WriteVector Text -> WriteTable Monster
 
     -- Accessors
     monsterName      :: Table Monster -> Either ReadError (Maybe Text)
@@ -68,7 +68,7 @@ import qualified FlatBuffers.Vector as Vector
 let byteString = encode $
       monster
         (Just "Poring")
-        50
+        (Just 50)
         (Vector.fromList 2 ["Prontera Field", "Payon Forest"])
 
 -- Reading
@@ -124,10 +124,10 @@ do
   someMonster <- decode byteString
   short       <- monsterColor someMonster
   case toColor short of
-    Just ColorRed   -> "This monster is red"
-    Just ColorGreen -> "This monster is green"
-    Just ColorBlue  -> "This monster is blue"
-    Nothing         -> "Unknown color: " <> show short -- Forwards compatibility
+    Just ColorRed   -> Right "This monster is red"
+    Just ColorGreen -> Right "This monster is green"
+    Just ColorBlue  -> Right "This monster is blue"
+    Nothing         -> Left ("Unknown color: " <> show short) -- Forwards compatibility
 ```
 
 ### Structs
@@ -183,8 +183,8 @@ do
 ### Unions
 
 ```
-table Sword { power: int (required); }
-table Axe { power: int (required); }
+table Sword { power: int; }
+table Axe { power: int; }
 union Weapon { Sword, Axe }
 ```
 
@@ -218,7 +218,7 @@ characterWeapon :: Table Character -> Either ReadError (Union Weapon)
 -- Writing
 let byteString = encode $
       character
-        (weaponSword (sword 1000))
+        (weaponSword (sword (Just 1000)))
 
 -- Reading
 do
@@ -231,7 +231,7 @@ do
     Union (WeaponAxe axe) -> do
       power <- axePower axe
       Right ("Weilding an axe with " <> show power <> " Power.")
-    UnioneNone        -> Right "Character has no weapon"
+    UnionNone         -> Right "Character has no weapon"
     UnionUnknown byte -> Left "Unknown weapon" -- Forwards compatibility
 ```
 
