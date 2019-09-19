@@ -66,6 +66,21 @@ test-api-detached: ## Generate java flatbuffers and launch test-api in detached 
 .PHONY: test-api-detached
 
 
+
+test-lts:  ## Build the library and run the tests using lts-12.14
+	stack test \
+		--stack-yaml=./stack/stack.lts-12.14.yaml \
+		--work-dir ".stack-work-lts-12.14"
+.PHONY: test-lts
+
+test-min:  ## Build the library and run the tests using lowest possible dependency versions
+	stack test \
+		--stack-yaml=./stack/stack.min.yaml \
+		--work-dir ".stack-work-min"
+.PHONY: test-min
+
+
+
 hlint: ## Runs hlint on the project
 	hlint .
 .PHONY: hlint

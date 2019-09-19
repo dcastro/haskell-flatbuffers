@@ -15,6 +15,7 @@ import           Control.Monad.State                           ( MonadState, Sta
 
 import           Data.Coerce                                   ( coerce )
 import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
+import qualified Data.Foldable                                 as Foldable
 import           Data.Functor                                  ( ($>), (<&>) )
 import           Data.Int
 import           Data.Ix                                       ( inRange )
@@ -868,7 +869,7 @@ checkDuplicateIdentifiers xs =
 
     occurrences :: (Foldable f, Functor f, Ord a) => f a -> Map a (Sum Int)
     occurrences xs =
-      Map.unionsWith (<>) $ fmap (\x -> Map.singleton x (Sum 1)) xs
+      Map.unionsWith (<>) $ Foldable.toList $ fmap (\x -> Map.singleton x (Sum 1)) xs
 
 checkUndeclaredAttributes :: (ValidationCtx m, HasMetadata a) => a -> m ()
 checkUndeclaredAttributes a = do

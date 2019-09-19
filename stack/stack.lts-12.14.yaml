@@ -1,0 +1,24 @@
+# Test building the project with lts-12.14
+
+
+resolver: lts-12.14
+
+
+packages:
+- ..
+
+extra-deps:
+# # library
+  - megaparsec-7.0.0
+# # tests
+  - th-pprint-0.2.0.0
+  - hw-hspec-hedgehog-0.1.0.7
+  - git: https://github.com/myfreeweb/hspec-expectations-pretty-diff.git
+    commit: b0f3a8697db5c5a7d9ccf319381bcb8605c5992f
+  - hspec-megaparsec-2.0.0
+  - hedgehog-1.0.1
+  - hspec-2.7.1
+  - hspec-core-2.7.1
+  - hspec-discover-2.7.1
+  - QuickCheck-2.13.2
+  - splitmix-0.0.3

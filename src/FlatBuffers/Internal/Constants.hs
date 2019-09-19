@@ -1,6 +1,3 @@
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-
 module FlatBuffers.Internal.Constants where
 
 voffsetSize, uoffsetSize, soffsetSize :: Num a => a
