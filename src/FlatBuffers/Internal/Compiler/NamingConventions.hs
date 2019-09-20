@@ -24,7 +24,7 @@ namespace :: Namespace -> Text
 namespace (Namespace fragments) = T.intercalate "." (TM.toPascal <$> fragments)
 
 getter :: (HasIdent parent, HasIdent field) => parent -> field -> Text
-getter (getIdent -> unIdent -> parent) (getIdent -> unIdent -> field) =
+getter (getIdent -> Ident parent) (getIdent -> Ident field) =
   TM.toCamel parent <> TM.toPascal field
 
 toEnumFun :: EnumDecl -> Text
@@ -36,7 +36,7 @@ fromEnumFun enum =
   "from" <> TM.toPascal (unIdent (getIdent enum))
 
 enumUnionMember :: (HasIdent parent, HasIdent val) => parent -> val -> Text
-enumUnionMember (getIdent -> unIdent -> parentIdent) (getIdent -> unIdent -> valIdent) =
+enumUnionMember (getIdent -> Ident parentIdent) (getIdent -> Ident valIdent) =
   TM.toPascal parentIdent <> TM.toPascal valIdent
 
 unionConstructor :: UnionDecl -> UnionVal -> Text
@@ -44,7 +44,7 @@ unionConstructor union unionVal =
   TM.toCamel (unIdent $ getIdent union) <> TM.toPascal (unIdent $ getIdent unionVal)
 
 readUnionFun :: HasIdent union => union -> Text
-readUnionFun (getIdent -> unIdent -> unionIdent) =
+readUnionFun (getIdent -> Ident unionIdent) =
   "read" <> TM.toPascal unionIdent
 
 withModulePrefix :: Namespace -> Text -> Text

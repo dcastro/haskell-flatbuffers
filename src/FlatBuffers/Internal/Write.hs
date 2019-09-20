@@ -10,6 +10,8 @@
 
 {-# OPTIONS_HADDOCK not-home #-}
 
+{- HLINT ignore writeTable uoffsetFrom "Eta reduce" -}
+
 module FlatBuffers.Internal.Write where
 
 import           Control.Monad.State.Strict

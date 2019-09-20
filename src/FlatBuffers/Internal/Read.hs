@@ -7,13 +7,16 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE InstanceSigs #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
+
+{- HLINT ignore readTableFieldOpt "Avoid lambda" -}
+
+-- Using `replicateM` here causes a performance regression.
+{- HLINT ignore inlineVectorToList "Use replicateM" -}
 
 module FlatBuffers.Internal.Read where
 

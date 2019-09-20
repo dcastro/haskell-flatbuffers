@@ -5,6 +5,9 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
+{- HLINT ignore "Reduce duplication" -}
+{- HLINT ignore "Use list comprehension" -}
+
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
 import           Control.Applicative  ( liftA3 )

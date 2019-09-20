@@ -62,11 +62,11 @@ spec =
 
     it "throws when union type vector is present, but union value vector is missing" $ do
       table <- evalRight $ decode $ encode $ writeTable
-        [ writeVectorWord8TableField $ Vec.empty
+        [ writeVectorWord8TableField Vec.empty
         , missing
         , missing
         , missing
-        , writeVectorWord8TableField $ Vec.empty
+        , writeVectorWord8TableField Vec.empty
         , missing
         ]
       vectorOfUnionsXs table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
@@ -108,7 +108,7 @@ spec =
                   -> Either ReadError a
           getIndex table getVector indexFn ix = do
             vec <- getVector table
-            (Maybe.fromJust vec) `indexFn` ix
+            Maybe.fromJust vec `indexFn` ix
 
 
       let testNegativeIndex table getVector =
@@ -195,7 +195,7 @@ spec =
               (Just Vec.empty)
               (Just Vec.empty)
 
-        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+        it "`unsafeIndex` does not throw when index is negative / too large" $
           testLargeUnsafeIndex table vectorOfStructsAs
 
         it "`index` throws when index is negative" $
@@ -208,7 +208,7 @@ spec =
         let Right table = decode $ encode $ vectorOfTables
               (Just Vec.empty)
 
-        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+        it "`unsafeIndex` does not throw when index is negative / too large" $
           testLargeUnsafeIndex table vectorOfTablesXs
 
         it "`index` throws when index is negative" $
@@ -222,7 +222,7 @@ spec =
               (Just Vec.empty)
               Vec.empty
 
-        it "`unsafeIndex` does not throw when index is negative / too large" $ do
+        it "`unsafeIndex` does not throw when index is negative / too large" $
           testLargeUnsafeIndex table vectorOfUnionsXs
 
         it "`index` throws when index is negative" $

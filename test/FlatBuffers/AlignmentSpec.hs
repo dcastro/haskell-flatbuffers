@@ -7,6 +7,8 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
+{- HLINT ignore "Reduce duplication" -}
+
 module FlatBuffers.AlignmentSpec where
 
 import           Control.Monad.State.Strict
@@ -372,7 +374,7 @@ prop_rootAlignment = property $ do
           soffset <- G.getInt32le
           pure $ BSL.drop (fromIntegral (uoffset - soffset)) finalBuffer
 
-  BSL.length finalBuffer `isAlignedTo` ((fromIntegral (getMax (maxAlign initialState))) `max` 4)
+  BSL.length finalBuffer `isAlignedTo` (fromIntegral (getMax (maxAlign initialState)) `max` 4)
 
   -- At most 14 bytes can be used as padding.
   -- E.g. If the buffer contains 30 bytes and we need to align to 16 bytes,
@@ -403,7 +405,7 @@ prop_rootWithFileIdentifierAlignment = property $ do
           soffset <- G.getInt32le
           pure $ BSL.drop (fromIntegral (uoffset - soffset)) finalBuffer
 
-  BSL.length finalBuffer `isAlignedTo` ((fromIntegral (getMax (maxAlign initialState))) `max` 4)
+  BSL.length finalBuffer `isAlignedTo` (fromIntegral (getMax (maxAlign initialState)) `max` 4)
 
   -- At most 14 bytes can be used as padding.
   -- E.g. If the buffer contains 26 bytes and we need to align to 16 bytes,

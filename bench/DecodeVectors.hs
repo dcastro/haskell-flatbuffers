@@ -4,6 +4,8 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
+{- HLINT ignore "Avoid lambda" -}
+
 module DecodeVectors where
 
 import           Control.Monad

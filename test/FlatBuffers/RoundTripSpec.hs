@@ -4,6 +4,9 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
+{- HLINT ignore "Reduce duplication" -}
+{- HLINT ignore "Avoid lambda" -}
+
 module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative ( liftA3 )
@@ -159,7 +162,7 @@ spec =
 
         nestedTablesX root `shouldBeRightAnd` isNothing
 
-    describe "Union" $ do
+    describe "Union" $
       it "present" $ do
         x <- evalRight $ decode $ encode $ tableWithUnion (weaponSword (sword (Just "hi")))
         tableWithUnionUni x `shouldBeRightAndExpect` \case

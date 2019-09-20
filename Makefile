@@ -16,19 +16,19 @@ ghci:		## Launch ghci with some default settings
 
 ghcid:  ## Launch ghcid
 	ghcid \
-		--command "stack ghci --test --bench --ghci-options='-dsuppress-uniques -dsuppress-module-prefixes'" \
+		--command "stack ghci --test --bench --ghci-options='-fdefer-typed-holes'" \
 			--restart package.yaml
 .PHONY: ghcid
 
 ghcid-splices:  ## Launch ghcid and dump TH splices on reload
 	ghcid \
-		--command "stack ghci --test --ghci-options='-ddump-splices -dsuppress-uniques -dsuppress-module-prefixes'" \
+		--command "stack ghci --test --ghci-options='-fdefer-typed-holes -ddump-splices -dsuppress-uniques -dsuppress-module-prefixes'" \
 			--restart package.yaml
 .PHONY: ghcid-splices
 
 ghcid-test:  ## Launch ghcid and automatically run all tests
 	ghcid \
-		--command "stack ghci --test --bench --main-is=:test" \
+		--command "stack ghci --test --bench --main-is=:test --ghci-options='-fdefer-typed-holes'" \
 		--test main \
 		--restart package.yaml
 .PHONY: ghcid-test
@@ -78,6 +78,15 @@ test-min:  ## Build the library and run the tests using lowest possible dependen
 		--stack-yaml=./stack/stack.min.yaml \
 		--work-dir ".stack-work-min"
 .PHONY: test-min
+
+
+release:  ## Creates a release package
+	make test-lts
+	make test-min
+	stack clean
+	stack test
+	stack sdist
+.PHONY: release
 
 
 

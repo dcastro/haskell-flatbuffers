@@ -634,17 +634,17 @@ spec =
                 data T1
 
                 t1 ::
-                     (WriteVector Word8)
-                  -> (WriteVector Word16)
-                  -> (WriteVector Word32)
-                  -> (WriteVector Word64)
-                  -> (WriteVector Int8)
-                  -> (WriteVector Int16)
-                  -> (WriteVector Int32)
-                  -> (WriteVector Int64)
-                  -> (WriteVector Float)
-                  -> (WriteVector Double)
-                  -> (WriteVector Bool)
+                     WriteVector Word8
+                  -> WriteVector Word16
+                  -> WriteVector Word32
+                  -> WriteVector Word64
+                  -> WriteVector Int8
+                  -> WriteVector Int16
+                  -> WriteVector Int32
+                  -> WriteVector Int64
+                  -> WriteVector Float
+                  -> WriteVector Double
+                  -> WriteVector Bool
                   -> WriteTable T1
                 t1 a b c d e f g h i j k =
                   writeTable

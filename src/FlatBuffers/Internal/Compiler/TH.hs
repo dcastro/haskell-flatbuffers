@@ -636,7 +636,7 @@ mkReadUnionFun unionName unionValNames union = do
             matches
 
   let fun =
-        FunD funName $
+        FunD funName
           [ Clause
               [VarP nArg, VarP posArg]
               funBody

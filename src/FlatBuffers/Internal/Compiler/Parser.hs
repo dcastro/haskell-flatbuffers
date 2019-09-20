@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
+{- HLINT ignore structField "Reduce duplication" -}
+{- HLINT ignore typeRef "Use <$>" -}
+
 module FlatBuffers.Internal.Compiler.Parser where
 
 import           Control.Monad                            ( when )

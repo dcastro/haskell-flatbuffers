@@ -29,7 +29,7 @@ import           GHC.Stack                      ( HasCallStack )
 
 import           HaskellWorks.Hspec.Hedgehog    as Hedgehog
 
-import           Hedgehog                       as Hedgehog
+import           Hedgehog
 
 import           Test.HUnit                     ( assertFailure )
 import           Test.Hspec.Core.Hooks          as Hspec
