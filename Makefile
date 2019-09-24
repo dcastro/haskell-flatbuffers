@@ -17,13 +17,13 @@ ghci:		## Launch ghci with some default settings
 ghcid:  ## Launch ghcid
 	ghcid \
 		--command "stack ghci --test --bench --ghci-options='-fdefer-typed-holes'" \
-			--restart package.yaml
+		--restart package.yaml
 .PHONY: ghcid
 
 ghcid-splices:  ## Launch ghcid and dump TH splices on reload
 	ghcid \
 		--command "stack ghci --test --ghci-options='-fdefer-typed-holes -ddump-splices -dsuppress-uniques -dsuppress-module-prefixes'" \
-			--restart package.yaml
+		--restart package.yaml
 .PHONY: ghcid-splices
 
 ghcid-test:  ## Launch ghcid and automatically run all tests
@@ -85,6 +85,7 @@ release:  ## Creates a release package
 	make test-min
 	stack clean
 	stack test
+	make hlint
 	stack sdist
 .PHONY: release
 

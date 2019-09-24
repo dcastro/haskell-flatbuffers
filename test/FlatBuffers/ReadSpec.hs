@@ -72,16 +72,6 @@ spec =
       vectorOfUnionsXs table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
       vectorOfUnionsXsReq table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
 
-    it "throws when union type vector and union value vector have different sizes" $ do
-      let typesVec = Vec.singleton 1
-      let valuesVec = Vec.empty
-      table <- evalRight $ decode $ encode $ writeTable
-        [ writeVectorWord8TableField typesVec
-        , writeVectorTableTableField valuesVec
-        ]
-      vec <- evalRightJust $ vectorOfUnionsXs table
-      toList vec `shouldBeLeft` "Union vector: 'type vector' and 'value vector' do not have the same length."
-
     describe "returns `UnionUnknown` when union type is not recognized" $ do
       it "in union table fields" $ do
         let union = writeUnion 99 (writeTable [])

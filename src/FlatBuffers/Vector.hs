@@ -15,6 +15,7 @@ module FlatBuffers.Vector
 
     -- * Reading a vector
   , R.VectorElement(..)
+  , R.index
   ) where
 
 import           FlatBuffers.Internal.Read  as R

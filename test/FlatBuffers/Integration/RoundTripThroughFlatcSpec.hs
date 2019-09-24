@@ -458,7 +458,7 @@ spec =
         json `shouldBeJson` object [ "xs" .= [] @Value]
 
         xs <- evalRightJust $ vectorOfTablesXs decoded
-        Vec.length xs `shouldBe` Right 0
+        Vec.length xs `shouldBe` 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfTables Nothing
@@ -522,10 +522,10 @@ spec =
         bs <- evalRightJust $ vectorOfStructsBs decoded
         cs <- evalRightJust $ vectorOfStructsCs decoded
         ds <- evalRightJust $ vectorOfStructsCs decoded
-        Vec.length as `shouldBe` Right 0
-        Vec.length bs `shouldBe` Right 0
-        Vec.length cs `shouldBe` Right 0
-        Vec.length ds `shouldBe` Right 0
+        Vec.length as `shouldBe` 0
+        Vec.length bs `shouldBe` 0
+        Vec.length cs `shouldBe` 0
+        Vec.length ds `shouldBe` 0
 
       it "missing" $ do
         (json, decoded) <- flatc $ vectorOfStructs Nothing Nothing Nothing Nothing

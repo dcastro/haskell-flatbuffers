@@ -5,5 +5,6 @@ packages:
 
 extra-deps:
 - th-pprint-0.2.0.0
+- hedgehog-1.0.1
 - git: https://github.com/myfreeweb/hspec-expectations-pretty-diff.git
   commit: b0f3a8697db5c5a7d9ccf319381bcb8605c5992f

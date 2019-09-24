@@ -209,13 +209,13 @@ spec =
         testPrimVector getVec expectedList = do
           it "non empty" $ do
             vec <- evalRightJust (getVec nonEmptyVecs)
-            Vec.length vec `shouldBe` Right (L.genericLength expectedList)
+            Vec.length vec `shouldBe` L.genericLength expectedList
             Vec.toList vec `shouldBe` Right expectedList
             traverse (\i -> vec `unsafeIndex` i) [0 .. L.genericLength expectedList - 1] `shouldBe` Right expectedList
 
           it "empty" $ do
             vec <- evalRightJust (getVec emptyVecs)
-            Vec.length vec `shouldBe` Right 0
+            Vec.length vec `shouldBe` 0
             Vec.toList vec `shouldBe` Right []
 
           it "missing" $
@@ -245,7 +245,7 @@ spec =
           )
 
         Just xs <- evalRight $ vectorOfTablesXs x
-        Vec.length xs `shouldBe` Right 3
+        Vec.length xs `shouldBe` 3
         (toList xs >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
         (traverse (unsafeIndex xs) [0..2] >>= traverse axeY) `shouldBe` Right [minBound, 0, maxBound]
 
@@ -253,7 +253,7 @@ spec =
         x <- evalRight $ decode $ encode $ vectorOfTables (Just Vec.empty)
 
         xs <- evalRightJust $ vectorOfTablesXs x
-        Vec.length xs `shouldBe` Right 0
+        Vec.length xs `shouldBe` 0
         (toList xs >>= traverse axeY) `shouldBe` Right []
 
       it "missing" $ do
@@ -278,19 +278,19 @@ spec =
         cs <- evalRightJust $ vectorOfStructsCs x
         ds <- evalRightJust $ vectorOfStructsDs x
 
-        Vec.length as `shouldBe` Right 2
+        Vec.length as `shouldBe` 2
         (toList as >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
         (traverse (unsafeIndex as) [0..1] >>= traverse readStruct1) `shouldBe` Right [(1,2,3), (4,5,6)]
 
-        Vec.length bs `shouldBe` Right 3
+        Vec.length bs `shouldBe` 3
         (toList bs >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
         (traverse (unsafeIndex bs) [0..2] >>= traverse readStruct2) `shouldBe` Right [101, 102, 103]
 
-        Vec.length cs `shouldBe` Right 3
+        Vec.length cs `shouldBe` 3
         (toList cs >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
         (traverse (unsafeIndex cs) [0..2] >>= traverse readStruct3) `shouldBe` Right [(104, 105, 106), (107, 108, 109), (110, 111, 112)]
 
-        Vec.length ds `shouldBe` Right 3
+        Vec.length ds `shouldBe` 3
         (toList ds >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
         (traverse (unsafeIndex ds) [0..2] >>= traverse readStruct4) `shouldBe` Right [(120, 121, 122, True), (123, 124, 125, False), (126, 127, 128, True)]
 
@@ -303,16 +303,16 @@ spec =
         cs <- evalRightJust $ vectorOfStructsCs x
         ds <- evalRightJust $ vectorOfStructsDs x
 
-        Vec.length as `shouldBe` Right 0
+        Vec.length as `shouldBe` 0
         (toList as >>= traverse readStruct1) `shouldBe` Right []
 
-        Vec.length bs `shouldBe` Right 0
+        Vec.length bs `shouldBe` 0
         (toList bs >>= traverse readStruct2) `shouldBe` Right []
 
-        Vec.length cs `shouldBe` Right 0
+        Vec.length cs `shouldBe` 0
         (toList cs >>= traverse readStruct3) `shouldBe` Right []
 
-        Vec.length ds `shouldBe` Right 0
+        Vec.length ds `shouldBe` 0
         (toList ds >>= traverse readStruct4) `shouldBe` Right []
 
       it "missing" $ do
@@ -346,7 +346,7 @@ spec =
           )
 
         Just xs <- evalRight $ vectorOfUnionsXs x
-        Vec.length xs `shouldBe` Right 3
+        Vec.length xs `shouldBe` 3
         L.length <$> toList xs `shouldBe` Right 3
         xs `unsafeIndex` 0 `shouldBeRightAndExpect` shouldBeSword "hi"
         xs `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeNone
@@ -356,7 +356,7 @@ spec =
         (toList xs <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 98
 
         xsReq <- evalRight $ vectorOfUnionsXsReq x
-        Vec.length xsReq `shouldBe` Right 3
+        Vec.length xsReq `shouldBe` 3
         L.length <$> toList xsReq `shouldBe` Right 3
         xsReq `unsafeIndex` 0 `shouldBeRightAndExpect` shouldBeSword "hi2"
         xsReq `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeNone
@@ -369,17 +369,17 @@ spec =
         x <- evalRight $ decode $ encode $ vectorOfUnions (Just Vec.empty) Vec.empty
 
         Just xs <- evalRight $ vectorOfUnionsXs x
-        Vec.length xs `shouldBe` Right 0
+        Vec.length xs `shouldBe` 0
         L.length <$> toList xs `shouldBe` Right 0
 
         xsReq <- evalRight $ vectorOfUnionsXsReq x
-        Vec.length xsReq `shouldBe` Right 0
+        Vec.length xsReq `shouldBe` 0
         L.length <$> toList xsReq `shouldBe` Right 0
 
       it "missing" $ do
         x <- evalRight $ decode $ encode $ vectorOfUnions Nothing Vec.empty
         vectorOfUnionsXs x `shouldBeRightAnd` isNothing
-        (vectorOfUnionsXsReq x >>= Vec.length) `shouldBe` Right 0
+        (Vec.length <$> vectorOfUnionsXsReq x) `shouldBe` Right 0
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do

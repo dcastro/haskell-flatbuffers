@@ -77,7 +77,6 @@ defaultOptions = Options
 -- > {-# LANGUAGE TemplateHaskell #-}
 -- >
 -- > module Data.Game where
--- >
 -- > import FlatBuffers
 -- >
 -- > $(mkFlatBuffers "schemas/game.fbs" defaultOptions)

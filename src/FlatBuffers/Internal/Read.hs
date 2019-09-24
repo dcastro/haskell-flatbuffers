@@ -136,8 +136,7 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
 {-# INLINE moveToElem #-}
 moveToElem :: HasPosition pos => pos -> Int32 -> Int32 -> pos
 moveToElem pos elemSize ix =
-  let elemOffset = int32Size + (ix * elemSize)
-  in  move pos elemOffset
+  move pos (ix * elemSize)
 
 {-# INLINE checkIndexBounds #-}
 checkIndexBounds :: Int32 -> Int32 -> Int32
@@ -147,10 +146,9 @@ checkIndexBounds ix length
   | otherwise    = ix
 
 {-# INLINE inlineVectorToList #-}
-inlineVectorToList :: HasPosition pos => Get a -> pos -> Either ReadError [a]
-inlineVectorToList get (getPosition -> pos) =
-  flip runGet pos $ do
-    len <- G.getInt32le
+inlineVectorToList :: Get a -> Int32 -> Position -> Either ReadError [a]
+inlineVectorToList get len pos =
+  flip runGet pos $
     sequence $ L.replicate (fromIntegral @Int32 @Int len) get
 
 class VectorElement a where
@@ -159,12 +157,7 @@ class VectorElement a where
   data Vector a
 
   -- | Returns the size of the vector.
-  length :: Vector a -> Either ReadError Int32
-
-  -- | Returns the item at the given index.
-  -- If the given index is negative or too large, an `error` is thrown.
-  index :: Vector a -> Int32 -> Either ReadError a
-  index vec ix = unsafeIndex vec . checkIndexBounds ix =<< length vec
+  length :: Vector a -> Int32
 
   -- | Returns the item at the given index without performing the bounds check.
   --
@@ -176,130 +169,128 @@ class VectorElement a where
   -- | Converts the vector to a list.
   toList :: Vector a -> Either ReadError [a]
 
+-- | Returns the item at the given index.
+-- If the given index is negative or too large, an `error` is thrown.
+index :: VectorElement a => Vector a -> Int32 -> Either ReadError a
+index vec ix = unsafeIndex vec . checkIndexBounds ix $ length vec
+
 
 instance VectorElement Word8 where
-  newtype Vector Word8 = VectorWord8 Position
-    deriving newtype HasPosition
+  data Vector Word8 = VectorWord8 !Int32 !Position
 
-  length = readInt32
-  index vec ix = byteStringSafeIndex (coerce vec) . (+ int32Size) . checkIndexBounds ix =<< length vec
-  unsafeIndex vec ix = byteStringSafeIndex (coerce vec) (int32Size + ix)
-  toList vec =
-    length vec <&> \len ->
+  length (VectorWord8 len _)         = len
+  unsafeIndex (VectorWord8 _ pos) ix = byteStringSafeIndex pos ix
+
+  toList (VectorWord8 len pos) =
+    Right $
       BSL.unpack $
         BSL.take (fromIntegral @Int32 @Int64 len) $
-          BSL.drop int32Size
-            (coerce vec)
+          pos
 
 instance VectorElement Word16 where
-  newtype Vector Word16 = VectorWord16 Position
-    deriving newtype HasPosition
+  data Vector Word16 = VectorWord16 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readWord16 . moveToElem vec word16Size
-  toList = inlineVectorToList G.getWord16le
+  length (VectorWord16 len _)      = len
+  unsafeIndex (VectorWord16 _ pos) = readWord16 . moveToElem pos word16Size
+  toList (VectorWord16 len pos)    = inlineVectorToList G.getWord16le len pos
+
 
 instance VectorElement Word32 where
-  newtype Vector Word32 = VectorWord32 Position
-    deriving newtype HasPosition
+  data Vector Word32 = VectorWord32 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readWord32 . moveToElem vec word32Size
-  toList = inlineVectorToList G.getWord32le
+  length (VectorWord32 len _)      = len
+  unsafeIndex (VectorWord32 _ pos) = readWord32 . moveToElem pos word32Size
+  toList (VectorWord32 len pos)    = inlineVectorToList G.getWord32le len pos
 
 instance VectorElement Word64 where
-  newtype Vector Word64 = VectorWord64 Position
-    deriving newtype HasPosition
+  data Vector Word64 = VectorWord64 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readWord64 . moveToElem vec word64Size
-  toList = inlineVectorToList G.getWord64le
+  length (VectorWord64 len _)      = len
+  unsafeIndex (VectorWord64 _ pos) = readWord64 . moveToElem pos word64Size
+  toList (VectorWord64 len pos)    = inlineVectorToList G.getWord64le len pos
 
 instance VectorElement Int8 where
-  newtype Vector Int8 = VectorInt8 Position
-    deriving newtype HasPosition
+  data Vector Int8 = VectorInt8 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readInt8 . moveToElem vec int8Size
-  toList = inlineVectorToList G.getInt8
+  length (VectorInt8 len _)        = len
+  unsafeIndex (VectorInt8 _ pos)   = readInt8 . moveToElem pos int8Size
+  toList (VectorInt8 len pos)      = inlineVectorToList G.getInt8 len pos
 
 instance VectorElement Int16 where
-  newtype Vector Int16 = VectorInt16 Position
-    deriving newtype HasPosition
+  data Vector Int16 = VectorInt16 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readInt16 . moveToElem vec int16Size
-  toList = inlineVectorToList G.getInt16le
+  length (VectorInt16 len _)       = len
+  unsafeIndex (VectorInt16 _ pos)  = readInt16 . moveToElem pos int16Size
+  toList (VectorInt16 len pos)     = inlineVectorToList G.getInt16le len pos
 
 instance VectorElement Int32 where
-  newtype Vector Int32 = VectorInt32 Position
-    deriving newtype HasPosition
+  data Vector Int32 = VectorInt32 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readInt32 . moveToElem vec int32Size
-  toList = inlineVectorToList G.getInt32le
+  length (VectorInt32 len _)       = len
+  unsafeIndex (VectorInt32 _ pos)  = readInt32 . moveToElem pos int32Size
+  toList (VectorInt32 len pos)     = inlineVectorToList G.getInt32le len pos
 
 instance VectorElement Int64 where
-  newtype Vector Int64 = VectorInt64 Position
-    deriving newtype HasPosition
+  data Vector Int64 = VectorInt64 !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readInt64 . moveToElem vec int64Size
-  toList = inlineVectorToList G.getInt64le
+  length (VectorInt64 len _)       = len
+  unsafeIndex (VectorInt64 _ pos)  = readInt64 . moveToElem pos int64Size
+  toList (VectorInt64 len pos)     = inlineVectorToList G.getInt64le len pos
 
 instance VectorElement Float where
-  newtype Vector Float = VectorFloat Position
-    deriving newtype HasPosition
+  data Vector Float = VectorFloat !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readFloat . moveToElem vec floatSize
-  toList = inlineVectorToList G.getFloatle
+  length (VectorFloat len _)       = len
+  unsafeIndex (VectorFloat _ pos)  = readFloat . moveToElem pos floatSize
+  toList (VectorFloat len pos)     = inlineVectorToList G.getFloatle len pos
 
 instance VectorElement Double where
-  newtype Vector Double = VectorDouble Position
-    deriving newtype HasPosition
+  data Vector Double = VectorDouble !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readDouble . moveToElem vec doubleSize
-  toList = inlineVectorToList G.getDoublele
+  length (VectorDouble len _)      = len
+  unsafeIndex (VectorDouble _ pos) = readDouble . moveToElem pos doubleSize
+  toList (VectorDouble len pos)    = inlineVectorToList G.getDoublele len pos
 
 instance VectorElement Bool where
-  newtype Vector Bool = VectorBool Position
-    deriving newtype HasPosition
+  data Vector Bool = VectorBool !Int32 !Position
 
-  length = readInt32
-  unsafeIndex vec = readBool . moveToElem vec boolSize
-  toList (VectorBool pos) = fmap word8ToBool <$> toList (VectorWord8 pos)
+  length (VectorBool len _)      = len
+  unsafeIndex (VectorBool _ pos) = readBool . moveToElem pos boolSize
+  toList (VectorBool len pos)    = fmap word8ToBool <$> toList (VectorWord8 len pos)
 
 instance VectorElement Text where
-  newtype Vector Text = VectorText Position
-  length (VectorText pos) = readInt32 pos
-  unsafeIndex (VectorText pos) = readText . moveToElem pos textRefSize
+  data Vector Text = VectorText !Int32 !Position
+
+  length (VectorText len _)      = len
+  unsafeIndex (VectorText _ pos) = readText . moveToElem pos textRefSize
 
   toList :: Vector Text -> Either ReadError [Text]
-  toList (VectorText pos) = do
-    offsets <- toList (VectorInt32 pos)
+  toList (VectorText len pos) = do
+    offsets <- inlineVectorToList G.getInt32le len pos
     L.reverse <$> go offsets 0 []
     where
       go :: [Int32] -> Int32 -> [Text] -> Either ReadError [Text]
       go [] _ acc = Right acc
       go (offset : xs) ix acc = do
-        let textPos = move pos (offset + (ix * 4) + 4)
+        let textPos = move pos (offset + (ix * 4))
         text <- join $ runGet readText' textPos
         go xs (ix + 1) (text : acc)
 
 instance VectorElement (Struct a) where
   data Vector (Struct a) = VectorStruct
     { vectorStructStructSize :: !InlineSize
+    , vectorStructLength     :: !Int32
     , vectorStructPos        :: !Position
     }
-  length = readInt32 . vectorStructPos
-  unsafeIndex (VectorStruct structSize pos) =
+
+  length = vectorStructLength
+
+  unsafeIndex (VectorStruct structSize _ pos) =
     let elemSize = fromIntegral @InlineSize @Int32 structSize
     in Right . readStruct . moveToElem pos elemSize
-  toList vec@(VectorStruct structSize pos) =
-    length vec <&> \len ->
-      go len (move pos (int32Size :: Int64))
+
+  toList (VectorStruct structSize len pos) =
+    Right (go len pos)
     where
       go :: Int32 -> Position -> [Struct a]
       go 0 _ = []
@@ -309,19 +300,20 @@ instance VectorElement (Struct a) where
         in  head : tail
 
 instance VectorElement (Table a) where
-  newtype Vector (Table a) = VectorTable PositionInfo
-    deriving newtype HasPosition
+  data Vector (Table a) = VectorTable !Int32 !PositionInfo
 
-  length = readInt32
-  unsafeIndex vec = readTable . coerce . moveToElem vec tableRefSize
-  toList (VectorTable vectorPos) = do
-    offsets <- toList (VectorInt32 (posCurrent vectorPos))
+
+  length (VectorTable len _) = len
+  unsafeIndex (VectorTable _ pos) = readTable . moveToElem pos tableRefSize
+
+  toList (VectorTable len vectorPos) = do
+    offsets <- inlineVectorToList G.getInt32le len (getPosition vectorPos)
     go offsets 0
     where
       go :: [Int32] -> Int32 -> Either ReadError [Table a]
       go [] _ = Right []
       go (offset : offsets) !ix = do
-        let tablePos = move vectorPos (offset + (ix * 4) + 4)
+        let tablePos = move vectorPos (offset + (ix * 4))
         table <- readTable' tablePos
         tables <- go offsets (ix + 1)
         pure (table : tables)
@@ -347,9 +339,9 @@ instance VectorElement (Union a) where
         tablePos <- readUOffsetAndSkip $ moveToElem valuesPos tableRefSize ix
         readElem unionType' tablePos
 
-  toList (VectorUnion typesPos valuesPos readElem) = do
+  toList vec@(VectorUnion typesPos valuesPos readElem) = do
     unionTypes <- toList typesPos
-    offsets <- toList (VectorInt32 (posCurrent valuesPos))
+    offsets <- inlineVectorToList G.getInt32le (length vec) (getPosition valuesPos)
     go unionTypes offsets 0
     where
       go :: [Word8] -> [Int32] -> Int32 -> Either ReadError [Union a]
@@ -359,7 +351,7 @@ instance VectorElement (Union a) where
           case positive unionType of
             Nothing -> Right UnionNone
             Just unionType' ->
-              let tablePos = move valuesPos (offset + (ix * 4) + 4)
+              let tablePos = move valuesPos (offset + (ix * 4))
               in  readElem unionType' tablePos
         unions <- go unionTypes offsets (ix + 1)
         pure (union : unions)
@@ -486,20 +478,24 @@ word8ToBool :: Word8 -> Bool
 word8ToBool 0 = False
 word8ToBool _ = True
 
+
 readPrimVector ::
-     (Position -> Vector a)
+     (Int32 -> Position -> Vector a)
   -> PositionInfo
   -> Either ReadError (Vector a)
-readPrimVector vecConstructor (posCurrent -> pos) =
-  vecConstructor <$> readUOffsetAndSkip pos
+readPrimVector vecConstructor (posCurrent -> pos) = do
+  vecPos <- readUOffsetAndSkip pos
+  vecLength <- readInt32 vecPos
+  Right $! vecConstructor vecLength (move vecPos (int32Size :: Int64))
 
 readTableVector :: PositionInfo -> Either ReadError (Vector (Table a))
-readTableVector pos =
-  VectorTable <$> readUOffsetAndSkip pos
+readTableVector pos = do
+  vecPos <- readUOffsetAndSkip pos
+  vecLength <- readInt32 vecPos
+  Right $! VectorTable vecLength (move vecPos (int32Size :: Int64))
 
 readStructVector :: forall a. IsStruct a => PositionInfo -> Either ReadError (Vector (Struct a))
-readStructVector (posCurrent -> pos) =
-  VectorStruct (structSizeOf @a) <$> readUOffsetAndSkip pos
+readStructVector = readPrimVector (VectorStruct (structSizeOf @a))
 
 readUnionVector ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
@@ -512,7 +508,7 @@ readUnionVector readUnion typesPos valuesPos =
     valuesVec <- readUOffsetAndSkip valuesPos
     Right $! VectorUnion
       typesVec
-      valuesVec
+      (move valuesVec (int32Size :: Int64))
       readUnion
 
 -- | Follow a pointer to the position of a string and read it.
