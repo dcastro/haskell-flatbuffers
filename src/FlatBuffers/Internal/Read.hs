@@ -148,7 +148,7 @@ checkIndexBounds ix length
 {-# INLINE inlineVectorToList #-}
 inlineVectorToList :: Get a -> Int32 -> Position -> Either ReadError [a]
 inlineVectorToList get len pos =
-  flip runGet pos $
+  runGet pos $
     sequence $ L.replicate (fromIntegral @Int32 @Int len) get
 
 class VectorElement a where
@@ -273,7 +273,7 @@ instance VectorElement Text where
       go [] _ acc = Right acc
       go (offset : xs) ix acc = do
         let textPos = move pos (offset + (ix * 4))
-        text <- join $ runGet readText' textPos
+        text <- join $ runGet textPos readText'
         go xs (ix + 1) (text : acc)
 
 instance VectorElement (Struct a) where
@@ -431,43 +431,43 @@ readTableFieldUnionVectorReq read ix name t =
 ----------------------------------
 {-# INLINE readInt8 #-}
 readInt8 :: HasPosition a => a -> Either ReadError Int8
-readInt8 (getPosition -> pos) = runGet G.getInt8 pos
+readInt8 (getPosition -> pos) = runGet pos G.getInt8
 
 {-# INLINE readInt16 #-}
 readInt16 :: HasPosition a => a -> Either ReadError Int16
-readInt16 (getPosition -> pos) = runGet G.getInt16le pos
+readInt16 (getPosition -> pos) = runGet pos G.getInt16le
 
 {-# INLINE readInt32 #-}
 readInt32 :: HasPosition a => a -> Either ReadError Int32
-readInt32 (getPosition -> pos) = runGet G.getInt32le pos
+readInt32 (getPosition -> pos) = runGet pos G.getInt32le
 
 {-# INLINE readInt64 #-}
 readInt64 :: HasPosition a => a -> Either ReadError Int64
-readInt64 (getPosition -> pos) = runGet G.getInt64le pos
+readInt64 (getPosition -> pos) = runGet pos G.getInt64le
 
 {-# INLINE readWord8 #-}
 readWord8 :: HasPosition a => a -> Either ReadError Word8
-readWord8 (getPosition -> pos) = runGet G.getWord8 pos
+readWord8 (getPosition -> pos) = runGet pos G.getWord8
 
 {-# INLINE readWord16 #-}
 readWord16 :: HasPosition a => a -> Either ReadError Word16
-readWord16 (getPosition -> pos) = runGet G.getWord16le pos
+readWord16 (getPosition -> pos) = runGet pos G.getWord16le
 
 {-# INLINE readWord32 #-}
 readWord32 :: HasPosition a => a -> Either ReadError Word32
-readWord32 (getPosition -> pos) = runGet G.getWord32le pos
+readWord32 (getPosition -> pos) = runGet pos G.getWord32le
 
 {-# INLINE readWord64 #-}
 readWord64 :: HasPosition a => a -> Either ReadError Word64
-readWord64 (getPosition -> pos) = runGet G.getWord64le pos
+readWord64 (getPosition -> pos) = runGet pos G.getWord64le
 
 {-# INLINE readFloat #-}
 readFloat :: HasPosition a => a -> Either ReadError Float
-readFloat (getPosition -> pos) = runGet G.getFloatle pos
+readFloat (getPosition -> pos) = runGet pos G.getFloatle
 
 {-# INLINE readDouble #-}
 readDouble :: HasPosition a => a -> Either ReadError Double
-readDouble (getPosition -> pos) = runGet G.getDoublele pos
+readDouble (getPosition -> pos) = runGet pos G.getDoublele
 
 {-# INLINE readBool #-}
 readBool :: HasPosition a => a -> Either ReadError Bool
@@ -515,7 +515,7 @@ readUnionVector readUnion typesPos valuesPos =
 {-# INLINE readText #-}
 readText :: HasPosition a => a -> Either ReadError Text
 readText (getPosition -> pos) =
-  join $ flip runGet pos $ do
+  join $ runGet pos $ do
     uoffset <- G.getInt32le
     -- NOTE: this might overflow in systems where Int has less than 32 bits
     G.skip (fromIntegral @Int32 @Int (uoffset - uoffsetSize))
@@ -562,7 +562,7 @@ readStruct = Struct . getPosition
 {-# INLINE tableIndexToVOffset #-}
 tableIndexToVOffset :: Table t -> TableIndex -> Either ReadError (Maybe VOffset)
 tableIndexToVOffset Table{..} ix =
-  flip runGet vtable $ do
+  runGet vtable $ do
     vtableSize <- G.getWord16le
     let vtableIndex = 4 + (unTableIndex ix * 2)
     if vtableIndex >= vtableSize
@@ -579,8 +579,8 @@ readUOffsetAndSkip pos =
   move pos <$> readInt32 pos
 
 {-# INLINE runGet #-}
-runGet :: Get a -> ByteString -> Either ReadError a
-runGet get bs =
+runGet :: ByteString -> Get a -> Either ReadError a
+runGet bs get =
   case G.runGetOrFail get bs of
     Right (_, _, a)  -> Right a
     Left (_, _, msg) -> Left msg
