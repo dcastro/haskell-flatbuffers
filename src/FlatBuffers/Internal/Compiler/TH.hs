@@ -127,7 +127,7 @@ compileSymbolTable symbolTable = do
 
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) = do
-  enumName <- newName' $ NC.dataTypeName enum
+  let enumName = mkName' $ NC.dataTypeName enum
 
   let enumValNames = enumVals enum <&> \enumVal ->
         mkName $ T.unpack $ NC.enumUnionMember enum enumVal
@@ -545,7 +545,7 @@ mkTableFieldGetter tableName table tf =
 
 mkUnion :: (Namespace, UnionDecl) -> Q [Dec]
 mkUnion (_, union) = do
-  unionName <- newName' $ NC.dataTypeName union
+  let unionName = mkName' $ NC.dataTypeName union
   let unionValNames = unionVals union <&> \unionVal ->
         mkName $ T.unpack $ NC.enumUnionMember union unionVal
 
