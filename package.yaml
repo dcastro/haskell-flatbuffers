@@ -19,6 +19,7 @@ description: |
 
 extra-source-files:
   - README.md
+  - CHANGELOG.md
   - cbits/cbits.c
 
 extra-doc-files:

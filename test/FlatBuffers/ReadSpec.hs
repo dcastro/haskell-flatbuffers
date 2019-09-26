@@ -10,7 +10,7 @@ module FlatBuffers.ReadSpec where
 
 import           Control.Exception          ( evaluate )
 
-import           Data.Functor               ( ($>), (<&>) )
+import           Data.Functor               ( ($>) )
 import           Data.Int
 import qualified Data.List                  as List
 import qualified Data.Maybe                 as Maybe

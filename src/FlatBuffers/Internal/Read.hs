@@ -341,7 +341,7 @@ instance VectorElement Text where
 instance IsStruct a => VectorElement (Struct a) where
   data Vector (Struct a) = VectorStruct !Int32 !Position
 
-  length (VectorStruct len pos)    = len
+  length (VectorStruct len _)      = len
   unsafeIndex (VectorStruct _ pos) = Right . readStruct . moveToElem pos (fromIntegral (structSizeOf @a))
   take n (VectorStruct len pos)    = VectorStruct (clamp n len) pos
   drop n (VectorStruct len pos)    = VectorStruct (len - n') (moveToElem pos (fromIntegral (structSizeOf @a)) n')
