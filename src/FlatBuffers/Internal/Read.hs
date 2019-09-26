@@ -338,7 +338,8 @@ instance IsStruct a => VectorElement (Struct a) where
   length (VectorStruct len pos)    = len
   unsafeIndex (VectorStruct _ pos) = Right . readStruct . moveToElem pos (fromIntegral (structSizeOf @a))
   take n (VectorStruct len pos)    = VectorStruct (clamp n len) pos
-  drop n (VectorStruct len pos)    = VectorStruct (clamp (len - n) len) (moveToElem pos (fromIntegral (structSizeOf @a)) n)
+  drop n (VectorStruct len pos)    = VectorStruct (len - n') (moveToElem pos (fromIntegral (structSizeOf @a)) n')
+    where n' = clamp n len
 
   toList (VectorStruct len pos) =
     Right (go len pos)
