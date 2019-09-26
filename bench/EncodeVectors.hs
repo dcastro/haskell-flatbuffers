@@ -6,15 +6,17 @@ module EncodeVectors where
 
 import           Criterion
 
-import           Data.Foldable      as F
-import           Data.Functor       ( (<&>) )
+import           Data.Foldable        as F
+import           Data.Functor         ( (<&>) )
 import           Data.Int
-import qualified Data.List          as L
-import           Data.Text          ( Text )
-import qualified Data.Vector        as V
+import qualified Data.List            as L
+import           Data.Text            ( Text )
+import qualified Data.Vector          as V
+import qualified Data.Vector.Storable as VS
+import qualified Data.Vector.Unboxed  as VU
 
 import           FlatBuffers
-import qualified FlatBuffers.Vector as Vec
+import qualified FlatBuffers.Vector   as Vec
 
 import           Types
 
@@ -131,6 +133,20 @@ groups =
               Axe x   -> weaponUnionAxe   (axeTable   (Just x))
         ) $ mkWeaponVector n
       ]
+
+    , bgroup "from unboxed vector"
+      [ bench "of ints" $ nf (\xs ->
+          encode . vectorOfInts . Just . Vec.fromFoldable (fromIntegral (VU.length xs)) $
+            xs
+        ) $ mkIntUnboxedVector n
+      ]
+
+    , bgroup "from storable vector"
+      [ bench "of ints" $ nf (\xs ->
+          encode . vectorOfInts . Just . Vec.fromFoldable (fromIntegral (VS.length xs)) $
+            xs
+        ) $ mkIntStorableVector n
+      ]
     ]
   ]
 
@@ -174,6 +190,12 @@ mkWeaponVector n = V.fromList (mkWeaponList n)
 
 mkIntVector :: Int32 -> V.Vector Int32
 mkIntVector n = V.fromList (mkIntList n)
+
+mkIntUnboxedVector :: Int32 -> VU.Vector Int32
+mkIntUnboxedVector n = VU.fromList (mkIntList n)
+
+mkIntStorableVector :: Int32 -> VS.Vector Int32
+mkIntStorableVector n = VS.fromList (mkIntList n)
 
 mkTextVector :: Int -> V.Vector Text
 mkTextVector n = V.fromList (mkTextList n)
