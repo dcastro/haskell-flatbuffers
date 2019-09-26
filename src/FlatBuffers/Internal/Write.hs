@@ -16,6 +16,7 @@ module FlatBuffers.Internal.Write where
 
 import           Control.Monad.State.Strict
 
+import           Data.Bits                           ( (.&.), complement )
 import           Data.ByteString.Builder             ( Builder )
 import qualified Data.ByteString.Builder             as B
 import qualified Data.ByteString.Lazy                as BSL
@@ -702,13 +703,7 @@ instance WriteVectorElement (WriteUnion a) where
 {-# INLINE calcPadding #-}
 calcPadding :: Alignment {- ^ n -} -> Int32 {- ^ additionalBytes -} -> BufferSize -> Int32
 calcPadding !n !additionalBytes (Sum size) =
-  -- TODO: optimize this: https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-Bits.html
-  if n == 0
-    then 0
-    else
-      let remainder = (size + additionalBytes) `rem` fromIntegral @Alignment @Int32 n
-          needed = if remainder == 0 then 0 else fromIntegral @Alignment @Int32 n - remainder
-      in  needed
+  (complement (size + additionalBytes) + 1) .&. (fromIntegral n - 1)
 
 -- | Add enough 0-padding so that the buffer becomes aligned to @n@ after writing @additionalBytes@.
 {-# INLINE alignTo #-}
