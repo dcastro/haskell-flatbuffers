@@ -12,13 +12,6 @@ packages:
   original:
     hackage: th-pprint-0.2.0.0
 - completed:
-    hackage: hedgehog-1.0.1@sha256:b65b1ebde7b7fe8e693070916e45aa2ed63eea5e3f84ac3a8f9a0b7f8fcf0337,4465
-    pantry-tree:
-      size: 2409
-      sha256: 41ff1350ad4efb5bcad364e85df7616d30836b348f83b20826349efea8fbc8dd
-  original:
-    hackage: hedgehog-1.0.1
-- completed:
     cabal-file:
       size: 1539
       sha256: 374a3417936e65b7b2da41035c21567b68b5b20b032455646b22d980ac77f9a3

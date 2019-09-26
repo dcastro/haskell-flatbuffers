@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NegativeLiterals #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
@@ -9,10 +10,12 @@ module FlatBuffers.ReadSpec where
 
 import           Control.Exception          ( evaluate )
 
-import           Data.Functor               ( ($>) )
+import           Data.Functor               ( ($>), (<&>) )
 import           Data.Int
 import qualified Data.List                  as List
 import qualified Data.Maybe                 as Maybe
+import qualified Data.Text                  as Text
+import qualified Data.Text.Read             as Text
 
 import           Examples
 
@@ -24,6 +27,7 @@ import qualified Hedgehog.Gen               as Gen
 import qualified Hedgehog.Range             as Range
 
 import           TestImports
+
 
 spec :: Spec
 spec =
@@ -183,20 +187,20 @@ spec =
           testLargeIndex table vectorsK
           testLargeIndex table vectorsL
 
-        it "`take` is consistent with Data.List.take" $
+        it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
           requireProperty $ do
-            listWord8 <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8 (Range.linear 0 20))
+            listWord8  <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8  (Range.linear 0 20))
             listWord16 <- forAll $ Gen.list (Range.linear 0 20) (Gen.word16 (Range.linear 0 20))
             listWord32 <- forAll $ Gen.list (Range.linear 0 20) (Gen.word32 (Range.linear 0 20))
             listWord64 <- forAll $ Gen.list (Range.linear 0 20) (Gen.word64 (Range.linear 0 20))
-            listInt8 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int8 (Range.linear -20 20))
-            listInt16 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int16 (Range.linear -20 20))
-            listInt32 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int32 (Range.linear -20 20))
-            listInt64 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int64 (Range.linear -20 20))
-            listFloat <- forAll $ Gen.list (Range.linear 0 20) (Gen.float (Range.linearFrac -20 20))
+            listInt8   <- forAll $ Gen.list (Range.linear 0 20) (Gen.int8   (Range.linear -20 20))
+            listInt16  <- forAll $ Gen.list (Range.linear 0 20) (Gen.int16  (Range.linear -20 20))
+            listInt32  <- forAll $ Gen.list (Range.linear 0 20) (Gen.int32  (Range.linear -20 20))
+            listInt64  <- forAll $ Gen.list (Range.linear 0 20) (Gen.int64  (Range.linear -20 20))
+            listFloat  <- forAll $ Gen.list (Range.linear 0 20) (Gen.float  (Range.linearFrac -20 20))
             listDouble <- forAll $ Gen.list (Range.linear 0 20) (Gen.double (Range.linearFrac -20 20))
-            listBool <- forAll $ Gen.list (Range.linear 0 20) Gen.bool
-            listText <- forAll $ Gen.list (Range.linear 0 20) (Gen.text (Range.singleton 3) Gen.alpha)
+            listBool   <- forAll $ Gen.list (Range.linear 0 20) Gen.bool
+            listText   <- forAll $ Gen.list (Range.linear 0 20) (Gen.text (Range.singleton 3) Gen.alpha)
 
             n <- forAll $ Gen.int32 (Range.linearFrom 0 -10 30)
 
@@ -214,18 +218,31 @@ spec =
               (Just (Vec.fromList' listBool))
               (Just (Vec.fromList' listText))
 
-            prop_takeConsistency n listWord8 (vectorsA table) pure
+            prop_takeConsistency n listWord8  (vectorsA table) pure
             prop_takeConsistency n listWord16 (vectorsB table) pure
             prop_takeConsistency n listWord32 (vectorsC table) pure
             prop_takeConsistency n listWord64 (vectorsD table) pure
-            prop_takeConsistency n listInt8 (vectorsE table) pure
-            prop_takeConsistency n listInt16 (vectorsF table) pure
-            prop_takeConsistency n listInt32 (vectorsG table) pure
-            prop_takeConsistency n listInt64 (vectorsH table) pure
-            prop_takeConsistency n listFloat (vectorsI table) pure
+            prop_takeConsistency n listInt8   (vectorsE table) pure
+            prop_takeConsistency n listInt16  (vectorsF table) pure
+            prop_takeConsistency n listInt32  (vectorsG table) pure
+            prop_takeConsistency n listInt64  (vectorsH table) pure
+            prop_takeConsistency n listFloat  (vectorsI table) pure
             prop_takeConsistency n listDouble (vectorsJ table) pure
-            prop_takeConsistency n listBool (vectorsK table) pure
-            prop_takeConsistency n listText (vectorsL table) pure
+            prop_takeConsistency n listBool   (vectorsK table) pure
+            prop_takeConsistency n listText   (vectorsL table) pure
+
+            prop_dropConsistency n listWord8  (vectorsA table) pure
+            prop_dropConsistency n listWord16 (vectorsB table) pure
+            prop_dropConsistency n listWord32 (vectorsC table) pure
+            prop_dropConsistency n listWord64 (vectorsD table) pure
+            prop_dropConsistency n listInt8   (vectorsE table) pure
+            prop_dropConsistency n listInt16  (vectorsF table) pure
+            prop_dropConsistency n listInt32  (vectorsG table) pure
+            prop_dropConsistency n listInt64  (vectorsH table) pure
+            prop_dropConsistency n listFloat  (vectorsI table) pure
+            prop_dropConsistency n listDouble (vectorsJ table) pure
+            prop_dropConsistency n listBool   (vectorsK table) pure
+            prop_dropConsistency n listText   (vectorsL table) pure
 
 
       describe "of structs" $ do
@@ -244,7 +261,7 @@ spec =
         it "`index` throws when index is too large" $
           testLargeIndex table vectorOfStructsAs
 
-        it "`take` is consistent with Data.List.take" $
+        it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
           requireProperty $ do
             listInt16 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int16 (Range.linear -20 20))
             n <- forAll $ Gen.int32 (Range.linearFrom 0 -10 30)
@@ -256,6 +273,7 @@ spec =
               Nothing
 
             prop_takeConsistency n listInt16 (vectorOfStructsBs table) struct2X
+            prop_dropConsistency n listInt16 (vectorOfStructsBs table) struct2X
 
       describe "of tables" $ do
         let Right table = decode $ encode $ vectorOfTables
@@ -270,7 +288,7 @@ spec =
         it "`index` throws when index is too large" $
           testLargeIndex table vectorOfTablesXs
 
-        it "`take` is consistent with Data.List.take" $
+        it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
           requireProperty $ do
             listInt32 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int32 (Range.linear -20 20))
             n <- forAll $ Gen.int32 (Range.linearFrom 0 -10 30)
@@ -279,6 +297,7 @@ spec =
               (Just (Vec.fromList' (axe . Just <$> listInt32)))
 
             prop_takeConsistency n listInt32 (vectorOfTablesXs table) axeY
+            prop_dropConsistency n listInt32 (vectorOfTablesXs table) axeY
 
       describe "of unions" $ do
         let Right table = decode $ encode $ vectorOfUnions
@@ -294,17 +313,39 @@ spec =
         it "`index` throws when index is too large" $
           testLargeIndex table vectorOfUnionsXs
 
-        it "`take` is consistent with Data.List.take" $
+        it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
           requireProperty $ do
-            listInt32 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int32 (Range.linear -20 20))
+            listOfPairs :: [(String, Int32)] <- forAll $ Gen.list (Range.linear 0 20) $ do
+              unionType <- Gen.element ["Axe", "Sword"]
+              unionVal <- Gen.int32 (Range.linear -20 20)
+              pure (unionType, unionVal)
+
             n <- forAll $ Gen.int32 (Range.linearFrom 0 -10 30)
 
+            let pairToUnion :: (String, Int32) -> WriteUnion Weapon
+                pairToUnion = \case
+                  ("Axe", val)   -> weaponAxe (axe (Just val))
+                  ("Sword", val) -> weaponSword (sword (Just (Text.pack (show val))))
+
+            let unionToPair :: Union Weapon -> Either ReadError (String, Int32)
+                unionToPair = \case
+                  Union (WeaponAxe axe) -> do
+                    val <- axeY axe
+                    pure ("Axe", val)
+                  Union (WeaponSword sword) -> do
+                    textValMaybe <- swordX sword
+                    case textValMaybe of
+                      Just textVal ->
+                        case Text.signed Text.decimal textVal of
+                          Right (intVal, _) ->
+                            pure ("Sword", intVal)
+
             table <- evalEither $ decode $ encode $ vectorOfUnions
-              (Just (Vec.fromList' (weaponAxe . axe . Just <$> listInt32)))
+              (Just (Vec.fromList' (pairToUnion <$> listOfPairs)))
               Vec.empty
 
-            prop_takeConsistency n listInt32 (vectorOfUnionsXs table) $ \case
-              Union (WeaponAxe axe) -> axeY axe
+            prop_takeConsistency n listOfPairs (vectorOfUnionsXs table) unionToPair
+            prop_dropConsistency n listOfPairs (vectorOfUnionsXs table) unionToPair
 
 
 prop_takeConsistency ::
@@ -318,4 +359,17 @@ prop_takeConsistency n list vec extract = do
   Just vec <- evalEither vec
   (Vec.toList (Vec.take n vec) >>= traverse extract) === Right (List.take (fromIntegral n) list)
   Vec.length (Vec.take n vec) === fromIntegral (List.length (List.take (fromIntegral n) list))
+
+prop_dropConsistency ::
+  (Eq a, Show a, VectorElement b)
+  => Int32
+  -> [a]
+  -> Either ReadError (Maybe (Vector b))
+  -> (b -> Either ReadError a)
+  -> PropertyT IO ()
+prop_dropConsistency n list vec extract = do
+  Just vec <- evalEither vec
+  (Vec.toList (Vec.drop n vec) >>= traverse extract) === Right (List.drop (fromIntegral n) list)
+  Vec.length (Vec.drop n vec) === fromIntegral (List.length (List.drop (fromIntegral n) list))
+
 

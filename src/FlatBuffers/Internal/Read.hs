@@ -43,7 +43,7 @@ import           FlatBuffers.Internal.FileIdentifier ( FileIdentifier(..), HasFi
 import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Util           ( Positive, positive )
 
-import           Prelude                             hiding ( length, take )
+import           Prelude                             hiding ( drop, length, take )
 
 type ReadError = String
 
@@ -67,7 +67,6 @@ data Table a = Table
 newtype Struct a = Struct
   { structPos :: Position
   }
-
 
 -- | A union that is being read from a flatbuffer.
 data Union a
@@ -184,6 +183,11 @@ class VectorElement a where
   -- /O(1)/.
   take :: Int32 -> Vector a -> Vector a
 
+  -- | @drop n xs@ returns the suffix of @xs@ after the first @n@ elements, or @[]@ if @n > length xs@.
+  --
+  -- /O(c)/, where /c/ is the number of chunks in the underlying `ByteString`.
+  drop :: Int32 -> Vector a -> Vector a
+
 -- | Returns the item at the given index.
 -- If the given index is negative or too large, an `error` is thrown.
 --
@@ -198,6 +202,7 @@ instance VectorElement Word8 where
   length (VectorWord8 len _)         = len
   unsafeIndex (VectorWord8 _ pos) ix = byteStringSafeIndex pos ix
   take n (VectorWord8 len pos)       = VectorWord8 (clamp n len) pos
+  drop n (VectorWord8 len pos)       = VectorWord8 (clamp (len - n) len) (BSL.drop (fromIntegral @Int32 @Int64 n) pos)
 
   toList (VectorWord8 len pos) =
     Right $
@@ -211,6 +216,8 @@ instance VectorElement Word16 where
   length (VectorWord16 len _)      = len
   unsafeIndex (VectorWord16 _ pos) = readWord16 . moveToElem pos word16Size
   take n (VectorWord16 len pos)    = VectorWord16 (clamp n len) pos
+  drop n (VectorWord16 len pos)    = VectorWord16 (len - n') (moveToElem pos word16Size n')
+    where n' = clamp n len
   toList (VectorWord16 len pos)    = inlineVectorToList G.getWord16le len pos
 
 instance VectorElement Word32 where
@@ -219,6 +226,8 @@ instance VectorElement Word32 where
   length (VectorWord32 len _)      = len
   unsafeIndex (VectorWord32 _ pos) = readWord32 . moveToElem pos word32Size
   take n (VectorWord32 len pos)    = VectorWord32 (clamp n len) pos
+  drop n (VectorWord32 len pos)    = VectorWord32 (len - n') (moveToElem pos word32Size n')
+    where n' = clamp n len
   toList (VectorWord32 len pos)    = inlineVectorToList G.getWord32le len pos
 
 instance VectorElement Word64 where
@@ -227,6 +236,8 @@ instance VectorElement Word64 where
   length (VectorWord64 len _)      = len
   unsafeIndex (VectorWord64 _ pos) = readWord64 . moveToElem pos word64Size
   take n (VectorWord64 len pos)    = VectorWord64 (clamp n len) pos
+  drop n (VectorWord64 len pos)    = VectorWord64 (len - n') (moveToElem pos word64Size n')
+    where n' = clamp n len
   toList (VectorWord64 len pos)    = inlineVectorToList G.getWord64le len pos
 
 instance VectorElement Int8 where
@@ -235,6 +246,8 @@ instance VectorElement Int8 where
   length (VectorInt8 len _)        = len
   unsafeIndex (VectorInt8 _ pos)   = readInt8 . moveToElem pos int8Size
   take n (VectorInt8 len pos)      = VectorInt8 (clamp n len) pos
+  drop n (VectorInt8 len pos)      = VectorInt8 (len - n') (moveToElem pos int8Size n')
+    where n' = clamp n len
   toList (VectorInt8 len pos)      = inlineVectorToList G.getInt8 len pos
 
 instance VectorElement Int16 where
@@ -243,6 +256,8 @@ instance VectorElement Int16 where
   length (VectorInt16 len _)       = len
   unsafeIndex (VectorInt16 _ pos)  = readInt16 . moveToElem pos int16Size
   take n (VectorInt16 len pos)     = VectorInt16 (clamp n len) pos
+  drop n (VectorInt16 len pos)     = VectorInt16 (len - n') (moveToElem pos int16Size n')
+    where n' = clamp n len
   toList (VectorInt16 len pos)     = inlineVectorToList G.getInt16le len pos
 
 instance VectorElement Int32 where
@@ -251,6 +266,8 @@ instance VectorElement Int32 where
   length (VectorInt32 len _)       = len
   unsafeIndex (VectorInt32 _ pos)  = readInt32 . moveToElem pos int32Size
   take n (VectorInt32 len pos)     = VectorInt32 (clamp n len) pos
+  drop n (VectorInt32 len pos)     = VectorInt32 (len - n') (moveToElem pos int32Size n')
+    where n' = clamp n len
   toList (VectorInt32 len pos)     = inlineVectorToList G.getInt32le len pos
 
 instance VectorElement Int64 where
@@ -259,6 +276,8 @@ instance VectorElement Int64 where
   length (VectorInt64 len _)       = len
   unsafeIndex (VectorInt64 _ pos)  = readInt64 . moveToElem pos int64Size
   take n (VectorInt64 len pos)     = VectorInt64 (clamp n len) pos
+  drop n (VectorInt64 len pos)     = VectorInt64 (len - n') (moveToElem pos int64Size n')
+    where n' = clamp n len
   toList (VectorInt64 len pos)     = inlineVectorToList G.getInt64le len pos
 
 instance VectorElement Float where
@@ -267,6 +286,8 @@ instance VectorElement Float where
   length (VectorFloat len _)       = len
   unsafeIndex (VectorFloat _ pos)  = readFloat . moveToElem pos floatSize
   take n (VectorFloat len pos)     = VectorFloat (clamp n len) pos
+  drop n (VectorFloat len pos)     = VectorFloat (len - n') (moveToElem pos floatSize n')
+    where n' = clamp n len
   toList (VectorFloat len pos)     = inlineVectorToList G.getFloatle len pos
 
 instance VectorElement Double where
@@ -275,6 +296,8 @@ instance VectorElement Double where
   length (VectorDouble len _)      = len
   unsafeIndex (VectorDouble _ pos) = readDouble . moveToElem pos doubleSize
   take n (VectorDouble len pos)    = VectorDouble (clamp n len) pos
+  drop n (VectorDouble len pos)    = VectorDouble (len - n') (moveToElem pos doubleSize n')
+    where n' = clamp n len
   toList (VectorDouble len pos)    = inlineVectorToList G.getDoublele len pos
 
 instance VectorElement Bool where
@@ -283,6 +306,8 @@ instance VectorElement Bool where
   length (VectorBool len _)      = len
   unsafeIndex (VectorBool _ pos) = readBool . moveToElem pos boolSize
   take n (VectorBool len pos)    = VectorBool (clamp n len) pos
+  drop n (VectorBool len pos)    = VectorBool (len - n') (moveToElem pos boolSize n')
+    where n' = clamp n len
   toList (VectorBool len pos)    = fmap word8ToBool <$> toList (VectorWord8 len pos)
 
 instance VectorElement Text where
@@ -291,6 +316,8 @@ instance VectorElement Text where
   length (VectorText len _)      = len
   unsafeIndex (VectorText _ pos) = readText . moveToElem pos textRefSize
   take n (VectorText len pos)    = VectorText (clamp n len) pos
+  drop n (VectorText len pos)    = VectorText (len - n') (moveToElem pos textRefSize n')
+    where n' = clamp n len
 
   toList :: Vector Text -> Either ReadError [Text]
   toList (VectorText len pos) = do
@@ -317,7 +344,8 @@ instance VectorElement (Struct a) where
     let elemSize = fromIntegral @InlineSize @Int32 structSize
     in Right . readStruct . moveToElem pos elemSize
 
-  take n (VectorStruct size len pos) = VectorStruct size (clamp n len) pos
+  take n (VectorStruct structSize len pos) = VectorStruct structSize (clamp n len) pos
+  drop n (VectorStruct structSize len pos) = VectorStruct structSize (clamp (len - n) len) (moveToElem pos (fromIntegral @InlineSize @Int32 structSize) n)
 
   toList (VectorStruct structSize len pos) =
     Right (go len pos)
@@ -336,6 +364,8 @@ instance VectorElement (Table a) where
   length (VectorTable len _)      = len
   unsafeIndex (VectorTable _ pos) = readTable . moveToElem pos tableRefSize
   take n (VectorTable len pos)    = VectorTable (clamp n len) pos
+  drop n (VectorTable len pos)    = VectorTable (len - n') (moveToElem pos tableRefSize n')
+    where n' = clamp n len
 
   toList (VectorTable len vectorPos) = do
     offsets <- inlineVectorToList G.getInt32le len (getPosition vectorPos)
@@ -370,7 +400,9 @@ instance VectorElement (Union a) where
         tablePos <- readUOffsetAndSkip $ moveToElem valuesPos tableRefSize ix
         readElem unionType' tablePos
 
-  take n (VectorUnion typesPos valuesPos readElem) = VectorUnion (take n typesPos) valuesPos readElem
+  take n (VectorUnion typesPos valuesPos readElem)     = VectorUnion (take n typesPos) valuesPos readElem
+  drop n vec@(VectorUnion typesPos valuesPos readElem) = VectorUnion (drop n typesPos) (moveToElem valuesPos tableRefSize n') readElem
+    where n' = clamp n (length vec)
 
   toList vec@(VectorUnion typesPos valuesPos readElem) = do
     unionTypes <- toList typesPos
