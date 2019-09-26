@@ -43,7 +43,7 @@ import           FlatBuffers.Internal.FileIdentifier ( FileIdentifier(..), HasFi
 import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Util           ( Positive, positive )
 
-import           Prelude                             hiding ( length )
+import           Prelude                             hiding ( length, take )
 
 type ReadError = String
 
@@ -151,12 +151,18 @@ inlineVectorToList get len pos =
   runGet pos $
     sequence $ L.replicate (fromIntegral @Int32 @Int len) get
 
+-- | @clamp n upperBound@ truncates a value to stay between @0@ and @upperBound@.
+clamp :: Int32 -> Int32 -> Int32
+clamp n upperBound = n `min` upperBound `max` 0
+
 class VectorElement a where
 
   -- | A vector that is being read from a flatbuffer.
   data Vector a
 
   -- | Returns the size of the vector.
+  --
+  -- /O(1)/.
   length :: Vector a -> Int32
 
   -- | Returns the item at the given index without performing the bounds check.
@@ -164,13 +170,24 @@ class VectorElement a where
   -- Given an invalid index, @unsafeIndex@ will likely read garbage data or return a `ReadError`.
   -- In the case of @Vector Word8@, using a negative index carries the same risks as `BSU.unsafeIndex`
   -- (i.e. reading from outside the buffer's  boundaries).
+  --
+  -- /O(c)/, where /c/ is the number of chunks in the underlying `ByteString`.
   unsafeIndex :: Vector a -> Int32 -> Either ReadError a
 
   -- | Converts the vector to a list.
+  --
+  -- /O(n)/.
   toList :: Vector a -> Either ReadError [a]
+
+  -- | @take n xs@ returns the prefix of @xs@ of length @n@, or @xs@ itself if @n > length xs@.
+  --
+  -- /O(1)/.
+  take :: Int32 -> Vector a -> Vector a
 
 -- | Returns the item at the given index.
 -- If the given index is negative or too large, an `error` is thrown.
+--
+-- /O(c)/, where /c/ is the number of chunks in the underlying `ByteString`.
 index :: VectorElement a => Vector a -> Int32 -> Either ReadError a
 index vec ix = unsafeIndex vec . checkIndexBounds ix $ length vec
 
@@ -180,6 +197,7 @@ instance VectorElement Word8 where
 
   length (VectorWord8 len _)         = len
   unsafeIndex (VectorWord8 _ pos) ix = byteStringSafeIndex pos ix
+  take n (VectorWord8 len pos)       = VectorWord8 (clamp n len) pos
 
   toList (VectorWord8 len pos) =
     Right $
@@ -192,14 +210,15 @@ instance VectorElement Word16 where
 
   length (VectorWord16 len _)      = len
   unsafeIndex (VectorWord16 _ pos) = readWord16 . moveToElem pos word16Size
+  take n (VectorWord16 len pos)    = VectorWord16 (clamp n len) pos
   toList (VectorWord16 len pos)    = inlineVectorToList G.getWord16le len pos
-
 
 instance VectorElement Word32 where
   data Vector Word32 = VectorWord32 !Int32 !Position
 
   length (VectorWord32 len _)      = len
   unsafeIndex (VectorWord32 _ pos) = readWord32 . moveToElem pos word32Size
+  take n (VectorWord32 len pos)    = VectorWord32 (clamp n len) pos
   toList (VectorWord32 len pos)    = inlineVectorToList G.getWord32le len pos
 
 instance VectorElement Word64 where
@@ -207,6 +226,7 @@ instance VectorElement Word64 where
 
   length (VectorWord64 len _)      = len
   unsafeIndex (VectorWord64 _ pos) = readWord64 . moveToElem pos word64Size
+  take n (VectorWord64 len pos)    = VectorWord64 (clamp n len) pos
   toList (VectorWord64 len pos)    = inlineVectorToList G.getWord64le len pos
 
 instance VectorElement Int8 where
@@ -214,6 +234,7 @@ instance VectorElement Int8 where
 
   length (VectorInt8 len _)        = len
   unsafeIndex (VectorInt8 _ pos)   = readInt8 . moveToElem pos int8Size
+  take n (VectorInt8 len pos)      = VectorInt8 (clamp n len) pos
   toList (VectorInt8 len pos)      = inlineVectorToList G.getInt8 len pos
 
 instance VectorElement Int16 where
@@ -221,6 +242,7 @@ instance VectorElement Int16 where
 
   length (VectorInt16 len _)       = len
   unsafeIndex (VectorInt16 _ pos)  = readInt16 . moveToElem pos int16Size
+  take n (VectorInt16 len pos)     = VectorInt16 (clamp n len) pos
   toList (VectorInt16 len pos)     = inlineVectorToList G.getInt16le len pos
 
 instance VectorElement Int32 where
@@ -228,6 +250,7 @@ instance VectorElement Int32 where
 
   length (VectorInt32 len _)       = len
   unsafeIndex (VectorInt32 _ pos)  = readInt32 . moveToElem pos int32Size
+  take n (VectorInt32 len pos)     = VectorInt32 (clamp n len) pos
   toList (VectorInt32 len pos)     = inlineVectorToList G.getInt32le len pos
 
 instance VectorElement Int64 where
@@ -235,6 +258,7 @@ instance VectorElement Int64 where
 
   length (VectorInt64 len _)       = len
   unsafeIndex (VectorInt64 _ pos)  = readInt64 . moveToElem pos int64Size
+  take n (VectorInt64 len pos)     = VectorInt64 (clamp n len) pos
   toList (VectorInt64 len pos)     = inlineVectorToList G.getInt64le len pos
 
 instance VectorElement Float where
@@ -242,6 +266,7 @@ instance VectorElement Float where
 
   length (VectorFloat len _)       = len
   unsafeIndex (VectorFloat _ pos)  = readFloat . moveToElem pos floatSize
+  take n (VectorFloat len pos)     = VectorFloat (clamp n len) pos
   toList (VectorFloat len pos)     = inlineVectorToList G.getFloatle len pos
 
 instance VectorElement Double where
@@ -249,6 +274,7 @@ instance VectorElement Double where
 
   length (VectorDouble len _)      = len
   unsafeIndex (VectorDouble _ pos) = readDouble . moveToElem pos doubleSize
+  take n (VectorDouble len pos)    = VectorDouble (clamp n len) pos
   toList (VectorDouble len pos)    = inlineVectorToList G.getDoublele len pos
 
 instance VectorElement Bool where
@@ -256,6 +282,7 @@ instance VectorElement Bool where
 
   length (VectorBool len _)      = len
   unsafeIndex (VectorBool _ pos) = readBool . moveToElem pos boolSize
+  take n (VectorBool len pos)    = VectorBool (clamp n len) pos
   toList (VectorBool len pos)    = fmap word8ToBool <$> toList (VectorWord8 len pos)
 
 instance VectorElement Text where
@@ -263,6 +290,7 @@ instance VectorElement Text where
 
   length (VectorText len _)      = len
   unsafeIndex (VectorText _ pos) = readText . moveToElem pos textRefSize
+  take n (VectorText len pos)    = VectorText (clamp n len) pos
 
   toList :: Vector Text -> Either ReadError [Text]
   toList (VectorText len pos) = do
@@ -289,6 +317,8 @@ instance VectorElement (Struct a) where
     let elemSize = fromIntegral @InlineSize @Int32 structSize
     in Right . readStruct . moveToElem pos elemSize
 
+  take n (VectorStruct size len pos) = VectorStruct size (clamp n len) pos
+
   toList (VectorStruct structSize len pos) =
     Right (go len pos)
     where
@@ -303,8 +333,9 @@ instance VectorElement (Table a) where
   data Vector (Table a) = VectorTable !Int32 !PositionInfo
 
 
-  length (VectorTable len _) = len
+  length (VectorTable len _)      = len
   unsafeIndex (VectorTable _ pos) = readTable . moveToElem pos tableRefSize
+  take n (VectorTable len pos)    = VectorTable (clamp n len) pos
 
   toList (VectorTable len vectorPos) = do
     offsets <- inlineVectorToList G.getInt32le len (getPosition vectorPos)
@@ -338,6 +369,8 @@ instance VectorElement (Union a) where
       Just unionType' -> do
         tablePos <- readUOffsetAndSkip $ moveToElem valuesPos tableRefSize ix
         readElem unionType' tablePos
+
+  take n (VectorUnion typesPos valuesPos readElem) = VectorUnion (take n typesPos) valuesPos readElem
 
   toList vec@(VectorUnion typesPos valuesPos readElem) = do
     unionTypes <- toList typesPos
