@@ -13,6 +13,7 @@ import           Control.Monad.Except                          ( MonadError, thr
 import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
 import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, modify, put )
 
+import           Data.Bits                                     ( (.&.), Bits )
 import           Data.Coerce                                   ( coerce )
 import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
 import qualified Data.Foldable                                 as Foldable
@@ -41,7 +42,6 @@ import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Constants
 import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Util                     ( isPowerOfTwo, roundUpToNearestMultipleOf )
 
 import           Text.Read                                     ( readMaybe )
 
@@ -921,4 +921,12 @@ throwErrorMsg msg = do
     else throwError $ "[" <> display context <> "]: " <> msg
 
 
+isPowerOfTwo :: (Num a, Bits a) => a -> Bool
+isPowerOfTwo 0 = False
+isPowerOfTwo n = (n .&. (n - 1)) == 0
 
+roundUpToNearestMultipleOf :: Integral n => n -> n -> n
+roundUpToNearestMultipleOf x y =
+  case x `rem` y of
+    0         -> x
+    remainder -> (y - remainder) + x

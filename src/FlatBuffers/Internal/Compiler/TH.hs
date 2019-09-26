@@ -26,7 +26,6 @@ import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.FileIdentifier             ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Util                       ( Positive(getPositive), nonEmptyUnzip3 )
 import           FlatBuffers.Internal.Write
 
 import           Language.Haskell.TH
@@ -845,3 +844,11 @@ app = foldl1 AppE
 
 compose :: [Exp] -> Exp
 compose = foldr1 (\e1 e2 -> InfixE (Just e1) (VarE '(.)) (Just e2))
+
+
+nonEmptyUnzip3 :: NonEmpty (a,b,c) -> (NonEmpty a, NonEmpty b, NonEmpty c)
+nonEmptyUnzip3 xs =
+  ( (\(x, _, _) -> x) <$> xs
+  , (\(_, x, _) -> x) <$> xs
+  , (\(_, _, x) -> x) <$> xs
+  )

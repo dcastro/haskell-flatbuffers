@@ -41,7 +41,6 @@ import           Data.Word
 import           FlatBuffers.Internal.Constants
 import           FlatBuffers.Internal.FileIdentifier ( FileIdentifier(..), HasFileIdentifier(..) )
 import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Util           ( Positive, positive )
 
 import           Prelude                             hiding ( drop, length, take )
 
@@ -128,6 +127,13 @@ checkFileIdentifier' (unFileIdentifier -> fileIdent) bs =
         BSL.drop uoffsetSize $
           bs
 
+-- | Proof that a number is strictly positive.
+newtype Positive a = Positive { getPositive :: a }
+  deriving newtype (Eq, Show)
+
+{-# INLINE positive #-}
+positive :: (Num a, Ord a) => a -> Maybe (Positive a)
+positive n = if n > 0 then Just (Positive n) else Nothing
 
 ----------------------------------
 ------------ Vectors -------------

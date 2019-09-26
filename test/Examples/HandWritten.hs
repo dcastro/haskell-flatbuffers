@@ -10,7 +10,6 @@ import           FlatBuffers.Internal.Build
 import           FlatBuffers.Internal.FileIdentifier ( HasFileIdentifier(..), unsafeFileIdentifier )
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Util           ( Positive(getPositive) )
 import           FlatBuffers.Internal.Write
 
 ----------------------------------
