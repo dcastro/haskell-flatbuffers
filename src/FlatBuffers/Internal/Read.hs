@@ -331,30 +331,23 @@ instance VectorElement Text where
         text <- join $ runGet textPos readText'
         go xs (ix + 1) (text : acc)
 
-instance VectorElement (Struct a) where
-  data Vector (Struct a) = VectorStruct
-    { vectorStructStructSize :: !InlineSize
-    , vectorStructLength     :: !Int32
-    , vectorStructPos        :: !Position
-    }
 
-  length = vectorStructLength
+instance IsStruct a => VectorElement (Struct a) where
+  data Vector (Struct a) = VectorStruct !Int32 !Position
 
-  unsafeIndex (VectorStruct structSize _ pos) =
-    let elemSize = fromIntegral @InlineSize @Int32 structSize
-    in Right . readStruct . moveToElem pos elemSize
+  length (VectorStruct len pos)    = len
+  unsafeIndex (VectorStruct _ pos) = Right . readStruct . moveToElem pos (fromIntegral (structSizeOf @a))
+  take n (VectorStruct len pos)    = VectorStruct (clamp n len) pos
+  drop n (VectorStruct len pos)    = VectorStruct (clamp (len - n) len) (moveToElem pos (fromIntegral (structSizeOf @a)) n)
 
-  take n (VectorStruct structSize len pos) = VectorStruct structSize (clamp n len) pos
-  drop n (VectorStruct structSize len pos) = VectorStruct structSize (clamp (len - n) len) (moveToElem pos (fromIntegral @InlineSize @Int32 structSize) n)
-
-  toList (VectorStruct structSize len pos) =
+  toList (VectorStruct len pos) =
     Right (go len pos)
     where
       go :: Int32 -> Position -> [Struct a]
       go 0 _ = []
       go !len pos =
         let head = readStruct pos
-            tail = go (len - 1) (move pos structSize)
+            tail = go (len - 1) (move pos (structSizeOf @a))
         in  head : tail
 
 instance VectorElement (Table a) where
@@ -558,9 +551,6 @@ readTableVector pos = do
   vecPos <- readUOffsetAndSkip pos
   vecLength <- readInt32 vecPos
   Right $! VectorTable vecLength (move vecPos (int32Size :: Int64))
-
-readStructVector :: forall a. IsStruct a => PositionInfo -> Either ReadError (Vector (Struct a))
-readStructVector = readPrimVector (VectorStruct (structSizeOf @a))
 
 readUnionVector ::
      (Positive Word8 -> PositionInfo -> Either ReadError (Union a))

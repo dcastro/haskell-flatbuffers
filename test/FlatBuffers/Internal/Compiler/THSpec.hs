@@ -796,7 +796,7 @@ spec =
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector (Struct S1)))
-                t1A = readTableFieldOpt readStructVector 0
+                t1A = readTableFieldOpt (readPrimVector VectorStruct) 0
               |]
 
           it "required" $
@@ -823,7 +823,7 @@ spec =
                   ]
 
                 t1A :: Table T1 -> Either ReadError (Vector (Struct S1))
-                t1A = readTableFieldReq readStructVector 0 "a"
+                t1A = readTableFieldReq (readPrimVector VectorStruct) 0 "a"
               |]
 
         describe "vector of tables" $ do

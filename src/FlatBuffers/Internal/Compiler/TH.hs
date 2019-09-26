@@ -498,7 +498,7 @@ mkTableFieldGetter tableName table tf =
         VBool            -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'VectorBool
         VString          -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'VectorText
         VEnum _ enumType -> mkFunForVector req (enumTypeToVectorElementType enumType)
-        VStruct _        -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readStructVector
+        VStruct _        -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readPrimVector `AppE` ConE 'VectorStruct
         VTable _         -> mkFunWithBody $ bodyForNonScalar req $ VarE 'readTableVector
         VUnion (TypeRef ns ident) ->
           mkFunWithBody $

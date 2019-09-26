@@ -144,7 +144,7 @@ enumsXs :: Table Enums -> Either ReadError (Maybe (Vector Int16))
 enumsXs = readTableFieldOpt (readPrimVector VectorInt16) 2
 
 enumsYs :: Table Enums -> Either ReadError (Maybe (Vector (Struct StructWithEnum)))
-enumsYs = readTableFieldOpt readStructVector 3
+enumsYs = readTableFieldOpt (readPrimVector VectorStruct) 3
 
 
 
@@ -464,16 +464,16 @@ vectorOfStructs as bs cs ds = writeTable
   ]
 
 vectorOfStructsAs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct1)))
-vectorOfStructsAs = readTableFieldOpt readStructVector 0
+vectorOfStructsAs = readTableFieldOpt (readPrimVector VectorStruct) 0
 
 vectorOfStructsBs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct2)))
-vectorOfStructsBs = readTableFieldOpt readStructVector 1
+vectorOfStructsBs = readTableFieldOpt (readPrimVector VectorStruct) 1
 
 vectorOfStructsCs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct3)))
-vectorOfStructsCs = readTableFieldOpt readStructVector 2
+vectorOfStructsCs = readTableFieldOpt (readPrimVector VectorStruct) 2
 
 vectorOfStructsDs :: Table VectorOfStructs -> Either ReadError (Maybe (Vector (Struct Struct4)))
-vectorOfStructsDs = readTableFieldOpt readStructVector 3
+vectorOfStructsDs = readTableFieldOpt (readPrimVector VectorStruct) 3
 
 
 ----------------------------------
