@@ -62,6 +62,11 @@ groups =
             )
             $ vectorsTable >>= vectorsG
 
+        , bench "struct" $ nf (\(Right (Just vec)) ->
+              forM [0..(n-1)] (\i -> vec `unsafeIndex` i >>= structWithOneIntX)
+            )
+            $ vectorsTable >>= vectorsM
+
         , bench "string" $ nf (\(Right (Just vec)) ->
               forM [0..(n-1)] (\i -> vec `unsafeIndex` i)
             )
@@ -77,6 +82,11 @@ groups =
               forM [0..(n-1)] (\i -> vec `index` i)
             )
             $ vectorsTable >>= vectorsG
+
+        , bench "struct" $ nf (\(Right (Just vec)) ->
+              forM [0..(n-1)] (\i -> vec `index` i >>= structWithOneIntX)
+            )
+            $ vectorsTable >>= vectorsM
 
         , bench "string" $ nf (\(Right (Just vec)) ->
               forM [0..(n-1)] (\i -> vec `index` i)
