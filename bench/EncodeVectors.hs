@@ -82,52 +82,52 @@ groups =
 
     , bgroup "from vector"
       [ bench "of ints" $ nf (\xs ->
-          encode . vectorOfInts . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfInts . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             xs
         ) $ mkIntVector n
 
       , bench "of ints (with fusion)" $ nf (\xs ->
-          encode . vectorOfInts . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfInts . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             userId <$> xs
         ) $ mkUserVector n
 
       , bench "of structs (1 int field)" $ nf (\xs ->
-          encode . vectorOfStructWithOneInt . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfStructWithOneInt . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             structWithOneInt <$> xs
         ) $ mkIntVector n
 
       , bench "of structs (2 ints fields)" $ nf (\xs ->
-          encode . vectorOfPairs . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfPairs . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             (\(User id age _) -> pair id age) <$> xs
         ) $ mkUserVector n
 
       , bench "of short strings" $ nf (\xs ->
-          encode . vectorOfStrings . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfStrings . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             xs
         ) $ mkTextVector n
 
       , bench "of short strings (with fusion)" $ nf (\xs ->
-          encode . vectorOfStrings . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfStrings . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             userName <$> xs
         ) $ mkUserVector n
 
       , bench "of long strings" $ nf (\xs ->
-          encode . vectorOfStrings . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfStrings . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             xs
         ) $ mkLongTextVector n
 
       , bench "of tables (2 int fields)" $ nf (\xs ->
-          encode . vectorOfTables . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfTables . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             (\(User id age _) -> pairTable (Just id) (Just age)) <$> xs
         ) $ mkUserVector n
 
       , bench "of tables (1 int field, 1 string field)" $ nf (\xs ->
-          encode . vectorOfUsers . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfUsers . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             (\(User id _ name) -> userTable (Just id) (Just name)) <$> xs
         ) $ mkUserVector n
 
       , bench "of unions (1 int field each)" $ nf (\xs ->
-          encode . vectorOfUnions . Just . Vec.fromFoldable (fromIntegral (F.length xs)) $
+          encode . vectorOfUnions . Just . Vec.fromMonoFoldable (fromIntegral (F.length xs)) $
             xs <&> \case
               Sword x -> weaponUnionSword (swordTable (Just x))
               Axe x   -> weaponUnionAxe   (axeTable   (Just x))
@@ -136,14 +136,14 @@ groups =
 
     , bgroup "from unboxed vector"
       [ bench "of ints" $ nf (\xs ->
-          encode . vectorOfInts . Just . Vec.fromFoldable (fromIntegral (VU.length xs)) $
+          encode . vectorOfInts . Just . Vec.fromMonoFoldable (fromIntegral (VU.length xs)) $
             xs
         ) $ mkIntUnboxedVector n
       ]
 
     , bgroup "from storable vector"
       [ bench "of ints" $ nf (\xs ->
-          encode . vectorOfInts . Just . Vec.fromFoldable (fromIntegral (VS.length xs)) $
+          encode . vectorOfInts . Just . Vec.fromMonoFoldable (fromIntegral (VS.length xs)) $
             xs
         ) $ mkIntStorableVector n
       ]
