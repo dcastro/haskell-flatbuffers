@@ -19,6 +19,7 @@ module FlatBuffers.Internal.Write where
 import           Control.Monad.State.Strict
 
 import           Data.Bits                           ( (.&.), complement )
+import qualified Data.ByteString                     as BS
 import           Data.ByteString.Builder             ( Builder )
 import qualified Data.ByteString.Builder             as B
 import qualified Data.ByteString.Lazy                as BSL
@@ -421,6 +422,35 @@ fromFoldable n = fromMonoFoldable n . FromFoldable
 fromFoldable' :: (WriteVectorElement a, Foldable f) => f a -> WriteVector a
 fromFoldable' = fromMonoFoldable' . FromFoldable
 
+-- | Efficiently creates a vector from a `BS.ByteString`.
+-- Large `BS.ByteString`s are inserted directly, but small ones are copied to ensure that the generated chunks are large on average.
+fromByteString :: BS.ByteString -> WriteVector Word8
+fromByteString bs = WriteVectorWord8 . WriteTableField $ do
+  modify' $!
+    writeInt32 len . writeByteString . alignTo int32Size len
+  uoffsetFromHere
+  where
+    len = fromIntegral @Int @Int32 (BS.length bs)
+    writeByteString fbs =
+      fbs
+        { builder = B.byteString bs <> builder fbs
+        , bufferSize = bufferSize fbs <> Sum len
+        }
+
+-- | Efficiently creates a vector from a lazy `BSL.ByteString`.
+--  Large chunks of the `BSL.ByteString` are inserted directly, but small ones are copied to ensure that the generated chunks are large on average.
+fromLazyByteString :: BSL.ByteString -> WriteVector Word8
+fromLazyByteString bs = WriteVectorWord8 . WriteTableField $ do
+  modify' $!
+    writeInt32 len . writeByteString . alignTo int32Size len
+  uoffsetFromHere
+  where
+    len = fromIntegral @Int64 @Int32 (BSL.length bs)
+    writeByteString fbs =
+      fbs
+        { builder = B.lazyByteString bs <> builder fbs
+        , bufferSize = bufferSize fbs <> Sum len
+        }
 
 {-# INLINE inlineVector #-}
 inlineVector ::

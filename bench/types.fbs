@@ -37,6 +37,10 @@ table VectorOfInts {
   xs: [int];
 }
 
+table VectorOfBytes {
+  xs: [ubyte];
+}
+
 struct StructWithOneInt {
   x: int;
 }

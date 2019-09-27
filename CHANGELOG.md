@@ -5,10 +5,14 @@
 
 * Read vector length upfront, rather than on every access.
   * `FlatBuffers.Vector.length` changed from `Either ReadError Int32` to `Int32`.
-* Added support for storing types with instances for `MonoFoldable` (e.g. unboxed and storable vectors).
-* Added:
-  * `FlatBuffers.Vector.take`
-  * `FlatBuffers.Vector.drop`
+* Added to `FlatBuffers.Vector`:
+  * `fromByteString`
+  * `fromLazyByteString`
+  * `fromMonoFoldable` (supports `Data.Vector.Unboxed` and `Data.Vector.Storable`)
+  * `take`
+  * `drop`
+  * `toByteString`
+
 
 
 ## 0.1.0.0 (2019-09-22)

@@ -14,10 +14,13 @@ module FlatBuffers.Vector
   , W.fromList'
   , W.singleton
   , W.empty
+  , W.fromByteString
+  , W.fromLazyByteString
 
     -- * Reading a vector
   , R.VectorElement(..)
   , R.index
+  , R.toByteString
   ) where
 
 import           FlatBuffers.Internal.Read  as R

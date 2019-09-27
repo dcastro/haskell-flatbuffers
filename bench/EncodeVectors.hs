@@ -6,6 +6,8 @@ module EncodeVectors where
 
 import           Criterion
 
+import qualified Data.ByteString      as BS
+import qualified Data.ByteString.Lazy as BSL
 import           Data.Foldable        as F
 import           Data.Functor         ( (<&>) )
 import           Data.Int
@@ -20,6 +22,7 @@ import qualified FlatBuffers.Vector   as Vec
 
 import           Types
 
+
 n :: Num a => a
 n = 10000
 
@@ -30,7 +33,7 @@ groups =
       [ bench "of ints" $ nf (\xs ->
           encode . vectorOfInts . Just . Vec.fromList (fromIntegral (F.length xs)) $
             xs
-        ) $ mkIntList n
+        ) $ mkNumList n
 
       , bench "of ints (with fusion)" $ nf (\xs ->
           encode . vectorOfInts . Just . Vec.fromList (fromIntegral (F.length xs)) $
@@ -40,7 +43,7 @@ groups =
       , bench "of structs (1 int field)" $ nf (\xs ->
           encode . vectorOfStructWithOneInt . Just . Vec.fromList (fromIntegral (F.length xs)) $
             structWithOneInt <$> xs
-        ) $ mkIntList n
+        ) $ mkNumList n
 
       , bench "of structs (2 ints fields)" $ nf (\xs ->
           encode . vectorOfPairs . Just . Vec.fromList (fromIntegral (F.length xs)) $
@@ -147,6 +150,18 @@ groups =
             xs
         ) $ mkIntStorableVector n
       ]
+
+    , bgroup "from bytestring"
+      [ bench "strict" $ nf (\xs ->
+          encode . vectorOfBytes . Just . Vec.fromByteString $
+            xs
+        ) $ mkByteString n
+
+      , bench "lazy" $ nf (\xs ->
+          encode . vectorOfBytes . Just . Vec.fromLazyByteString $
+            xs
+        ) $ mkLazyByteString n
+      ]
     ]
   ]
 
@@ -170,8 +185,8 @@ mkWeaponList n =
       then Sword i
       else Axe i
 
-mkIntList :: Int32 -> [Int32]
-mkIntList n = [1..n]
+mkNumList :: Num a => Int32 -> [a]
+mkNumList len = fromIntegral <$> [1 .. len]
 
 mkTextList :: Int -> [Text]
 mkTextList n = L.replicate n "abcdefghijk"
@@ -189,13 +204,19 @@ mkWeaponVector :: Int32 -> V.Vector Weapon
 mkWeaponVector n = V.fromList (mkWeaponList n)
 
 mkIntVector :: Int32 -> V.Vector Int32
-mkIntVector n = V.fromList (mkIntList n)
+mkIntVector n = V.fromList (mkNumList n)
 
 mkIntUnboxedVector :: Int32 -> VU.Vector Int32
-mkIntUnboxedVector n = VU.fromList (mkIntList n)
+mkIntUnboxedVector n = VU.fromList (mkNumList n)
 
 mkIntStorableVector :: Int32 -> VS.Vector Int32
-mkIntStorableVector n = VS.fromList (mkIntList n)
+mkIntStorableVector n = VS.fromList (mkNumList n)
+
+mkByteString :: Int32 -> BS.ByteString
+mkByteString = BS.pack . mkNumList
+
+mkLazyByteString :: Int32 -> BSL.ByteString
+mkLazyByteString = BSL.pack . mkNumList
 
 mkTextVector :: Int -> V.Vector Text
 mkTextVector n = V.fromList (mkTextList n)
