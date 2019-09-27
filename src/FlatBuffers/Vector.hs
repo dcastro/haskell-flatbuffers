@@ -8,6 +8,8 @@ module FlatBuffers.Vector
     -- * Creating a vector
     W.WriteVectorElement(..)
   , W.fromMonoFoldable'
+  , W.fromFoldable
+  , W.fromFoldable'
   , W.fromList
   , W.fromList'
   , W.singleton

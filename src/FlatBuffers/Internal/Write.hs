@@ -7,6 +7,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -404,6 +406,20 @@ singleton a = fromList 1 [a]
 empty :: WriteVectorElement a => WriteVector a
 empty = fromList 0 []
 
+
+newtype FromFoldable f a = FromFoldable (f a)
+  deriving newtype Foldable
+
+type instance Element (FromFoldable f a) = a
+instance Foldable f => MonoFoldable (FromFoldable f a)
+
+-- | `fromMonoFoldable` for types that implement `Foldable` but not `MonoFoldable`.
+fromFoldable :: (WriteVectorElement a, Foldable f) => Int32 -> f a -> WriteVector a
+fromFoldable n = fromMonoFoldable n . FromFoldable
+
+-- | `fromMonoFoldable'` for types that implement `Foldable` but not `MonoFoldable`.
+fromFoldable' :: (WriteVectorElement a, Foldable f) => f a -> WriteVector a
+fromFoldable' = fromMonoFoldable' . FromFoldable
 
 
 {-# INLINE inlineVector #-}
