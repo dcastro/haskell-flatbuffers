@@ -104,7 +104,7 @@ errorBundlePretty
   -> String               -- ^ Textual rendition of the bundle
 errorBundlePretty ParseErrorBundle {..} =
   let (r, _) = foldl f (id, bundlePosState) bundleErrors
-  in drop 1 (r "")
+  in drop 5 (r "")
   where
     f :: (ShowS, PosState s)
       -> ParseError s e
@@ -113,7 +113,7 @@ errorBundlePretty ParseErrorBundle {..} =
       where
         (epos, sline, pst') = Stream.reachOffset (errorOffset e) pst
         outChunk =
-          "\n" <> sourcePosPretty epos <> ":\n" <>
+          "\n    " <> sourcePosPretty epos <> ":\n" <>
           padding <> "|\n" <>
           lineNumber <> " | " <> sline <> "\n" <>
           padding <> "| " <> rpadding <> pointer <> "\n" <>
@@ -145,9 +145,9 @@ parseErrorTextPretty
   -> String            -- ^ Result of rendering
 parseErrorTextPretty (TrivialError _ us ps) =
   if isNothing us && E.null ps
-    then "unknown parse error\n"
-    else messageItemsPretty "unexpected " (showErrorItem pxy `E.map` maybe E.empty E.singleton us) <>
-         messageItemsPretty "expecting "  (showErrorItem pxy `E.map` ps)
+    then " unknown parse error\n"
+    else messageItemsPretty " unexpected " (showErrorItem pxy `E.map` maybe E.empty E.singleton us) <> "\n" <>
+         messageItemsPretty " expecting "  (showErrorItem pxy `E.map` ps)
   where
     pxy = Proxy :: Proxy s
 parseErrorTextPretty (FancyError _ xs) =
@@ -181,7 +181,7 @@ messageItemsPretty
 messageItemsPretty prefix ts
   | E.null ts = ""
   | otherwise =
-    prefix <> (orList . NE.fromList . E.toAscList) ts <> "\n"
+    prefix <> (orList . NE.fromList . E.toAscList) ts
 
 orList :: NonEmpty String -> String
 orList (x:|[])  = x
