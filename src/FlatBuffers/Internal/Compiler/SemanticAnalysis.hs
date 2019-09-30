@@ -46,7 +46,7 @@ import           FlatBuffers.Internal.Types
 import           Text.Read                                     ( readMaybe )
 
 
-type ValidationCtx m = (MonadError Text m, MonadReader ValidationState m)
+type ValidationCtx m = (MonadError String m, MonadReader ValidationState m)
 
 data ValidationState = ValidationState
   { validationStateCurrentContext :: !Ident
@@ -99,7 +99,7 @@ createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
         ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
         _               -> (currentNamespace, decls)
 
-validateSchemas :: MonadError Text m => FileTree Schema -> m (FileTree ValidDecls)
+validateSchemas :: MonadError String m => FileTree Schema -> m (FileTree ValidDecls)
 validateSchemas schemas =
   flip runReaderT (ValidationState "" allAttributes) $ do
     checkDuplicateIdentifiers allQualifiedTopLevelIdentifiers
@@ -329,15 +329,15 @@ validateEnum (currentNamespace, enum) =
           EWord32 -> validateBounds' @Word32 enumVal
           EWord64 -> validateBounds' @Word64 enumVal
 
-    validateBounds' :: forall a. (Integral a, Bounded a, Show a) => EnumVal -> m ()
+    validateBounds' :: forall a. (Integral a, Bounded a, Display a) => EnumVal -> m ()
     validateBounds' e =
       if inRange (toInteger (minBound @a), toInteger (maxBound @a)) (enumValInt e)
         then pure ()
         else throwErrorMsg $
               "enum value does not fit ["
-              <> T.pack (show (minBound @a))
+              <> display (minBound @a)
               <> "; "
-              <> T.pack (show (maxBound @a))
+              <> display (maxBound @a)
               <> "]"
 
     validateEnumType :: ST.Type -> m EnumType
@@ -518,7 +518,7 @@ checkNoDefault dflt =
 isRequired :: ST.Metadata -> Required
 isRequired md = if hasAttribute requiredAttr md then Req else Opt
 
-validateDefaultValAsInt :: forall m a. (ValidationCtx m, Integral a, Bounded a, Show a) => Maybe ST.DefaultVal -> m (DefaultVal a)
+validateDefaultValAsInt :: forall m a. (ValidationCtx m, Integral a, Bounded a, Display a) => Maybe ST.DefaultVal -> m (DefaultVal a)
 validateDefaultValAsInt dflt =
   case dflt of
     Nothing -> pure (DefaultVal 0)
@@ -529,9 +529,9 @@ validateDefaultValAsInt dflt =
           Nothing ->
             throwErrorMsg $
               "default value does not fit ["
-              <> T.pack (show (minBound @a))
+              <> display (minBound @a)
               <> "; "
-              <> T.pack (show (maxBound @a))
+              <> display (maxBound @a)
               <> "]"
           Just i -> pure (DefaultVal i)
     Just _ -> throwErrorMsg "default value must be integral"
@@ -795,7 +795,7 @@ validateStruct symbolTables (currentNamespace, struct) =
         then pure (fromIntegral @Integer @Alignment forceAlign)
         else throwErrorMsg $
               "force_align must be a power of two integer ranging from the struct's natural alignment (in this case, "
-              <> T.pack (show naturalAlignment)
+              <> display naturalAlignment
               <> ") to 16"
 
     checkDuplicateFields :: m ()
@@ -876,7 +876,7 @@ checkUndeclaredAttributes a = do
   allAttributes <- asks validationStateAllAttributes
   forM_ (Map.keys . ST.unMetadata . getMetadata $ a) $ \attr ->
     when (coerce attr `Set.notMember` allAttributes) $
-      throwErrorMsg $ "user defined attributes must be declared before use: " <> attr
+      throwErrorMsg $ "user defined attributes must be declared before use: " <> display attr
 
 hasAttribute :: Text -> ST.Metadata -> Bool
 hasAttribute name (ST.Metadata attrs) = Map.member name attrs
@@ -895,9 +895,9 @@ findIntAttr name (ST.Metadata attrs) =
     err =
       throwErrorMsg $
         "expected attribute '"
-        <> name
+        <> display name
         <> "' to have an integer value, e.g. '"
-        <> name
+        <> display name
         <> ": 123'"
 
 findStringAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Text)
@@ -908,12 +908,12 @@ findStringAttr name (ST.Metadata attrs) =
     Just _ ->
       throwErrorMsg $
         "expected attribute '"
-        <> name
+        <> display name
         <> "' to have a string value, e.g. '"
-        <> name
+        <> display name
         <> ": \"abc\"'"
 
-throwErrorMsg :: ValidationCtx m => Text -> m a
+throwErrorMsg :: ValidationCtx m => String -> m a
 throwErrorMsg msg = do
   context <- asks validationStateCurrentContext
   if context == ""

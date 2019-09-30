@@ -6,7 +6,8 @@
 
 module FlatBuffers.Internal.Types where
 
-import Data.Word
+import           Data.Word
+import           FlatBuffers.Internal.Compiler.Display ( Display )
 
 -- | Metadata for a struct type.
 class IsStruct a where
@@ -24,5 +25,5 @@ newtype InlineSize = InlineSize { unInlineSize :: Word16 }
 -- E.g., `Data.Int.Int32` are always aligned to 4 bytes.
 -- This number should always be a power of 2 in the range [1, 16].
 newtype Alignment = Alignment { unAlignment :: Word8 }
-  deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral, Bounded)
+  deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral, Bounded, Display)
 

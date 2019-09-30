@@ -6,8 +6,6 @@ module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
 import           Data.Foldable                                  ( fold )
 import           Data.Int
-import           Data.Text                                      ( Text )
-import qualified Data.Text                                      as T
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
@@ -1127,8 +1125,8 @@ shouldSucceed input =
     Right schema ->
       let schemas = FileTree "" schema []
       in  case validateSchemas schemas of
-            Right _ -> pure ()
-            Left err -> expectationFailure (T.unpack err)
+            Right _  -> pure ()
+            Left err -> expectationFailure err
 
 shouldValidate :: HasCallStack => String -> ValidDecls -> Expectation
 shouldValidate input expectation =
@@ -1138,7 +1136,7 @@ shouldValidate input expectation =
       let schemas = FileTree "" schema []
       in  validateSchemas schemas `shouldBe` Right (FileTree "" expectation [])
 
-shouldFail :: String -> Text -> Expectation
+shouldFail :: HasCallStack => String -> String -> Expectation
 shouldFail input expectedErrorMsg =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e

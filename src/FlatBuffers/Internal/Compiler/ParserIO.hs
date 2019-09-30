@@ -11,7 +11,6 @@ import           Data.Coerce                              ( coerce )
 import           Data.Foldable                            ( traverse_ )
 import           Data.Map.Strict                          ( Map )
 import qualified Data.Map.Strict                          as Map
-import           Data.Text                                ( Text )
 import qualified Data.Text                                as T
 
 import           FlatBuffers.Internal.Compiler.Display    ( display )
@@ -25,14 +24,14 @@ import           Text.Megaparsec                          ( errorBundlePretty, p
 
 parseSchemas ::
      MonadIO m
-  => MonadError Text m
+  => MonadError String m
   => FilePath -- ^ Filepath of the root schema. It must be a path relative to the project root or an absolute path.
   -> [FilePath] -- ^ Directories to search for @include@s.
   -> m (FileTree Schema)
 parseSchemas rootFilePath includeDirs = do
   fileContent <- liftIO $ readFile rootFilePath
   case parse schema rootFilePath fileContent of
-    Left err -> throwError . T.pack $ errorBundlePretty err
+    Left err -> throwError $ errorBundlePretty err
     Right rootSchema -> do
       rootFilePathCanon <- liftIO $ Dir.canonicalizePath rootFilePath
       let importedFilePaths = T.unpack . coerce <$> includes rootSchema
@@ -50,7 +49,7 @@ parseSchemas rootFilePath includeDirs = do
 parseImportedSchema ::
      MonadState (Map FilePath Schema) m
   => MonadIO m
-  => MonadError Text m
+  => MonadError String m
   => [FilePath]
   -> FilePath
   -> FilePath
@@ -68,18 +67,17 @@ parseImportedSchema includeDirs rootFilePathCanon filePath =
       case actualFilePathCanonMaybe of
         Nothing -> throwError $
           "File '"
-          <> T.pack filePath
+          <> filePath
           <> "' (imported from '"
-          <> T.pack parentSchemaPath
-          <> "') not found.\n Searched in these directories: ["
-          <> display (T.pack <$> dirCandidates)
-          <> "]"
+          <> parentSchemaPath
+          <> "') not found.\nSearched in these directories: "
+          <> display dirCandidates
         Just actualFilePathCanon -> do
           importedSchemas <- get
           when (actualFilePathCanon /= rootFilePathCanon && actualFilePathCanon `Map.notMember` importedSchemas) $ do
             fileContent <- liftIO $ readFile actualFilePathCanon
             case parse schema actualFilePathCanon fileContent of
-              Left err -> throwError . T.pack $ errorBundlePretty err
+              Left err -> throwError $ errorBundlePretty err
               Right importedSchema -> do
                 put (Map.insert actualFilePathCanon importedSchema importedSchemas)
                 traverse_ (go actualFilePathCanon . T.unpack . coerce) (includes importedSchema)

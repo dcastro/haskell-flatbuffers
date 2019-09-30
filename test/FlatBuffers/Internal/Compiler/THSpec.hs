@@ -1132,7 +1132,7 @@ shouldCompileTo input expectedQ =
     Right schema ->
       let schemas = FileTree "" schema mempty
       in  case validateSchemas schemas of
-        Left err                  -> expectationFailure $ T.unpack err
+        Left err                  -> expectationFailure err
         Right (FileTree _ root _) -> do
           ast <- runQ (compileSymbolTable root)
           expected <- runQ expectedQ

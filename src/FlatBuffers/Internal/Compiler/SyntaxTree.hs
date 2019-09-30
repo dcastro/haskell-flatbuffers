@@ -161,10 +161,10 @@ newtype Namespace = Namespace {unNamespace :: [Text] }
   deriving newtype (Eq, Ord, Semigroup)
 
 instance Display Namespace where
-  display (Namespace ns) = T.intercalate "." ns
+  display (Namespace ns) = display $ T.intercalate "." ns
 
 instance Show Namespace where
-  show = show . T.unpack . display
+  show = show . display
 
 instance IsString Namespace where
   fromString "" = Namespace []
@@ -172,7 +172,7 @@ instance IsString Namespace where
 
 qualify :: HasIdent a => Namespace -> a -> Ident
 qualify "" a = getIdent a
-qualify ns a = Ident (display ns <> "." <> display (getIdent a))
+qualify ns a = Ident (T.pack (display ns <> "." <> display (getIdent a)))
 
 class HasIdent a where
   getIdent :: a -> Ident

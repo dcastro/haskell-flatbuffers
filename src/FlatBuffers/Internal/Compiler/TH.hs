@@ -86,11 +86,11 @@ mkFlatBuffers rootFilePath opts = do
 
   parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirectories opts)
 
-  schemaFileTree <- either (fail . fixMsg . T.unpack) pure parseResult
+  schemaFileTree <- either (fail . fixMsg) pure parseResult
 
   registerFiles schemaFileTree
 
-  symbolTables <- either (fail . fixMsg . T.unpack) pure $ SemanticAnalysis.validateSchemas schemaFileTree
+  symbolTables <- either (fail . fixMsg) pure $ SemanticAnalysis.validateSchemas schemaFileTree
 
   let symbolTable =
         if compileAllSchemas opts
