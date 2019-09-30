@@ -9,6 +9,7 @@ import           Control.Monad.Except                            ( runExceptT )
 import           Data.Foldable                                   ( traverse_ )
 import           Data.Functor                                    ( (<&>) )
 import           Data.Int
+import qualified Data.List                                       as List
 import           Data.List.NonEmpty                              ( NonEmpty(..) )
 import qualified Data.List.NonEmpty                              as NE
 import qualified Data.Map.Strict                                 as Map
@@ -85,11 +86,11 @@ mkFlatBuffers rootFilePath opts = do
 
   parseResult <- runIO $ runExceptT $ ParserIO.parseSchemas rootFilePath (includeDirectories opts)
 
-  schemaFileTree <- either (fail . T.unpack) pure parseResult
+  schemaFileTree <- either (fail . fixMsg . T.unpack) pure parseResult
 
   registerFiles schemaFileTree
 
-  symbolTables <- either (fail . T.unpack) pure $ SemanticAnalysis.validateSchemas schemaFileTree
+  symbolTables <- either (fail . fixMsg . T.unpack) pure $ SemanticAnalysis.validateSchemas schemaFileTree
 
   let symbolTable =
         if compileAllSchemas opts
@@ -115,6 +116,16 @@ mkFlatBuffers rootFilePath opts = do
         }
 
     isCurrentModule currentModule (ns, _) = NC.namespace ns == currentModule
+
+-- | This does two things:
+--
+-- 1. ghcid stops parsing an error when it finds a line that start with alphabetical characters or an empty lines,
+--    so we prepend each line with an empty space to avoid this.
+-- 2. we also remove any trailing \n, otherwise ghcid would stop parsing here and not show the source code location.
+fixMsg :: String -> String
+fixMsg = List.intercalate "\n" . fmap fixLine . lines
+  where
+    fixLine line = " " <> line
 
 compileSymbolTable :: SemanticAnalysis.ValidDecls -> Q [Dec]
 compileSymbolTable symbolTable = do

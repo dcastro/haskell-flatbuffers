@@ -12,7 +12,7 @@
   * `take`
   * `drop`
   * `toByteString`
-
+* Fixed TemplateHaskell error messages when running `ghcid` (they used to be truncated).
 
 
 ## 0.1.0.0 (2019-09-22)
