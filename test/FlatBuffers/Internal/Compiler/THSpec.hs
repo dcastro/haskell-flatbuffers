@@ -306,6 +306,28 @@ spec =
               tX = readTableFieldWithDef readInt8 0 2
             |]
 
+      describe "enum fields with bit_flags" $
+        it "are encoded as fields of the underlying type" $
+          [r|
+            enum Color: ubyte (bit_flags) { Red = 2, Blue }
+            table T {x: Color = Blue; }
+          |] `shouldCompileTo`
+            [d|
+              colorRed :: Word8
+              colorRed = 4
+
+              colorBlue :: Word8
+              colorBlue = 8
+
+              data T
+
+              t :: Maybe Word8 -> WriteTable T
+              t x = writeTable [ optionalDef 8 writeWord8TableField x ]
+
+              tX :: Table T -> Either ReadError Word8
+              tX = readTableFieldWithDef readWord8 0 8
+            |]
+
       describe "struct fields" $ do
         it "normal field" $
           [r|
@@ -740,6 +762,7 @@ spec =
                 t1A :: Table T1 -> Either ReadError (Maybe (Vector Int16))
                 t1A = readTableFieldOpt (readPrimVector VectorInt16) 0
               |]
+
           it "required" $
             [r|
               table t1 { a: [color] (required); }
@@ -768,6 +791,45 @@ spec =
 
                 t1A :: Table T1 -> Either ReadError (Vector Int16)
                 t1A = readTableFieldReq (readPrimVector VectorInt16) 0 "a"
+              |]
+
+        describe "vector of enums with bit_flags" $ do
+          it "normal" $
+            [r|
+              table t1 { a: [color]; }
+              enum color : ulong (bit_flags) { red = 20 }
+            |] `shouldCompileTo`
+              [d|
+                colorRed :: Word64
+                colorRed = 1048576
+
+                data T1
+                t1 :: Maybe (WriteVector Word64) -> WriteTable T1
+                t1 a = writeTable
+                  [ optional writeVectorWord64TableField a
+                  ]
+
+                t1A :: Table T1 -> Either ReadError (Maybe (Vector Word64))
+                t1A = readTableFieldOpt (readPrimVector VectorWord64) 0
+              |]
+
+          it "required" $
+            [r|
+              table t1 { a: [color] (required); }
+              enum color : uint64 (bit_flags) { red = 63 }
+            |] `shouldCompileTo`
+              [d|
+                colorRed :: Word64
+                colorRed = 9223372036854775808
+
+                data T1
+                t1 :: WriteVector Word64 -> WriteTable T1
+                t1 a = writeTable
+                  [ writeVectorWord64TableField a
+                  ]
+
+                t1A :: Table T1 -> Either ReadError (Vector Word64)
+                t1A = readTableFieldReq (readPrimVector VectorWord64) 0 "a"
               |]
 
         describe "vector of structs" $ do
@@ -942,6 +1004,22 @@ spec =
         [r| enum MyColor:  int16 { IsRed = -2,  IsGreen   } |] `shouldCompileTo` expected
         [r| enum myColor:  int16 { isRed = -2,  isGreen   } |] `shouldCompileTo` expected
 
+
+    describe "Enums with bit_flags" $
+      it "naming conventions" $ do
+        let expected =
+              [d|
+                myColorIsRed :: Word16
+                myColorIsRed = 4
+                myColorIsGreen :: Word16
+                myColorIsGreen = 8
+              |]
+
+        [r| enum my_color: ushort (bit_flags) { is_red = 2, is_green  } |] `shouldCompileTo` expected
+        [r| enum My_Color: ushort (bit_flags) { Is_Red = 2, Is_Green  } |] `shouldCompileTo` expected
+        [r| enum MyColor:  ushort (bit_flags) { IsRed = 2,  IsGreen   } |] `shouldCompileTo` expected
+        [r| enum myColor:  ushort (bit_flags) { isRed = 2,  isGreen   } |] `shouldCompileTo` expected
+
     describe "Structs" $ do
       it "naming conventions" $ do
         let expected =
@@ -1061,6 +1139,27 @@ spec =
 
             sE :: Struct S -> Either ReadError Int8
             sE = readStructField readInt8 0
+          |]
+
+      it "with enum fields with bit_flags" $
+        [r|
+          struct S { e: E; }
+          enum E : ubyte (bit_flags) { X }
+        |] `shouldCompileTo`
+          [d|
+            eX :: Word8
+            eX = 1
+
+            data S
+            instance IsStruct S where
+              structAlignmentOf = 1
+              structSizeOf = 1
+
+            s :: Word8 -> WriteStruct S
+            s e = WriteStruct (buildWord8 e)
+
+            sE :: Struct S -> Either ReadError Word8
+            sE = readStructField readWord8 0
           |]
 
       it "with nested structs" $

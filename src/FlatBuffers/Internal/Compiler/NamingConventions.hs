@@ -7,7 +7,7 @@ import           Data.Text                                     ( Text )
 import qualified Data.Text                                     as T
 import qualified Data.Text.Manipulate                          as TM
 
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( EnumDecl, HasIdent(..), Ident(..), Namespace(..), UnionDecl, UnionVal )
+import           FlatBuffers.Internal.Compiler.ValidSyntaxTree ( EnumDecl, EnumVal, HasIdent(..), Ident(..), Namespace(..), UnionDecl, UnionVal )
 
 -- Style guide: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
 
@@ -39,9 +39,13 @@ enumUnionMember :: (HasIdent parent, HasIdent val) => parent -> val -> Text
 enumUnionMember (getIdent -> Ident parentIdent) (getIdent -> Ident valIdent) =
   TM.toPascal parentIdent <> TM.toPascal valIdent
 
+enumBitFlagsConstructor :: EnumDecl -> EnumVal -> Text
+enumBitFlagsConstructor (getIdent -> Ident enumIdent) (getIdent -> Ident enumValIdent) =
+  TM.toCamel enumIdent <> TM.toPascal enumValIdent
+
 unionConstructor :: UnionDecl -> UnionVal -> Text
-unionConstructor union unionVal =
-  TM.toCamel (unIdent $ getIdent union) <> TM.toPascal (unIdent $ getIdent unionVal)
+unionConstructor (getIdent -> Ident unionIdent) (getIdent -> Ident unionValIdent) =
+  TM.toCamel unionIdent <> TM.toPascal unionValIdent
 
 readUnionFun :: HasIdent union => union -> Text
 readUnionFun (getIdent -> Ident unionIdent) =

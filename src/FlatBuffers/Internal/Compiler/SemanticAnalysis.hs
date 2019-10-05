@@ -13,7 +13,7 @@ import           Control.Monad.Except                          ( MonadError, thr
 import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
 import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, modify, put )
 
-import           Data.Bits                                     ( (.&.), Bits )
+import           Data.Bits                                     ( (.&.), Bits, FiniteBits, bit, finiteBitSize )
 import           Data.Coerce                                   ( coerce )
 import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
 import qualified Data.Foldable                                 as Foldable
@@ -277,15 +277,15 @@ validateEnums symbolTables =
     validEnums <- traverse validate enums
     pure symbolTable { allEnums = validEnums }
 
--- TODO: add support for `bit_flags` attribute
 validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
 validateEnum (currentNamespace, enum) =
   modifyContext (\_ -> qualify currentNamespace enum) $ do
-    checkBitFlags
     checkDuplicateFields
     checkUndeclaredAttributes enum
     validEnum
   where
+    isBitFlags = hasAttribute bitFlagsAttr (ST.enumMetadata enum)
+
     validEnum = do
       enumType <- validateEnumType (ST.enumType enum)
       let enumVals = flip evalState Nothing . traverse mapEnumVal $ ST.enumVals enum
@@ -294,7 +294,8 @@ validateEnum (currentNamespace, enum) =
       pure EnumDecl
         { enumIdent = getIdent enum
         , enumType = enumType
-        , enumVals = enumVals
+        , enumBitFlags = isBitFlags
+        , enumVals = shiftBitFlags <$> enumVals
         }
 
     mapEnumVal :: ST.EnumVal -> State (Maybe Integer) EnumVal
@@ -329,39 +330,56 @@ validateEnum (currentNamespace, enum) =
           EWord32 -> validateBounds' @Word32 enumVal
           EWord64 -> validateBounds' @Word64 enumVal
 
-    validateBounds' :: forall a. (Integral a, Bounded a, Display a) => EnumVal -> m ()
+    validateBounds' :: forall a. (FiniteBits a, Integral a, Bounded a) => EnumVal -> m ()
     validateBounds' e =
-      if inRange (toInteger (minBound @a), toInteger (maxBound @a)) (enumValInt e)
+      if inRange (lower, upper) (enumValInt e)
         then pure ()
         else throwErrorMsg $
-              "enum value does not fit ["
-              <> display (minBound @a)
+              "enum value of "
+              <> display (enumValInt e)
+              <> " does not fit ["
+              <> display lower
               <> "; "
-              <> display (maxBound @a)
+              <> display upper
               <> "]"
+      where
+        lower = if isBitFlags
+                  then 0
+                  else toInteger (minBound @a)
+        upper = if isBitFlags
+                  then toInteger (finiteBitSize @a (undefined :: a) - 1)
+                  else toInteger (maxBound @a)
 
     validateEnumType :: ST.Type -> m EnumType
     validateEnumType t =
       case t of
-        ST.TInt8 -> pure EInt8
-        ST.TInt16 -> pure EInt16
-        ST.TInt32 -> pure EInt32
-        ST.TInt64 -> pure EInt64
-        ST.TWord8 -> pure EWord8
+        ST.TInt8   -> unlessIsBitFlags EInt8
+        ST.TInt16  -> unlessIsBitFlags EInt16
+        ST.TInt32  -> unlessIsBitFlags EInt32
+        ST.TInt64  -> unlessIsBitFlags EInt64
+        ST.TWord8  -> pure EWord8
         ST.TWord16 -> pure EWord16
         ST.TWord32 -> pure EWord32
         ST.TWord64 -> pure EWord64
         _          -> throwErrorMsg "underlying enum type must be integral"
+      where
+        unlessIsBitFlags x =
+          if isBitFlags
+            then throwErrorMsg "underlying type of bit_flags enum must be unsigned"
+            else pure x
+
+    -- If this enum has the `bit_flags` attribute, convert its int value to the corresponding bitmask.
+    -- E.g., 2 -> 00000100
+    shiftBitFlags :: EnumVal -> EnumVal
+    shiftBitFlags e =
+      if isBitFlags
+        then e { enumValInt = bit (fromIntegral @Integer @Int (enumValInt e)) }
+        else e
 
     checkDuplicateFields :: m ()
     checkDuplicateFields =
       checkDuplicateIdentifiers
         (ST.enumVals enum)
-
-    checkBitFlags :: m ()
-    checkBitFlags =
-      when (hasAttribute bitFlagsAttr (ST.enumMetadata enum)) $
-        throwErrorMsg "`bit_flags` are not supported yet"
 
 
 ----------------------------------
@@ -457,14 +475,14 @@ validateTable symbolTables (currentNamespace, table) =
     validateTableFieldType :: ST.Metadata -> Maybe ST.DefaultVal -> ST.Type -> m TableFieldType
     validateTableFieldType md dflt tableFieldType =
       case tableFieldType of
-        ST.TInt8 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt8
-        ST.TInt16 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt16
-        ST.TInt32 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt32
-        ST.TInt64 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TInt64
-        ST.TWord8 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord8
-        ST.TWord16 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord16
-        ST.TWord32 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord32
-        ST.TWord64 -> checkNoRequired md >> validateDefaultValAsInt dflt <&> TWord64
+        ST.TInt8 -> checkNoRequired md >> validateDefaultValAsInt @Int8 dflt <&> TInt8
+        ST.TInt16 -> checkNoRequired md >> validateDefaultValAsInt @Int16 dflt <&> TInt16
+        ST.TInt32 -> checkNoRequired md >> validateDefaultValAsInt @Int32 dflt <&> TInt32
+        ST.TInt64 -> checkNoRequired md >> validateDefaultValAsInt @Int64 dflt <&> TInt64
+        ST.TWord8 -> checkNoRequired md >> validateDefaultValAsInt @Word8 dflt <&> TWord8
+        ST.TWord16 -> checkNoRequired md >> validateDefaultValAsInt @Word16 dflt <&> TWord16
+        ST.TWord32 -> checkNoRequired md >> validateDefaultValAsInt @Word32 dflt <&> TWord32
+        ST.TWord64 -> checkNoRequired md >> validateDefaultValAsInt @Word64 dflt <&> TWord64
         ST.TFloat -> checkNoRequired md >> validateDefaultValAsScientific dflt <&> TFloat
         ST.TDouble -> checkNoRequired md >> validateDefaultValAsScientific dflt <&> TDouble
         ST.TBool -> checkNoRequired md >> validateDefaultValAsBool dflt <&> TBool
@@ -518,23 +536,12 @@ checkNoDefault dflt =
 isRequired :: ST.Metadata -> Required
 isRequired md = if hasAttribute requiredAttr md then Req else Opt
 
-validateDefaultValAsInt :: forall m a. (ValidationCtx m, Integral a, Bounded a, Display a) => Maybe ST.DefaultVal -> m (DefaultVal a)
+validateDefaultValAsInt :: forall a m. (ValidationCtx m, Integral a, Bounded a, Display a) => Maybe ST.DefaultVal -> m (DefaultVal Integer)
 validateDefaultValAsInt dflt =
   case dflt of
-    Nothing -> pure (DefaultVal 0)
-    Just (ST.DefaultNum n) ->
-      if not (Scientific.isInteger n)
-        then throwErrorMsg "default value must be integral"
-        else case Scientific.toBoundedInteger @a n of
-          Nothing ->
-            throwErrorMsg $
-              "default value does not fit ["
-              <> display (minBound @a)
-              <> "; "
-              <> display (maxBound @a)
-              <> "]"
-          Just i -> pure (DefaultVal i)
-    Just _ -> throwErrorMsg "default value must be integral"
+    Nothing                -> pure (DefaultVal 0)
+    Just (ST.DefaultNum n) -> scientificToInteger @a n
+    Just _                 -> throwErrorMsg "default value must be integral"
 
 validateDefaultValAsScientific :: ValidationCtx m => Maybe ST.DefaultVal -> m (DefaultVal Scientific)
 validateDefaultValAsScientific dflt =
@@ -552,26 +559,51 @@ validateDefaultValAsBool dflt =
 
 validateDefaultAsEnum :: ValidationCtx m => Maybe ST.DefaultVal -> EnumDecl -> m (DefaultVal Integer)
 validateDefaultAsEnum dflt enum =
-  DefaultVal <$>
-    case dflt of
-      Nothing ->
-        case find (\val -> enumValInt val == 0) (enumVals enum) of
-          Just zeroVal -> pure (enumValInt zeroVal)
-          Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
-      Just (ST.DefaultNum n) ->
-        case Scientific.floatingOrInteger @Float n of
-          Left _float -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
-          Right i ->
-            case find (\val -> enumValInt val == i) (enumVals enum) of
-              Just matchingVal -> pure (enumValInt matchingVal)
-              Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
-      Just (ST.DefaultRef ref) ->
-        case find (\val -> getIdent val == ref) (enumVals enum) of
-          Just matchingVal ->  pure (enumValInt matchingVal)
-          Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
+  case dflt of
+    Nothing ->
+      if enumBitFlags enum
+        then pure 0
+        else
+          case find (\val -> enumValInt val == 0) (enumVals enum) of
+            Just _  -> pure 0
+            Nothing -> throwErrorMsg "enum does not have a 0 value; please manually specify a default for this field"
+    Just (ST.DefaultNum n) ->
+      if enumBitFlags enum
+        then
+          case enumType enum of
+            EWord8  -> scientificToInteger @Word8 n
+            EWord16 -> scientificToInteger @Word16 n
+            EWord32 -> scientificToInteger @Word32 n
+            EWord64 -> scientificToInteger @Word64 n
+            _       -> throwErrorMsg "The 'impossible' has happened: bit_flags enum with signed integer"
+        else
+          case Scientific.floatingOrInteger @Float n of
+            Left _float -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+            Right i ->
+              case find (\val -> enumValInt val == i) (enumVals enum) of
+                Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
+                Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
+    Just (ST.DefaultRef ref) ->
+      case find (\val -> getIdent val == ref) (enumVals enum) of
+        Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
+        Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
+    Just (ST.DefaultBool _) ->
+      throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
 
-      Just (ST.DefaultBool _) -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
-
+scientificToInteger :: forall a m. (ValidationCtx m, Integral a, Bounded a, Display a) => Scientific -> m (DefaultVal Integer)
+scientificToInteger n =
+  if not (Scientific.isInteger n)
+    then throwErrorMsg "default value must be integral"
+    else
+      case Scientific.toBoundedInteger @a n of
+        Nothing ->
+          throwErrorMsg $
+            "default value does not fit ["
+            <> display (minBound @a)
+            <> "; "
+            <> display (maxBound @a)
+            <> "]"
+        Just i -> pure (DefaultVal (toInteger i))
 
 ----------------------------------
 ------------ Unions --------------

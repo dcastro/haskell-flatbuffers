@@ -4,6 +4,7 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
+import           Data.Bits                                      ( shiftL )
 import           Data.Foldable                                  ( fold )
 import           Data.Int
 
@@ -16,6 +17,7 @@ import           TestImports
 
 import           Text.Megaparsec
 import           Text.RawString.QQ                              ( r )
+
 
 spec :: Spec
 spec =
@@ -137,7 +139,7 @@ spec =
           namespace Ns;
           enum Color : uint32 { Red, Green, Blue }
         |] `shouldValidate`
-          enum ("Ns", EnumDecl "Color" EWord32
+          enum ("Ns", EnumDecl "Color" EWord32 False
             [ EnumVal "Red" 0
             , EnumVal "Green" 1
             , EnumVal "Blue" 2
@@ -156,14 +158,14 @@ spec =
           enum Color3 : uint32 { Blue }
 
         |] `shouldValidate` foldDecls
-          [ enum ("A",      EnumDecl "Color1" EWord32 [EnumVal "Red" 0] )
-          , enum ("",       EnumDecl "Color2" EWord32 [EnumVal "Green" 0] )
-          , enum ("A.B.C",  EnumDecl "Color3" EWord32 [EnumVal "Blue" 0] )
+          [ enum ("A",      EnumDecl "Color1" EWord32 False [EnumVal "Red" 0] )
+          , enum ("",       EnumDecl "Color2" EWord32 False [EnumVal "Green" 0] )
+          , enum ("A.B.C",  EnumDecl "Color3" EWord32 False [EnumVal "Blue" 0] )
           ]
 
       it "with explicit values" $
         [r| enum Color : int32 { Red = -2, Green, Blue = 2 } |] `shouldValidate`
-          enum ("", EnumDecl "Color" EInt32
+          enum ("", EnumDecl "Color" EInt32 False
             [ EnumVal "Red" (-2)
             , EnumVal "Green" (-1)
             , EnumVal "Blue" 2
@@ -171,7 +173,7 @@ spec =
 
       it "with explicit values (min/maxBound)" $
         [r| enum Color : int8 { Red = -128, Green, Blue = 127 } |] `shouldValidate`
-          enum ("", EnumDecl "Color" EInt8
+          enum ("", EnumDecl "Color" EInt8 False
           [ EnumVal "Red" (toInteger (minBound :: Int8))
           , EnumVal "Green" (-127)
           , EnumVal "Blue" (toInteger (maxBound :: Int8))
@@ -182,11 +184,11 @@ spec =
           namespace A.B;
           enum Color : int8 { Red = -129, Green, Blue }
         |] `shouldFail`
-          "[A.B.Color.Red]: enum value does not fit [-128; 127]"
+          "[A.B.Color.Red]: enum value of -129 does not fit [-128; 127]"
         [r|
           enum Color : int8 { Red, Green, Blue = 128 }
         |] `shouldFail`
-          "[Color.Blue]: enum value does not fit [-128; 127]"
+          "[Color.Blue]: enum value of 128 does not fit [-128; 127]"
 
       it "with values out of order" $ do
         [r| enum Color : int8 { Red = 3, Green = 2, Blue } |] `shouldFail`
@@ -194,21 +196,95 @@ spec =
         [r| enum Color : int8 { Red = 3, Green = 3, Blue } |] `shouldFail`
           "[Color]: enum values must be specified in ascending order"
 
-      it "with bit_flags" $
-        [r| enum Color : int8 (bit_flags) { Red, Green, Blue } |] `shouldFail`
-          "[Color]: `bit_flags` are not supported yet"
-
       it "with duplicate values" $
         [r| enum Color : int8 { Red, Green, Red, Gray, Green, Green, Black } |] `shouldFail`
           "[Color]: 'Green', 'Red' declared more than once"
 
       it "with invalid underlying type" $ do
-        [r| enum Color : double { Red, Green, Blue } |] `shouldFail`
-          "[Color]: underlying enum type must be integral"
-        [r| enum Color : TypeRef { Red, Green, Blue } |] `shouldFail`
-          "[Color]: underlying enum type must be integral"
-        [r| enum Color : [int] { Red, Green, Blue } |] `shouldFail`
-          "[Color]: underlying enum type must be integral"
+        let expected = "[Color]: underlying enum type must be integral"
+        [r| enum Color : double  { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : TypeRef { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : [int]   { Red, Green, Blue } |] `shouldFail` expected
+
+    describe "enums with bit_flags" $ do
+      it "simple" $
+        [r|
+          namespace Ns;
+          enum Color : uint32 (bit_flags) { Red, Green, Blue }
+        |] `shouldValidate`
+          enum ("Ns", EnumDecl "Color" EWord32 True
+            [ EnumVal "Red" 1
+            , EnumVal "Green" 2
+            , EnumVal "Blue" 4
+            ])
+
+      it "multiple enums in different namespaces" $
+        [r|
+          namespace A;
+          enum Color1 : uint32 (bit_flags) { Red }
+
+          namespace B;
+          namespace ;
+          enum Color2 : uint32 (bit_flags) { Green }
+
+          namespace A.B.C;
+          enum Color3 : uint32 (bit_flags) { Blue }
+
+        |] `shouldValidate` foldDecls
+          [ enum ("A",      EnumDecl "Color1" EWord32 True [EnumVal "Red" 1] )
+          , enum ("",       EnumDecl "Color2" EWord32 True [EnumVal "Green" 1] )
+          , enum ("A.B.C",  EnumDecl "Color3" EWord32 True [EnumVal "Blue" 1] )
+          ]
+
+      it "with explicit values" $
+        [r| enum Color : uint8 (bit_flags) { Red = 2, Green, Blue = 6 } |] `shouldValidate`
+          enum ("", EnumDecl "Color" EWord8 True
+            [ EnumVal "Red" 4
+            , EnumVal "Green" 8
+            , EnumVal "Blue" 64
+            ])
+
+      it "with explicit values (min/maxBound)" $
+        [r| enum Color : uint (bit_flags) { Red = 0, Green, Blue = 31 } |] `shouldValidate`
+          enum ("", EnumDecl "Color" EWord32 True
+          [ EnumVal "Red" 1
+          , EnumVal "Green" 2
+          , EnumVal "Blue" (1 `shiftL` 31)
+          ])
+
+      it "with out-of-bounds values" $ do
+        [r|
+          namespace A.B;
+          enum Color : uint (bit_flags) { Red = -1, Green, Blue }
+        |] `shouldFail`
+          "[A.B.Color.Red]: enum value of -1 does not fit [0; 31]"
+        [r|
+          enum Color : uint (bit_flags) { Red, Green, Blue = 32 }
+        |] `shouldFail`
+          "[Color.Blue]: enum value of 32 does not fit [0; 31]"
+
+      it "with values out of order" $ do
+        [r| enum Color : uint8 (bit_flags) { Red = 3, Green = 2, Blue } |] `shouldFail`
+          "[Color]: enum values must be specified in ascending order"
+        [r| enum Color : uint8 (bit_flags) { Red = 3, Green = 3, Blue } |] `shouldFail`
+          "[Color]: enum values must be specified in ascending order"
+
+      it "with duplicate values" $
+        [r| enum Color : uint8 (bit_flags) { Red, Green, Red, Gray, Green, Green, Black } |] `shouldFail`
+          "[Color]: 'Green', 'Red' declared more than once"
+
+      it "with invalid underlying type" $ do
+        let expected = "[Color]: underlying enum type must be integral"
+        [r| enum Color : double  (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : TypeRef (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : [int]   (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
+
+      it "with signed underlying type" $ do
+        let expected = "[Color]: underlying type of bit_flags enum must be unsigned"
+        [r| enum Color : int8  (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : int16 (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : int32 (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
+        [r| enum Color : int64 (bit_flags) { Red, Green, Blue } |] `shouldFail` expected
 
     describe "structs" $ do
       it "simple" $
@@ -238,7 +314,7 @@ spec =
 
       it "when unqualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
         let enumVal = EnumVal "x" 0
-            mkEnum namespace ident = enum (namespace, EnumDecl ident EInt16 [enumVal])
+            mkEnum namespace ident = enum (namespace, EnumDecl ident EInt16 False [enumVal])
         [r|
           namespace ;       enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
           namespace A;      enum E1 : short{x}   enum E2 : short{x}
@@ -265,7 +341,7 @@ spec =
 
       it "when qualified TypeRef is ambiguous, types in namespaces closer to the struct are preferred" $ do
         let enumVal = EnumVal "x" 0
-            mkEnum namespace ident = enum (namespace, EnumDecl ident EInt16 [enumVal])
+            mkEnum namespace ident = enum (namespace, EnumDecl ident EInt16 False [enumVal])
         [r|
           namespace ;         enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
           namespace A;        enum E1 : short{x}   enum E2 : short{x}   enum E3 : short{x}
@@ -314,7 +390,7 @@ spec =
             x: Color;
           }
         |] `shouldValidate` foldDecls
-          [ enum ("A", EnumDecl "Color" EWord16 [EnumVal "Blue" 0])
+          [ enum ("A", EnumDecl "Color" EWord16 False [EnumVal "Blue" 0])
           , struct ("A", StructDecl "S" 2 2
               [ StructField "x" 0 0 (SEnum (TypeRef "A" "Color") EWord16)
               ])
@@ -681,52 +757,73 @@ spec =
               x: B.E;
             }
           |] `shouldValidate` foldDecls
-            [ enum ("A.B", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
+            [ enum ("A.B", EnumDecl "E" EInt16 False [ EnumVal "A" 0 ])
             , table ("A.B", TableDecl "T" NotRoot
                 [ TableField 0 "x" (TEnum (TypeRef "A.B" "E") EInt16 0) False ]
               )
             ]
 
         it "with `required` attribute" $
-          [r| table T { x: E (required); } enum E : short{A} |] `shouldFail`
+          [r|
+            table T { x: E (required); }
+            enum E : short{A}
+          |] `shouldFail`
             "[T.x]: only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
 
         it "with `deprecated` attribute" $
-          [r| table T { x: E (deprecated); } enum E : short{A} |] `shouldValidate` foldDecls
-            [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0 ])
+          [r|
+            table T { x: E (deprecated); }
+            enum E : short{A}
+          |] `shouldValidate` foldDecls
+            [ enum ("", EnumDecl "E" EInt16 False [ EnumVal "A" 0 ])
             , table ("", TableDecl "T" NotRoot
                 [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 0) True ]
               )
             ]
 
         it "without default value, when enum has 0-value" $
-          [r| table T { x: E; } enum E : short{ A = -1, B = 0, C = 1} |] `shouldValidate` foldDecls
-            [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" (-1), EnumVal "B" 0, EnumVal "C" 1 ])
+          [r|
+            table T { x: E; }
+            enum E : short{ A = -1, B = 0, C = 1}
+          |] `shouldValidate` foldDecls
+            [ enum ("", EnumDecl "E" EInt16 False [ EnumVal "A" (-1), EnumVal "B" 0, EnumVal "C" 1 ])
             , table ("", TableDecl "T" NotRoot
                 [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 0) False ]
               )
             ]
 
         it "without default value, when enum doesn't have 0-value" $
-          [r| table T { x: E; } enum E : short{ A = -1, B = 1, C = 2} |] `shouldFail`
+          [r|
+            table T { x: E; }
+            enum E : short{ A = -1, B = 1, C = 2}
+          |] `shouldFail`
             "[T.x]: enum does not have a 0 value; please manually specify a default for this field"
 
         describe "with default value" $ do
           it "valid integral" $
-            [r| table T { x: E = 1; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
-              [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
+            [r|
+              table T { x: E = 1; }
+              enum E : short{ A, B, C }
+            |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EInt16 False [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
               , table ("", TableDecl "T" NotRoot
                   [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 1) False ]
                 )
               ]
 
-          it "invalid integral" $
-            [r| table T { x: E = 3; } enum E : short{ A, B, C } |] `shouldFail`
+          it "integral must match one of the enum values" $
+            [r|
+              table T { x: E = 3; }
+              enum E : short{ A, B, C }
+            |] `shouldFail`
               "[T.x]: default value of 3 is not part of enum E"
 
           it "valid identifier" $
-            [r| table T { x: E = B; } enum E : short{ A, B, C } |] `shouldValidate` foldDecls
-              [ enum ("", EnumDecl "E" EInt16 [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
+            [r|
+              table T { x: E = B; }
+              enum E : short{ A, B, C }
+            |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EInt16 False [ EnumVal "A" 0, EnumVal "B" 1, EnumVal "C" 2 ])
               , table ("", TableDecl "T" NotRoot
                   [ TableField 0 "x" (TEnum (TypeRef "" "E") EInt16 1) False ]
                 )
@@ -741,7 +838,104 @@ spec =
               "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
 
           it "boolean" $
-            [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
+            [r| table T { x: E = true; } enum E : short{ A, B, C } |] `shouldFail`
+              "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
+
+      describe "with reference to enum with bit_flags" $ do
+        it "simple" $
+          [r|
+            namespace A.B;
+            enum E : ushort (bit_flags) { A }
+            table T {
+              x: B.E;
+            }
+          |] `shouldValidate` foldDecls
+            [ enum ("A.B", EnumDecl "E" EWord16 True [ EnumVal "A" 1 ])
+            , table ("A.B", TableDecl "T" NotRoot
+                [ TableField 0 "x" (TEnum (TypeRef "A.B" "E") EWord16 0) False ]
+              )
+            ]
+
+        it "with `required` attribute" $
+          [r|
+            table T { x: E (required); }
+            enum E : ushort (bit_flags) {A}
+          |] `shouldFail`
+            "[T.x]: only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
+
+        it "with `deprecated` attribute" $
+          [r|
+            table T { x: E (deprecated); }
+            enum E : ushort (bit_flags) {A}
+          |] `shouldValidate` foldDecls
+            [ enum ("", EnumDecl "E" EWord16 True [ EnumVal "A" 1 ])
+            , table ("", TableDecl "T" NotRoot
+                [ TableField 0 "x" (TEnum (TypeRef "" "E") EWord16 0) True ]
+              )
+            ]
+
+        it "without default value, when enum doesn't have 1-value" $
+          [r|
+            table T { x: E; }
+            enum E : ushort (bit_flags) { A = 9 }
+          |] `shouldValidate` foldDecls
+            [ enum ("", EnumDecl "E" EWord16 True [ EnumVal "A" 512 ])
+            , table ("", TableDecl "T" NotRoot
+                [ TableField 0 "x" (TEnum (TypeRef "" "E") EWord16 0) False ]
+              )
+            ]
+
+        describe "with default value" $ do
+          it "valid integral" $
+            [r|
+              table T { x: E = 2; }
+              enum E : ushort (bit_flags) { A, B, C }
+            |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EWord16 True [ EnumVal "A" 1, EnumVal "B" 2, EnumVal "C" 4 ])
+              , table ("", TableDecl "T" NotRoot
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") EWord16 2) False ]
+                )
+              ]
+
+          it "integral doesn't have to match any enum value" $
+            [r|
+              table T { x: E = 65535; }
+              enum E : ushort (bit_flags) { A, B, C }
+            |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EWord16 True [ EnumVal "A" 1, EnumVal "B" 2, EnumVal "C" 4 ])
+              , table ("", TableDecl "T" NotRoot
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") EWord16 65535) False ]
+                )
+              ]
+
+          it "must be within the range of the enum's underlying type" $
+            [r|
+              table T { x: E = 65536; }
+              enum E : ushort (bit_flags) { A, B, C }
+            |] `shouldFail`
+              "[T.x]: default value does not fit [0; 65535]"
+
+          it "valid identifier" $
+            [r|
+              table T { x: E = B; }
+              enum E : ushort (bit_flags) { A, B, C }
+            |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EWord16 True [ EnumVal "A" 1, EnumVal "B" 2, EnumVal "C" 4 ])
+              , table ("", TableDecl "T" NotRoot
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") EWord16 2) False ]
+                )
+              ]
+
+          it "invalid identifier" $
+            [r| table T { x: E = D; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
+              "[T.x]: default value of D is not part of enum E"
+
+          it "decimal number" $
+            [r| table T { x: E = 1.5; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
+              "[T.x]: default value must be integral"
+
+          it "boolean" $
+            [r| table T { x: E = true; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
               "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
 
       describe "with reference to structs/table/union" $ do
@@ -829,24 +1023,27 @@ spec =
               , TableField 2 "z" (TVector Opt VBool) False
               ])
 
-        it "where the elements are references" $
+        it "where the elements are references (enum, struct, table, union)" $
           [r|
             namespace A;
-            table Table { w: [B.E]; x: [B.S]; y: [B.T]; z: [B.U]; }
+            table Table { a: [B.E]; b: [B.EBF]; c: [B.S]; d: [B.T]; e: [B.U]; }
 
             namespace A.B;
             enum   E : int16 { EA }
+            enum   EBF : uint16 (bit_flags) { EA }
             struct S { x: ubyte; y: int64; }
             table  T {}
             union  U { T }
           |] `shouldValidate` foldDecls
             [ table ("A", TableDecl "Table" NotRoot
-                [ TableField 0 "w" (TVector Opt (VEnum   (TypeRef "A.B" "E") EInt16)) False
-                , TableField 1 "x" (TVector Opt (VStruct (TypeRef "A.B" "S"))) False
-                , TableField 2 "y" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
-                , TableField 4 "z" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False
+                [ TableField 0 "a" (TVector Opt (VEnum   (TypeRef "A.B" "E") EInt16)) False
+                , TableField 1 "b" (TVector Opt (VEnum   (TypeRef "A.B" "EBF") EWord16)) False
+                , TableField 2 "c" (TVector Opt (VStruct (TypeRef "A.B" "S"))) False
+                , TableField 3 "d" (TVector Opt (VTable  (TypeRef "A.B" "T"))) False
+                , TableField 5 "e" (TVector Opt (VUnion  (TypeRef "A.B" "U"))) False
                 ])
-            , enum   ("A.B", EnumDecl "E" EInt16 [EnumVal "EA" 0])
+            , enum   ("A.B", EnumDecl "E" EInt16 False [EnumVal "EA" 0])
+            , enum   ("A.B", EnumDecl "EBF" EWord16 True [EnumVal "EA" 1])
             , struct ("A.B", StructDecl "S" 8 16 [StructField "x" 7 0 SWord8, StructField "y" 0 8 SInt64])
             , table  ("A.B", TableDecl "T" NotRoot [])
             , union  ("A.B", UnionDecl "U" [UnionVal "T" (TypeRef "A.B" "T")])

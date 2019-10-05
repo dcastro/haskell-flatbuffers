@@ -28,7 +28,6 @@ module FlatBuffers.Internal.Compiler.ValidSyntaxTree
   , UnionVal(..)
   ) where
 
-import           Data.Int
 import           Data.List.NonEmpty                       ( NonEmpty )
 import           Data.Scientific                          ( Scientific )
 import           Data.String                              ( IsString(..) )
@@ -53,6 +52,7 @@ instance HasIdent UnionVal    where getIdent = unionValIdent
 data EnumDecl = EnumDecl
   { enumIdent     :: !Ident
   , enumType      :: !EnumType
+  , enumBitFlags  :: !Bool
   , enumVals      :: !(NonEmpty EnumVal)
   } deriving (Show, Eq)
 
@@ -135,14 +135,14 @@ data TableField = TableField
   } deriving (Eq, Show)
 
 data TableFieldType
-  = TInt8   !(DefaultVal Int8)
-  | TInt16  !(DefaultVal Int16)
-  | TInt32  !(DefaultVal Int32)
-  | TInt64  !(DefaultVal Int64)
-  | TWord8  !(DefaultVal Word8)
-  | TWord16 !(DefaultVal Word16)
-  | TWord32 !(DefaultVal Word32)
-  | TWord64 !(DefaultVal Word64)
+  = TInt8   !(DefaultVal Integer)
+  | TInt16  !(DefaultVal Integer)
+  | TInt32  !(DefaultVal Integer)
+  | TInt64  !(DefaultVal Integer)
+  | TWord8  !(DefaultVal Integer)
+  | TWord16 !(DefaultVal Integer)
+  | TWord32 !(DefaultVal Integer)
+  | TWord64 !(DefaultVal Integer)
   | TFloat  !(DefaultVal Scientific)
   | TDouble !(DefaultVal Scientific)
   | TBool   !(DefaultVal Bool)

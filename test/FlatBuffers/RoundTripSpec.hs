@@ -11,6 +11,7 @@ module FlatBuffers.RoundTripSpec where
 
 import           Control.Applicative ( liftA3 )
 
+import           Data.Bits           ( (.|.) )
 import           Data.Functor        ( (<&>) )
 import qualified Data.List           as L
 import           Data.Maybe          ( isNothing )
@@ -95,7 +96,7 @@ spec =
         (enumsYs x >>= traverse toList >>= traverse (traverse readStructWithEnum)) `shouldBe` Right (Just [(33, Just ColorRed, 44), (55, Just ColorGreen, 66)])
 
       it "present with defaults" $ do
-        x <- evalRight $ decode @Enums $ encode $ enums (Just (fromColor ColorGreen)) Nothing Nothing Nothing
+        x <- evalRight $ decode @Enums $ encode $ enums (Just 0) Nothing Nothing Nothing
 
         toColor <$> enumsX x `shouldBe` Right (Just ColorGreen)
         enumsY x `shouldBeRightAnd` isNothing
@@ -109,6 +110,51 @@ spec =
         enumsY x `shouldBeRightAnd` isNothing
         enumsXs x `shouldBeRightAnd` isNothing
         enumsYs x `shouldBeRightAnd` isNothing
+
+    describe "Enums with bit_flags" $ do
+      it "present" $ do
+        x <- evalRight $ decode $ encode $ enumsBitFlags
+          (Just (colorsRed .|. colorsGreen))
+          (Just (structWithEnumBitFlags (colorsGreen .|. colorsGray)))
+          (Just (Vec.fromList'
+            [ colorsGreen .|. colorsGray
+            , colorsBlack .|. colorsBlue
+            , colorsGreen
+            ]))
+          (Just (Vec.fromList'
+            [ structWithEnumBitFlags (colorsGreen .|. colorsGray)
+            , structWithEnumBitFlags (colorsBlack .|. colorsBlue)
+            , structWithEnumBitFlags colorsGreen
+            ]))
+
+        enumsBitFlagsX x `shouldBe` Right (colorsRed .|. colorsGreen)
+        (enumsBitFlagsY x >>= traverse structWithEnumBitFlagsX) `shouldBe` Right (Just (colorsGreen .|. colorsGray))
+        (enumsBitFlagsXs x >>= traverse toList) `shouldBe` Right (Just
+          [ colorsGreen .|. colorsGray
+          , colorsBlack .|. colorsBlue
+          , colorsGreen
+          ])
+        (enumsBitFlagsYs x >>= traverse toList >>= traverse (traverse structWithEnumBitFlagsX)) `shouldBe` Right (Just
+          [ colorsGreen .|. colorsGray
+          , colorsBlack .|. colorsBlue
+          , colorsGreen
+          ])
+
+      it "present with defaults" $ do
+        x <- evalRight $ decode @EnumsBitFlags $ encode $ enumsBitFlags (Just 0) Nothing Nothing Nothing
+
+        enumsBitFlagsX x `shouldBe` Right 0
+        enumsBitFlagsY x `shouldBeRightAnd` isNothing
+        enumsBitFlagsXs x `shouldBeRightAnd` isNothing
+        enumsBitFlagsYs x `shouldBeRightAnd` isNothing
+
+      it "missing" $ do
+        x <- evalRight $ decode @EnumsBitFlags $ encode $ enumsBitFlags Nothing Nothing Nothing Nothing
+
+        enumsBitFlagsX x `shouldBe` Right 0
+        enumsBitFlagsY x `shouldBeRightAnd` isNothing
+        enumsBitFlagsXs x `shouldBeRightAnd` isNothing
+        enumsBitFlagsYs x `shouldBeRightAnd` isNothing
 
     describe "Structs" $ do
       let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z

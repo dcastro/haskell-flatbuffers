@@ -12,8 +12,9 @@ module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
 import           Control.Applicative  ( liftA3 )
 
-import           Data.Aeson           ( (.=), Value(..), object )
+import           Data.Aeson           ( (.=), Value(..), object, toJSON )
 import qualified Data.Aeson           as J
+import           Data.Bits            ( (.|.) )
 import qualified Data.ByteString.Lazy as BSL
 import           Data.Int
 import           Data.Maybe           ( isNothing )
@@ -215,6 +216,74 @@ spec =
         enumsY decoded `shouldBeRightAnd` isNothing
         enumsXs decoded `shouldBeRightAnd` isNothing
         enumsYs decoded `shouldBeRightAnd` isNothing
+
+    describe "Enums with bit_flags" $ do
+      it "present" $ do
+        (json, decoded) <- flatc $ enumsBitFlags
+          (Just (colorsRed .|. colorsGreen))
+          (Just (structWithEnumBitFlags (colorsGreen .|. colorsGray)))
+          (Just (Vec.fromList'
+            [ colorsGreen .|. colorsGray
+            , colorsBlack .|. colorsBlue
+            , colorsGreen
+            ]))
+          (Just (Vec.fromList'
+            [ structWithEnumBitFlags (colorsGreen .|. colorsGray)
+            , structWithEnumBitFlags (colorsBlack .|. colorsBlue)
+            , structWithEnumBitFlags colorsGreen
+            ]))
+
+        json `shouldBeJson` object
+          [ "x" .= (colorsRed .|. colorsGreen)
+          , "y" .= object [ "x" .= (colorsGreen .|. colorsGray) ]
+          , "xs" .=
+            [ toJSON (colorsGreen .|. colorsGray)
+            , toJSON (colorsBlack .|. colorsBlue)
+            , String "Green"
+            ]
+          , "ys" .=
+            [ object [ "x" .= (colorsGreen .|. colorsGray) ]
+            , object [ "x" .= (colorsBlack .|. colorsBlue) ]
+            , object [ "x" .= String "Green" ]
+            ]
+          ]
+
+        enumsBitFlagsX decoded `shouldBe` Right (colorsRed .|. colorsGreen)
+        (enumsBitFlagsY decoded >>= traverse structWithEnumBitFlagsX) `shouldBe` Right (Just (colorsGreen .|. colorsGray))
+        (enumsBitFlagsXs decoded >>= traverse Vec.toList) `shouldBe` Right (Just
+          [ colorsGreen .|. colorsGray
+          , colorsBlack .|. colorsBlue
+          , colorsGreen
+          ])
+        (enumsBitFlagsYs decoded >>= traverse Vec.toList >>= traverse (traverse structWithEnumBitFlagsX)) `shouldBe` Right (Just
+          [ colorsGreen .|. colorsGray
+          , colorsBlack .|. colorsBlue
+          , colorsGreen
+          ])
+
+      it "present with defaults" $ do
+        (json, decoded) <- flatc $ enumsBitFlags
+          (Just 0)
+          Nothing
+          Nothing
+          Nothing
+
+        json `shouldBeJson` object [ ]
+
+        enumsBitFlagsX decoded `shouldBe` Right 0
+        enumsBitFlagsY decoded `shouldBeRightAnd` isNothing
+        enumsBitFlagsXs decoded `shouldBeRightAnd` isNothing
+        enumsBitFlagsYs decoded `shouldBeRightAnd` isNothing
+
+      it "missing" $ do
+        (json, decoded) <- flatc $ enumsBitFlags Nothing Nothing Nothing Nothing
+
+        json `shouldBeJson` object [ ]
+
+        enumsBitFlagsX decoded `shouldBe` Right 0
+        enumsBitFlagsY decoded `shouldBeRightAnd` isNothing
+        enumsBitFlagsXs decoded `shouldBeRightAnd` isNothing
+        enumsBitFlagsYs decoded `shouldBeRightAnd` isNothing
 
     describe "Structs" $ do
       it "present" $ do

@@ -35,6 +35,19 @@ table Enums {
   ys: [StructWithEnum];
 }
 
+enum Colors: uint16 (bit_flags) { Red, Green = 2, Blue, Gray, Black }
+
+struct StructWithEnumBitFlags {
+  x: Colors;
+}
+
+table EnumsBitFlags {
+  x: Colors;
+  y: StructWithEnumBitFlags;
+  xs: [Colors];
+  ys: [StructWithEnumBitFlags];
+}
+
 struct Struct1 {
   x: ubyte;
   y: byte;

@@ -168,6 +168,59 @@ structWithEnumY = readStructField readInt16 2
 structWithEnumZ :: Struct StructWithEnum -> Either ReadError Int8
 structWithEnumZ = readStructField readInt8 4
 
+
+----------------------------------
+--------- EnumsBitFlags ----------
+----------------------------------
+colorsRed, colorsGreen, colorsBlue, colorsGray, colorsBlack :: Word16
+colorsRed = 1
+colorsGreen = 4
+colorsBlue = 8
+colorsGray = 16
+colorsBlack = 32
+
+data EnumsBitFlags
+
+enumsBitFlags ::
+    Maybe Word16
+  -> Maybe (WriteStruct StructWithEnumBitFlags)
+  -> Maybe (WriteVector Word16)
+  -> Maybe (WriteVector (WriteStruct StructWithEnumBitFlags))
+  -> WriteTable EnumsBitFlags
+enumsBitFlags x y xs ys = writeTable
+  [ optionalDef 0 writeWord16TableField x
+  , optional writeStructTableField y
+  , optional writeVectorWord16TableField xs
+  , optional writeVectorStructTableField ys
+  ]
+
+enumsBitFlagsX :: Table EnumsBitFlags -> Either ReadError Word16
+enumsBitFlagsX = readTableFieldWithDef readWord16 0 0
+
+enumsBitFlagsY :: Table EnumsBitFlags -> Either ReadError (Maybe (Struct StructWithEnumBitFlags))
+enumsBitFlagsY = readTableFieldOpt (Right . readStruct) 1
+
+enumsBitFlagsXs :: Table EnumsBitFlags -> Either ReadError (Maybe (Vector Word16))
+enumsBitFlagsXs = readTableFieldOpt (readPrimVector VectorWord16) 2
+
+enumsBitFlagsYs :: Table EnumsBitFlags -> Either ReadError (Maybe (Vector (Struct StructWithEnumBitFlags)))
+enumsBitFlagsYs = readTableFieldOpt (readPrimVector VectorStruct) 3
+
+
+
+data StructWithEnumBitFlags
+
+instance IsStruct StructWithEnumBitFlags where
+  structAlignmentOf = 2
+  structSizeOf = 2
+
+structWithEnumBitFlags :: Word16 -> WriteStruct StructWithEnumBitFlags
+structWithEnumBitFlags x = WriteStruct $
+  buildWord16 x
+
+structWithEnumBitFlagsX :: Struct StructWithEnumBitFlags -> Either ReadError Word16
+structWithEnumBitFlagsX = readStructField readWord16 0
+
 ----------------------------------
 ------------- Structs ------------
 ----------------------------------

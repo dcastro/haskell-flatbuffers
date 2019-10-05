@@ -321,7 +321,6 @@ else
     - [FlatCC](https://github.com/dvidelabs/flatcc/blob/master/doc/binary-format.md#unions)
 - [ ] `key` attribute (See ["Storing dictionaries in a FlatBuffer" section](https://google.github.io/flatbuffers/flatbuffers_guide_use_java_c-sharp.html))
 - [ ] `nested_flatbuffer` attribute
-- [ ] `bit_flags` attribute
 - [ ] `hash` attribute
     - [Docs](https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html)
     - [Docs](https://google.github.io/flatbuffers/flatbuffers_guide_use_cpp.html#flatbuffers_cpp_object_based_api)
@@ -336,7 +335,6 @@ else
 - [ ] Improve error messages during `SemanticAnalysis` stage, provide source code location
 - [ ] Try alternative bytestring builders: `fast-builder`, `blaze-builder`
 - [ ] Try alternative bytestring parsers: `cereal`
-- [ ] Better support for enums
 
  [flatbuffers]: https://google.github.io/flatbuffers/
  [schema]: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html

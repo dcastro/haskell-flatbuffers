@@ -136,7 +136,21 @@ compileSymbolTable symbolTable = do
   pure $ enumDecs <> structDecs <> tableDecs <> unionDecs
 
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
-mkEnum (_, enum) = do
+mkEnum (_, enum) =
+  if enumBitFlags enum
+    then pure (mkBitFlagsEnum enum)
+    else mkStandardEnum enum
+
+mkBitFlagsEnum :: EnumDecl -> [Dec]
+mkBitFlagsEnum enum =
+  NE.toList (enumVals enum) >>= \enumVal ->
+    let name = mkName $ T.unpack $ NC.enumBitFlagsConstructor enum enumVal
+        fun = FunD name [Clause [] (NormalB (intLitE (enumValInt enumVal))) []]
+        sig = SigD name (enumTypeToType (enumType enum))
+    in  [sig, fun]
+
+mkStandardEnum :: EnumDecl -> Q [Dec]
+mkStandardEnum enum = do
   let enumName = mkName' $ NC.dataTypeName enum
 
   let enumValNames = enumVals enum <&> \enumVal ->
@@ -151,7 +165,7 @@ mkEnum (_, enum) = do
 mkEnumDataDec :: Name -> NonEmpty Name -> Dec
 mkEnumDataDec enumName enumValNames =
   DataD [] enumName [] Nothing
-    (NE.toList $ fmap (\n -> NormalC n []) enumValNames)
+    (fmap (\n -> NormalC n []) (NE.toList enumValNames))
     [ DerivClause Nothing
       [ ConT ''Eq
       , ConT ''Show

@@ -3,6 +3,8 @@
 
 ## 0.2.0.0
 
+
+* Add support for enums with the `bit_flags` attribute.
 * Read vector length upfront, rather than on every access.
   * `FlatBuffers.Vector.length` changed from `Either ReadError Int32` to `Int32`.
 * Added to `FlatBuffers.Vector`:
