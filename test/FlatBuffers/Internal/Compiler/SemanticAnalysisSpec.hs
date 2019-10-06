@@ -396,6 +396,22 @@ spec =
               ])
           ]
 
+
+      it "with field referencing an enum with bit_flags" $
+        [r|
+          namespace A;
+          enum Color : ushort (bit_flags) { Blue }
+
+          struct S {
+            x: Color;
+          }
+        |] `shouldValidate` foldDecls
+          [ enum ("A", EnumDecl "Color" EWord16 True [EnumVal "Blue" 1])
+          , struct ("A", StructDecl "S" 2 2
+              [ StructField "x" 0 0 (SEnum (TypeRef "A" "Color") EWord16)
+              ])
+          ]
+
       it "with nested structs (backwards/forwards references)" $ do
         let backwards = ("A.B", StructDecl "Backwards" 4 4 [ StructField "x" 0 0 SFloat ])
         let forwards  = ("A.B", StructDecl "Forwards"  4 4 [ StructField "y" 0 0 (SStruct backwards) ])

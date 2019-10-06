@@ -584,7 +584,7 @@ validateDefaultAsEnum dflt enum =
                 Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
                 Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
     Just (ST.DefaultRef ref) ->
-      case find (\val -> getIdent val == ref) (enumVals enum) of
+      case find (\val -> unIdent (getIdent val) == ref) (enumVals enum) of
         Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
         Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
     Just (ST.DefaultBool _) ->

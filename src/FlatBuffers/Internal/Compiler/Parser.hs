@@ -11,11 +11,12 @@ import qualified Control.Monad.Combinators.NonEmpty       as NE
 
 import qualified Data.ByteString                          as BS
 import           Data.Coerce                              ( coerce )
-import           Data.Functor                             ( void )
+import           Data.Functor                             ( (<&>), void )
 import           Data.List.NonEmpty                       ( NonEmpty )
 import qualified Data.List.NonEmpty                       as NE
 import qualified Data.Map.Strict                          as Map
 import           Data.Maybe                               ( catMaybes )
+import           Data.Scientific                          ( Scientific )
 import           Data.Text                                ( Text )
 import qualified Data.Text                                as T
 import qualified Data.Text.Encoding                       as T
@@ -28,6 +29,7 @@ import           FlatBuffers.Internal.Constants           ( fileIdentifierSize )
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer               as L
+import           Text.Read                                ( readMaybe )
 
 
 type Parser = Parsec Void String
@@ -231,7 +233,15 @@ defaultVal =
     [ DefaultBool True <$ rword "true"
     , DefaultBool False <$ rword "false"
     , DefaultNum <$> label "number literal" (lexeme (L.signed sc L.scientific))
-    , DefaultRef <$> ident
+    , DefaultRef . unIdent <$> ident
+    , stringLiteral <&> \(StringLiteral str) ->
+        case T.strip str of
+          "true"  -> DefaultBool True
+          "false" -> DefaultBool False
+          other ->
+            case readMaybe @Scientific (T.unpack other) of
+              Just n  -> DefaultNum n
+              Nothing -> DefaultRef other
     ]
 
 metadata :: Parser Metadata
