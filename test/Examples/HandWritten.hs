@@ -573,8 +573,12 @@ scalarsWithDefaults ::
   -> Maybe Bool
   -> Maybe Int16
   -> Maybe Int16
+  -> Maybe Word16
+  -> Maybe Word16
+  -> Maybe Word16
+  -> Maybe Word16
   -> WriteTable ScalarsWithDefaults
-scalarsWithDefaults a b c d e f g h i j k l m n =
+scalarsWithDefaults a b c d e f g h i j k l m n o p q r =
   writeTable
     [ optionalDef 8 writeWord8TableField          a
     , optionalDef 16 writeWord16TableField        b
@@ -590,6 +594,10 @@ scalarsWithDefaults a b c d e f g h i j k l m n =
     , optionalDef False writeBoolTableField       l
     , optionalDef 1 writeInt16TableField          m
     , optionalDef 5 writeInt16TableField          n
+    , optionalDef 0 writeWord16TableField         o
+    , optionalDef 12 writeWord16TableField        p
+    , optionalDef 1 writeWord16TableField         q
+    , optionalDef 20 writeWord16TableField        r
     ]
 
 scalarsWithDefaultsA :: Table ScalarsWithDefaults -> Either ReadError Word8
@@ -606,6 +614,10 @@ scalarsWithDefaultsK :: Table ScalarsWithDefaults -> Either ReadError Bool
 scalarsWithDefaultsL :: Table ScalarsWithDefaults -> Either ReadError Bool
 scalarsWithDefaultsM :: Table ScalarsWithDefaults -> Either ReadError Int16
 scalarsWithDefaultsN :: Table ScalarsWithDefaults -> Either ReadError Int16
+scalarsWithDefaultsO :: Table ScalarsWithDefaults -> Either ReadError Word16
+scalarsWithDefaultsP :: Table ScalarsWithDefaults -> Either ReadError Word16
+scalarsWithDefaultsQ :: Table ScalarsWithDefaults -> Either ReadError Word16
+scalarsWithDefaultsR :: Table ScalarsWithDefaults -> Either ReadError Word16
 scalarsWithDefaultsA = readTableFieldWithDef readWord8   0 8
 scalarsWithDefaultsB = readTableFieldWithDef readWord16  1 16
 scalarsWithDefaultsC = readTableFieldWithDef readWord32  2 32
@@ -620,6 +632,10 @@ scalarsWithDefaultsK = readTableFieldWithDef readBool    10 True
 scalarsWithDefaultsL = readTableFieldWithDef readBool    11 False
 scalarsWithDefaultsM = readTableFieldWithDef readInt16   12 1
 scalarsWithDefaultsN = readTableFieldWithDef readInt16   13 5
+scalarsWithDefaultsO = readTableFieldWithDef readWord16  14 0
+scalarsWithDefaultsP = readTableFieldWithDef readWord16  15 12
+scalarsWithDefaultsQ = readTableFieldWithDef readWord16  16 1
+scalarsWithDefaultsR = readTableFieldWithDef readWord16  17 20
 
 
 ----------------------------------

@@ -2,6 +2,9 @@ include "./schema.fbs";
 
 namespace examples.generated;
 
+// These are placed in a separate file, and have to be tested separately, because the json->flatbuffers
+// converter doesn't yet support them.
+
 table VectorOfUnions {
   xs: [Weapon];
   xsDepr: [Weapon] (deprecated); // should leave 2 vtable entries empty

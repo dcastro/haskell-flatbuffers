@@ -28,6 +28,7 @@ module FlatBuffers.Internal.Compiler.ValidSyntaxTree
   , UnionVal(..)
   ) where
 
+import           Data.Bits                                ( Bits )
 import           Data.List.NonEmpty                       ( NonEmpty )
 import           Data.Scientific                          ( Scientific )
 import           Data.String                              ( IsString(..) )
@@ -111,7 +112,7 @@ data StructFieldType
 ------------ Tables --------------
 ----------------------------------
 newtype DefaultVal a = DefaultVal a
-  deriving newtype (Eq, Show, Num, IsString, Ord, Enum, Real, Integral, Fractional)
+  deriving newtype (Eq, Show, Num, IsString, Ord, Enum, Real, Integral, Fractional, Bits)
 
 data Required = Req | Opt
   deriving (Eq, Show)

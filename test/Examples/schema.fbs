@@ -132,17 +132,21 @@ table ScalarsWithDefaults {
   a: uint8 = 8;
   b: uint16 = 16;
   c: uint32 = 32;
-  d: uint64 = 64;
+  d: uint64 = "64";
   e: int8 = -1;
   f: int16 = -2;
   g: int32 = -4;
-  h: int64 = -8;
+  h: int64 = "-8";
   i: float32 = 3.9;
-  j: float64 = -2.3e10;
+  j: float64 = "-2.3e10";
   k: bool = true;
   l: bool = false;
   m: Color = Blue;
   n: Color = 5;
+  o: Colors = 0;
+  p: Colors = 12;
+  q: Colors = Red;
+  r: Colors = "Green Gray";
 }
 
 table DeprecatedFields {

@@ -13,7 +13,7 @@ import           Control.Monad.Except                          ( MonadError, thr
 import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
 import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, modify, put )
 
-import           Data.Bits                                     ( (.&.), Bits, FiniteBits, bit, finiteBitSize )
+import           Data.Bits                                     ( (.&.), (.|.), Bits, FiniteBits, bit, finiteBitSize )
 import           Data.Coerce                                   ( coerce )
 import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
 import qualified Data.Foldable                                 as Foldable
@@ -557,7 +557,7 @@ validateDefaultValAsBool dflt =
     Just (ST.DefaultBool b) -> pure (DefaultVal b)
     Just _                  -> throwErrorMsg "default value must be a boolean"
 
-validateDefaultAsEnum :: ValidationCtx m => Maybe ST.DefaultVal -> EnumDecl -> m (DefaultVal Integer)
+validateDefaultAsEnum :: forall m. ValidationCtx m => Maybe ST.DefaultVal -> EnumDecl -> m (DefaultVal Integer)
 validateDefaultAsEnum dflt enum =
   case dflt of
     Nothing ->
@@ -584,11 +584,17 @@ validateDefaultAsEnum dflt enum =
                 Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
                 Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
     Just (ST.DefaultRef ref) ->
+      if enumBitFlags enum
+        then foldr (.|.) 0 <$> traverse findEnumByRef (T.words ref)
+        else findEnumByRef ref
+    Just (ST.DefaultBool _) ->
+      throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+  where
+    findEnumByRef :: Text -> m (DefaultVal Integer)
+    findEnumByRef ref =
       case find (\val -> unIdent (getIdent val) == ref) (enumVals enum) of
         Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
         Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
-    Just (ST.DefaultBool _) ->
-      throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
 
 scientificToInteger :: forall a m. (ValidationCtx m, Integral a, Bounded a, Display a) => Scientific -> m (DefaultVal Integer)
 scientificToInteger n =

@@ -445,14 +445,23 @@ spec =
             scalarsWithDefaultsL x `shouldBe` Right False
             toColor <$> scalarsWithDefaultsM x `shouldBe` Right (Just ColorBlue)
             toColor <$> scalarsWithDefaultsN x `shouldBe` Right (Just ColorGray)
+            scalarsWithDefaultsO x `shouldBe` Right 0
+            scalarsWithDefaultsP x `shouldBe` Right (colorsGreen .|. colorsBlue)
+            scalarsWithDefaultsQ x `shouldBe` Right colorsRed
+            scalarsWithDefaultsR x `shouldBe` Right (colorsGreen .|. colorsGray)
 
       it "present with defaults" $ runTest $ scalarsWithDefaults
         (Just 8) (Just 16) (Just 32) (Just 64)
         (Just (-1)) (Just (-2)) (Just (-4)) (Just (-8))
         (Just 3.9) (Just (-2.3e10)) (Just True) (Just False)
         (Just (fromColor ColorBlue)) (Just (fromColor ColorGray))
+        (Just 0)
+        (Just (colorsGreen .|. colorsBlue))
+        (Just colorsRed)
+        (Just (colorsGreen .|. colorsGray))
 
       it "missing" $ runTest $ scalarsWithDefaults
+        Nothing Nothing Nothing Nothing
         Nothing Nothing Nothing Nothing
         Nothing Nothing Nothing Nothing
         Nothing Nothing Nothing Nothing
