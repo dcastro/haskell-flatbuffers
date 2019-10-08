@@ -313,9 +313,21 @@ validateEnum (currentNamespace, enum) =
 
     validateOrder :: NonEmpty EnumVal -> m ()
     validateOrder xs =
-      if all (\(x, y) -> enumValInt x < enumValInt y) (NE.toList xs `zip` NE.tail xs)
-        then pure ()
-        else throwErrorMsg "enum values must be specified in ascending order"
+      let consecutivePairs = NE.toList xs `zip` NE.tail xs
+          outOfOrderPais = filter (\(x, y) -> enumValInt x >= enumValInt y) consecutivePairs
+      in
+          case outOfOrderPais of
+            []         -> pure ()
+            (x, y) : _ -> throwErrorMsg $
+              "enum values must be specified in ascending order. '"
+              <> display (enumValIdent y)
+              <> "' ("
+              <> display (enumValInt y)
+              <> ") should be greater than '"
+              <> display (enumValIdent x)
+              <> "' ("
+              <> display (enumValInt x)
+              <> ")"
 
     validateBounds :: EnumType -> EnumVal -> m ()
     validateBounds enumType enumVal =

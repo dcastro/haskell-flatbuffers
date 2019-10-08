@@ -192,9 +192,9 @@ spec =
 
       it "with values out of order" $ do
         [r| enum Color : int8 { Red = 3, Green = 2, Blue } |] `shouldFail`
-          "[Color]: enum values must be specified in ascending order"
+          "[Color]: enum values must be specified in ascending order. 'Green' (2) should be greater than 'Red' (3)"
         [r| enum Color : int8 { Red = 3, Green = 3, Blue } |] `shouldFail`
-          "[Color]: enum values must be specified in ascending order"
+          "[Color]: enum values must be specified in ascending order. 'Green' (3) should be greater than 'Red' (3)"
 
       it "with duplicate values" $
         [r| enum Color : int8 { Red, Green, Red, Gray, Green, Green, Black } |] `shouldFail`
@@ -265,9 +265,9 @@ spec =
 
       it "with values out of order" $ do
         [r| enum Color : uint8 (bit_flags) { Red = 3, Green = 2, Blue } |] `shouldFail`
-          "[Color]: enum values must be specified in ascending order"
+          "[Color]: enum values must be specified in ascending order. 'Green' (2) should be greater than 'Red' (3)"
         [r| enum Color : uint8 (bit_flags) { Red = 3, Green = 3, Blue } |] `shouldFail`
-          "[Color]: enum values must be specified in ascending order"
+          "[Color]: enum values must be specified in ascending order. 'Green' (3) should be greater than 'Red' (3)"
 
       it "with duplicate values" $
         [r| enum Color : uint8 (bit_flags) { Red, Green, Red, Gray, Green, Green, Black } |] `shouldFail`
