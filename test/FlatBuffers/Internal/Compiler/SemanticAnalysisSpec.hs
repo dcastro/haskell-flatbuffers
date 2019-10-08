@@ -970,11 +970,11 @@ spec =
 
           it "decimal number" $
             [r| table T { x: E = 1.5; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
-              "[T.x]: default value must be integral"
+              "[T.x]: default value must be integral, one of ['A', 'B', 'C'], or a combination of the latter in double quotes (e.g. \"A B\")"
 
           it "boolean" $
             [r| table T { x: E = true; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
-              "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
+              "[T.x]: default value must be integral, one of ['A', 'B', 'C'], or a combination of the latter in double quotes (e.g. \"A B\")"
 
       describe "with reference to structs/table/union" $ do
         it "simple" $

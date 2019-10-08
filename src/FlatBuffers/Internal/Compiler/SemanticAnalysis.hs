@@ -540,7 +540,7 @@ validateDefaultValAsInt :: forall a m. (ValidationCtx m, Integral a, Bounded a, 
 validateDefaultValAsInt dflt =
   case dflt of
     Nothing                -> pure (DefaultVal 0)
-    Just (ST.DefaultNum n) -> scientificToInteger @a n
+    Just (ST.DefaultNum n) -> scientificToInteger @a n "default value must be integral"
     Just _                 -> throwErrorMsg "default value must be integral"
 
 validateDefaultValAsScientific :: ValidationCtx m => Maybe ST.DefaultVal -> m (DefaultVal Scientific)
@@ -571,14 +571,14 @@ validateDefaultAsEnum dflt enum =
       if enumBitFlags enum
         then
           case enumType enum of
-            EWord8  -> scientificToInteger @Word8 n
-            EWord16 -> scientificToInteger @Word16 n
-            EWord32 -> scientificToInteger @Word32 n
-            EWord64 -> scientificToInteger @Word64 n
+            EWord8  -> scientificToInteger @Word8  n defaultErrorMsg
+            EWord16 -> scientificToInteger @Word16 n defaultErrorMsg
+            EWord32 -> scientificToInteger @Word32 n defaultErrorMsg
+            EWord64 -> scientificToInteger @Word64 n defaultErrorMsg
             _       -> throwErrorMsg "The 'impossible' has happened: bit_flags enum with signed integer"
         else
           case Scientific.floatingOrInteger @Float n of
-            Left _float -> throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+            Left _float -> throwErrorMsg defaultErrorMsg
             Right i ->
               case find (\val -> enumValInt val == i) (enumVals enum) of
                 Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
@@ -592,18 +592,36 @@ validateDefaultAsEnum dflt enum =
             ref :| [] -> findEnumByRef ref
             _         -> throwErrorMsg $ "default value must be a single identifier, found " <> display (NE.length refs) <> ": " <> display refs
     Just (ST.DefaultBool _) ->
-      throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+      throwErrorMsg defaultErrorMsg
   where
+    defaultErrorMsg =
+      if enumBitFlags enum
+        then case enumVals enum of
+          x :| y : _ ->
+            "default value must be integral, one of ["
+            <> display (getIdent <$> enumVals enum)
+            <> "], or a combination of the latter in double quotes (e.g. \""
+            <> display (getIdent x)
+            <> " "
+            <> display (getIdent y)
+            <> "\")"
+          _ ->
+            "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+        else
+          "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
+
     findEnumByRef :: Text -> m (DefaultVal Integer)
     findEnumByRef ref =
       case find (\val -> unIdent (getIdent val) == ref) (enumVals enum) of
         Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
         Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
 
-scientificToInteger :: forall a m. (ValidationCtx m, Integral a, Bounded a, Display a) => Scientific -> m (DefaultVal Integer)
-scientificToInteger n =
+scientificToInteger ::
+  forall a m. (ValidationCtx m, Integral a, Bounded a, Display a)
+  => Scientific -> String -> m (DefaultVal Integer)
+scientificToInteger n notIntegerErrorMsg =
   if not (Scientific.isInteger n)
-    then throwErrorMsg "default value must be integral"
+    then throwErrorMsg notIntegerErrorMsg
     else
       case Scientific.toBoundedInteger @a n of
         Nothing ->
