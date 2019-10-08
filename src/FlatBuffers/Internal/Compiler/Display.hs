@@ -27,6 +27,7 @@ instance Display a => Display [a] where
     where
       displayOne x = "'" <> display x <> "'"
 
+instance Display Int     where display = show
 instance Display Integer where display = show
 instance Display Int8    where display = show
 instance Display Int16   where display = show

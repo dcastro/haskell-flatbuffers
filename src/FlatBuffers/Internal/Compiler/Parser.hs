@@ -12,7 +12,7 @@ import qualified Control.Monad.Combinators.NonEmpty       as NE
 import qualified Data.ByteString                          as BS
 import           Data.Coerce                              ( coerce )
 import           Data.Functor                             ( (<&>), void )
-import           Data.List.NonEmpty                       ( NonEmpty )
+import           Data.List.NonEmpty                       ( NonEmpty((:|)) )
 import qualified Data.List.NonEmpty                       as NE
 import qualified Data.Map.Strict                          as Map
 import           Data.Maybe                               ( catMaybes )
@@ -233,15 +233,18 @@ defaultVal =
     [ DefaultBool True <$ rword "true"
     , DefaultBool False <$ rword "false"
     , DefaultNum <$> label "number literal" (lexeme (L.signed sc L.scientific))
-    , DefaultRef . unIdent <$> ident
-    , stringLiteral <&> \(StringLiteral str) ->
+    , ident <&> \(Ident ref) -> DefaultRef (ref :| [])
+    , stringLiteral >>= \(StringLiteral str) ->
         case T.strip str of
-          "true"  -> DefaultBool True
-          "false" -> DefaultBool False
+          "true"  -> pure $ DefaultBool True
+          "false" -> pure $ DefaultBool False
           other ->
             case readMaybe @Scientific (T.unpack other) of
-              Just n  -> DefaultNum n
-              Nothing -> DefaultRef other
+              Just n  -> pure $ DefaultNum n
+              Nothing ->
+                case NE.nonEmpty (T.words str) of
+                  Just refs -> pure $ DefaultRef refs
+                  Nothing   -> fail "Expected 'true', 'false', a number, or one or more identifiers"
     ]
 
 metadata :: Parser Metadata

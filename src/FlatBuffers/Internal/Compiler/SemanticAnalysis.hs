@@ -21,7 +21,7 @@ import           Data.Functor                                  ( ($>), (<&>) )
 import           Data.Int
 import           Data.Ix                                       ( inRange )
 import qualified Data.List                                     as List
-import           Data.List.NonEmpty                            ( NonEmpty )
+import           Data.List.NonEmpty                            ( NonEmpty((:|)) )
 import qualified Data.List.NonEmpty                            as NE
 import           Data.Map.Strict                               ( Map )
 import qualified Data.Map.Strict                               as Map
@@ -583,10 +583,14 @@ validateDefaultAsEnum dflt enum =
               case find (\val -> enumValInt val == i) (enumVals enum) of
                 Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
                 Nothing -> throwErrorMsg $ "default value of " <> display i <> " is not part of enum " <> display (getIdent enum)
-    Just (ST.DefaultRef ref) ->
+    Just (ST.DefaultRef refs) ->
       if enumBitFlags enum
-        then foldr (.|.) 0 <$> traverse findEnumByRef (T.words ref)
-        else findEnumByRef ref
+        then
+          foldr1 (.|.) <$> traverse findEnumByRef refs
+        else
+          case refs of
+            ref :| [] -> findEnumByRef ref
+            _         -> throwErrorMsg $ "default value must be a single identifier, found " <> display (NE.length refs) <> ": " <> display refs
     Just (ST.DefaultBool _) ->
       throwErrorMsg $ "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
   where

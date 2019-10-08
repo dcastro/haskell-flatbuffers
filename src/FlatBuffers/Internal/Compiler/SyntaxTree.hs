@@ -61,7 +61,7 @@ data AttributeVal
 data DefaultVal
   = DefaultNum !Scientific
   | DefaultBool !Bool
-  | DefaultRef !Text
+  | DefaultRef !(NonEmpty Text)
   deriving (Show, Eq)
 
 newtype Metadata = Metadata

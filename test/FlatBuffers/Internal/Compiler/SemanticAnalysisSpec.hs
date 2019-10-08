@@ -849,6 +849,10 @@ spec =
             [r| table T { x: E = D; } enum E : short{ A, B, C } |] `shouldFail`
               "[T.x]: default value of D is not part of enum E"
 
+          it "multiple identifiers" $
+            [r| table T { x: E = "B C"; } enum E : short{ A, B, C } |] `shouldFail`
+              "[T.x]: default value must be a single identifier, found 2: 'B', 'C'"
+
           it "decimal number" $
             [r| table T { x: E = 1.5; } enum E : short{ A, B, C } |] `shouldFail`
               "[T.x]: default value must be integral or one of: 'A', 'B', 'C'"
@@ -945,6 +949,24 @@ spec =
           it "invalid identifier" $
             [r| table T { x: E = D; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
               "[T.x]: default value of D is not part of enum E"
+
+          it "multiple valid identifiers" $
+            [r|
+              table T { x: E = "B C"; }
+              enum E : ushort (bit_flags) { A, B, C }
+            |] `shouldValidate` foldDecls
+              [ enum ("", EnumDecl "E" EWord16 True [ EnumVal "A" 1, EnumVal "B" 2, EnumVal "C" 4 ])
+              , table ("", TableDecl "T" NotRoot
+                  [ TableField 0 "x" (TEnum (TypeRef "" "E") EWord16 6) False ]
+                )
+              ]
+
+          it "mix of valid and invalid identifiers" $
+            [r|
+              table T { x: E = "B X C"; }
+              enum E : ushort (bit_flags) { A, B, C }
+            |] `shouldFail`
+              "[T.x]: default value of X is not part of enum E"
 
           it "decimal number" $
             [r| table T { x: E = 1.5; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`

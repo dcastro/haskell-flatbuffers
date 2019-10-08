@@ -71,7 +71,7 @@ spec =
           f : [uint_];
           g : My . Api . Ref ;
           h : [ MyApi.abc_ ] ;
-          i: Color = Blue ;
+          i: Color;
         }
       |] `parses`
         Schema
@@ -90,7 +90,7 @@ spec =
             , TableField "f" (TVector (TRef (TypeRef "" "uint_"))) Nothing (Metadata mempty)
             , TableField "g" (TRef (TypeRef "My.Api" "Ref")) Nothing (Metadata mempty)
             , TableField "h" (TVector (TRef (TypeRef "MyApi" "abc_"))) Nothing (Metadata mempty)
-            , TableField "i" (TRef (TypeRef "" "Color")) (Just (DefaultRef "Blue")) (Metadata mempty)
+            , TableField "i" (TRef (TypeRef "" "Color")) Nothing (Metadata mempty)
             ]
           ]
 
@@ -117,6 +117,9 @@ spec =
           a : int = "Red";
           a : int = " Red ";
           a : int = " Red Blue ";
+          a : int = "Red\nBlue";
+          a : int = "Red 4";
+          a : int = "1 4";
         }
       |] `parses`
         Schema
@@ -138,12 +141,20 @@ spec =
             , TableField "a" TInt32 (Just (DefaultNum -99.2e9)) (Metadata mempty)
             , TableField "a" TInt32 (Just (DefaultNum -99.2e9)) (Metadata mempty)
             , TableField "a" TInt32 (Just (DefaultNum 99992873786287637862.298736756627897654e99)) (Metadata mempty)
-            , TableField "a" TInt32 (Just (DefaultRef "Red")) (Metadata mempty)
-            , TableField "a" TInt32 (Just (DefaultRef "Red")) (Metadata mempty)
-            , TableField "a" TInt32 (Just (DefaultRef "Red")) (Metadata mempty)
-            , TableField "a" TInt32 (Just (DefaultRef "Red Blue")) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["Red"])) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["Red"])) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["Red"])) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["Red", "Blue"])) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["Red", "Blue"])) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["Red", "4"])) (Metadata mempty)
+            , TableField "a" TInt32 (Just (DefaultRef ["1", "4"])) (Metadata mempty)
             ]
           ]
+
+    it "default value cannot be an empty string" $ do
+      parseEof schema [r| table T { a:int = "";     } |] `shouldFailWithError` "Expected 'true', 'false', a number, or one or more identifiers\n"
+      parseEof schema [r| table T { a:int = " ";    } |] `shouldFailWithError` "Expected 'true', 'false', a number, or one or more identifiers\n"
+      parseEof schema [r| table T { a:int = " \n "; } |] `shouldFailWithError` "Expected 'true', 'false', a number, or one or more identifiers\n"
 
     it "table declarations with metadata" $
       [r|
@@ -283,7 +294,7 @@ spec =
         Schema
           [ Include "a" ] []
 
-shouldFailWithError :: Show a => Either (ParseErrorBundle String Void) a -> String -> Expectation
+shouldFailWithError :: (HasCallStack, Show a) => Either (ParseErrorBundle String Void) a -> String -> Expectation
 shouldFailWithError p s =
   case p of
     Left (ParseErrorBundle [x] _) -> parseErrorTextPretty x `shouldBe` s
@@ -293,7 +304,7 @@ shouldFailWithError p s =
 parseEof :: Parser a -> String -> Either (ParseErrorBundle String Void) a
 parseEof p = parse (p <* eof) ""
 
-parses :: String -> Schema -> Expectation
+parses :: HasCallStack => String -> Schema -> Expectation
 parses input expectedSchema =
   case parse schema "" input of
     l@(Left _) -> l `shouldParse` expectedSchema
