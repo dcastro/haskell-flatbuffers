@@ -309,15 +309,18 @@ spec =
       describe "enum fields with bit_flags" $
         it "are encoded as fields of the underlying type" $
           [r|
-            enum Color: ubyte (bit_flags) { Red = 2, Blue }
-            table T {x: Color = Blue; }
+            enum Colors: ubyte (bit_flags) { Red = 2, Blue }
+            table T {x: Colors = Blue; }
           |] `shouldCompileTo`
             [d|
-              colorRed :: Word8
-              colorRed = 4
+              colorsRed :: Word8
+              colorsRed = 4
 
-              colorBlue :: Word8
-              colorBlue = 8
+              colorsBlue :: Word8
+              colorsBlue = 8
+
+              allColors :: [Word8]
+              allColors = [ colorsRed, colorsBlue ]
 
               data T
 
@@ -796,12 +799,15 @@ spec =
         describe "vector of enums with bit_flags" $ do
           it "normal" $
             [r|
-              table t1 { a: [color]; }
-              enum color : ulong (bit_flags) { red = 20 }
+              table t1 { a: [colors]; }
+              enum colors : ulong (bit_flags) { red = 20 }
             |] `shouldCompileTo`
               [d|
-                colorRed :: Word64
-                colorRed = 1048576
+                colorsRed :: Word64
+                colorsRed = 1048576
+
+                allColors :: [Word64]
+                allColors = [ colorsRed ]
 
                 data T1
                 t1 :: Maybe (WriteVector Word64) -> WriteTable T1
@@ -815,12 +821,15 @@ spec =
 
           it "required" $
             [r|
-              table t1 { a: [color] (required); }
-              enum color : uint64 (bit_flags) { red = 63 }
+              table t1 { a: [colors] (required); }
+              enum colors : uint64 (bit_flags) { red = 63 }
             |] `shouldCompileTo`
               [d|
-                colorRed :: Word64
-                colorRed = 9223372036854775808
+                colorsRed :: Word64
+                colorsRed = 9223372036854775808
+
+                allColors :: [Word64]
+                allColors = [ colorsRed ]
 
                 data T1
                 t1 :: WriteVector Word64 -> WriteTable T1
@@ -1009,16 +1018,19 @@ spec =
       it "naming conventions" $ do
         let expected =
               [d|
-                myColorIsRed :: Word16
-                myColorIsRed = 4
-                myColorIsGreen :: Word16
-                myColorIsGreen = 8
+                myColorsIsRed :: Word16
+                myColorsIsRed = 4
+                myColorsIsGreen :: Word16
+                myColorsIsGreen = 8
+
+                allMyColors :: [Word16]
+                allMyColors = [ myColorsIsRed, myColorsIsGreen ]
               |]
 
-        [r| enum my_color: ushort (bit_flags) { is_red = 2, is_green  } |] `shouldCompileTo` expected
-        [r| enum My_Color: ushort (bit_flags) { Is_Red = 2, Is_Green  } |] `shouldCompileTo` expected
-        [r| enum MyColor:  ushort (bit_flags) { IsRed = 2,  IsGreen   } |] `shouldCompileTo` expected
-        [r| enum myColor:  ushort (bit_flags) { isRed = 2,  isGreen   } |] `shouldCompileTo` expected
+        [r| enum my_colors: ushort (bit_flags) { is_red = 2, is_green  } |] `shouldCompileTo` expected
+        [r| enum My_Colors: ushort (bit_flags) { Is_Red = 2, Is_Green  } |] `shouldCompileTo` expected
+        [r| enum MyColors:  ushort (bit_flags) { IsRed = 2,  IsGreen   } |] `shouldCompileTo` expected
+        [r| enum myColors:  ushort (bit_flags) { isRed = 2,  isGreen   } |] `shouldCompileTo` expected
 
     describe "Structs" $ do
       it "naming conventions" $ do
@@ -1149,6 +1161,9 @@ spec =
           [d|
             eX :: Word8
             eX = 1
+
+            allE :: [Word8]
+            allE = [ eX ]
 
             data S
             instance IsStruct S where

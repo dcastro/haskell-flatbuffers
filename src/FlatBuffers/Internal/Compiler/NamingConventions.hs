@@ -43,6 +43,10 @@ enumBitFlagsConstructor :: EnumDecl -> EnumVal -> Text
 enumBitFlagsConstructor (getIdent -> Ident enumIdent) (getIdent -> Ident enumValIdent) =
   TM.toCamel enumIdent <> TM.toPascal enumValIdent
 
+enumBitFlagsAllFun :: EnumDecl -> Text
+enumBitFlagsAllFun (getIdent -> Ident enumIdent) =
+  "all" <> TM.toPascal enumIdent
+
 unionConstructor :: UnionDecl -> UnionVal -> Text
 unionConstructor (getIdent -> Ident unionIdent) (getIdent -> Ident unionValIdent) =
   TM.toCamel unionIdent <> TM.toPascal unionValIdent

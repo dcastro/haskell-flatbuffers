@@ -179,6 +179,9 @@ colorsBlue = 8
 colorsGray = 16
 colorsBlack = 32
 
+allColors :: [Word16]
+allColors = [colorsRed, colorsGreen, colorsBlue, colorsGray, colorsBlack]
+
 data EnumsBitFlags
 
 enumsBitFlags ::

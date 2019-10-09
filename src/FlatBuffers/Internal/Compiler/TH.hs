@@ -143,11 +143,29 @@ mkEnum (_, enum) =
 
 mkBitFlagsEnum :: EnumDecl -> [Dec]
 mkBitFlagsEnum enum =
-  NE.toList (enumVals enum) >>= \enumVal ->
-    let name = mkName $ T.unpack $ NC.enumBitFlagsConstructor enum enumVal
-        fun = FunD name [Clause [] (NormalB (intLitE (enumValInt enumVal))) []]
-        sig = SigD name (enumTypeToType (enumType enum))
-    in  [sig, fun]
+  enumConstants <> allValues
+  where
+    enumConstants =
+      NE.toList (enumVals enum) >>= \enumVal ->
+        let enumValName = mkName $ T.unpack $ NC.enumBitFlagsConstructor enum enumVal
+            sig = SigD enumValName (enumTypeToType (enumType enum))
+            fun = FunD enumValName [Clause [] (NormalB (intLitE (enumValInt enumVal))) []]
+        in  [sig, fun]
+    allValues = mkAllVals enum
+
+
+-- | Genrates a list with all the enum values, e.g.
+--
+-- > allColors = [colorsRed, colorsGreen, colorsBlue]
+mkAllVals :: EnumDecl -> [Dec]
+mkAllVals enum =
+  let name = mkName $ T.unpack $ NC.enumBitFlagsAllFun enum
+      sig = SigD name (ListT `AppT` enumTypeToType (enumType enum))
+      fun = FunD name [ Clause [] (NormalB body)  []]
+      body = ListE (NE.toList (VarE . enumValName <$> enumVals enum))
+      enumValName enumVal = mkName $ T.unpack $ NC.enumBitFlagsConstructor enum enumVal
+  in  [sig, fun]
+
 
 mkStandardEnum :: EnumDecl -> Q [Dec]
 mkStandardEnum enum = do
