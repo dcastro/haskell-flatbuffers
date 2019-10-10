@@ -321,6 +321,7 @@ spec =
 
               allColors :: [Word8]
               allColors = [ colorsRed, colorsBlue ]
+              {-# INLINE allColors #-}
 
               data T
 
@@ -808,6 +809,7 @@ spec =
 
                 allColors :: [Word64]
                 allColors = [ colorsRed ]
+                {-# INLINE allColors #-}
 
                 data T1
                 t1 :: Maybe (WriteVector Word64) -> WriteTable T1
@@ -830,6 +832,7 @@ spec =
 
                 allColors :: [Word64]
                 allColors = [ colorsRed ]
+                {-# INLINE allColors #-}
 
                 data T1
                 t1 :: WriteVector Word64 -> WriteTable T1
@@ -1025,6 +1028,7 @@ spec =
 
                 allMyColors :: [Word16]
                 allMyColors = [ myColorsIsRed, myColorsIsGreen ]
+                {-# INLINE allMyColors #-}
               |]
 
         [r| enum my_colors: ushort (bit_flags) { is_red = 2, is_green  } |] `shouldCompileTo` expected
@@ -1164,6 +1168,7 @@ spec =
 
             allE :: [Word8]
             allE = [ eX ]
+            {-# INLINE allE #-}
 
             data S
             instance IsStruct S where

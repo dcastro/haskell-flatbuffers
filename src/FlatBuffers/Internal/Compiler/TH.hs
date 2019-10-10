@@ -138,37 +138,39 @@ compileSymbolTable symbolTable = do
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) =
   if enumBitFlags enum
-    then pure (mkBitFlagsEnum enum)
-    else mkStandardEnum enum
+    then pure (mkEnumBitFlags enum)
+    else mkEnumNormal enum
 
-mkBitFlagsEnum :: EnumDecl -> [Dec]
-mkBitFlagsEnum enum =
-  enumConstants <> allValues
+
+mkEnumBitFlags :: EnumDecl -> [Dec]
+mkEnumBitFlags enum =
+  mkEnumBitFlagsConstants enum enumValNames
+  <> mkEnumBitFlagsAllValls enum enumValNames
   where
-    enumConstants =
-      NE.toList (enumVals enum) >>= \enumVal ->
-        let enumValName = mkName $ T.unpack $ NC.enumBitFlagsConstructor enum enumVal
-            sig = SigD enumValName (enumTypeToType (enumType enum))
-            fun = FunD enumValName [Clause [] (NormalB (intLitE (enumValInt enumVal))) []]
-        in  [sig, fun]
-    allValues = mkAllVals enum
+    enumValNames = mkName . T.unpack . NC.enumBitFlagsConstructor enum <$> NE.toList (enumVals enum)
 
+mkEnumBitFlagsConstants :: EnumDecl -> [Name] -> [Dec]
+mkEnumBitFlagsConstants enum enumValNames =
+  NE.toList (enumVals enum) `zip` enumValNames >>= \(enumVal, enumValName) ->
+    let sig = SigD enumValName (enumTypeToType (enumType enum))
+        fun = FunD enumValName [Clause [] (NormalB (intLitE (enumValInt enumVal))) []]
+    in  [sig, fun]
 
--- | Genrates a list with all the enum values, e.g.
+-- | Generates a list with all the enum values, e.g.
 --
 -- > allColors = [colorsRed, colorsGreen, colorsBlue]
-mkAllVals :: EnumDecl -> [Dec]
-mkAllVals enum =
+mkEnumBitFlagsAllValls :: EnumDecl -> [Name] -> [Dec]
+mkEnumBitFlagsAllValls enum enumValNames =
   let name = mkName $ T.unpack $ NC.enumBitFlagsAllFun enum
       sig = SigD name (ListT `AppT` enumTypeToType (enumType enum))
       fun = FunD name [ Clause [] (NormalB body)  []]
-      body = ListE (NE.toList (VarE . enumValName <$> enumVals enum))
-      enumValName enumVal = mkName $ T.unpack $ NC.enumBitFlagsConstructor enum enumVal
-  in  [sig, fun]
+      body = ListE (VarE <$> enumValNames)
+  in  [sig, fun, inlinePragma name]
 
 
-mkStandardEnum :: EnumDecl -> Q [Dec]
-mkStandardEnum enum = do
+-- | Generated declarations for a non-bit-flags enum.
+mkEnumNormal :: EnumDecl -> Q [Dec]
+mkEnumNormal enum = do
   let enumName = mkName' $ NC.dataTypeName enum
 
   let enumValNames = enumVals enum <&> \enumVal ->
@@ -205,7 +207,7 @@ mkToEnum enumName enum enumValsAndNames = do
         (NormalB (CaseE (VarE argName) matches))
         []
       ]
-    , PragmaD $ InlineP funName Inline FunLike AllPhases
+    , inlinePragma funName
     ]
   where
     matches =
@@ -235,7 +237,7 @@ mkFromEnum enumName enum enumValsAndNames = do
         (NormalB (CaseE (VarE argName) (mkMatch <$> NE.toList enumValsAndNames)))
         []
       ]
-    , PragmaD $ InlineP funName Inline FunLike AllPhases
+    , inlinePragma funName
     ]
   where
     mkMatch (enumVal, enumName) =
@@ -880,6 +882,9 @@ textLitE t = VarE 'T.pack `AppE` LitE (StringL (T.unpack t))
 
 stringLitE :: Text -> Exp
 stringLitE t = LitE (StringL (T.unpack t))
+
+inlinePragma :: Name -> Dec
+inlinePragma funName = PragmaD $ InlineP funName Inline FunLike AllPhases
 
 -- | Applies a function to multiple arguments. Assumes the list is not empty.
 app :: [Exp] -> Exp

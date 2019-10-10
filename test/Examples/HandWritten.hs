@@ -179,6 +179,7 @@ colorsBlue = 8
 colorsGray = 16
 colorsBlack = 32
 
+{-# INLINE allColors #-}
 allColors :: [Word16]
 allColors = [colorsRed, colorsGreen, colorsBlue, colorsGray, colorsBlack]
 
