@@ -7,6 +7,7 @@ module FlatBuffers.Internal.Compiler.THSpec where
 
 import           Control.Arrow                                  ( second )
 
+import           Data.Bits                                      ( (.&.) )
 import           Data.Int
 import           Data.Text                                      ( Text )
 import qualified Data.Text                                      as T
@@ -322,6 +323,14 @@ spec =
               allColors :: [Word8]
               allColors = [ colorsRed, colorsBlue ]
               {-# INLINE allColors #-}
+
+              colorsNames :: Word8 -> [Text]
+              colorsNames c = res2
+                where
+                  res0 = []
+                  res1 = if colorsBlue .&. c /= 0 then T.pack "Blue" : res0 else res0
+                  res2 = if colorsRed  .&. c /= 0 then T.pack "Red"  : res1 else res1
+              {-# INLINE colorsNames #-}
 
               data T
 
@@ -811,6 +820,13 @@ spec =
                 allColors = [ colorsRed ]
                 {-# INLINE allColors #-}
 
+                colorsNames :: Word64 -> [Text]
+                colorsNames c = res1
+                  where
+                    res0 = []
+                    res1 = if colorsRed .&. c /= 0 then T.pack "red" : res0 else res0
+                {-# INLINE colorsNames #-}
+
                 data T1
                 t1 :: Maybe (WriteVector Word64) -> WriteTable T1
                 t1 a = writeTable
@@ -833,6 +849,13 @@ spec =
                 allColors :: [Word64]
                 allColors = [ colorsRed ]
                 {-# INLINE allColors #-}
+
+                colorsNames :: Word64 -> [Text]
+                colorsNames c = res1
+                  where
+                    res0 = []
+                    res1 = if colorsRed .&. c /= 0 then T.pack "red" : res0 else res0
+                {-# INLINE colorsNames #-}
 
                 data T1
                 t1 :: WriteVector Word64 -> WriteTable T1
@@ -1019,7 +1042,7 @@ spec =
 
     describe "Enums with bit_flags" $
       it "naming conventions" $ do
-        let expected =
+        let expected redName greenName =
               [d|
                 myColorsIsRed :: Word16
                 myColorsIsRed = 4
@@ -1029,12 +1052,20 @@ spec =
                 allMyColors :: [Word16]
                 allMyColors = [ myColorsIsRed, myColorsIsGreen ]
                 {-# INLINE allMyColors #-}
+
+                myColorsNames :: Word16 -> [Text]
+                myColorsNames c = res2
+                  where
+                    res0 = []
+                    res1 = if myColorsIsGreen .&. c /= 0 then T.pack $(stringE greenName) : res0 else res0
+                    res2 = if myColorsIsRed   .&. c /= 0 then T.pack $(stringE redName)   : res1 else res1
+                {-# INLINE myColorsNames #-}
               |]
 
-        [r| enum my_colors: ushort (bit_flags) { is_red = 2, is_green  } |] `shouldCompileTo` expected
-        [r| enum My_Colors: ushort (bit_flags) { Is_Red = 2, Is_Green  } |] `shouldCompileTo` expected
-        [r| enum MyColors:  ushort (bit_flags) { IsRed = 2,  IsGreen   } |] `shouldCompileTo` expected
-        [r| enum myColors:  ushort (bit_flags) { isRed = 2,  isGreen   } |] `shouldCompileTo` expected
+        [r| enum my_colors: ushort (bit_flags) { is_red = 2, is_green  } |] `shouldCompileTo` expected "is_red" "is_green"
+        [r| enum My_Colors: ushort (bit_flags) { Is_Red = 2, Is_Green  } |] `shouldCompileTo` expected "Is_Red" "Is_Green"
+        [r| enum MyColors:  ushort (bit_flags) { IsRed = 2,  IsGreen   } |] `shouldCompileTo` expected "IsRed"  "IsGreen"
+        [r| enum myColors:  ushort (bit_flags) { isRed = 2,  isGreen   } |] `shouldCompileTo` expected "isRed"  "isGreen"
 
     describe "Structs" $ do
       it "naming conventions" $ do
@@ -1169,6 +1200,13 @@ spec =
             allE :: [Word8]
             allE = [ eX ]
             {-# INLINE allE #-}
+
+            eNames :: Word8 -> [Text]
+            eNames c = res1
+              where
+                res0 = []
+                res1 = if eX .&. c /= 0 then T.pack "X" : res0 else res0
+            {-# INLINE eNames #-}
 
             data S
             instance IsStruct S where
@@ -1361,6 +1399,7 @@ normalizeExp e =
     CaseE e matches -> CaseE (normalizeExp e) (normalizeMatch <$> matches)
     ConE name -> ConE (normalizeName name)
     InfixE l op r -> InfixE (normalizeExp <$> l) (normalizeExp op) (normalizeExp <$> r)
+    CondE b t f -> CondE (normalizeExp b) (normalizeExp t) (normalizeExp f)
     _ -> e
 
 normalizeMatch :: Match -> Match

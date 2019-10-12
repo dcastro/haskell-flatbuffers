@@ -6,6 +6,7 @@ module FlatBuffers.Internal.Compiler.TH where
 import           Control.Monad                                   ( join )
 import           Control.Monad.Except                            ( runExceptT )
 
+import           Data.Bits                                       ( (.&.) )
 import           Data.Foldable                                   ( traverse_ )
 import           Data.Functor                                    ( (<&>) )
 import           Data.Int
@@ -138,16 +139,19 @@ compileSymbolTable symbolTable = do
 mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
 mkEnum (_, enum) =
   if enumBitFlags enum
-    then pure (mkEnumBitFlags enum)
+    then mkEnumBitFlags enum
     else mkEnumNormal enum
 
 
-mkEnumBitFlags :: EnumDecl -> [Dec]
-mkEnumBitFlags enum =
-  mkEnumBitFlagsConstants enum enumValNames
-  <> mkEnumBitFlagsAllValls enum enumValNames
+mkEnumBitFlags :: EnumDecl -> Q [Dec]
+mkEnumBitFlags enum = do
+  nameFun <- mkEnumBitFlagsNames enum enumValNames
+  pure $
+    mkEnumBitFlagsConstants enum enumValNames
+    <> mkEnumBitFlagsAllValls enum enumValNames
+    <> nameFun
   where
-    enumValNames = mkName . T.unpack . NC.enumBitFlagsConstructor enum <$> NE.toList (enumVals enum)
+    enumValNames = mkName . T.unpack . NC.enumBitFlagsConstant enum <$> NE.toList (enumVals enum)
 
 mkEnumBitFlagsConstants :: EnumDecl -> [Name] -> [Dec]
 mkEnumBitFlagsConstants enum enumValNames =
@@ -167,6 +171,42 @@ mkEnumBitFlagsAllValls enum enumValNames =
       body = ListE (VarE <$> enumValNames)
   in  [sig, fun, inlinePragma name]
 
+-- |  Generates @colorsNames@.
+mkEnumBitFlagsNames :: EnumDecl -> [Name] -> Q [Dec]
+mkEnumBitFlagsNames enum enumValNames = do
+  inputName <- newName "c"
+  firstRes <- newName "res0"
+  firstClause <- [d| $(varP firstRes) = [] |]
+  (clauses, lastRes) <- mkClauses namesAndIdentifiers 1 inputName firstRes firstClause
+  let fun = FunD funName
+        [ Clause
+            [VarP inputName]
+            (NormalB (VarE lastRes))
+            (List.reverse clauses)
+        ]
+  pure
+    [ sig
+    , fun
+    , inlinePragma funName
+    ]
+  where
+    funName = mkName $ T.unpack $ NC.enumBitFlagsNamesFun enum
+    sig = SigD funName (enumTypeToType (enumType enum) ~> ListT `AppT` ConT ''Text)
+
+    namesAndIdentifiers :: [(Name, Ident)]
+    namesAndIdentifiers = List.reverse (enumValNames `zip` fmap enumValIdent (NE.toList (enumVals enum)))
+
+    mkClauses :: [(Name, Ident)] -> Int -> Name -> Name -> [Dec] -> Q ([Dec], Name)
+    mkClauses [] _ _ previousRes clauses = pure (clauses, previousRes)
+    mkClauses ((name, Ident ident) : rest) ix inputName previousRes clauses = do
+      res <- newName ("res" <> show ix)
+      clause <-
+        [d|
+          $(varP res) = if $(varE name) .&. $(varE inputName) /= 0
+                            then $(pure (textLitE ident)) : $(varE previousRes)
+                            else $(varE previousRes)
+        |]
+      mkClauses rest (ix + 1) inputName res (clause <> clauses)
 
 -- | Generated declarations for a non-bit-flags enum.
 mkEnumNormal :: EnumDecl -> Q [Dec]

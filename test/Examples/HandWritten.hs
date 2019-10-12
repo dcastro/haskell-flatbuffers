@@ -2,6 +2,7 @@
 
 module Examples.HandWritten where
 
+import           Data.Bits                           ( (.&.) )
 import           Data.Int
 import           Data.Text                           ( Text )
 import           Data.Word
@@ -182,6 +183,18 @@ colorsBlack = 32
 {-# INLINE allColors #-}
 allColors :: [Word16]
 allColors = [colorsRed, colorsGreen, colorsBlue, colorsGray, colorsBlack]
+
+{-# INLINE colorsNames #-}
+colorsNames :: Word16 -> [Text]
+colorsNames c = res5
+  where
+    res0 = []
+    res1 = if colorsBlack .&. c /= 0 then "Black" : res0 else res0
+    res2 = if colorsGray  .&. c /= 0 then "Gray"  : res1 else res1
+    res3 = if colorsBlue  .&. c /= 0 then "Blue"  : res2 else res2
+    res4 = if colorsGreen .&. c /= 0 then "Green" : res3 else res3
+    res5 = if colorsRed   .&. c /= 0 then "Red"   : res4 else res4
+
 
 data EnumsBitFlags
 

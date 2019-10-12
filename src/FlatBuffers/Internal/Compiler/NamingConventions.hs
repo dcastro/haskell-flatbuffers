@@ -39,13 +39,17 @@ enumUnionMember :: (HasIdent parent, HasIdent val) => parent -> val -> Text
 enumUnionMember (getIdent -> Ident parentIdent) (getIdent -> Ident valIdent) =
   TM.toPascal parentIdent <> TM.toPascal valIdent
 
-enumBitFlagsConstructor :: EnumDecl -> EnumVal -> Text
-enumBitFlagsConstructor (getIdent -> Ident enumIdent) (getIdent -> Ident enumValIdent) =
+enumBitFlagsConstant :: EnumDecl -> EnumVal -> Text
+enumBitFlagsConstant (getIdent -> Ident enumIdent) (getIdent -> Ident enumValIdent) =
   TM.toCamel enumIdent <> TM.toPascal enumValIdent
 
 enumBitFlagsAllFun :: EnumDecl -> Text
 enumBitFlagsAllFun (getIdent -> Ident enumIdent) =
   "all" <> TM.toPascal enumIdent
+
+enumBitFlagsNamesFun :: EnumDecl -> Text
+enumBitFlagsNamesFun (getIdent -> Ident enumIdent) =
+  TM.toCamel enumIdent <> "Names"
 
 unionConstructor :: UnionDecl -> UnionVal -> Text
 unionConstructor (getIdent -> Ident unionIdent) (getIdent -> Ident unionValIdent) =
