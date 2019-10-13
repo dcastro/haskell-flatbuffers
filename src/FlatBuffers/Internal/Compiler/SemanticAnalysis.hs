@@ -5,13 +5,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad                                 ( forM_, join, when )
-import           Control.Monad.Except                          ( MonadError, throwError )
-import           Control.Monad.Reader                          ( MonadReader(..), asks, runReaderT )
-import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, modify, put )
+import           Control.Monad                                 ( forM, forM_, join, when )
+import           Control.Monad.Except                          ( throwError )
+import           Control.Monad.Reader                          ( ReaderT, asks, local, runReaderT )
+import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, mapStateT, modify, put )
+import           Control.Monad.Trans                           ( lift )
 
 import           Data.Bits                                     ( (.&.), (.|.), Bits, FiniteBits, bit, finiteBitSize )
 import           Data.Coerce                                   ( coerce )
@@ -46,20 +49,59 @@ import           FlatBuffers.Internal.Types
 import           Text.Read                                     ( readMaybe )
 
 
-type ValidationCtx m = (MonadError String m, MonadReader ValidationState m)
+----------------------------------
+------- MonadValidation ----------
+----------------------------------
+newtype Validation a = Validation
+  { runValidation :: ReaderT ValidationState (Either String) a
+  }
+  deriving newtype (Functor, Applicative, Monad)
 
 data ValidationState = ValidationState
-  { validationStateCurrentContext :: !Ident
+  { validationStateCurrentContext :: ![Ident]
     -- ^ The thing being validated (e.g. a fully-qualified struct name, or a table field name).
   , validationStateAllAttributes  :: !(Set ST.AttributeDecl)
     -- ^ All the attributes declared in all the schemas (including imported ones).
   }
 
+class Monad m => MonadValidation m where
+  -- | Start validating an item `a`
+  validating :: HasIdent a => a -> m b -> m b
+  -- | Get the path to the item currently being validated
+  getContext :: m [Ident]
+  -- | Get a list of all the attributes declared in every loaded schema
+  getDeclaredAttributes :: m (Set ST.AttributeDecl)
+  -- | Fail validation with a message
+  throwErrorMsg :: String -> m a
 
-modifyContext :: ValidationCtx m => (Ident -> Ident) -> m a -> m a
-modifyContext f =
-  local $ \s ->
-    s { validationStateCurrentContext = f (validationStateCurrentContext s) }
+instance MonadValidation Validation where
+  validating a (Validation v) = Validation (local addIdent v)
+    where
+      addIdent (ValidationState ctx attrs) = ValidationState (getIdent a : ctx) attrs
+  getContext            = Validation (asks (List.reverse . validationStateCurrentContext))
+  getDeclaredAttributes = Validation (asks validationStateAllAttributes)
+  throwErrorMsg msg = do
+    ctx <- getContext
+    if null ctx
+      then Validation (throwError msg)
+      else Validation . throwError $ "[" <> List.intercalate "." (display <$> ctx) <> "]: " <> msg
+
+instance MonadValidation m => MonadValidation (StateT s m)  where
+  validating            = mapStateT . validating
+  getContext            = lift getContext
+  getDeclaredAttributes = lift getDeclaredAttributes
+  throwErrorMsg         = lift . throwErrorMsg
+
+----------------------------------
+------- Validation stages --------
+----------------------------------
+{-
+During validation, we translate `SyntaxTree.XDecl` declarations into
+`ValidSyntaxTree.XDecl` declarations.
+
+This is done in stages: we first translate enums, then structs, then tables,
+and lastly unions.
+-}
 
 data SymbolTable enum struct table union = SymbolTable
   { allEnums   :: ![(Namespace, enum)]
@@ -82,26 +124,9 @@ type Stage3     = SymbolTable    EnumDecl    StructDecl ST.TableDecl ST.UnionDec
 type Stage4     = SymbolTable    EnumDecl    StructDecl    TableDecl ST.UnionDecl
 type ValidDecls = SymbolTable    EnumDecl    StructDecl    TableDecl    UnionDecl
 
--- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
-createSymbolTables :: FileTree Schema -> FileTree Stage1
-createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
-  where
-    pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
-    pairDeclsWithNamespaces = snd . foldl go ("", mempty)
-
-    go :: (Namespace, Stage1) -> ST.Decl -> (Namespace, Stage1)
-    go (currentNamespace, decls) decl =
-      case decl of
-        ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
-        ST.DeclE enum   -> (currentNamespace, decls <> SymbolTable [(currentNamespace, enum)] [] [] [])
-        ST.DeclS struct -> (currentNamespace, decls <> SymbolTable [] [(currentNamespace, struct)] [] [])
-        ST.DeclT table  -> (currentNamespace, decls <> SymbolTable [] [] [(currentNamespace, table)] [])
-        ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
-        _               -> (currentNamespace, decls)
-
-validateSchemas :: MonadError String m => FileTree Schema -> m (FileTree ValidDecls)
+validateSchemas :: FileTree Schema -> Either String (FileTree ValidDecls)
 validateSchemas schemas =
-  flip runReaderT (ValidationState "" allAttributes) $ do
+  flip runReaderT (ValidationState [] allAttributes) $ runValidation $ do
     checkDuplicateIdentifiers allQualifiedTopLevelIdentifiers
     validateEnums symbolTables
       >>= validateStructs
@@ -126,6 +151,23 @@ validateSchemas schemas =
 
     allAttributes = Set.fromList $ declaredAttributes <> knownAttributes
 
+-- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
+createSymbolTables :: FileTree Schema -> FileTree Stage1
+createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
+  where
+    pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
+    pairDeclsWithNamespaces = snd . foldl go ("", mempty)
+
+    go :: (Namespace, Stage1) -> ST.Decl -> (Namespace, Stage1)
+    go (currentNamespace, decls) decl =
+      case decl of
+        ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
+        ST.DeclE enum   -> (currentNamespace, decls <> SymbolTable [(currentNamespace, enum)] [] [] [])
+        ST.DeclS struct -> (currentNamespace, decls <> SymbolTable [] [(currentNamespace, struct)] [] [])
+        ST.DeclT table  -> (currentNamespace, decls <> SymbolTable [] [] [(currentNamespace, table)] [])
+        ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
+        _               -> (currentNamespace, decls)
+
 ----------------------------------
 ------------ Root Type -----------
 ----------------------------------
@@ -138,7 +180,7 @@ data RootInfo = RootInfo
 -- | Finds the root table (if any) and sets the `tableIsRoot` flag accordingly.
 -- We only care about @root_type@ declarations in the root schema. Imported schemas are not scanned for @root_type@s.
 -- The root type declaration can point to a table in any schema (root or imported).
-updateRootTable :: forall m. ValidationCtx m => Schema -> FileTree ValidDecls -> m (FileTree ValidDecls)
+updateRootTable :: Schema -> FileTree ValidDecls -> Validation (FileTree ValidDecls)
 updateRootTable schema symbolTables =
   getRootInfo schema symbolTables <&> \case
     Just rootInfo -> updateSymbolTable rootInfo <$> symbolTables
@@ -154,13 +196,13 @@ updateRootTable schema symbolTables =
         then (namespace, table { tableIsRoot = IsRoot fileIdent })
         else pair
 
-getRootInfo :: forall m. ValidationCtx m => Schema -> FileTree ValidDecls -> m (Maybe RootInfo)
+getRootInfo :: Schema -> FileTree ValidDecls -> Validation (Maybe RootInfo)
 getRootInfo schema symbolTables =
   foldlM go ("", Nothing, Nothing) (ST.decls schema) <&> \case
     (_, Just (rootTableNamespace, rootTable), fileIdent) -> Just $ RootInfo rootTableNamespace rootTable fileIdent
     _ -> Nothing
   where
-    go :: (Namespace, Maybe (Namespace, TableDecl), Maybe Text) -> ST.Decl -> m (Namespace, Maybe (Namespace, TableDecl), Maybe Text)
+    go :: (Namespace, Maybe (Namespace, TableDecl), Maybe Text) -> ST.Decl -> Validation (Namespace, Maybe (Namespace, TableDecl), Maybe Text)
     go state@(currentNamespace, rootInfo, fileIdent) decl =
       case decl of
         ST.DeclN (ST.NamespaceDecl newNamespace)       -> pure (newNamespace, rootInfo, fileIdent)
@@ -170,7 +212,6 @@ getRootInfo schema symbolTables =
             MatchT (rootTableNamespace, rootTable)  -> pure (currentNamespace, Just (rootTableNamespace, rootTable), fileIdent)
             _                                       -> throwErrorMsg "root type must be a table"
         _ -> pure state
-
 
 ----------------------------------
 ----------- Attributes -----------
@@ -225,7 +266,7 @@ data Match enum struct table union
 -- | Looks for a type reference in a set of type declarations.
 -- If none is found, the list of namespaces in which the type reference was searched for is returned.
 findDecl ::
-     ValidationCtx m
+     MonadValidation m
   => (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
   => Namespace
   -> FileTree (SymbolTable e s t u)
@@ -267,7 +308,7 @@ parentNamespaces (ST.Namespace ns) =
 ----------------------------------
 ------------- Enums --------------
 ----------------------------------
-validateEnums :: forall m. ValidationCtx m => FileTree Stage1 -> m (FileTree Stage2)
+validateEnums :: FileTree Stage1 -> Validation (FileTree Stage2)
 validateEnums symbolTables =
   for symbolTables $ \symbolTable -> do
     let enums = allEnums symbolTable
@@ -277,9 +318,9 @@ validateEnums symbolTables =
     validEnums <- traverse validate enums
     pure symbolTable { allEnums = validEnums }
 
-validateEnum :: forall m. ValidationCtx m => (Namespace, ST.EnumDecl) -> m EnumDecl
+validateEnum :: (Namespace, ST.EnumDecl) -> Validation EnumDecl
 validateEnum (currentNamespace, enum) =
-  modifyContext (\_ -> qualify currentNamespace enum) $ do
+  validating (qualify currentNamespace enum) $ do
     checkDuplicateFields
     checkUndeclaredAttributes enum
     validEnum
@@ -311,7 +352,7 @@ validateEnum (currentNamespace, enum) =
       put (Just thisInt)
       pure (EnumVal (getIdent enumVal) thisInt)
 
-    validateOrder :: NonEmpty EnumVal -> m ()
+    validateOrder :: NonEmpty EnumVal -> Validation ()
     validateOrder xs =
       let consecutivePairs = NE.toList xs `zip` NE.tail xs
           outOfOrderPais = filter (\(x, y) -> enumValInt x >= enumValInt y) consecutivePairs
@@ -329,9 +370,9 @@ validateEnum (currentNamespace, enum) =
               <> display (enumValInt x)
               <> ")"
 
-    validateBounds :: EnumType -> EnumVal -> m ()
+    validateBounds :: EnumType -> EnumVal -> Validation ()
     validateBounds enumType enumVal =
-      modifyContext (\context -> context <> "." <> getIdent enumVal) $
+      validating enumVal $
         case enumType of
           EInt8 -> validateBounds' @Int8 enumVal
           EInt16 -> validateBounds' @Int16 enumVal
@@ -342,7 +383,7 @@ validateEnum (currentNamespace, enum) =
           EWord32 -> validateBounds' @Word32 enumVal
           EWord64 -> validateBounds' @Word64 enumVal
 
-    validateBounds' :: forall a. (FiniteBits a, Integral a, Bounded a) => EnumVal -> m ()
+    validateBounds' :: forall a. (FiniteBits a, Integral a, Bounded a) => EnumVal -> Validation ()
     validateBounds' e =
       if inRange (lower, upper) (enumValInt e)
         then pure ()
@@ -362,7 +403,7 @@ validateEnum (currentNamespace, enum) =
                   then toInteger (finiteBitSize @a (undefined :: a) - 1)
                   else toInteger (maxBound @a)
 
-    validateEnumType :: ST.Type -> m EnumType
+    validateEnumType :: ST.Type -> Validation EnumType
     validateEnumType t =
       case t of
         ST.TInt8   -> unlessIsBitFlags EInt8
@@ -388,7 +429,7 @@ validateEnum (currentNamespace, enum) =
         then e { enumValInt = bit (fromIntegral @Integer @Int (enumValInt e)) }
         else e
 
-    checkDuplicateFields :: m ()
+    checkDuplicateFields :: Validation ()
     checkDuplicateFields =
       checkDuplicateIdentifiers
         (ST.enumVals enum)
@@ -399,7 +440,7 @@ validateEnum (currentNamespace, enum) =
 ----------------------------------
 data TableFieldWithoutId = TableFieldWithoutId !Ident !TableFieldType !Bool
 
-validateTables :: ValidationCtx m => FileTree Stage3 -> m (FileTree Stage4)
+validateTables :: FileTree Stage3 -> Validation (FileTree Stage4)
 validateTables symbolTables =
   for symbolTables $ \symbolTable -> do
     let tables = allTables symbolTable
@@ -409,9 +450,9 @@ validateTables symbolTables =
     validTables <- traverse validate tables
     pure symbolTable { allTables = validTables }
 
-validateTable :: forall m. ValidationCtx m => FileTree Stage3 -> (Namespace, ST.TableDecl) -> m TableDecl
+validateTable :: FileTree Stage3 -> (Namespace, ST.TableDecl) -> Validation TableDecl
 validateTable symbolTables (currentNamespace, table) =
-  modifyContext (\_ -> qualify currentNamespace table) $ do
+  validating (qualify currentNamespace table) $ do
 
     let fields = ST.tableFields table
     let fieldsMetadata = ST.tableFieldMetadata <$> fields
@@ -429,10 +470,10 @@ validateTable symbolTables (currentNamespace, table) =
       }
 
   where
-    checkDuplicateFields :: [ST.TableField] -> m ()
+    checkDuplicateFields :: [ST.TableField] -> Validation ()
     checkDuplicateFields = checkDuplicateIdentifiers
 
-    assignFieldIds :: [ST.Metadata] -> [TableFieldWithoutId] -> m [TableField]
+    assignFieldIds :: [ST.Metadata] -> [TableFieldWithoutId] -> Validation [TableField]
     assignFieldIds metadata fieldsWithoutIds = do
       ids <- catMaybes <$> traverse (findIntAttr idAttr) metadata
       if null ids
@@ -457,10 +498,10 @@ validateTable symbolTables (currentNamespace, table) =
       put fieldId
       pure (TableField fieldId ident typ depr)
 
-    checkFieldId :: TableField -> StateT Integer m ()
+    checkFieldId :: TableField -> StateT Integer Validation ()
     checkFieldId field = do
       lastId <- get
-      modifyContext (\context -> context <> "." <> getIdent field) $ do
+      validating field $ do
         case tableFieldType field of
           TUnion _ _ ->
             when (tableFieldId field /= lastId + 2) $
@@ -473,9 +514,9 @@ validateTable symbolTables (currentNamespace, table) =
               throwErrorMsg $ "field ids must be consecutive from 0; id " <> display (lastId + 1) <> " is missing"
         put (tableFieldId field)
 
-    validateTableField :: ST.TableField -> m TableFieldWithoutId
+    validateTableField :: ST.TableField -> Validation TableFieldWithoutId
     validateTableField tf =
-      modifyContext (\context -> context <> "." <> getIdent tf) $ do
+      validating tf $ do
         checkUndeclaredAttributes tf
         validFieldType <- validateTableFieldType (ST.tableFieldMetadata tf) (ST.tableFieldDefault tf) (ST.tableFieldType tf)
 
@@ -484,7 +525,7 @@ validateTable symbolTables (currentNamespace, table) =
           validFieldType
           (hasAttribute deprecatedAttr (ST.tableFieldMetadata tf))
 
-    validateTableFieldType :: ST.Metadata -> Maybe ST.DefaultVal -> ST.Type -> m TableFieldType
+    validateTableFieldType :: ST.Metadata -> Maybe ST.DefaultVal -> ST.Type -> Validation TableFieldType
     validateTableFieldType md dflt tableFieldType =
       case tableFieldType of
         ST.TInt8 -> checkNoRequired md >> validateDefaultValAsInt @Int8 dflt <&> TInt8
@@ -534,12 +575,12 @@ validateTable symbolTables (currentNamespace, table) =
                   MatchT (ns, table) -> VTable (TypeRef ns (getIdent table))
                   MatchU (ns, union) -> VUnion (TypeRef ns (getIdent union))
 
-checkNoRequired :: ValidationCtx m => ST.Metadata -> m ()
+checkNoRequired :: ST.Metadata -> Validation ()
 checkNoRequired md =
   when (hasAttribute requiredAttr md) $
     throwErrorMsg "only non-scalar fields (strings, vectors, unions, structs, tables) may be 'required'"
 
-checkNoDefault :: ValidationCtx m => Maybe ST.DefaultVal -> m ()
+checkNoDefault :: Maybe ST.DefaultVal -> Validation ()
 checkNoDefault dflt =
   when (isJust dflt) $
     throwErrorMsg
@@ -548,28 +589,28 @@ checkNoDefault dflt =
 isRequired :: ST.Metadata -> Required
 isRequired md = if hasAttribute requiredAttr md then Req else Opt
 
-validateDefaultValAsInt :: forall a m. (ValidationCtx m, Integral a, Bounded a, Display a) => Maybe ST.DefaultVal -> m (DefaultVal Integer)
+validateDefaultValAsInt :: forall a. (Integral a, Bounded a, Display a) => Maybe ST.DefaultVal -> Validation (DefaultVal Integer)
 validateDefaultValAsInt dflt =
   case dflt of
     Nothing                -> pure (DefaultVal 0)
     Just (ST.DefaultNum n) -> scientificToInteger @a n "default value must be integral"
     Just _                 -> throwErrorMsg "default value must be integral"
 
-validateDefaultValAsScientific :: ValidationCtx m => Maybe ST.DefaultVal -> m (DefaultVal Scientific)
+validateDefaultValAsScientific :: Maybe ST.DefaultVal -> Validation (DefaultVal Scientific)
 validateDefaultValAsScientific dflt =
   case dflt of
     Nothing                 -> pure (DefaultVal 0)
     Just (ST.DefaultNum n)  -> pure (DefaultVal n)
     Just _                  -> throwErrorMsg "default value must be a number"
 
-validateDefaultValAsBool :: ValidationCtx m => Maybe ST.DefaultVal -> m (DefaultVal Bool)
+validateDefaultValAsBool :: Maybe ST.DefaultVal -> Validation (DefaultVal Bool)
 validateDefaultValAsBool dflt =
   case dflt of
     Nothing                 -> pure (DefaultVal False)
     Just (ST.DefaultBool b) -> pure (DefaultVal b)
     Just _                  -> throwErrorMsg "default value must be a boolean"
 
-validateDefaultAsEnum :: forall m. ValidationCtx m => Maybe ST.DefaultVal -> EnumDecl -> m (DefaultVal Integer)
+validateDefaultAsEnum :: Maybe ST.DefaultVal -> EnumDecl -> Validation (DefaultVal Integer)
 validateDefaultAsEnum dflt enum =
   case dflt of
     Nothing ->
@@ -622,15 +663,15 @@ validateDefaultAsEnum dflt enum =
         else
           "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)
 
-    findEnumByRef :: Text -> m (DefaultVal Integer)
+    findEnumByRef :: Text -> Validation (DefaultVal Integer)
     findEnumByRef ref =
       case find (\val -> unIdent (getIdent val) == ref) (enumVals enum) of
         Just matchingVal -> pure (DefaultVal (enumValInt matchingVal))
         Nothing          -> throwErrorMsg $ "default value of " <> display ref <> " is not part of enum " <> display (getIdent enum)
 
 scientificToInteger ::
-  forall a m. (ValidationCtx m, Integral a, Bounded a, Display a)
-  => Scientific -> String -> m (DefaultVal Integer)
+  forall a. (Integral a, Bounded a, Display a)
+  => Scientific -> String -> Validation (DefaultVal Integer)
 scientificToInteger n notIntegerErrorMsg =
   if not (Scientific.isInteger n)
     then throwErrorMsg notIntegerErrorMsg
@@ -648,7 +689,7 @@ scientificToInteger n notIntegerErrorMsg =
 ----------------------------------
 ------------ Unions --------------
 ----------------------------------
-validateUnions :: ValidationCtx m => FileTree Stage4 -> m (FileTree ValidDecls)
+validateUnions :: FileTree Stage4 -> Validation (FileTree ValidDecls)
 validateUnions symbolTables =
   for symbolTables $ \symbolTable -> do
     let unions = allUnions symbolTable
@@ -658,9 +699,9 @@ validateUnions symbolTables =
     validUnions <- traverse validate unions
     pure symbolTable { allUnions = validUnions }
 
-validateUnion :: forall m. ValidationCtx m => FileTree Stage4 -> (Namespace, ST.UnionDecl) -> m UnionDecl
+validateUnion :: FileTree Stage4 -> (Namespace, ST.UnionDecl) -> Validation UnionDecl
 validateUnion symbolTables (currentNamespace, union) =
-  modifyContext (\_ -> qualify currentNamespace union) $ do
+  validating (qualify currentNamespace union) $ do
     validUnionVals <- traverse validateUnionVal (ST.unionVals union)
     checkDuplicateVals validUnionVals
     checkUndeclaredAttributes union
@@ -669,37 +710,37 @@ validateUnion symbolTables (currentNamespace, union) =
       , unionVals = validUnionVals
       }
   where
-    validateUnionVal :: ST.UnionVal -> m UnionVal
+    validateUnionVal :: ST.UnionVal -> Validation UnionVal
     validateUnionVal uv = do
       let tref = ST.unionValTypeRef uv
       let partiallyQualifiedTypeRef = qualify (typeRefNamespace tref) (typeRefIdent tref)
       let ident = fromMaybe partiallyQualifiedTypeRef (ST.unionValIdent uv)
       let identFormatted = coerce $ T.replace "." "_" $ coerce ident
-      modifyContext (\context -> context <> "." <> identFormatted) $ do
+      validating identFormatted $ do
         tableRef <- validateUnionValType tref
         pure $ UnionVal
           { unionValIdent = identFormatted
           , unionValTableRef = tableRef
           }
 
-    validateUnionValType :: TypeRef -> m TypeRef
+    validateUnionValType :: TypeRef -> Validation TypeRef
     validateUnionValType typeRef =
       findDecl currentNamespace symbolTables typeRef >>= \case
         MatchT (ns, table)        -> pure $ TypeRef ns (getIdent table)
         _                         -> throwErrorMsg "union members may only be tables"
 
-    checkDuplicateVals :: NonEmpty UnionVal -> m ()
+    checkDuplicateVals :: NonEmpty UnionVal -> Validation ()
     checkDuplicateVals vals = checkDuplicateIdentifiers (NE.cons "NONE" (fmap getIdent vals))
 
 
 ----------------------------------
 ------------ Structs -------------
 ----------------------------------
-validateStructs :: ValidationCtx m => FileTree Stage2 -> m (FileTree Stage3)
+validateStructs :: FileTree Stage2 -> Validation (FileTree Stage3)
 validateStructs symbolTables =
   flip evalStateT [] $ traverse validateFile symbolTables
   where
-  validateFile :: (MonadState [(Namespace, StructDecl)] m, ValidationCtx m) => Stage2 -> m Stage3
+  validateFile :: Stage2 -> StateT [(Namespace, StructDecl)] Validation Stage3
   validateFile symbolTable = do
     let structs = allStructs symbolTable
 
@@ -708,28 +749,32 @@ validateStructs symbolTables =
 
     pure symbolTable { allStructs = validStructs }
 
-checkStructCycles :: forall m. ValidationCtx m => FileTree Stage2 -> (Namespace, ST.StructDecl) -> m ()
+checkStructCycles :: forall m. MonadValidation m => FileTree Stage2 -> (Namespace, ST.StructDecl) -> m ()
 checkStructCycles symbolTables = go []
   where
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
-    go visited (currentNamespace, struct) =
+    go visited (currentNamespace, struct) = do
       let qualifiedName = qualify currentNamespace struct
-      in  modifyContext (const qualifiedName) $
-            if qualifiedName `elem` visited
-              then
-                throwErrorMsg $
-                  "cyclic dependency detected ["
-                  <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
-                  <>"] - structs cannot contain themselves, directly or indirectly"
-              else
-                forM_ (ST.structFields struct) $ \field ->
-                  modifyContext (\context -> context <> "." <> getIdent field) $
-                    case ST.structFieldType field of
-                      ST.TRef typeRef ->
-                        findDecl currentNamespace symbolTables typeRef >>= \case
-                          MatchS struct -> go (qualifiedName : visited) struct
-                          _             -> pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
-                      _ -> pure () -- Field is not a TypeRef, no validation needed
+      innerStructs <-
+        validating qualifiedName $
+          if qualifiedName `elem` visited
+            then
+              throwErrorMsg $
+                "cyclic dependency detected ["
+                <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
+                <>"] - structs cannot contain themselves, directly or indirectly"
+            else
+              forM (ST.structFields struct) $ \field ->
+                validating field $
+                  case ST.structFieldType field of
+                    ST.TRef typeRef ->
+                      findDecl currentNamespace symbolTables typeRef >>= \case
+                        MatchS struct -> pure (Just struct)
+                        _             -> pure Nothing -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                    _ -> pure Nothing -- Field is not a TypeRef, no validation needed
+      forM_ innerStructs $ \case
+        Just struct -> go (qualifiedName : visited) struct
+        Nothing     -> pure ()
 
 data UnpaddedStructField = UnpaddedStructField
   { unpaddedStructFieldIdent :: !Ident
@@ -737,12 +782,12 @@ data UnpaddedStructField = UnpaddedStructField
   } deriving (Show, Eq)
 
 validateStruct ::
-     forall m. (MonadState [(Namespace, StructDecl)] m, ValidationCtx m)
+     forall m. (MonadState [(Namespace, StructDecl)] m, MonadValidation m)
   => FileTree Stage2
   -> (Namespace, ST.StructDecl)
   -> m (Namespace, StructDecl)
 validateStruct symbolTables (currentNamespace, struct) =
-  modifyContext (\_ -> qualify currentNamespace struct) $ do
+  validating (qualify currentNamespace struct) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
     case find (\(ns, s) -> ns == currentNamespace && getIdent s == getIdent struct) validStructs of
@@ -814,7 +859,7 @@ validateStruct symbolTables (currentNamespace, struct) =
 
     validateStructField :: ST.StructField -> m UnpaddedStructField
     validateStructField sf =
-      modifyContext (\context -> context <> "." <> getIdent sf) $ do
+      validating sf $ do
         checkUnsupportedAttributes sf
         checkUndeclaredAttributes sf
         structFieldType <- validateStructFieldType (ST.structFieldType sf)
@@ -928,7 +973,7 @@ structFieldTypeSize sft =
     SEnum _ enumType -> fromIntegral @Word8 @InlineSize (enumSize enumType)
     SStruct (_, nestedStruct) -> structSize nestedStruct
 
-checkDuplicateIdentifiers :: (ValidationCtx m, Foldable f, Functor f, HasIdent a) => f a -> m ()
+checkDuplicateIdentifiers :: (MonadValidation m, Foldable f, Functor f, HasIdent a) => f a -> m ()
 checkDuplicateIdentifiers xs =
   case findDups (getIdent <$> xs) of
     [] -> pure ()
@@ -943,9 +988,9 @@ checkDuplicateIdentifiers xs =
     occurrences xs =
       Map.unionsWith (<>) $ Foldable.toList $ fmap (\x -> Map.singleton x (Sum 1)) xs
 
-checkUndeclaredAttributes :: (ValidationCtx m, HasMetadata a) => a -> m ()
+checkUndeclaredAttributes :: (MonadValidation m, HasMetadata a) => a -> m ()
 checkUndeclaredAttributes a = do
-  allAttributes <- asks validationStateAllAttributes
+  allAttributes <- getDeclaredAttributes
   forM_ (Map.keys . ST.unMetadata . getMetadata $ a) $ \attr ->
     when (coerce attr `Set.notMember` allAttributes) $
       throwErrorMsg $ "user defined attributes must be declared before use: " <> display attr
@@ -953,7 +998,7 @@ checkUndeclaredAttributes a = do
 hasAttribute :: Text -> ST.Metadata -> Bool
 hasAttribute name (ST.Metadata attrs) = Map.member name attrs
 
-findIntAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Integer)
+findIntAttr :: MonadValidation m => Text -> ST.Metadata -> m (Maybe Integer)
 findIntAttr name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
@@ -972,7 +1017,7 @@ findIntAttr name (ST.Metadata attrs) =
         <> display name
         <> ": 123'"
 
-findStringAttr :: ValidationCtx m => Text -> ST.Metadata -> m (Maybe Text)
+findStringAttr :: Text -> ST.Metadata -> Validation (Maybe Text)
 findStringAttr name (ST.Metadata attrs) =
   case Map.lookup name attrs of
     Nothing                  -> pure Nothing
@@ -984,14 +1029,6 @@ findStringAttr name (ST.Metadata attrs) =
         <> "' to have a string value, e.g. '"
         <> display name
         <> ": \"abc\"'"
-
-throwErrorMsg :: ValidationCtx m => String -> m a
-throwErrorMsg msg = do
-  context <- asks validationStateCurrentContext
-  if context == ""
-    then throwError msg
-    else throwError $ "[" <> display context <> "]: " <> msg
-
 
 isPowerOfTwo :: (Num a, Bits a) => a -> Bool
 isPowerOfTwo 0 = False
