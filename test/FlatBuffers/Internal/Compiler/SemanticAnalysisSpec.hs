@@ -7,6 +7,7 @@ module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 import           Data.Bits                                      ( shiftL )
 import           Data.Foldable                                  ( fold )
 import           Data.Int
+import qualified Data.Map.Strict                                as Map
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
@@ -27,7 +28,6 @@ spec =
       [r| enum E:int{x}     enum E:int{x}     |] `shouldFail` "'E' declared more than once"
       [r| struct S{x:int;}  struct S{x:int;}  |] `shouldFail` "'S' declared more than once"
       [r| table T{}         table T{}         |] `shouldFail` "'T' declared more than once"
-      [r| union U{x}        union U{x}        |] `shouldFail` "'U' declared more than once"
       [r| union U{x}        union U{x}        |] `shouldFail` "'U' declared more than once"
       [r| union X{x}        table X{}         |] `shouldFail` "'X' declared more than once"
 
@@ -1342,16 +1342,16 @@ foldDecls :: [ValidDecls] -> ValidDecls
 foldDecls = fold
 
 enum :: (Namespace, EnumDecl) -> ValidDecls
-enum e = SymbolTable [e] [] [] []
+enum (ns, e) = SymbolTable (Map.singleton (ns, getIdent e) e) Map.empty Map.empty Map.empty
 
 struct :: (Namespace, StructDecl) -> ValidDecls
-struct s = SymbolTable [] [s] [] []
+struct (ns, s) = SymbolTable Map.empty (Map.singleton (ns, getIdent s) s) Map.empty Map.empty
 
 table :: (Namespace, TableDecl) -> ValidDecls
-table t = SymbolTable [] [] [t] []
+table (ns, t) = SymbolTable Map.empty Map.empty (Map.singleton (ns, getIdent t) t) Map.empty
 
 union :: (Namespace, UnionDecl) -> ValidDecls
-union u = SymbolTable [] [] [] [u]
+union (ns, u) = SymbolTable Map.empty Map.empty Map.empty (Map.singleton (ns, getIdent u) u)
 
 shouldSucceed :: HasCallStack => String -> Expectation
 shouldSucceed input =

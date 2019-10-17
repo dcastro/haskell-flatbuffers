@@ -104,10 +104,10 @@ and lastly unions.
 -}
 
 data SymbolTable enum struct table union = SymbolTable
-  { allEnums   :: ![(Namespace, enum)]
-  , allStructs :: ![(Namespace, struct)]
-  , allTables  :: ![(Namespace, table)]
-  , allUnions  :: ![(Namespace, union)]
+  { allEnums   :: !(Map (Namespace, Ident) enum)
+  , allStructs :: !(Map (Namespace, Ident) struct)
+  , allTables  :: !(Map (Namespace, Ident) table)
+  , allUnions  :: !(Map (Namespace, Ident) union)
   }
   deriving (Eq, Show)
 
@@ -116,7 +116,7 @@ instance Semigroup (SymbolTable e s t u)  where
     SymbolTable (e1 <> e2) (s1 <> s2) (t1 <> t2) (u1 <> u2)
 
 instance Monoid (SymbolTable e s t u) where
-  mempty = SymbolTable [] [] [] []
+  mempty = SymbolTable mempty mempty mempty mempty
 
 type Stage1     = SymbolTable ST.EnumDecl ST.StructDecl ST.TableDecl ST.UnionDecl
 type Stage2     = SymbolTable    EnumDecl ST.StructDecl ST.TableDecl ST.UnionDecl
@@ -127,22 +127,21 @@ type ValidDecls = SymbolTable    EnumDecl    StructDecl    TableDecl    UnionDec
 validateSchemas :: FileTree Schema -> Either String (FileTree ValidDecls)
 validateSchemas schemas =
   flip runReaderT (ValidationState [] allAttributes) $ runValidation $ do
-    checkDuplicateIdentifiers allQualifiedTopLevelIdentifiers
+    symbolTables <- createSymbolTables schemas
+    checkDuplicateIdentifiers (allQualifiedTopLevelIdentifiers symbolTables)
     validateEnums symbolTables
       >>= validateStructs
       >>= validateTables
       >>= validateUnions
       >>= updateRootTable (fileTreeRoot schemas)
   where
-    symbolTables = createSymbolTables schemas
-
-    allQualifiedTopLevelIdentifiers =
+    allQualifiedTopLevelIdentifiers symbolTables =
       flip concatMap symbolTables $ \symbolTable ->
         join
-          [ uncurry qualify <$> allEnums symbolTable
-          , uncurry qualify <$> allStructs symbolTable
-          , uncurry qualify <$> allTables symbolTable
-          , uncurry qualify <$> allUnions symbolTable
+          [ uncurry qualify <$> Map.keys (allEnums symbolTable)
+          , uncurry qualify <$> Map.keys (allStructs symbolTable)
+          , uncurry qualify <$> Map.keys (allTables symbolTable)
+          , uncurry qualify <$> Map.keys (allUnions symbolTable)
           ]
 
     declaredAttributes =
@@ -152,21 +151,36 @@ validateSchemas schemas =
     allAttributes = Set.fromList $ declaredAttributes <> knownAttributes
 
 -- | Takes a collection of schemas, and pairs each type declaration with its corresponding namespace
-createSymbolTables :: FileTree Schema -> FileTree Stage1
-createSymbolTables = fmap (pairDeclsWithNamespaces . ST.decls)
+createSymbolTables :: FileTree Schema -> Validation (FileTree Stage1)
+createSymbolTables = traverse (createSymbolTable . ST.decls)
   where
-    pairDeclsWithNamespaces :: [ST.Decl] -> Stage1
-    pairDeclsWithNamespaces = snd . foldl go ("", mempty)
+    createSymbolTable :: [ST.Decl] -> Validation Stage1
+    createSymbolTable decls = snd <$> foldlM go ("", mempty) decls
 
-    go :: (Namespace, Stage1) -> ST.Decl -> (Namespace, Stage1)
-    go (currentNamespace, decls) decl =
+    go :: (Namespace, Stage1) -> ST.Decl -> Validation (Namespace, Stage1)
+    go (currentNamespace, symbolTable) decl =
       case decl of
-        ST.DeclN (ST.NamespaceDecl newNamespace) -> (newNamespace, decls)
-        ST.DeclE enum   -> (currentNamespace, decls <> SymbolTable [(currentNamespace, enum)] [] [] [])
-        ST.DeclS struct -> (currentNamespace, decls <> SymbolTable [] [(currentNamespace, struct)] [] [])
-        ST.DeclT table  -> (currentNamespace, decls <> SymbolTable [] [] [(currentNamespace, table)] [])
-        ST.DeclU union  -> (currentNamespace, decls <> SymbolTable [] [] [] [(currentNamespace, union)])
-        _               -> (currentNamespace, decls)
+        ST.DeclE enum   -> addEnum symbolTable currentNamespace enum     <&> \symbolTable' -> (currentNamespace, symbolTable')
+        ST.DeclS struct -> addStruct symbolTable currentNamespace struct <&> \symbolTable' -> (currentNamespace, symbolTable')
+        ST.DeclT table  -> addTable symbolTable currentNamespace table   <&> \symbolTable' -> (currentNamespace, symbolTable')
+        ST.DeclU union  -> addUnion symbolTable currentNamespace union   <&> \symbolTable' -> (currentNamespace, symbolTable')
+        ST.DeclN (ST.NamespaceDecl newNamespace) -> pure (newNamespace, symbolTable)
+        _               -> pure (currentNamespace, symbolTable)
+
+    addEnum (SymbolTable es ss ts us) namespace enum     = insertSymbol namespace enum es   <&> \es' -> SymbolTable es' ss ts us
+    addStruct (SymbolTable es ss ts us) namespace struct = insertSymbol namespace struct ss <&> \ss' -> SymbolTable es ss' ts us
+    addTable (SymbolTable es ss ts us) namespace table   = insertSymbol namespace table ts  <&> \ts' -> SymbolTable es ss ts' us
+    addUnion (SymbolTable es ss ts us) namespace union   = insertSymbol namespace union us  <&> \us' -> SymbolTable es ss ts us'
+
+-- | Fails if the key is already present in the map.
+insertSymbol :: HasIdent a => Namespace -> a -> Map (Namespace, Ident) a -> Validation (Map (Namespace, Ident) a)
+insertSymbol namespace symbol map =
+  if Map.member key map
+    then throwErrorMsg $ "'" <> display (qualify namespace symbol) <> "' declared more than once"
+    else pure $ Map.insert key symbol map
+  where
+    key = (namespace, getIdent symbol)
+
 
 ----------------------------------
 ------------ Root Type -----------
@@ -188,13 +202,13 @@ updateRootTable schema symbolTables =
 
   where
     updateSymbolTable :: RootInfo -> ValidDecls -> ValidDecls
-    updateSymbolTable rootInfo st = st { allTables = updateTable rootInfo <$> allTables st}
+    updateSymbolTable rootInfo st = st { allTables = Map.mapWithKey (updateTable rootInfo) (allTables st) }
 
-    updateTable :: RootInfo -> (Namespace, TableDecl) -> (Namespace, TableDecl)
-    updateTable (RootInfo rootTableNamespace rootTable fileIdent) pair@(namespace, table) =
+    updateTable :: RootInfo -> (Namespace, Ident) -> TableDecl -> TableDecl
+    updateTable (RootInfo rootTableNamespace rootTable fileIdent) (namespace, _) table =
       if namespace == rootTableNamespace && table == rootTable
-        then (namespace, table { tableIsRoot = IsRoot fileIdent })
-        else pair
+        then table { tableIsRoot = IsRoot fileIdent }
+        else table
 
 getRootInfo :: Schema -> FileTree ValidDecls -> Validation (Maybe RootInfo)
 getRootInfo schema symbolTables =
@@ -209,8 +223,8 @@ getRootInfo schema symbolTables =
         ST.DeclFI (ST.FileIdentifierDecl newFileIdent) -> pure (currentNamespace, rootInfo, Just (coerce newFileIdent))
         ST.DeclR (ST.RootDecl typeRef)                 ->
           findDecl currentNamespace symbolTables typeRef >>= \case
-            MatchT (rootTableNamespace, rootTable)  -> pure (currentNamespace, Just (rootTableNamespace, rootTable), fileIdent)
-            _                                       -> throwErrorMsg "root type must be a table"
+            MatchT rootTableNamespace rootTable  -> pure (currentNamespace, Just (rootTableNamespace, rootTable), fileIdent)
+            _                                    -> throwErrorMsg "root type must be a table"
         _ -> pure state
 
 ----------------------------------
@@ -258,16 +272,15 @@ otherKnownAttributes =
 --------- Symbol search ----------
 ----------------------------------
 data Match enum struct table union
-  = MatchE !(Namespace, enum)
-  | MatchS !(Namespace, struct)
-  | MatchT !(Namespace, table)
-  | MatchU !(Namespace, union)
+  = MatchE !Namespace !enum
+  | MatchS !Namespace !struct
+  | MatchT !Namespace !table
+  | MatchU !Namespace !union
 
 -- | Looks for a type reference in a set of type declarations.
 -- If none is found, the list of namespaces in which the type reference was searched for is returned.
 findDecl ::
      MonadValidation m
-  => (HasIdent e, HasIdent s, HasIdent t, HasIdent u)
   => Namespace
   -> FileTree (SymbolTable e s t u)
   -> TypeRef
@@ -279,10 +292,10 @@ findDecl currentNamespace symbolTables typeRef@(TypeRef refNamespace refIdent) =
         let candidateNamespace = parentNamespace <> refNamespace
         let searchSymbolTable symbolTable =
               asum
-                [ MatchE <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allEnums symbolTable)
-                , MatchS <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allStructs symbolTable)
-                , MatchT <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allTables symbolTable)
-                , MatchU <$> find (\(ns, e) -> ns == candidateNamespace && getIdent e == refIdent) (allUnions symbolTable)
+                [ MatchE candidateNamespace <$> Map.lookup (candidateNamespace, refIdent) (allEnums symbolTable)
+                , MatchS candidateNamespace <$> Map.lookup (candidateNamespace, refIdent) (allStructs symbolTable)
+                , MatchT candidateNamespace <$> Map.lookup (candidateNamespace, refIdent) (allTables symbolTable)
+                , MatchU candidateNamespace <$> Map.lookup (candidateNamespace, refIdent) (allUnions symbolTable)
                 ]
         pure $ asum $ fmap searchSymbolTable symbolTables
   in
@@ -311,15 +324,11 @@ parentNamespaces (ST.Namespace ns) =
 validateEnums :: FileTree Stage1 -> Validation (FileTree Stage2)
 validateEnums symbolTables =
   for symbolTables $ \symbolTable -> do
-    let enums = allEnums symbolTable
-    let validate (namespace, enum) = do
-          validEnum <- validateEnum (namespace, enum)
-          pure (namespace, validEnum)
-    validEnums <- traverse validate enums
+    validEnums <- Map.traverseWithKey validateEnum (allEnums symbolTable)
     pure symbolTable { allEnums = validEnums }
 
-validateEnum :: (Namespace, ST.EnumDecl) -> Validation EnumDecl
-validateEnum (currentNamespace, enum) =
+validateEnum :: (Namespace, Ident) -> ST.EnumDecl -> Validation EnumDecl
+validateEnum (currentNamespace, _) enum =
   validating (qualify currentNamespace enum) $ do
     checkDuplicateFields
     checkUndeclaredAttributes enum
@@ -443,15 +452,11 @@ data TableFieldWithoutId = TableFieldWithoutId !Ident !TableFieldType !Bool
 validateTables :: FileTree Stage3 -> Validation (FileTree Stage4)
 validateTables symbolTables =
   for symbolTables $ \symbolTable -> do
-    let tables = allTables symbolTable
-    let validate (namespace, table) = do
-          validTable <- validateTable symbolTables (namespace, table)
-          pure (namespace, validTable)
-    validTables <- traverse validate tables
+    validTables <- Map.traverseWithKey (validateTable symbolTables) (allTables symbolTable)
     pure symbolTable { allTables = validTables }
 
-validateTable :: FileTree Stage3 -> (Namespace, ST.TableDecl) -> Validation TableDecl
-validateTable symbolTables (currentNamespace, table) =
+validateTable :: FileTree Stage3 -> (Namespace, Ident) -> ST.TableDecl -> Validation TableDecl
+validateTable symbolTables (currentNamespace, _) table =
   validating (qualify currentNamespace table) $ do
 
     let fields = ST.tableFields table
@@ -542,13 +547,13 @@ validateTable symbolTables (currentNamespace, table) =
         ST.TString -> checkNoDefault dflt $> TString (isRequired md)
         ST.TRef typeRef ->
           findDecl currentNamespace symbolTables typeRef >>= \case
-            MatchE (ns, enum) -> do
+            MatchE ns enum -> do
               checkNoRequired md
               validDefault <- validateDefaultAsEnum dflt enum
               pure $ TEnum (TypeRef ns (getIdent enum)) (enumType enum) validDefault
-            MatchS (ns, struct) -> checkNoDefault dflt $> TStruct (TypeRef ns (getIdent struct))  (isRequired md)
-            MatchT (ns, table)  -> checkNoDefault dflt $> TTable  (TypeRef ns (getIdent table)) (isRequired md)
-            MatchU (ns, union)  -> checkNoDefault dflt $> TUnion  (TypeRef ns (getIdent union)) (isRequired md)
+            MatchS ns struct -> checkNoDefault dflt $> TStruct (TypeRef ns (getIdent struct))  (isRequired md)
+            MatchT ns table  -> checkNoDefault dflt $> TTable  (TypeRef ns (getIdent table)) (isRequired md)
+            MatchU ns union  -> checkNoDefault dflt $> TUnion  (TypeRef ns (getIdent union)) (isRequired md)
         ST.TVector vecType ->
           checkNoDefault dflt >> TVector (isRequired md) <$>
             case vecType of
@@ -567,13 +572,13 @@ validateTable symbolTables (currentNamespace, table) =
               ST.TVector _ -> throwErrorMsg "nested vector types not supported"
               ST.TRef typeRef ->
                 findDecl currentNamespace symbolTables typeRef <&> \case
-                  MatchE (ns, enum) ->
+                  MatchE ns enum ->
                     VEnum (TypeRef ns (getIdent enum))
                           (enumType enum)
-                  MatchS (ns, struct) ->
+                  MatchS ns struct ->
                     VStruct (TypeRef ns (getIdent struct))
-                  MatchT (ns, table) -> VTable (TypeRef ns (getIdent table))
-                  MatchU (ns, union) -> VUnion (TypeRef ns (getIdent union))
+                  MatchT ns table -> VTable (TypeRef ns (getIdent table))
+                  MatchU ns union -> VUnion (TypeRef ns (getIdent union))
 
 checkNoRequired :: ST.Metadata -> Validation ()
 checkNoRequired md =
@@ -692,15 +697,11 @@ scientificToInteger n notIntegerErrorMsg =
 validateUnions :: FileTree Stage4 -> Validation (FileTree ValidDecls)
 validateUnions symbolTables =
   for symbolTables $ \symbolTable -> do
-    let unions = allUnions symbolTable
-    let validate (namespace, union) = do
-          validUnion <- validateUnion symbolTables (namespace, union)
-          pure (namespace, validUnion)
-    validUnions <- traverse validate unions
+    validUnions <- Map.traverseWithKey (validateUnion symbolTables) (allUnions symbolTable)
     pure symbolTable { allUnions = validUnions }
 
-validateUnion :: FileTree Stage4 -> (Namespace, ST.UnionDecl) -> Validation UnionDecl
-validateUnion symbolTables (currentNamespace, union) =
+validateUnion :: FileTree Stage4 -> (Namespace, Ident) -> ST.UnionDecl -> Validation UnionDecl
+validateUnion symbolTables (currentNamespace, _) union =
   validating (qualify currentNamespace union) $ do
     validUnionVals <- traverse validateUnionVal (ST.unionVals union)
     checkDuplicateVals validUnionVals
@@ -726,8 +727,8 @@ validateUnion symbolTables (currentNamespace, union) =
     validateUnionValType :: TypeRef -> Validation TypeRef
     validateUnionValType typeRef =
       findDecl currentNamespace symbolTables typeRef >>= \case
-        MatchT (ns, table)        -> pure $ TypeRef ns (getIdent table)
-        _                         -> throwErrorMsg "union members may only be tables"
+        MatchT ns table -> pure $ TypeRef ns (getIdent table)
+        _               -> throwErrorMsg "union members may only be tables"
 
     checkDuplicateVals :: NonEmpty UnionVal -> Validation ()
     checkDuplicateVals vals = checkDuplicateIdentifiers (NE.cons "NONE" (fmap getIdent vals))
@@ -744,8 +745,8 @@ validateStructs symbolTables =
   validateFile symbolTable = do
     let structs = allStructs symbolTable
 
-    traverse_ (checkStructCycles symbolTables) structs
-    validStructs <- traverse (validateStruct symbolTables) structs
+    traverse_ (\((ns, _), struct) -> checkStructCycles symbolTables (ns, struct)) (Map.toList structs)
+    validStructs <- Map.traverseWithKey (\(ns, _) struct -> validateStruct symbolTables ns struct) structs
 
     pure symbolTable { allStructs = validStructs }
 
@@ -769,8 +770,8 @@ checkStructCycles symbolTables = go []
                   case ST.structFieldType field of
                     ST.TRef typeRef ->
                       findDecl currentNamespace symbolTables typeRef >>= \case
-                        MatchS struct -> pure (Just struct)
-                        _             -> pure Nothing -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                        MatchS ns struct -> pure (Just (ns, struct))
+                        _                -> pure Nothing -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
                     _ -> pure Nothing -- Field is not a TypeRef, no validation needed
       forM_ innerStructs $ \case
         Just struct -> go (qualifiedName : visited) struct
@@ -784,14 +785,15 @@ data UnpaddedStructField = UnpaddedStructField
 validateStruct ::
      forall m. (MonadState [(Namespace, StructDecl)] m, MonadValidation m)
   => FileTree Stage2
-  -> (Namespace, ST.StructDecl)
-  -> m (Namespace, StructDecl)
-validateStruct symbolTables (currentNamespace, struct) =
+  -> Namespace
+  -> ST.StructDecl
+  -> m StructDecl
+validateStruct symbolTables currentNamespace struct =
   validating (qualify currentNamespace struct) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
     case find (\(ns, s) -> ns == currentNamespace && getIdent s == getIdent struct) validStructs of
-      Just match -> pure match
+      Just (_, match) -> pure match
       Nothing -> do
         checkDuplicateFields
         checkUndeclaredAttributes struct
@@ -814,7 +816,7 @@ validateStruct symbolTables (currentNamespace, struct) =
               , structFields     = paddedFields
               }
         modify ((currentNamespace, validStruct) :)
-        pure (currentNamespace, validStruct)
+        pure validStruct
 
   where
     invalidStructFieldType = "struct fields may only be integers, floating point, bool, enums, or other structs"
@@ -886,11 +888,12 @@ validateStruct symbolTables (currentNamespace, struct) =
         ST.TVector _ -> throwErrorMsg invalidStructFieldType
         ST.TRef typeRef ->
           findDecl currentNamespace symbolTables typeRef >>= \case
-            MatchE (enumNamespace, enum) ->
+            MatchE enumNamespace enum ->
               pure (SEnum (TypeRef enumNamespace (getIdent enum)) (enumType enum))
-            MatchS (nestedNamespace, nestedStruct) ->
+            MatchS nestedNamespace nestedStruct -> do
               -- if this is a reference to a struct, we need to validate it first
-              SStruct <$> validateStruct symbolTables (nestedNamespace, nestedStruct)
+              validNestedStruct <- validateStruct symbolTables nestedNamespace nestedStruct
+              pure $ SStruct (nestedNamespace, validNestedStruct)
             _ -> throwErrorMsg invalidStructFieldType
 
     checkUnsupportedAttributes :: ST.StructField -> m ()

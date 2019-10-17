@@ -110,13 +110,13 @@ mkFlatBuffers rootFilePath opts = do
 
     filterByCurrentModule currentModule (SymbolTable enums structs tables unions) =
       SymbolTable
-        { allEnums   = filter (isCurrentModule currentModule) enums
-        , allStructs = filter (isCurrentModule currentModule) structs
-        , allTables  = filter (isCurrentModule currentModule) tables
-        , allUnions  = filter (isCurrentModule currentModule) unions
+        { allEnums   = Map.filterWithKey (isCurrentModule currentModule) enums
+        , allStructs = Map.filterWithKey (isCurrentModule currentModule) structs
+        , allTables  = Map.filterWithKey (isCurrentModule currentModule) tables
+        , allUnions  = Map.filterWithKey (isCurrentModule currentModule) unions
         }
 
-    isCurrentModule currentModule (ns, _) = NC.namespace ns == currentModule
+    isCurrentModule currentModule (ns, _) _ = NC.namespace ns == currentModule
 
 -- | This does two things:
 --
@@ -130,14 +130,14 @@ fixMsg = List.intercalate "\n" . fmap fixLine . lines
 
 compileSymbolTable :: SemanticAnalysis.ValidDecls -> Q [Dec]
 compileSymbolTable symbolTable = do
-  enumDecs <- join <$> traverse mkEnum (allEnums symbolTable)
-  structDecs <- join <$> traverse mkStruct (allStructs symbolTable)
-  tableDecs <- join <$> traverse mkTable (allTables symbolTable)
-  unionDecs <- join <$> traverse mkUnion (allUnions symbolTable)
+  enumDecs <- join <$> traverse mkEnum (Map.elems (allEnums symbolTable))
+  structDecs <- join <$> traverse mkStruct (Map.elems (allStructs symbolTable))
+  tableDecs <- join <$> traverse mkTable (Map.elems (allTables symbolTable))
+  unionDecs <- join <$> traverse mkUnion (Map.elems (allUnions symbolTable))
   pure $ enumDecs <> structDecs <> tableDecs <> unionDecs
 
-mkEnum :: (Namespace, EnumDecl) -> Q [Dec]
-mkEnum (_, enum) =
+mkEnum :: EnumDecl -> Q [Dec]
+mkEnum enum =
   if enumBitFlags enum
     then mkEnumBitFlags enum
     else mkEnumNormal enum
@@ -287,8 +287,8 @@ mkFromEnum enumName enum enumValsAndNames = do
         []
 
 
-mkStruct :: (Namespace, StructDecl) -> Q [Dec]
-mkStruct (_, struct) = do
+mkStruct :: StructDecl -> Q [Dec]
+mkStruct struct = do
   let structName = mkName' $ NC.dataTypeName struct
   isStructInstance <- mkIsStructInstance structName struct
 
@@ -405,8 +405,8 @@ mkStructFieldGetter structName struct sf =
         SEnum _ enumType -> mkReadExp $ enumTypeToStructFieldType enumType
         SStruct _ -> VarE 'readStruct
 
-mkTable :: (Namespace, TableDecl) -> Q [Dec]
-mkTable (_, table) = do
+mkTable :: TableDecl -> Q [Dec]
+mkTable table = do
   let tableName = mkName' $ NC.dataTypeName table
   (consSig, cons) <- mkTableConstructor tableName table
 
@@ -627,8 +627,8 @@ mkTableFieldGetter tableName table tf =
         , defaultValExp
         ]
 
-mkUnion :: (Namespace, UnionDecl) -> Q [Dec]
-mkUnion (_, union) = do
+mkUnion :: UnionDecl -> Q [Dec]
+mkUnion union = do
   let unionName = mkName' $ NC.dataTypeName union
   let unionValNames = unionVals union <&> \unionVal ->
         mkName $ T.unpack $ NC.enumUnionMember union unionVal
