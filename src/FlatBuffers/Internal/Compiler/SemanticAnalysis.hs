@@ -10,7 +10,7 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad                                 ( forM, forM_, join, when )
+import           Control.Monad                                 ( forM_, join, when )
 import           Control.Monad.Except                          ( throwError )
 import           Control.Monad.Reader                          ( ReaderT, asks, local, runReaderT )
 import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, mapStateT, modify, put )
@@ -37,6 +37,7 @@ import qualified Data.Set                                      as Set
 import           Data.Text                                     ( Text )
 import qualified Data.Text                                     as T
 import           Data.Traversable                              ( for )
+import qualified Data.Witherable                               as Wither
 import           Data.Word
 
 import           FlatBuffers.Internal.Compiler.Display         ( Display(..) )
@@ -765,17 +766,16 @@ checkStructCycles symbolTables = go []
                 <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
                 <>"] - structs cannot contain themselves, directly or indirectly"
             else
-              forM (ST.structFields struct) $ \field ->
+              Wither.forMaybe (NE.toList (ST.structFields struct)) $ \field ->
                 validating field $
                   case ST.structFieldType field of
                     ST.TRef typeRef ->
-                      findDecl currentNamespace symbolTables typeRef >>= \case
-                        MatchS ns struct -> pure (Just (ns, struct))
-                        _                -> pure Nothing -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                      findDecl currentNamespace symbolTables typeRef <&> \case
+                        MatchS ns struct -> Just (ns, struct)
+                        _                -> Nothing -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
                     _ -> pure Nothing -- Field is not a TypeRef, no validation needed
       forM_ innerStructs $ \case
-        Just struct -> go (qualifiedName : visited) struct
-        Nothing     -> pure ()
+        struct -> go (qualifiedName : visited) struct
 
 data UnpaddedStructField = UnpaddedStructField
   { unpaddedStructFieldIdent :: !Ident
