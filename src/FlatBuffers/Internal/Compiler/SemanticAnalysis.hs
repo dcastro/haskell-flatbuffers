@@ -738,11 +738,22 @@ validateUnion symbolTables (currentNamespace, _) union =
 ----------------------------------
 ------------ Structs -------------
 ----------------------------------
+
+-- | Cache of already validated structs.
+--
+-- When we're validating a struct `A`, it may contain an inner struct `B` which also needs validating.
+-- `B` needs to be fully validated before we can consider `A` valid.
+--
+-- If we've validated `B` in a previous iteration, we will find it in this Map
+-- and therefore avoid re-validating it.
+type ValidatedStructs = Map (Namespace, Ident) StructDecl
+
+
 validateStructs :: FileTree Stage2 -> Validation (FileTree Stage3)
 validateStructs symbolTables =
-  flip evalStateT [] $ traverse validateFile symbolTables
+  flip evalStateT Map.empty $ traverse validateFile symbolTables
   where
-  validateFile :: Stage2 -> StateT [(Namespace, StructDecl)] Validation Stage3
+  validateFile :: Stage2 -> StateT ValidatedStructs Validation Stage3
   validateFile symbolTable = do
     let structs = allStructs symbolTable
 
@@ -783,7 +794,7 @@ data UnpaddedStructField = UnpaddedStructField
   } deriving (Show, Eq)
 
 validateStruct ::
-     forall m. (MonadState [(Namespace, StructDecl)] m, MonadValidation m)
+     forall m. (MonadState ValidatedStructs m, MonadValidation m)
   => FileTree Stage2
   -> Namespace
   -> ST.StructDecl
@@ -792,8 +803,8 @@ validateStruct symbolTables currentNamespace struct =
   validating (qualify currentNamespace struct) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration
-    case find (\(ns, s) -> ns == currentNamespace && getIdent s == getIdent struct) validStructs of
-      Just (_, match) -> pure match
+    case Map.lookup (currentNamespace, getIdent struct) validStructs of
+      Just match -> pure match
       Nothing -> do
         checkDuplicateFields
         checkUndeclaredAttributes struct
@@ -815,7 +826,7 @@ validateStruct symbolTables currentNamespace struct =
               , structSize       = size
               , structFields     = paddedFields
               }
-        modify ((currentNamespace, validStruct) :)
+        modify (Map.insert (currentNamespace, getIdent validStruct) validStruct)
         pure validStruct
 
   where
