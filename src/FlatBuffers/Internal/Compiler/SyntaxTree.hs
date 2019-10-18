@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
@@ -39,7 +40,10 @@ data Decl
 
 newtype Ident = Ident
   { unIdent :: Text
-  } deriving newtype (Show, Eq, IsString, Ord, Semigroup, Display)
+  } deriving newtype (Show, Eq, IsString, Ord, Semigroup)
+
+instance Display Ident where
+  display (Ident i) = "'" <> display i <> "'"
 
 newtype Include = Include
   { unInclude :: StringLiteral
@@ -161,7 +165,7 @@ newtype Namespace = Namespace {unNamespace :: [Text] }
   deriving newtype (Eq, Ord, Semigroup)
 
 instance Display Namespace where
-  display (Namespace ns) = display $ T.intercalate "." ns
+  display (Namespace ns) = "'" <> T.unpack (T.intercalate "." ns) <> "'"
 
 instance Show Namespace where
   show = show . display
@@ -172,7 +176,8 @@ instance IsString Namespace where
 
 qualify :: HasIdent a => Namespace -> a -> Ident
 qualify "" a = getIdent a
-qualify ns a = Ident (T.pack (display ns <> "." <> display (getIdent a)))
+qualify (Namespace ns) (getIdent -> Ident ident) =
+  Ident (T.intercalate "." ns <> "." <> ident)
 
 class HasIdent a where
   getIdent :: a -> Ident

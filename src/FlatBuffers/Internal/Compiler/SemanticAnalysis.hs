@@ -82,10 +82,10 @@ instance MonadValidation Validation where
   getContext            = Validation (asks (List.reverse . validationStateCurrentContext))
   getDeclaredAttributes = Validation (asks validationStateAllAttributes)
   throwErrorMsg msg = do
-    ctx <- getContext
-    if null ctx
+    idents <- getContext
+    if null idents
       then Validation (throwError msg)
-      else Validation . throwError $ "[" <> List.intercalate "." (display <$> ctx) <> "]: " <> msg
+      else Validation . throwError $ "[" <> List.intercalate "." (T.unpack . unIdent <$> idents) <> "]: " <> msg
 
 instance MonadValidation m => MonadValidation (StateT s m)  where
   validating            = mapStateT . validating
@@ -177,7 +177,7 @@ createSymbolTables = traverse (createSymbolTable . ST.decls)
 insertSymbol :: HasIdent a => Namespace -> a -> Map (Namespace, Ident) a -> Validation (Map (Namespace, Ident) a)
 insertSymbol namespace symbol map =
   if Map.member key map
-    then throwErrorMsg $ "'" <> display (qualify namespace symbol) <> "' declared more than once"
+    then throwErrorMsg $ display (qualify namespace symbol) <> " declared more than once"
     else pure $ Map.insert key symbol map
   where
     key = (namespace, getIdent symbol)
@@ -304,9 +304,9 @@ findDecl currentNamespace symbolTables typeRef@(TypeRef refNamespace refIdent) =
       Just match -> pure match
       Nothing    ->
         throwErrorMsg $
-          "type '"
+          "type "
           <> display typeRef
-          <> "' does not exist (checked in these namespaces: "
+          <> " does not exist (checked in these namespaces: "
           <> display parentNamespaces'
           <> ")"
 
@@ -370,13 +370,13 @@ validateEnum (currentNamespace, _) enum =
           case outOfOrderPais of
             []         -> pure ()
             (x, y) : _ -> throwErrorMsg $
-              "enum values must be specified in ascending order. '"
+              "enum values must be specified in ascending order. "
               <> display (enumValIdent y)
-              <> "' ("
+              <> " ("
               <> display (enumValInt y)
-              <> ") should be greater than '"
+              <> ") should be greater than "
               <> display (enumValIdent x)
-              <> "' ("
+              <> " ("
               <> display (enumValInt x)
               <> ")"
 
@@ -649,7 +649,10 @@ validateDefaultAsEnum dflt enum =
         else
           case refs of
             ref :| [] -> findEnumByRef ref
-            _         -> throwErrorMsg $ "default value must be a single identifier, found " <> display (NE.length refs) <> ": " <> display refs
+            _         -> throwErrorMsg $ "default value must be a single identifier, found "
+                          <> display (NE.length refs)
+                          <> ": "
+                          <> display (fmap (\ref -> "'" <> ref <> "'") refs)
     Just (ST.DefaultBool _) ->
       throwErrorMsg defaultErrorMsg
   where
@@ -660,9 +663,9 @@ validateDefaultAsEnum dflt enum =
             "default value must be integral, one of ["
             <> display (getIdent <$> enumVals enum)
             <> "], or a combination of the latter in double quotes (e.g. \""
-            <> display (getIdent x)
+            <> T.unpack (unIdent (getIdent x))
             <> " "
-            <> display (getIdent y)
+            <> T.unpack (unIdent (getIdent y))
             <> "\")"
           _ ->
             "default value must be integral or one of: " <> display (getIdent <$> enumVals enum)

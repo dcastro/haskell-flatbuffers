@@ -832,7 +832,7 @@ spec =
               table T { x: E = 3; }
               enum E : short{ A, B, C }
             |] `shouldFail`
-              "[T.x]: default value of 3 is not part of enum E"
+              "[T.x]: default value of 3 is not part of enum 'E'"
 
           it "valid identifier" $
             [r|
@@ -847,7 +847,7 @@ spec =
 
           it "invalid identifier" $
             [r| table T { x: E = D; } enum E : short{ A, B, C } |] `shouldFail`
-              "[T.x]: default value of D is not part of enum E"
+              "[T.x]: default value of D is not part of enum 'E'"
 
           it "multiple identifiers" $
             [r| table T { x: E = "B C"; } enum E : short{ A, B, C } |] `shouldFail`
@@ -948,7 +948,7 @@ spec =
 
           it "invalid identifier" $
             [r| table T { x: E = D; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
-              "[T.x]: default value of D is not part of enum E"
+              "[T.x]: default value of D is not part of enum 'E'"
 
           it "multiple valid identifiers" $
             [r|
@@ -966,7 +966,7 @@ spec =
               table T { x: E = "B X C"; }
               enum E : ushort (bit_flags) { A, B, C }
             |] `shouldFail`
-              "[T.x]: default value of X is not part of enum E"
+              "[T.x]: default value of X is not part of enum 'E'"
 
           it "decimal number" $
             [r| table T { x: E = 1.5; } enum E : ushort (bit_flags) { A, B, C } |] `shouldFail`
@@ -1330,13 +1330,21 @@ spec =
               ])
           ]
 
+      it "can use the same table twice, if using a qualified name and an alias" $
+        [r|
+          namespace A;
+          table T{}
+          union U {T, alias:A.T}
+        |] `shouldValidate` foldDecls
+          [ table ("A", TableDecl "T" NotRoot [])
+          , union ("A", UnionDecl "U"
+              [ UnionVal "T"     (TypeRef "A" "T")
+              , UnionVal "alias" (TypeRef "A" "T")
+              ])
+          ]
 
 
 
-
-
---           -- property: struct size (including paddings) = multiple of alignment
---           -- property: alignment max alignment ???
 
 foldDecls :: [ValidDecls] -> ValidDecls
 foldDecls = fold

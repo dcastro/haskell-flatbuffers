@@ -23,9 +23,7 @@ instance Display a => Display (NonEmpty a) where
   display = display . NE.toList
 
 instance Display a => Display [a] where
-  display xs = List.intercalate ", " (fmap displayOne xs)
-    where
-      displayOne x = "'" <> display x <> "'"
+  display xs = List.intercalate ", " (fmap display xs)
 
 instance Display Int     where display = show
 instance Display Integer where display = show
