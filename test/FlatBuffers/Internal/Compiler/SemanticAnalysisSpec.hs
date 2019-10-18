@@ -7,6 +7,7 @@ module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 import           Data.Bits                                      ( shiftL )
 import           Data.Foldable                                  ( fold )
 import           Data.Int
+import           Data.List.NonEmpty                             ( NonEmpty((:|)) )
 import qualified Data.Map.Strict                                as Map
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
@@ -24,12 +25,26 @@ spec :: Spec
 spec =
   describe "SemanticAnalysis" $ do
     it "top-level identifiers cannot have duplicates in the same namespace" $ do
-      [r| namespace A; enum E:int{x} enum E:int{x} |] `shouldFail` "'A.E' declared more than once"
-      [r| enum E:int{x}     enum E:int{x}     |] `shouldFail` "'E' declared more than once"
-      [r| struct S{x:int;}  struct S{x:int;}  |] `shouldFail` "'S' declared more than once"
-      [r| table T{}         table T{}         |] `shouldFail` "'T' declared more than once"
-      [r| union U{x}        union U{x}        |] `shouldFail` "'U' declared more than once"
-      [r| union X{x}        table X{}         |] `shouldFail` "'X' declared more than once"
+      [r| namespace A; enum E:int{x}     enum E:int{x}     |] `shouldFail` "'A.E' declared more than once"
+      [r|              enum E:int{x}     enum E:int{x}     |] `shouldFail` "'E' declared more than once"
+      [r|              struct S{x:int;}  struct S{x:int;}  |] `shouldFail` "'S' declared more than once"
+      [r|              table T{}         table T{}         |] `shouldFail` "'T' declared more than once"
+      [r|              union U{x}        union U{x}        |] `shouldFail` "'U' declared more than once"
+      [r| namespace A; union X{x}        table X{}         |] `shouldFail` "'A.X' declared more than once"
+      [r|              union X{x}        table X{}         |] `shouldFail` "'X' declared more than once"
+
+    it "top-level identifiers cannot have duplicates in the same namespace, in different files" $ do
+      [   [r| namespace A; enum E:int{x} |]
+        , [r| namespace A; enum E:int{y} |]
+        ] `shouldFail'` "'A.E' declared more than once"
+
+      [   [r| namespace A; enum X:int{x} |]
+        , [r| namespace A; table X {y: int;} |]
+        ] `shouldFail'` "'A.X' declared more than once"
+
+      [   [r| enum X:int{x} |]
+        , [r| table X {y: int;} |]
+        ] `shouldFail'` "'X' declared more than once"
 
     it "top-level identifiers can be duplicates, if they live in different namespaces" $
       [r|
@@ -1386,6 +1401,16 @@ shouldFail input expectedErrorMsg =
     Right schema ->
       let schemas = FileTree "" schema []
       in  validateSchemas schemas `shouldBe` Left expectedErrorMsg
+
+
+shouldFail' :: HasCallStack => NonEmpty String -> String -> Expectation
+shouldFail' inputs expectedErrorMsg =
+  case traverse (parse P.schema "") inputs of
+    Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
+    Right (schema :| schemas) ->
+      let importesFilepathsAndSchemas = Map.fromList (fmap (\s -> ("", s)) schemas)
+          fileTree = FileTree "" schema importesFilepathsAndSchemas
+      in  validateSchemas fileTree `shouldBe` Left expectedErrorMsg
 
 showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty

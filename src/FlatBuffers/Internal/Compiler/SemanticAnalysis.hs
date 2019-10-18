@@ -279,7 +279,6 @@ data Match enum struct table union
   | MatchU !Namespace !union
 
 -- | Looks for a type reference in a set of type declarations.
--- If none is found, the list of namespaces in which the type reference was searched for is returned.
 findDecl ::
      MonadValidation m
   => Namespace
