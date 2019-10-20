@@ -37,7 +37,6 @@ import qualified Data.Set                                      as Set
 import           Data.Text                                     ( Text )
 import qualified Data.Text                                     as T
 import           Data.Traversable                              ( for )
-import qualified Data.Witherable                               as Wither
 import           Data.Word
 
 import           FlatBuffers.Internal.Compiler.Display         ( Display(..) )
@@ -68,6 +67,8 @@ data ValidationState = ValidationState
 class Monad m => MonadValidation m where
   -- | Start validating an item `a`
   validating :: HasIdent a => a -> m b -> m b
+  -- | Clear validation context, i.e. forget which item is currently being validated, if any.
+  resetContext :: m a -> m a
   -- | Get the path to the item currently being validated
   getContext :: m [Ident]
   -- | Get a list of all the attributes declared in every loaded schema
@@ -79,6 +80,9 @@ instance MonadValidation Validation where
   validating a (Validation v) = Validation (local addIdent v)
     where
       addIdent (ValidationState ctx attrs) = ValidationState (getIdent a : ctx) attrs
+  resetContext (Validation v) = Validation (local reset v)
+    where
+      reset (ValidationState _ attrs) = ValidationState [] attrs
   getContext            = Validation (asks (List.reverse . validationStateCurrentContext))
   getDeclaredAttributes = Validation (asks validationStateAllAttributes)
   throwErrorMsg msg = do
@@ -89,6 +93,7 @@ instance MonadValidation Validation where
 
 instance MonadValidation m => MonadValidation (StateT s m)  where
   validating            = mapStateT . validating
+  resetContext          = mapStateT resetContext
   getContext            = lift getContext
   getDeclaredAttributes = lift getDeclaredAttributes
   throwErrorMsg         = lift . throwErrorMsg
@@ -770,7 +775,7 @@ checkStructCycles symbolTables = go []
     go :: [Ident] -> (Namespace, ST.StructDecl) -> m ()
     go visited (currentNamespace, struct) = do
       let qualifiedName = qualify currentNamespace struct
-      innerStructs <-
+      resetContext $
         validating qualifiedName $
           if qualifiedName `elem` visited
             then
@@ -779,16 +784,14 @@ checkStructCycles symbolTables = go []
                 <> display (T.intercalate " -> " . coerce $ List.dropWhile (/= qualifiedName) $ List.reverse (qualifiedName : visited))
                 <>"] - structs cannot contain themselves, directly or indirectly"
             else
-              Wither.forMaybe (NE.toList (ST.structFields struct)) $ \field ->
+              forM_ (ST.structFields struct) $ \field ->
                 validating field $
                   case ST.structFieldType field of
                     ST.TRef typeRef ->
-                      findDecl currentNamespace symbolTables typeRef <&> \case
-                        MatchS ns struct -> Just (ns, struct)
-                        _                -> Nothing -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
-                    _ -> pure Nothing -- Field is not a TypeRef, no validation needed
-      forM_ innerStructs $ \case
-        struct -> go (qualifiedName : visited) struct
+                      findDecl currentNamespace symbolTables typeRef >>= \case
+                        MatchS ns struct -> go (qualifiedName : visited) (ns, struct)
+                        _                -> pure () -- The TypeRef points to an enum (or is invalid), so no further validation is needed at this point
+                    _                    -> pure () -- Field is not a TypeRef, no validation needed
 
 data UnpaddedStructField = UnpaddedStructField
   { unpaddedStructFieldIdent :: !Ident
@@ -802,6 +805,7 @@ validateStruct ::
   -> ST.StructDecl
   -> m StructDecl
 validateStruct symbolTables currentNamespace struct =
+  resetContext $
   validating (qualify currentNamespace struct) $ do
     validStructs <- get
     -- Check if this struct has already been validated in a previous iteration

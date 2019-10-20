@@ -492,6 +492,11 @@ spec =
         [r| struct S { x: string; } |] `shouldFail`
           "[S.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
 
+      it "with invalid nested struct" $ do
+        let expectedErrorMsg = "[S2.x]: struct fields may only be integers, floating point, bool, enums, or other structs"
+        [r| struct S1 { x: S2; }     struct S2 { x: string; } |] `shouldFail` expectedErrorMsg
+        [r| struct S2 { x: string; } struct S1 { x: S2; }     |] `shouldFail` expectedErrorMsg
+
       it "with duplicate fields" $
         [r| struct S { x: byte; x: int; } |] `shouldFail`
           "[S]: 'x' declared more than once"

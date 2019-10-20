@@ -180,7 +180,7 @@ prop_inlineTableFieldAlignment size alignment tableField = property $ do
   padding `isLessThan` fromIntegral alignment
 
   -- The buffer is aligned to `alignment` bytes
-  getSum (bufferSize finalState) `mod` fromIntegral alignment === 0
+  bufferSize finalState `isAlignedTo` fromIntegral alignment
 
 
 prop_inlineVectorAlignment ::
