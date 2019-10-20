@@ -294,9 +294,16 @@ spec =
               fromColor :: Color -> Int8
               fromColor n =
                 case n of
-                  ColorRed -> 1
+                  ColorRed  -> 1
                   ColorBlue -> 2
               {-# INLINE fromColor #-}
+
+              colorName :: Color -> Text
+              colorName c =
+                case c of
+                  ColorRed  -> T.pack "Red"
+                  ColorBlue -> T.pack "Blue"
+              {-# INLINE colorName #-}
 
               data T
 
@@ -766,6 +773,10 @@ spec =
                 fromColor n = case n of ColorRed -> 0
                 {-# INLINE fromColor #-}
 
+                colorName :: Color -> Text
+                colorName c = case c of ColorRed -> T.pack "red"
+                {-# INLINE colorName #-}
+
                 data T1
                 t1 :: Maybe (WriteVector Int16) -> WriteTable T1
                 t1 a = writeTable
@@ -795,6 +806,10 @@ spec =
                 fromColor :: Color -> Int16
                 fromColor n = case n of ColorRed -> 0
                 {-# INLINE fromColor #-}
+
+                colorName :: Color -> Text
+                colorName c = case c of ColorRed -> T.pack "red"
+                {-# INLINE colorName #-}
 
                 data T1
                 t1 :: WriteVector Int16 -> WriteTable T1
@@ -1013,7 +1028,7 @@ spec =
 
     describe "Enums" $
       it "naming conventions" $ do
-        let expected =
+        let expected redName greenName =
               [d|
                 data MyColor = MyColorIsRed | MyColorIsGreen
                   deriving (Eq, Show, Read, Ord, Bounded)
@@ -1032,12 +1047,19 @@ spec =
                     MyColorIsRed -> -2
                     MyColorIsGreen -> -1
                 {-# INLINE fromMyColor #-}
+
+                myColorName :: MyColor -> Text
+                myColorName c =
+                  case c of
+                    MyColorIsRed   -> T.pack $(stringE redName)
+                    MyColorIsGreen -> T.pack $(stringE greenName)
+                {-# INLINE myColorName #-}
               |]
 
-        [r| enum my_color: int16 { is_red = -2, is_green  } |] `shouldCompileTo` expected
-        [r| enum My_Color: int16 { Is_Red = -2, Is_Green  } |] `shouldCompileTo` expected
-        [r| enum MyColor:  int16 { IsRed = -2,  IsGreen   } |] `shouldCompileTo` expected
-        [r| enum myColor:  int16 { isRed = -2,  isGreen   } |] `shouldCompileTo` expected
+        [r| enum my_color: int16 { is_red = -2, is_green  } |] `shouldCompileTo` expected "is_red" "is_green"
+        [r| enum My_Color: int16 { Is_Red = -2, Is_Green  } |] `shouldCompileTo` expected "Is_Red" "Is_Green"
+        [r| enum MyColor:  int16 { IsRed = -2,  IsGreen   } |] `shouldCompileTo` expected "IsRed"  "IsGreen"
+        [r| enum myColor:  int16 { isRed = -2,  isGreen   } |] `shouldCompileTo` expected "isRed"  "isGreen"
 
 
     describe "Enums with bit_flags" $
@@ -1175,6 +1197,10 @@ spec =
             fromE :: E -> Int8
             fromE n = case n of EX -> 0
             {-# INLINE fromE #-}
+
+            eName :: E -> Text
+            eName c = case c of EX -> T.pack "X"
+            {-# INLINE eName #-}
 
             data S
             instance IsStruct S where

@@ -171,7 +171,7 @@ mkEnumBitFlagsAllValls enum enumValNames =
       body = ListE (VarE <$> enumValNames)
   in  [sig, fun, inlinePragma name]
 
--- |  Generates @colorsNames@.
+-- | Generates @colorsNames@.
 mkEnumBitFlagsNames :: EnumDecl -> [Name] -> Q [Dec]
 mkEnumBitFlagsNames enum enumValNames = do
   inputName <- newName "c"
@@ -217,10 +217,12 @@ mkEnumNormal enum = do
         mkName $ T.unpack $ NC.enumUnionMember enum enumVal
 
   let enumDec = mkEnumDataDec enumName enumValNames
-  toEnumDecs <- mkToEnum enumName enum (enumVals enum `NE.zip` enumValNames)
-  fromEnumDecs <- mkFromEnum enumName enum (enumVals enum `NE.zip` enumValNames)
+  let enumValsAndNames = enumVals enum `NE.zip` enumValNames
+  toEnumDecs <- mkToEnum enumName enum enumValsAndNames
+  fromEnumDecs <- mkFromEnum enumName enum enumValsAndNames
+  enumNameDecs <- mkEnumNameFun enumName enum enumValsAndNames
 
-  pure $ enumDec : toEnumDecs <> fromEnumDecs
+  pure $ enumDec : toEnumDecs <> fromEnumDecs <> enumNameDecs
 
 mkEnumDataDec :: Name -> NonEmpty Name -> Dec
 mkEnumDataDec enumName enumValNames =
@@ -284,6 +286,28 @@ mkFromEnum enumName enum enumValsAndNames = do
       Match
         (ConP enumName [])
         (NormalB (intLitE (enumValInt enumVal)))
+        []
+
+-- | Generates @colorsName@.
+mkEnumNameFun :: Name -> EnumDecl -> NonEmpty (EnumVal, Name) -> Q [Dec]
+mkEnumNameFun enumName enum enumValsAndNames = do
+  let funName = mkName' $ NC.enumNameFun enum
+  argName <- newName "c"
+  pure
+    [ SigD funName (ConT enumName ~> ConT ''Text)
+    , FunD funName
+      [ Clause
+        [VarP argName]
+        (NormalB (CaseE (VarE argName) (mkMatch <$> NE.toList enumValsAndNames)))
+        []
+      ]
+    , inlinePragma funName
+    ]
+  where
+    mkMatch (enumVal, enumName) =
+      Match
+        (ConP enumName [])
+        (NormalB (textLitE (unIdent (getIdent enumVal))))
         []
 
 

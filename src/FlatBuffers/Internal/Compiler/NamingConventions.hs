@@ -51,6 +51,10 @@ enumBitFlagsNamesFun :: EnumDecl -> Text
 enumBitFlagsNamesFun (getIdent -> Ident enumIdent) =
   TM.toCamel enumIdent <> "Names"
 
+enumNameFun :: EnumDecl -> Text
+enumNameFun (getIdent -> Ident enumIdent) =
+  TM.toCamel enumIdent <> "Name"
+
 unionConstructor :: UnionDecl -> UnionVal -> Text
 unionConstructor (getIdent -> Ident unionIdent) (getIdent -> Ident unionValIdent) =
   TM.toCamel unionIdent <> TM.toPascal unionValIdent

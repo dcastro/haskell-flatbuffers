@@ -116,6 +116,16 @@ fromColor n =
     ColorGray  -> 5
     ColorBlack -> 8
 
+{-# INLINE colorName #-}
+colorName :: Color -> Text
+colorName c =
+  case c of
+    ColorRed   -> "Red"
+    ColorGreen -> "Green"
+    ColorBlue  -> "Blue"
+    ColorGray  -> "Gray"
+    ColorBlack -> "Black"
+
 ----------------------------------
 ------------- Enums --------------
 ----------------------------------
