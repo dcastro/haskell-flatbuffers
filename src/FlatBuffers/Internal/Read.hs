@@ -187,11 +187,15 @@ class VectorElement a where
   -- | @take n xs@ returns the prefix of @xs@ of length @n@, or @xs@ itself if @n > length xs@.
   --
   -- /O(1)/.
+  --
+  -- @since 0.2.0.0
   take :: Int32 -> Vector a -> Vector a
 
   -- | @drop n xs@ returns the suffix of @xs@ after the first @n@ elements, or @[]@ if @n > length xs@.
   --
   -- /O(c)/, where /c/ is the number of chunks in the underlying `ByteString`.
+  --
+  -- @since 0.2.0.0
   drop :: Int32 -> Vector a -> Vector a
 
 -- | Returns the item at the given index.
@@ -204,6 +208,8 @@ index vec ix = unsafeIndex vec . checkIndexBounds ix $ length vec
 -- | Convert the vector to a lazy `ByteString`.
 --
 -- /O(c)/, where /c/ is the number of chunks in the underlying `ByteString`.
+--
+-- @since 0.2.0.0
 toByteString :: Vector Word8 -> ByteString
 toByteString (VectorWord8 len pos) =
   BSL.take (fromIntegral @Int32 @Int64 len) pos

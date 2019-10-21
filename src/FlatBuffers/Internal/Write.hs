@@ -352,6 +352,8 @@ class WriteVectorElement a where
   --
   -- 1. `Mono.olength` is often O(n), and in some use cases there may be a better way to know the collection's length ahead of time.
   -- 2. Calling `Mono.olength` inside `fromMonoFoldable` can inhibit some fusions which would otherwise be possible.
+  --
+  -- @since 0.2.0.0
 
 
   -- Implementer's note:
@@ -387,6 +389,8 @@ class WriteVectorElement a where
 -- > fromMonoFoldable' xs = fromMonoFoldable (fromIntegral (olength xs)) xs
 --
 -- In some cases it may be slower than using `fromMonoFoldable` directly.
+--
+-- @since 0.2.0.0
 {-# INLINE fromMonoFoldable' #-}
 fromMonoFoldable' :: (WriteVectorElement a, MonoFoldable mono, Element mono ~ a) => mono -> WriteVector a
 fromMonoFoldable' xs = fromMonoFoldable (fromIntegral $ Mono.olength xs) xs
@@ -424,6 +428,8 @@ fromFoldable' = fromMonoFoldable' . FromFoldable
 
 -- | Efficiently creates a vector from a `BS.ByteString`.
 -- Large `BS.ByteString`s are inserted directly, but small ones are copied to ensure that the generated chunks are large on average.
+--
+-- @since 0.2.0.0
 fromByteString :: BS.ByteString -> WriteVector Word8
 fromByteString bs = WriteVectorWord8 . WriteTableField $ do
   modify' $!
@@ -439,6 +445,8 @@ fromByteString bs = WriteVectorWord8 . WriteTableField $ do
 
 -- | Efficiently creates a vector from a lazy `BSL.ByteString`.
 --  Large chunks of the `BSL.ByteString` are inserted directly, but small ones are copied to ensure that the generated chunks are large on average.
+--
+-- @since 0.2.0.0
 fromLazyByteString :: BSL.ByteString -> WriteVector Word8
 fromLazyByteString bs = WriteVectorWord8 . WriteTableField $ do
   modify' $!

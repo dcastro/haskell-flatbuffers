@@ -65,7 +65,7 @@ data ValidationState = ValidationState
   }
 
 class Monad m => MonadValidation m where
-  -- | Start validating an item `a`
+  -- | Start validating an item @a@
   validating :: HasIdent a => a -> m b -> m b
   -- | Clear validation context, i.e. forget which item is currently being validated, if any.
   resetContext :: m a -> m a
@@ -748,10 +748,10 @@ validateUnion symbolTables (currentNamespace, _) union =
 
 -- | Cache of already validated structs.
 --
--- When we're validating a struct `A`, it may contain an inner struct `B` which also needs validating.
--- `B` needs to be fully validated before we can consider `A` valid.
+-- When we're validating a struct @A@, it may contain an inner struct @B@ which also needs validating.
+-- @B@ needs to be fully validated before we can consider @A@ valid.
 --
--- If we've validated `B` in a previous iteration, we will find it in this Map
+-- If we've validated @B@ in a previous iteration, we will find it in this Map
 -- and therefore avoid re-validating it.
 type ValidatedStructs = Map (Namespace, Ident) StructDecl
 

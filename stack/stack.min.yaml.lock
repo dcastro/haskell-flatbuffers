@@ -152,6 +152,13 @@ packages:
   original:
     hackage: process-1.6.5.0
 - completed:
+    hackage: mono-traversable-1.0.1.2@sha256:6f03b5eeb7d20fcf1f951f55caac698d2dead49c15be3bbf320cf0020769b812,2663
+    pantry-tree:
+      size: 761
+      sha256: f2a5a84b6c1a59114cc1395afd7ce5564d8518fec4f5c2bfb6399d05248566a4
+  original:
+    hackage: mono-traversable-1.0.1.2
+- completed:
     hackage: hspec-megaparsec-2.0.1@sha256:7f26ab334eaa653054766110cf259c31314d1c2ec170270e56101e344ce65ef9,2163
     pantry-tree:
       size: 385
