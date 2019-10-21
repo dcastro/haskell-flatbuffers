@@ -1,7 +1,7 @@
 # Changelog
 
 
-## 0.2.0.0
+## 0.2.0.0 (2019-10-21)
 
 
 * Add support for bitmasks, i.e. enums with the `bit_flags` attribute.
