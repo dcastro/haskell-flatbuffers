@@ -8,6 +8,7 @@ An implementation of the [flatbuffers protocol][flatbuffers] in Haskell.
 - [Getting started](#getting-started)
   - [Codegen](#codegen)
   - [Enums](#enums)
+  - [Bit flags / Bitmasks](#bit-flags--bitmasks)
   - [Structs](#structs)
   - [Unions](#unions)
   - [File Identifiers](#file-identifiers)
@@ -57,23 +58,37 @@ We can now construct a flatbuffer using `encode` and read it using `decode`:
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
+import           Data.ByteString.Lazy (ByteString)
 import           FlatBuffers
 import qualified FlatBuffers.Vector as Vector
 
 -- Writing
-let byteString = encode $
+byteString = encode $
       monster
         (Just "Poring")
         (Just 50)
         (Vector.fromList 2 ["Prontera Field", "Payon Forest"])
 
 -- Reading
-do
+readMonster :: ByteString -> Either ReadError String
+readMonster byteString = do
   someMonster <- decode byteString
   name        <- monsterName someMonster
   hp          <- monsterHp someMonster
   locations   <- monsterLocations someMonster >>= Vector.toList
   Right ("Monster: " <> show name <> " (" <> show hp <> " HP) can be found in " <> show locations)
+```
+
+For the rest of this document, we'll assume these imports/extensions are enabled:
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+
+import           Data.ByteString.Lazy (ByteString)
+import           Data.Text (Text)
+import qualified Data.Text as Text
+import           FlatBuffers
+import qualified FlatBuffers.Vector as Vector
 ```
 
 ### Codegen
@@ -101,7 +116,9 @@ In particular, `test/Examples/schema.fbs` and `test/Examples/vector_of_unions.fb
 ### Enums
 
 ```
-enum Color: short { Red, Green, Blue }
+enum Color: short {
+  Red, Green, Blue
+}
 ```
 
 Given the enum declarationa above, the following code will be generated:
@@ -115,6 +132,8 @@ data Color
 
 toColor   :: Int16 -> Maybe Color
 fromColor :: Color -> Int16
+
+colorName :: Color -> Text
 ```
 
 Usage:
@@ -130,21 +149,80 @@ data Monster
 
 monster      :: Maybe Int16 -> WriteTable Monster
 monsterColor :: Table Monster -> Either ReadError Int16
+```
 
+```haskell
 -- Writing
-let byteString = encode $
+byteString = encode $
       monster (Just (fromColor ColorBlue))
 
 -- Reading
-do
+readMonster :: ByteString -> Either ReadError Text
+readMonster byteString = do
   someMonster <- decode byteString
-  short       <- monsterColor someMonster
-  case toColor short of
-    Just ColorRed   -> Right "This monster is red"
-    Just ColorGreen -> Right "This monster is green"
-    Just ColorBlue  -> Right "This monster is blue"
-    Nothing         -> Left ("Unknown color: " <> show short) -- Forwards compatibility
+  i           <- monsterColor someMonster
+  case toColor i of
+    Just color -> Right ("This monster is " <> colorName color)
+    Nothing    -> Left ("Unknown color: " <> show i) -- Forwards compatibility
 ```
+
+### Bit flags / Bitmasks
+
+```
+enum Colors: uint16 (bit_flags) {
+  Red, Green, Blue
+}
+```
+
+Given the enum declarationa above, the following code will be generated:
+
+```haskell
+colorsRed, colorsGreen, colorsBlue :: Word16
+colorsRed = 1
+colorsGreen = 2
+colorsBlue = 4
+
+allColors :: [Word16]
+
+colorsNames :: Word16 -> [Text]
+```
+
+Usage:
+
+```
+table Monster {
+  colors: Colors = "Red Blue";
+}
+```
+
+```haskell
+data Monster
+
+monster       :: Maybe Word16 -> WriteTable Monster
+monsterColors :: Table Monster -> Either ReadError Word16
+```
+
+```haskell
+import Control.Monad.Except (MonadError, MonadIO, liftEither, liftIO)
+import Data.Bits ((.|.), (.&.))
+import qualified Data.Text.IO as Text
+
+-- Writing
+byteString = encode $
+      monster (Just (colorsBlue .|. colorsGreen))
+
+-- Reading
+readMonster :: (MonadIO m, MonadError ReadError m) => ByteString -> m ()
+readMonster byteString = do
+  someMonster <- liftEither $ decode byteString
+  colors      <- liftEither $ monsterColors someMonster
+
+  let isRed = colors .&. colorsRed /= 0
+  liftIO $ putStrLn $ "Is this monster red? " <> if isRed then "Yes" else "No"
+
+  liftIO $ Text.putStrLn $ "Monster colors: " <> Text.intercalate ", " (colorsNames colors)
+```
+
 
 ### Structs
 
@@ -182,13 +260,16 @@ data Monster
 
 monster         :: WriteStruct Coord -> WriteTable Monster
 monsterPosition :: Table Monster -> Either ReadError (Struct Coord)
+```
 
+```haskell
 -- Writing
-let byteString = encode $
+byteString = encode $
       monster (coord 123 456)
 
 -- Reading
-do
+readMonster :: ByteString -> Either ReadError String
+readMonster byteString = do
   someMonster <- decode byteString
   pos         <- monsterPosition someMonster
   x           <- coordX pos
@@ -230,14 +311,17 @@ data Character
 
 character       :: WriteUnion Weapon -> WriteTable Character
 characterWeapon :: Table Character -> Either ReadError (Union Weapon)
+```
 
+```haskell
 -- Writing
-let byteString = encode $
+byteString = encode $
       character
         (weaponSword (sword (Just 1000)))
 
 -- Reading
-do
+readCharacter :: ByteString -> Either ReadError String
+readCharacter byteString = do
   someCharacter <- decode byteString
   weapon        <- characterWeapon someCharacter
   case weapon of
@@ -257,7 +341,7 @@ Adding the `required` attribute to a union field has no effect.
 To create a character with no weapon, use `none :: WriteUnion a`
 
 ```haskell
-let byteString = encode $
+byteString = encode $
       character none
 ```
 
@@ -290,18 +374,20 @@ We can now construct a flatbuffer using `encodeWithFileIdentifier` and use `chec
 {-# LANGUAGE TypeApplications #-}
 
 -- Writing
-let byteString = encodeWithFileIdentifier $
+byteString = encodeWithFileIdentifier $
       monster (Just "Poring")
 
 -- Reading
-if checkFileIdentifier @Monster byteString then do
-  someMonster <- decode byteString
-  monsterName someMonster
-else if checkFileIdentifier @Character byteString then do
-  someCharacter <- decode byteString
-  characterName someCharacter
-else
-  Left "Unexpected flatbuffer identifier"
+readName :: ByteString -> Either ReadError (Maybe Text)
+readName byteString = do
+  if checkFileIdentifier @Monster byteString then do
+    someMonster <- decode byteString
+    monsterName someMonster
+  else if checkFileIdentifier @Character byteString then do
+    someCharacter <- decode byteString
+    characterName someCharacter
+  else
+    Left "Unexpected flatbuffer identifier"
 ```
 
 ## TODO
