@@ -81,12 +81,12 @@ test-min:  ## Build the library and run the tests using lowest possible dependen
 
 
 release:  ## Creates a release package
-	stack clean
 	stack clean --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"
-	stack clean --stack-yaml=./stack/stack.min.yaml 	    --work-dir ".stack-work-min"
-	make test-lts
-	make test-min
-	stack test
+	stack test  --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14" --ghc-options=-Werror
+	stack clean --stack-yaml=./stack/stack.min.yaml	      --work-dir ".stack-work-min"
+	stack test  --stack-yaml=./stack/stack.min.yaml       --work-dir ".stack-work-min"       --ghc-options=-Werror
+	stack clean
+	stack test  --ghc-options=-Werror
 	make hlint
 	stack sdist
 .PHONY: release

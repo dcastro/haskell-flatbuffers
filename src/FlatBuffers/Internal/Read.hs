@@ -218,11 +218,11 @@ toByteString (VectorWord8 len pos) =
 instance VectorElement Word8 where
   data Vector Word8 = VectorWord8 !Int32 !Position
 
-  length (VectorWord8 len _)         = len
-  unsafeIndex (VectorWord8 _ pos) ix = byteStringSafeIndex pos ix
-  take n (VectorWord8 len pos)       = VectorWord8 (clamp n len) pos
-  drop n (VectorWord8 len pos)       = VectorWord8 (clamp (len - n) len) (BSL.drop (fromIntegral @Int32 @Int64 n) pos)
-  toList                             = Right . BSL.unpack . toByteString
+  length (VectorWord8 len _)      = len
+  unsafeIndex (VectorWord8 _ pos) = byteStringSafeIndex pos
+  take n (VectorWord8 len pos)    = VectorWord8 (clamp n len) pos
+  drop n (VectorWord8 len pos)    = VectorWord8 (clamp (len - n) len) (BSL.drop (fromIntegral @Int32 @Int64 n) pos)
+  toList                          = Right . BSL.unpack . toByteString
 
 instance VectorElement Word16 where
   data Vector Word16 = VectorWord16 !Int32 !Position

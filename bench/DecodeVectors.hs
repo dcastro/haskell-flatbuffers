@@ -5,6 +5,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 {- HLINT ignore "Avoid lambda" -}
+{- HLINT ignore "Use >=>" -}
 
 module DecodeVectors where
 

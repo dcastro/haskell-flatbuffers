@@ -4,6 +4,8 @@
 
 module EncodeVectors where
 
+{- HLINT ignore "Avoid lambda" -}
+
 import           Criterion
 
 import qualified Data.ByteString      as BS
