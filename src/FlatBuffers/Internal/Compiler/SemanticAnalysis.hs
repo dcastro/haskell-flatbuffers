@@ -40,7 +40,7 @@ import           Data.Traversable                              ( for )
 import           Data.Word
 
 import           FlatBuffers.Internal.Compiler.Display         ( Display(..) )
-import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasIdent(..), HasMetadata(..), Ident, Namespace, Schema, TypeRef(..), qualify )
+import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasMetadata(..), Schema, qualify )
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Constants
@@ -52,6 +52,11 @@ import           Text.Read                                     ( readMaybe )
 ----------------------------------
 ------- MonadValidation ----------
 ----------------------------------
+
+-- | A monad that allows short-circuiting when a validation error is found.
+--
+-- It keeps track of which item is currently being validated, so that when an error
+-- happens, we can show the user a better error message with contextual information.
 newtype Validation a = Validation
   { runValidation :: ReaderT ValidationState (Either String) a
   }
@@ -101,14 +106,6 @@ instance MonadValidation m => MonadValidation (StateT s m)  where
 ----------------------------------
 ------- Validation stages --------
 ----------------------------------
-{-
-During validation, we translate `SyntaxTree.XDecl` declarations into
-`ValidSyntaxTree.XDecl` declarations.
-
-This is done in stages: we first translate enums, then structs, then tables,
-and lastly unions.
--}
-
 data SymbolTable enum struct table union = SymbolTable
   { allEnums   :: !(Map (Namespace, Ident) enum)
   , allStructs :: !(Map (Namespace, Ident) struct)
@@ -124,6 +121,13 @@ instance Semigroup (SymbolTable e s t u)  where
 instance Monoid (SymbolTable e s t u) where
   mempty = SymbolTable mempty mempty mempty mempty
 
+{-
+During validation, we translate `SyntaxTree.EnumDecl`, `SyntaxTree.StructDecl`, etc
+into `ValidSyntaxTree.EnumDecl`, `ValidSyntaxTree.StructDecl`, etc.
+
+This is done in stages: we first translate enums, then structs, then tables,
+and lastly unions.
+-}
 type Stage1     = SymbolTable ST.EnumDecl ST.StructDecl ST.TableDecl ST.UnionDecl
 type Stage2     = SymbolTable    EnumDecl ST.StructDecl ST.TableDecl ST.UnionDecl
 type Stage3     = SymbolTable    EnumDecl    StructDecl ST.TableDecl ST.UnionDecl
@@ -191,11 +195,6 @@ insertSymbol namespace symbol map =
 ----------------------------------
 ------------ Root Type -----------
 ----------------------------------
-data RootInfo = RootInfo
-  { rootTableNamespace :: !Namespace
-  , rootTable          :: !TableDecl
-  , rootFileIdent      :: !(Maybe Text)
-  }
 
 -- | Finds the root table (if any) and sets the `tableIsRoot` flag accordingly.
 -- We only care about @root_type@ declarations in the root schema. Imported schemas are not scanned for @root_type@s.
@@ -216,6 +215,13 @@ updateRootTable schema symbolTables =
         then table { tableIsRoot = IsRoot fileIdent }
         else table
 
+data RootInfo = RootInfo
+  { rootTableNamespace :: !Namespace
+  , rootTable          :: !TableDecl
+  , rootFileIdent      :: !(Maybe Text)
+  }
+
+-- | Finds the @root_type@ declaration (if any), and what table it's pointing to.
 getRootInfo :: Schema -> FileTree ValidDecls -> Validation (Maybe RootInfo)
 getRootInfo schema symbolTables =
   foldlM go ("", Nothing, Nothing) (ST.decls schema) <&> \case
