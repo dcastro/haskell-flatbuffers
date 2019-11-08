@@ -35,5 +35,4 @@ flatbuffers.cabal
 temp/*.bin
 temp/*.json
 
-.stack-work-lts-12.14/
-.stack-work-min/
+.stack-work-*/

@@ -20,7 +20,7 @@ module FlatBuffers.Vector
     -- * Reading a vector
   , R.VectorElement(..)
   , R.index
-  , R.toByteString
+  , R.toLazyByteString
   ) where
 
 import           FlatBuffers.Internal.Read  as R

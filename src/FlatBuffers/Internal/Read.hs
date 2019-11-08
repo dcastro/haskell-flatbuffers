@@ -210,8 +210,8 @@ index vec ix = unsafeIndex vec . checkIndexBounds ix $ length vec
 -- /O(c)/, where /c/ is the number of chunks in the underlying `ByteString`.
 --
 -- @since 0.2.0.0
-toByteString :: Vector Word8 -> ByteString
-toByteString (VectorWord8 len pos) =
+toLazyByteString :: Vector Word8 -> ByteString
+toLazyByteString (VectorWord8 len pos) =
   BSL.take (fromIntegral @Int32 @Int64 len) pos
 
 
@@ -222,7 +222,7 @@ instance VectorElement Word8 where
   unsafeIndex (VectorWord8 _ pos) = byteStringSafeIndex pos
   take n (VectorWord8 len pos)    = VectorWord8 (clamp n len) pos
   drop n (VectorWord8 len pos)    = VectorWord8 (clamp (len - n) len) (BSL.drop (fromIntegral @Int32 @Int64 n) pos)
-  toList                          = Right . BSL.unpack . toByteString
+  toList                          = Right . BSL.unpack . toLazyByteString
 
 instance VectorElement Word16 where
   data Vector Word16 = VectorWord16 !Int32 !Position

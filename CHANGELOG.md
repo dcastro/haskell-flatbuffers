@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.0.0 (TBD)
+
+* `FlatBuffers.Vector.toByteString` renamed to `FlatBuffers.Vector.toLazyByteString`
 
 ## 0.2.0.0 (2019-10-21)
 
