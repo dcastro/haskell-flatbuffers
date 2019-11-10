@@ -73,6 +73,7 @@ tests:
     - utf8-string
     - process
     - th-pprint
+    - pretty-simple
 
 benchmarks:
   criterion-bench:

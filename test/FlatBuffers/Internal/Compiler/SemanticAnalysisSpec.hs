@@ -4,16 +4,26 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
+import           Control.Monad                                  ( forM_, replicateM )
+import           Control.Monad.State                            ( StateT, evalStateT, get, lift, put )
+
 import           Data.Bits                                      ( shiftL )
-import           Data.Foldable                                  ( fold )
+import           Data.Foldable                                  ( fold, foldlM )
 import           Data.Int
+import qualified Data.List.NonEmpty                             as NE
 import           Data.List.NonEmpty                             ( NonEmpty((:|)) )
 import qualified Data.Map.Strict                                as Map
+import qualified Data.Text                                      as Text
+import           Data.Text                                      ( Text )
+import           Data.Word
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
 import           FlatBuffers.Internal.Compiler.SemanticAnalysis
-import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
+import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
+
+import qualified Hedgehog.Gen                                   as Gen
+import qualified Hedgehog.Range                                 as Range
 
 import           TestImports
 
@@ -566,6 +576,9 @@ spec =
           struct S4 {x: byte;}
         |] `shouldFail`
           "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
+
+      it "struct size & alignment & field offsets are consistent" $
+        require prop_structAlignment
 
     describe "tables" $ do
       it "empty" $
@@ -1364,6 +1377,107 @@ spec =
           ]
 
 
+prop_structAlignment :: Property
+prop_structAlignment = property $ do
+
+  n <- forAll $ Gen.int (Range.linear 1 10)
+  structs <- forAll $ evalStateT (genStructs n []) 0
+
+  let decls = (ST.DeclE <$> enums) <> (ST.DeclS <$> structs)
+  ST.FileTree _ validDecls _ <- evalEither $ validateSchemas (ST.FileTree "" (ST.Schema [] decls) Map.empty)
+
+  forM_ (allStructs validDecls) $ \struct -> do
+    -- a struct's size is a multiple of its alignment
+    (toInteger (structSize struct) `mod` toInteger (structAlignment struct)) === 0
+
+    -- a field's offset is equal to the total size of the previous fields
+    fieldsTotalSize <- foldlM checkOffset 0 (structFields struct)
+
+    -- a struct's size is equal to the total size of its fields (including field padding)
+    structSize struct === fromIntegral fieldsTotalSize
+
+  where
+    checkOffset :: Word16 -> StructField -> PropertyT IO Word16
+    checkOffset previousFieldsSize structField = do
+      -- a field's offset is equal to the total size of the previous fields
+      structFieldOffset structField === previousFieldsSize
+
+      let structFieldSize =
+            fromIntegral (structFieldTypeSize (structFieldType structField)) +
+            fromIntegral (structFieldPadding structField)
+      pure $ previousFieldsSize + structFieldSize
+
+    enums :: [ST.EnumDecl]
+    enums =
+      [ ST.EnumDecl "EnumInt8" ST.TInt8 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumInt16" ST.TInt16 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumInt32" ST.TInt32 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumInt64" ST.TInt64 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumWord8" ST.TWord8 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumWord16" ST.TWord16 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumWord32" ST.TWord32 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      , ST.EnumDecl "EnumWord64" ST.TWord64 (ST.Metadata Map.empty) [ST.EnumVal "X" Nothing]
+      ]
+
+    genStructs :: Int -> [ST.StructDecl] -> StateT Int Gen [ST.StructDecl]
+    genStructs 0 structs = pure structs
+    genStructs n structs = do
+      struct <- genStruct structs
+      genStructs (n - 1) (struct : structs)
+
+    genStruct :: [ST.StructDecl] -> StateT Int Gen ST.StructDecl
+    genStruct structs = do
+      fieldCount <- lift $ Gen.integral $ Range.linear 1 6
+      ST.StructDecl
+        <$> genIdent "struct"
+        <*> pure (ST.Metadata Map.empty)
+        <*> (NE.fromList <$> replicateM fieldCount (genStructField structs))
+
+    genIdent :: Text -> StateT Int Gen Ident
+    genIdent prefix = do
+      lastId <- get
+      let newId = lastId + 1
+      put newId
+      pure $ Ident $ prefix <> Text.pack (show newId)
+
+    genStructField :: [ST.StructDecl] -> StateT Int Gen ST.StructField
+    genStructField structs = do
+      ident <- genIdent "field"
+      structFieldType <- lift $ genStructFieldType structs
+
+      pure $ ST.StructField
+        ident
+        structFieldType
+        (ST.Metadata Map.empty)
+
+    genStructFieldType :: [ST.StructDecl] -> Gen ST.Type
+    genStructFieldType structs =
+      Gen.choice $
+        genEnumRef <> genStructRef <>
+          [ pure ST.TInt8
+          , pure ST.TInt16
+          , pure ST.TInt32
+          , pure ST.TInt64
+          , pure ST.TWord8
+          , pure ST.TWord16
+          , pure ST.TWord32
+          , pure ST.TWord64
+          , pure ST.TFloat
+          , pure ST.TDouble
+          , pure ST.TBool
+          ]
+      where
+        genEnumRef :: [Gen ST.Type]
+        genEnumRef =
+          if null enums
+            then []
+            else [ ST.TRef . TypeRef "" . getIdent <$> Gen.element enums ]
+
+        genStructRef :: [Gen ST.Type]
+        genStructRef =
+          if null structs
+            then []
+            else [ ST.TRef . TypeRef "" . getIdent <$> Gen.element structs ]
 
 
 foldDecls :: [ValidDecls] -> ValidDecls
@@ -1386,7 +1500,7 @@ shouldSucceed input =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
-      let schemas = FileTree "" schema []
+      let schemas = ST.FileTree "" schema []
       in  case validateSchemas schemas of
             Right _  -> pure ()
             Left err -> expectationFailure err
@@ -1396,15 +1510,15 @@ shouldValidate input expectation =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
-      let schemas = FileTree "" schema []
-      in  validateSchemas schemas `shouldBe` Right (FileTree "" expectation [])
+      let schemas = ST.FileTree "" schema []
+      in  validateSchemas schemas `shouldBe` Right (ST.FileTree "" expectation [])
 
 shouldFail :: HasCallStack => String -> String -> Expectation
 shouldFail input expectedErrorMsg =
   case parse P.schema "" input of
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right schema ->
-      let schemas = FileTree "" schema []
+      let schemas = ST.FileTree "" schema []
       in  validateSchemas schemas `shouldBe` Left expectedErrorMsg
 
 
@@ -1414,7 +1528,7 @@ shouldFail' inputs expectedErrorMsg =
     Left e -> expectationFailure $ "Parsing failed with error:\n" <> showBundle e
     Right (schema :| schemas) ->
       let importesFilepathsAndSchemas = Map.fromList (fmap (\s -> ("", s)) schemas)
-          fileTree = FileTree "" schema importesFilepathsAndSchemas
+          fileTree = ST.FileTree "" schema importesFilepathsAndSchemas
       in  validateSchemas fileTree `shouldBe` Left expectedErrorMsg
 
 showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
