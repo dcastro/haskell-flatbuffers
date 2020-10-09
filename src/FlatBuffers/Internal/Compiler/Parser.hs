@@ -106,6 +106,9 @@ commaSep p = sepBy p (symbol ",")
 commaSep1 :: Parser a -> Parser (NonEmpty a)
 commaSep1 p = NE.sepBy1 p (symbol ",")
 
+commaSepEndBy1 :: Parser a -> Parser (NonEmpty a)
+commaSepEndBy1 p = NE.sepEndBy1 p (symbol ",")
+
 semi, colon :: Parser ()
 semi = void $ symbol ";"
 colon = void $ symbol ":"
@@ -187,7 +190,7 @@ enumDecl = do
   colon
   t <- typ
   md <- metadata
-  v <- curly (commaSep1 enumVal)
+  v <- curly (commaSepEndBy1 enumVal)
   pure $ EnumDecl i t md v
 
 enumVal :: Parser EnumVal
@@ -198,7 +201,7 @@ unionDecl = do
   rword "union"
   i <- ident
   md <- metadata
-  v <- curly (commaSep1 unionVal)
+  v <- curly (commaSepEndBy1 unionVal)
   pure $ UnionDecl i md v
 
 unionVal :: Parser UnionVal
