@@ -35,8 +35,8 @@ before_install:
 # Download and unpack the stack executable
 - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 # Download sbt
-- travis_retry curl -L https://piccolo.link/sbt-1.2.8.tgz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/sbt'
-- travis_retry curl -L -o $HOME/.sbt/launchers/1.2.3/sbt-launch.jar http://repo.scala-sbt.org/scalasbt/maven-releases/org/scala-sbt/sbt-launch/1.2.3/sbt-launch.jar
+- travis_retry curl -L https://github.com/sbt/sbt/releases/download/v1.2.8/sbt-1.2.8.tgz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/sbt'
+- travis_retry curl -L -o $HOME/.sbt/launchers/1.2.3/sbt-launch.jar https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/1.2.3/sbt-launch.jar
 # Download and compile flatbuffers
 - git clone https://github.com/google/flatbuffers.git $HOME/flatbuffers
 - cd $HOME/flatbuffers
