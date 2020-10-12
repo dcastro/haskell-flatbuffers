@@ -216,6 +216,18 @@ spec =
             ]
           ]
 
+    it "enum declarations (trailing comma)" $
+      [r|
+        enum E : short {
+          X,
+        }
+      |] `parses`
+        Schema
+          []
+          [DeclE $ EnumDecl "E" TInt16 (Metadata [])
+            [ EnumVal "X" Nothing ]
+          ]
+
     it "union declarations" $
       [r|
         union Weapon ( attr ) {
@@ -235,6 +247,20 @@ spec =
               , UnionVal (Just "mace2") (TypeRef "My.Api" "Stick")
               , UnionVal Nothing (TypeRef "" "Axe")
               ]
+          ]
+
+    it "union declarations (trailing comma)" $
+      [r|
+        union U {
+          X,
+        }
+      |] `parses`
+        Schema
+          []
+          [ DeclU $ UnionDecl
+              "U"
+              (Metadata [])
+              [ UnionVal Nothing (TypeRef "" "X") ]
           ]
 
     it "root types, file extensions / identifiers, attribute declarations" $
