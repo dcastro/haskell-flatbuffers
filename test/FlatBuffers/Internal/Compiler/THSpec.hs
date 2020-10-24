@@ -70,6 +70,14 @@ spec =
         [r| table SomePerson   { PersonAge: int;  }|] `shouldCompileTo` expected
         [r| table somePerson   { personAge: int;  }|] `shouldCompileTo` expected
 
+      it "with keyword as name" $
+        [r| table Type {} |] `shouldCompileTo`
+        [d|
+          data Type
+          type_ :: WriteTable Type
+          type_ = writeTable []
+        |]
+
       describe "numeric fields + boolean" $ do
         it "normal fields" $
           [r|
@@ -1274,6 +1282,21 @@ spec =
             s2X :: Struct S2 -> Either ReadError Int8
             s2X = readStructField readInt8 0
           |]
+
+      it "with keyword as name" $
+        [r| struct Type { x : byte; } |] `shouldCompileTo`
+        [d|
+          data Type
+          instance IsStruct Type
+              where structAlignmentOf = 1
+                    structSizeOf = 1
+
+          type_ :: Int8 -> WriteStruct Type
+          type_ x = WriteStruct (buildInt8 x)
+
+          typeX :: Struct Type -> Either ReadError Int8
+          typeX = readStructField readInt8 0
+        |]
 
     describe "Unions" $
       it "naming conventions" $ do
