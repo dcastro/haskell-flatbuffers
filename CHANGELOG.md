@@ -1,8 +1,10 @@
 # Changelog
 
-## 0.3.0.0 (TBD)
+## 0.3.0.0 (2020-11-14)
 
 * `FlatBuffers.Vector.toByteString` renamed to `FlatBuffers.Vector.toLazyByteString`
+* Allow trailing comma after the last enum/union field for compatibility with flatc.
+* If a Haskell keyword is used as the name of a table or struct, then suffix the name of the generated constructor with an underscore.
 
 ## 0.2.0.0 (2019-10-21)
 
