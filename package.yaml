@@ -55,7 +55,30 @@ library:
 tests:
   test:
     main: Spec.hs
-    source-dirs: test/
+    source-dirs:
+      - test/
+      - test-common/
+    dependencies:
+    - flatbuffers
+    - hspec
+    - hspec-core
+    - hspec-expectations-pretty-diff
+    - HUnit
+    - hspec-megaparsec
+    - hedgehog
+    - hw-hspec-hedgehog
+    - aeson
+    - aeson-pretty
+    - raw-strings-qq
+    - utf8-string
+    - process
+    - th-pprint
+    - pretty-simple
+  integration:
+    main: Spec.hs
+    source-dirs:
+      - integration/
+      - test-common/
     dependencies:
     - flatbuffers
     - hspec
