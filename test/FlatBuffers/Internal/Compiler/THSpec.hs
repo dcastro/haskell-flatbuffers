@@ -78,6 +78,21 @@ spec =
           type_ = writeTable []
         |]
 
+      describe "Haskell reserved keywords" $ do
+        it "type" $
+          [r| table T {
+            type: bool;
+            }|] `shouldCompileTo`
+          [d|
+          data T
+          t :: Maybe Bool -> WriteTable T
+          t x = writeTable [
+            optionalDef False writeBoolTableField x
+            ]
+          tType :: Table T -> Either ReadError Bool
+          tType = readTableFieldWithDef readBool 0 False
+          |]
+
       describe "numeric fields + boolean" $ do
         it "normal fields" $
           [r|
