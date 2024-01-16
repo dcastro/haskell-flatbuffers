@@ -1,20 +1,23 @@
-{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes       #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
-import           Control.Monad                                  ( forM_, replicateM )
-import           Control.Monad.State                            ( StateT, evalStateT, get, lift, put )
+import           Control.Monad                                  (forM_,
+                                                                 replicateM)
+import           Control.Monad.State                            (StateT,
+                                                                 evalStateT,
+                                                                 get, lift, put)
 
-import           Data.Bits                                      ( shiftL )
-import           Data.Foldable                                  ( fold, foldlM )
+import           Data.Bits                                      (shiftL)
+import           Data.Foldable                                  (fold, foldlM)
 import           Data.Int
+import           Data.List.NonEmpty                             (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                             as NE
-import           Data.List.NonEmpty                             ( NonEmpty((:|)) )
 import qualified Data.Map.Strict                                as Map
+import           Data.Text                                      (Text)
 import qualified Data.Text                                      as Text
-import           Data.Text                                      ( Text )
 import           Data.Word
 
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
@@ -28,7 +31,7 @@ import qualified Hedgehog.Range                                 as Range
 import           TestImports
 
 import           Text.Megaparsec
-import           Text.RawString.QQ                              ( r )
+import           Text.RawString.QQ                              (r)
 
 
 spec :: Spec
@@ -1531,7 +1534,7 @@ shouldFail' inputs expectedErrorMsg =
           fileTree = ST.FileTree "" schema importesFilepathsAndSchemas
       in  validateSchemas fileTree `shouldBe` Left expectedErrorMsg
 
-showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
+showBundle :: (ShowErrorComponent e, TraversableStream s, VisualStream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
   where
     indent x = if null x

@@ -15,27 +15,27 @@ module TestImports
   , traceBufferM
   ) where
 
-import           Control.Monad                  ( (>=>) )
+import           Control.Monad                  ((>=>))
 
 import qualified Data.Aeson                     as J
-import           Data.Aeson.Encode.Pretty       ( encodePretty )
+import           Data.Aeson.Encode.Pretty       (encodePretty)
 import qualified Data.ByteString.Lazy           as BSL
 import qualified Data.ByteString.Lazy.UTF8      as BSLU
 import qualified Data.List                      as List
 
 import           Debug.Trace
 
-import           GHC.Stack                      ( HasCallStack )
+import           GHC.Stack                      (HasCallStack)
 
 import           HaskellWorks.Hspec.Hedgehog    as Hedgehog
 
 import           Hedgehog
 
-import           Test.HUnit                     ( assertFailure )
 import           Test.Hspec.Core.Hooks          as Hspec
 import           Test.Hspec.Core.Spec           as Hspec
-import           Test.Hspec.Expectations.Pretty as Hspec
+import           Test.Hspec.Expectations.Pretty as Hspec hiding (Expectation)
 import           Test.Hspec.Runner              as Hspec
+import           Test.HUnit                     (assertFailure)
 
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
@@ -98,5 +98,5 @@ showBuffer bs =
 groupsOf :: Int -> [a] -> [[a]]
 groupsOf n xs =
   case take n xs of
-    [] -> []
+    []    -> []
     group -> group : groupsOf n (drop n xs)

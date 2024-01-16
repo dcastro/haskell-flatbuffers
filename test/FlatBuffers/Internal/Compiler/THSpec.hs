@@ -1,38 +1,42 @@
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ExplicitForAll   #-}
 {-# LANGUAGE NegativeLiterals #-}
-{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE QuasiQuotes      #-}
+{-# LANGUAGE TemplateHaskell  #-}
 
 module FlatBuffers.Internal.Compiler.THSpec where
 
-import           Control.Arrow                                  ( second )
+import           Control.Arrow                                  (second)
 
-import           Data.Bits                                      ( (.&.) )
+import           Data.Bits                                      ((.&.))
 import           Data.Int
-import           Data.Text                                      ( Text )
+import           Data.Text                                      (Text)
 import qualified Data.Text                                      as T
 import           Data.Word
 
 import           FlatBuffers.Internal.Build
 import qualified FlatBuffers.Internal.Compiler.Parser           as P
-import           FlatBuffers.Internal.Compiler.SemanticAnalysis ( validateSchemas )
-import           FlatBuffers.Internal.Compiler.SyntaxTree       ( FileTree(..) )
+import           FlatBuffers.Internal.Compiler.SemanticAnalysis (validateSchemas)
+import           FlatBuffers.Internal.Compiler.SyntaxTree       (FileTree (..))
 import           FlatBuffers.Internal.Compiler.TH
-import           FlatBuffers.Internal.FileIdentifier            ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.Internal.FileIdentifier            (HasFileIdentifier (..),
+                                                                 unsafeFileIdentifier)
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Write
 
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Cleanup                    ( simplifiedTH )
+-- import           Language.Haskell.TH.Cleanup                    (simplifiedTH)
 import           Language.Haskell.TH.Syntax
-
-import           System.IO.Unsafe                               ( unsafePerformIO )
 
 import           TestImports
 
-import           Text.Megaparsec                                ( ParseErrorBundle, ShowErrorComponent, Stream, errorBundlePretty, parse )
-import           Text.RawString.QQ                              ( r )
+import           Text.Megaparsec                                (ParseErrorBundle,
+                                                                 ShowErrorComponent,
+                                                                 TraversableStream,
+                                                                 VisualStream,
+                                                                 errorBundlePretty,
+                                                                 parse)
+import           Text.RawString.QQ                              (r)
 
 
 spec :: Spec
@@ -1046,13 +1050,13 @@ spec =
                   case n of
                     -2 -> Just MyColorIsRed
                     -1 -> Just MyColorIsGreen
-                    _ -> Nothing
+                    _  -> Nothing
                 {-# INLINE toMyColor #-}
 
                 fromMyColor :: MyColor -> Int16
                 fromMyColor n =
                   case n of
-                    MyColorIsRed -> -2
+                    MyColorIsRed   -> -2
                     MyColorIsGreen -> -1
                 {-# INLINE fromMyColor #-}
 
@@ -1348,11 +1352,9 @@ newtype PrettyAst = PrettyAst [Dec]
   deriving Eq
 
 instance Show PrettyAst where
-  show (PrettyAst decs) =
-    let LitE (StringL s) = unsafePerformIO . runQ . simplifiedTH $ decs
-    in  s
+  show (PrettyAst decs) = pprint decs
 
-showBundle :: (ShowErrorComponent e, Stream s) => ParseErrorBundle s e -> String
+showBundle :: (ShowErrorComponent e, TraversableStream s, VisualStream s) => ParseErrorBundle s e -> String
 showBundle = unlines . fmap indent . lines . errorBundlePretty
   where
     indent x = if null x
@@ -1393,13 +1395,13 @@ valToFun :: Dec -> Dec
 valToFun dec =
   case dec of
     ValD (VarP name) body decs -> FunD name [Clause [] body decs]
-    _ -> dec
+    _                          -> dec
 
 normalizePragma :: Pragma -> Pragma
 normalizePragma p =
   case p of
     InlineP n i rm p -> InlineP (normalizeName n) i rm p
-    _ -> p
+    _                -> p
 
 normalizeCon :: Con -> Con
 normalizeCon c =
@@ -1416,11 +1418,11 @@ normalizeType t =
     ForallT tvs cxt t ->  ForallT (normalizeTyVarBndr <$> tvs) (normalizeType <$> cxt) (normalizeType t)
     _ -> t
 
-normalizeTyVarBndr :: TyVarBndr -> TyVarBndr
+normalizeTyVarBndr :: TyVarBndr flag -> TyVarBndr flag
 normalizeTyVarBndr tv =
   case tv of
-    PlainTV n -> PlainTV (normalizeName n)
-    KindedTV n k -> KindedTV (normalizeName n) (normalizeType k)
+    PlainTV n flag    -> PlainTV (normalizeName n) flag
+    KindedTV n flag k -> KindedTV (normalizeName n) flag (normalizeType k)
 
 normalizeClause :: Clause -> Clause
 normalizeClause (Clause pats body decs) = Clause (normalizePat <$> pats) (normalizeBody body) (normalizeDec <$> decs)
@@ -1428,16 +1430,16 @@ normalizeClause (Clause pats body decs) = Clause (normalizePat <$> pats) (normal
 normalizePat :: Pat -> Pat
 normalizePat p =
   case p of
-    VarP n -> VarP (normalizeName n)
-    ConP n pats -> ConP (normalizeName n) (normalizePat <$> pats)
-    TupP pats -> TupP (normalizePat <$> pats)
-    _ -> p
+    VarP n      -> VarP (normalizeName n)
+    ConP n types pats -> ConP (normalizeName n) (normalizeType <$> types) (normalizePat <$> pats)
+    TupP pats   -> TupP (normalizePat <$> pats)
+    _           -> p
 
 normalizeBody :: Body -> Body
 normalizeBody b =
   case b of
     NormalB e -> NormalB (normalizeExp e)
-    _ -> b
+    _         -> b
 
 normalizeExp :: Exp -> Exp
 normalizeExp e =
@@ -1446,7 +1448,9 @@ normalizeExp e =
     AppE e1 e2 -> AppE (normalizeExp e1) (normalizeExp e2)
     ListE es -> ListE (normalizeExp <$> es)
     CaseE e matches -> CaseE (normalizeExp e) (normalizeMatch <$> matches)
-    ConE name -> ConE (normalizeName name)
+    ConE name
+      | name == '[] -> ListE []
+      | otherwise -> ConE (normalizeName name)
     InfixE l op r -> InfixE (normalizeExp <$> l) (normalizeExp op) (normalizeExp <$> r)
     CondE b t f -> CondE (normalizeExp b) (normalizeExp t) (normalizeExp f)
     _ -> e
@@ -1457,5 +1461,4 @@ normalizeMatch (Match pat body decs) =
 
 normalizeName :: Name -> Name
 normalizeName (Name (OccName occ) (NameU _)) = mkName occ
-normalizeName name = name
-
+normalizeName name                           = name

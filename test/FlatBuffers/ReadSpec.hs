@@ -1,16 +1,16 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NegativeLiterals #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE NegativeLiterals    #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module FlatBuffers.ReadSpec where
 
-import           Control.Exception          ( evaluate )
+import           Control.Exception          (evaluate)
 
-import           Data.Functor               ( ($>) )
+import           Data.Functor               (($>))
 import           Data.Int
 import qualified Data.List                  as List
 import qualified Data.Maybe                 as Maybe
@@ -44,7 +44,7 @@ spec =
         , writeVectorWord8TableField text
         ]
       primitivesL table `shouldBeLeft`
-        "UTF8 decoding error (byte 255): Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream"
+        "UTF8 decoding error (byte 255): Data.Text.Encoding: Invalid UTF-8 stream"
 
     it "fails when required field is missing" $ do
       table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
@@ -125,10 +125,10 @@ spec =
       let testInvalidUnsafeIndex table getVector = do
             case getIndex table getVector Vec.unsafeIndex 100 of
               Right a -> evaluate a $> ()
-              Left e -> evaluate e $> ()
+              Left e  -> evaluate e $> ()
             case getIndex table getVector Vec.unsafeIndex (-100) of
               Right a -> evaluate a $> ()
-              Left e -> evaluate e $> ()
+              Left e  -> evaluate e $> ()
 
       describe "of primitives" $ do
         let Right table = decode $ encode $ vectors
@@ -371,5 +371,3 @@ prop_dropConsistency n list vec extract = do
   Just vec <- evalEither vec
   (Vec.toList (Vec.drop n vec) >>= traverse extract) === Right (List.drop (fromIntegral n) list)
   Vec.length (Vec.drop n vec) === fromIntegral (List.length (List.drop (fromIntegral n) list))
-
-

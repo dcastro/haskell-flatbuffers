@@ -1,14 +1,13 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UnliftedFFITypes #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE UnliftedFFITypes           #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -18,36 +17,29 @@ module FlatBuffers.Internal.Write where
 
 import           Control.Monad.State.Strict
 
-import           Data.Bits                           ( (.&.), complement )
+import           Data.Bits                           (complement, (.&.))
 import qualified Data.ByteString                     as BS
-import           Data.ByteString.Builder             ( Builder )
+import           Data.ByteString.Builder             (Builder)
 import qualified Data.ByteString.Builder             as B
 import qualified Data.ByteString.Lazy                as BSL
-import           Data.Coerce                         ( coerce )
+import           Data.Coerce                         (coerce)
 import           Data.Int
 import qualified Data.List                           as L
 import qualified Data.Map.Strict                     as M
-import           Data.MonoTraversable                ( Element, MonoFoldable )
+import           Data.Monoid                         (Sum (..))
+import           Data.MonoTraversable                (Element, MonoFoldable)
 import qualified Data.MonoTraversable                as Mono
-import           Data.Monoid                         ( Sum(..) )
-import           Data.Semigroup                      ( Max(..) )
-import           Data.Text                           ( Text )
-import qualified Data.Text.Array                     as A
+import           Data.Semigroup                      (Max (..))
+import           Data.Text                           (Text)
 import qualified Data.Text.Encoding                  as T
 import qualified Data.Text.Internal                  as TI
 import           Data.Word
 
 import           FlatBuffers.Internal.Build
 import           FlatBuffers.Internal.Constants
-import           FlatBuffers.Internal.FileIdentifier ( FileIdentifier(unFileIdentifier), HasFileIdentifier(getFileIdentifier) )
+import           FlatBuffers.Internal.FileIdentifier (FileIdentifier (unFileIdentifier),
+                                                      HasFileIdentifier (getFileIdentifier))
 import           FlatBuffers.Internal.Types
-
-import           Foreign.C.Types                     ( CSize(CSize) )
-
-import           GHC.Base                            ( ByteArray# )
-
-import           System.IO.Unsafe                    ( unsafeDupablePerformIO )
-
 
 type BufferSize = Sum Int32
 
@@ -55,10 +47,10 @@ type BufferSize = Sum Int32
 type Position = Int32
 
 data FBState = FBState
-  { builder      :: !Builder
-  , bufferSize   :: {-# UNPACK #-} !BufferSize
-  , maxAlign     :: {-# UNPACK #-} !(Max Alignment)
-  , cache        :: !(M.Map BSL.ByteString Position)
+  { builder    :: !Builder
+  , bufferSize :: {-# UNPACK #-} !BufferSize
+  , maxAlign   :: {-# UNPACK #-} !(Max Alignment)
+  , cache      :: !(M.Map BSL.ByteString Position)
   }
 
 newtype WriteTableField = WriteTableField { unWriteTableField :: State FBState (FBState -> FBState) }
@@ -797,10 +789,4 @@ uoffsetFrom pos = writeUOffset . align
 
 {-# INLINE utf8length #-}
 utf8length :: Text -> Int32
-utf8length (TI.Text arr off len)
-  | len == 0  = 0
-  | otherwise = unsafeDupablePerformIO $
-    c_length_utf8 (A.aBA arr) (fromIntegral off) (fromIntegral len)
-
-foreign import ccall unsafe "_hs_text_length_utf8" c_length_utf8
-  :: ByteArray# -> CSize -> CSize -> IO Int32
+utf8length (TI.Text _array _offset len) = fromIntegral @Int @Int32 len

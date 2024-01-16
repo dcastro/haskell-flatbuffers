@@ -20,7 +20,6 @@ description: |
 extra-source-files:
   - README.md
   - CHANGELOG.md
-  - cbits/cbits.c
 
 extra-doc-files:
   - README.md
@@ -47,10 +46,11 @@ dependencies:
   - text-manipulate >= 0.1.0
   - mono-traversable >= 1.0.1.2
 
+default-extensions:
+  - TypeOperators
+
 library:
   source-dirs:      src
-  c-sources:
-    - cbits/cbits.c
 
 tests:
   test:
@@ -72,7 +72,7 @@ tests:
     - raw-strings-qq
     - utf8-string
     - process
-    - th-pprint
+    # - th-pprint
     - pretty-simple
 
 benchmarks:

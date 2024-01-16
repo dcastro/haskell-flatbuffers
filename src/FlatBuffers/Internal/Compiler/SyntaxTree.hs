@@ -1,19 +1,19 @@
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
-import           Data.List.NonEmpty                    ( NonEmpty )
-import           Data.Map.Strict                       ( Map )
-import           Data.Scientific                       ( Scientific )
-import           Data.String                           ( IsString(..) )
-import           Data.Text                             ( Text )
+import           Data.List.NonEmpty                    (NonEmpty)
+import           Data.Map.Strict                       (Map)
+import           Data.Scientific                       (Scientific)
+import           Data.String                           (IsString (..))
+import           Data.Text                             (Text)
 import qualified Data.Text                             as T
 
-import           FlatBuffers.Internal.Compiler.Display ( Display(..) )
+import           FlatBuffers.Internal.Compiler.Display (Display (..))
 
 data FileTree a = FileTree
   { fileTreeFilePath :: !FilePath
@@ -172,7 +172,7 @@ instance Show Namespace where
 
 instance IsString Namespace where
   fromString "" = Namespace []
-  fromString s = Namespace $ filter (/= "") $ T.splitOn "." $ T.pack s
+  fromString s  = Namespace $ filter (/= "") $ T.splitOn "." $ T.pack s
 
 qualify :: HasIdent a => Namespace -> a -> Ident
 qualify "" a = getIdent a

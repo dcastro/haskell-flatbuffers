@@ -3,35 +3,36 @@
 
 module FlatBuffers.Internal.Compiler.TH where
 
-import           Control.Monad                                   ( join )
-import           Control.Monad.Except                            ( runExceptT )
+import           Control.Monad                                   (join)
+import           Control.Monad.Except                            (runExceptT)
 
-import           Data.Bits                                       ( (.&.) )
-import           Data.Foldable                                   ( traverse_ )
-import           Data.Functor                                    ( (<&>) )
+import           Data.Bits                                       ((.&.))
+import           Data.Foldable                                   (traverse_)
+import           Data.Functor                                    ((<&>))
 import           Data.Int
 import qualified Data.List                                       as List
-import           Data.List.NonEmpty                              ( NonEmpty(..) )
+import           Data.List.NonEmpty                              (NonEmpty (..))
 import qualified Data.List.NonEmpty                              as NE
 import qualified Data.Map.Strict                                 as Map
-import           Data.Text                                       ( Text )
+import           Data.Text                                       (Text)
 import qualified Data.Text                                       as T
 import           Data.Word
 
 import           FlatBuffers.Internal.Build
 import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
 import qualified FlatBuffers.Internal.Compiler.ParserIO          as ParserIO
-import           FlatBuffers.Internal.Compiler.SemanticAnalysis  ( SymbolTable(..) )
+import           FlatBuffers.Internal.Compiler.SemanticAnalysis  (SymbolTable (..))
 import qualified FlatBuffers.Internal.Compiler.SemanticAnalysis  as SemanticAnalysis
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree        as SyntaxTree
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.FileIdentifier             ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.Internal.FileIdentifier             (HasFileIdentifier (..),
+                                                                  unsafeFileIdentifier)
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Write
 
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Syntax                      ( lift )
+import           Language.Haskell.TH.Syntax                      (lift)
 import qualified Language.Haskell.TH.Syntax                      as TH
 
 
@@ -52,7 +53,7 @@ data Options = Options
     -- | Generate code not just for the root schema,
     -- but for all schemas it includes as well
     -- (same as flatc @--gen-all@ option).
-  , compileAllSchemas :: Bool
+  , compileAllSchemas  :: Bool
   }
   deriving (Show, Eq)
 
@@ -284,7 +285,7 @@ mkFromEnum enumName enum enumValsAndNames = do
   where
     mkMatch (enumVal, enumName) =
       Match
-        (ConP enumName [])
+        (ConP enumName [] [])
         (NormalB (intLitE (enumValInt enumVal)))
         []
 
@@ -306,7 +307,7 @@ mkEnumNameFun enumName enum enumValsAndNames = do
   where
     mkMatch (enumVal, enumName) =
       Match
-        (ConP enumName [])
+        (ConP enumName [] [])
         (NormalB (textLitE (unIdent (getIdent enumVal))))
         []
 
@@ -415,19 +416,19 @@ mkStructFieldGetter structName struct sf =
 
     mkReadExp sft =
       case sft of
-        SInt8   -> VarE 'readInt8
-        SInt16  -> VarE 'readInt16
-        SInt32  -> VarE 'readInt32
-        SInt64  -> VarE 'readInt64
-        SWord8  -> VarE 'readWord8
-        SWord16 -> VarE 'readWord16
-        SWord32 -> VarE 'readWord32
-        SWord64 -> VarE 'readWord64
-        SFloat  -> VarE 'readFloat
-        SDouble -> VarE 'readDouble
-        SBool   -> VarE 'readBool
+        SInt8            -> VarE 'readInt8
+        SInt16           -> VarE 'readInt16
+        SInt32           -> VarE 'readInt32
+        SInt64           -> VarE 'readInt64
+        SWord8           -> VarE 'readWord8
+        SWord16          -> VarE 'readWord16
+        SWord32          -> VarE 'readWord32
+        SWord64          -> VarE 'readWord64
+        SFloat           -> VarE 'readFloat
+        SDouble          -> VarE 'readDouble
+        SBool            -> VarE 'readBool
         SEnum _ enumType -> mkReadExp $ enumTypeToStructFieldType enumType
-        SStruct _ -> VarE 'readStruct
+        SStruct _        -> VarE 'readStruct
 
 mkTable :: TableDecl -> Q [Dec]
 mkTable table = do

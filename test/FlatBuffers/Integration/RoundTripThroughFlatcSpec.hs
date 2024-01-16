@@ -1,7 +1,7 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
@@ -10,16 +10,16 @@
 
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
-import           Control.Applicative  ( liftA3 )
+import           Control.Applicative  (liftA3)
 
-import           Data.Aeson           ( (.=), Value(..), object, toJSON )
+import           Data.Aeson           (Value (..), object, toJSON, (.=))
 import qualified Data.Aeson           as J
-import           Data.Bits            ( (.|.) )
+import           Data.Bits            ((.|.))
 import qualified Data.ByteString.Lazy as BSL
 import           Data.Int
-import           Data.Maybe           ( isNothing )
+import           Data.Maybe           (isNothing)
 import           Data.Proxy
-import           Data.Typeable        ( Typeable, typeRep )
+import           Data.Typeable        (Typeable, typeRep)
 import           Data.Word
 
 import           Examples
