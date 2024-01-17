@@ -234,16 +234,16 @@ spec =
             ]))
 
         json `shouldBeJson` object
-          [ "x" .= (colorsRed .|. colorsGreen)
-          , "y" .= object [ "x" .= (colorsGreen .|. colorsGray) ]
+          [ "x" .= String "Red Green"
+          , "y" .= object [ "x" .= String "Green Gray" ]
           , "xs" .=
-            [ toJSON (colorsGreen .|. colorsGray)
-            , toJSON (colorsBlack .|. colorsBlue)
+            [ String "Green Gray"
+            , String "Blue Black"
             , String "Green"
             ]
           , "ys" .=
-            [ object [ "x" .= (colorsGreen .|. colorsGray) ]
-            , object [ "x" .= (colorsBlack .|. colorsBlue) ]
+            [ object [ "x" .=  String "Green Gray" ]
+            , object [ "x" .=  String "Blue Black" ]
             , object [ "x" .= String "Green" ]
             ]
           ]

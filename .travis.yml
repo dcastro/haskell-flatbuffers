@@ -40,7 +40,7 @@ before_install:
 # Download and compile flatbuffers
 - git clone https://github.com/google/flatbuffers.git $HOME/flatbuffers
 - cd $HOME/flatbuffers
-- git checkout a80db8538cf49953fbbf88ac380472655acc089e
+- git checkout 129ef422e8a4e89d87a7216a865602673a6d0bf3
 - cmake -G "Unix Makefiles"
 - make
 - cp flatc ~/.local/bin
