@@ -41,129 +41,129 @@ spec :: Spec
 spec =
   describe "alignment" $ do
     describe "Int8 are aligned to 1 byte" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 1 1 (writeInt8TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 1 1 (maxBound @Int8)
 
     describe "Int16 are aligned to 2 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 2 2 (writeInt16TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 2 2 (maxBound @Int16)
 
     describe "Int32 are aligned to 4 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 4 4 (writeInt32TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 4 4 (maxBound @Int32)
 
     describe "Int64 are aligned to 8 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 8 8 (writeInt64TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 8 8 (maxBound @Int64)
 
     describe "Word8 are aligned to 1 byte" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 1 1 (writeWord8TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 1 1 (maxBound @Word8)
 
     describe "Word16 are aligned to 2 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 2 2 (writeWord16TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 2 2 (maxBound @Word16)
 
     describe "Word32 are aligned to 4 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 4 4 (writeWord32TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 4 4 (maxBound @Word32)
 
     describe "Word64 are aligned to 8 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 8 8 (writeWord64TableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 8 8 (maxBound @Word64)
 
     describe "Float are aligned to 4 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 4 4 (writeFloatTableField 999.5)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 4 4 (999.5 :: Float)
 
     describe "Double are aligned to 8 bytes" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 8 8 (writeDoubleTableField 999.5)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 8 8 (999.5 :: Double)
 
     describe "Bool are aligned to 1 byte" $ do
-      it "in table fields" $ require $
+      it "in table fields" $ hedgehog $
         prop_inlineTableFieldAlignment 1 1 (writeBoolTableField maxBound)
-      it "in vectors" $ require $
+      it "in vectors" $ hedgehog $
         prop_inlineVectorAlignment 1 1 (maxBound @Bool)
 
 
     describe "structs are aligned to the specified alignment" $ do
       describe "in table fields" $ do
-        it "Struct1" $ require $
+        it "Struct1" $ hedgehog $
           prop_inlineTableFieldAlignment (fromIntegral (structSizeOf @Struct1)) (structAlignmentOf @Struct1)
             (writeStructTableField (struct1 1 2 3))
 
-        it "Struct2" $ require $
+        it "Struct2" $ hedgehog $
           prop_inlineTableFieldAlignment (fromIntegral (structSizeOf @Struct2)) (structAlignmentOf @Struct2)
             (writeStructTableField (struct2 9))
 
-        it "Struct3" $ require $
+        it "Struct3" $ hedgehog $
           prop_inlineTableFieldAlignment (fromIntegral (structSizeOf @Struct3)) (structAlignmentOf @Struct3)
             (writeStructTableField (struct3 (struct2 99) 2 3))
 
-        it "Struct4" $ require $
+        it "Struct4" $ hedgehog $
           prop_inlineTableFieldAlignment (fromIntegral (structSizeOf @Struct4)) (structAlignmentOf @Struct4)
             (writeStructTableField (struct4 (struct2 99) 11 22 True))
 
       describe "in vectors" $ do
-        it "Struct1" $ require $
+        it "Struct1" $ hedgehog $
           prop_inlineVectorAlignment (fromIntegral (structSizeOf @Struct1)) (structAlignmentOf @Struct1)
             (struct1 maxBound maxBound maxBound)
 
-        it "Struct2" $ require $
+        it "Struct2" $ hedgehog $
           prop_inlineVectorAlignment (fromIntegral (structSizeOf @Struct2)) (structAlignmentOf @Struct2)
             (struct2 maxBound)
 
-        it "Struct3" $ require $
+        it "Struct3" $ hedgehog $
           prop_inlineVectorAlignment (fromIntegral (structSizeOf @Struct3)) (structAlignmentOf @Struct3)
             (struct3 (struct2 maxBound) maxBound maxBound)
 
-        it "Struct4" $ require $
+        it "Struct4" $ hedgehog $
           prop_inlineVectorAlignment (fromIntegral (structSizeOf @Struct4)) (structAlignmentOf @Struct4)
             (struct4 (struct2 maxBound) maxBound maxBound True)
 
     describe "Text are aligned to 4 bytes" $ do
-      it "in table fields" $ require prop_textTableFieldAlignment
-      it "in vectors" $ require prop_textVectorAlignment
+      it "in table fields" $ hedgehog prop_textTableFieldAlignment
+      it "in vectors" $ hedgehog prop_textVectorAlignment
 
     describe "Tables are properly aligned" $ do
-      it "in table fields" $ require prop_tableTableFieldAlignment
-      it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
+      it "in table fields" $ hedgehog prop_tableTableFieldAlignment
+      it "in vectors" $ hedgehog $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
         writeVectorTableTableField (Vec.fromList' (writeTable . fmap writeWord8TableField <$> byteFieldsList))
 
     describe "Unions tables are properly aligned" $
-      it "in vectors" $ require $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
+      it "in vectors" $ hedgehog $ prop_tableVectorAlignment $ \(byteFieldsList :: [[Word8]]) ->
         writeUnionValuesVectorTableField (Vec.fromList' (writeUnion 1 . writeTable . fmap writeWord8TableField <$> byteFieldsList))
 
 
-    it "Root is aligned to `maxAlign`" $ require prop_rootAlignment
-    it "Root with file identifier is aligned to `maxAlign`" $ require prop_rootWithFileIdentifierAlignment
+    it "Root is aligned to `maxAlign`" $ hedgehog prop_rootAlignment
+    it "Root with file identifier is aligned to `maxAlign`" $ hedgehog prop_rootWithFileIdentifierAlignment
 
 
 
 
-prop_inlineTableFieldAlignment :: Int32 -> Alignment -> WriteTableField -> Property
-prop_inlineTableFieldAlignment size alignment tableField = property $ do
+prop_inlineTableFieldAlignment :: Int32 -> Alignment -> WriteTableField -> PropertyT IO ()
+prop_inlineTableFieldAlignment size alignment tableField = do
   initialState <- forAllWith printFBState genInitialState
   let (f, interimState) = runState (unWriteTableField tableField) initialState
   let finalState = f interimState
@@ -182,8 +182,8 @@ prop_inlineTableFieldAlignment size alignment tableField = property $ do
 prop_inlineVectorAlignment ::
      WriteVectorElement a
   => Coercible (WriteVector a) WriteTableField
-  => Int32 -> Alignment -> a -> Property
-prop_inlineVectorAlignment elemSize elemAlignment sampleElem = property $ do
+  => Int32 -> Alignment -> a -> PropertyT IO ()
+prop_inlineVectorAlignment elemSize elemAlignment sampleElem = do
   initialState <- forAllWith printFBState genInitialState
   vectorLength <- forAll $ Gen.int (Range.linear 0 5)
 
@@ -206,8 +206,8 @@ prop_inlineVectorAlignment elemSize elemAlignment sampleElem = property $ do
   padding `isLessThan` (fromIntegral elemAlignment `max` 4)
 
 
-prop_textTableFieldAlignment :: Property
-prop_textTableFieldAlignment = property $ do
+prop_textTableFieldAlignment :: PropertyT IO ()
+prop_textTableFieldAlignment = do
   initialState <- forAllWith printFBState genInitialState
   text <- forAll $ Gen.text (Range.linear 0 30) Gen.unicode
 
@@ -224,8 +224,8 @@ prop_textTableFieldAlignment = property $ do
   padding `isLessThan` 4
 
 
-prop_textVectorAlignment :: Property
-prop_textVectorAlignment = property $ do
+prop_textVectorAlignment :: PropertyT IO ()
+prop_textVectorAlignment = do
   initialState <- forAllWith printFBState genInitialState
   texts <- forAll $ Gen.list (Range.linear 0 5) (Gen.text (Range.linear 0 30) Gen.unicode)
 
@@ -269,8 +269,8 @@ prop_textVectorAlignment = property $ do
   padding `isLessThan` 4
 
 
-prop_tableTableFieldAlignment :: Property
-prop_tableTableFieldAlignment = property $ do
+prop_tableTableFieldAlignment :: PropertyT IO ()
+prop_tableTableFieldAlignment = do
   initialState <- forAllWith printFBState genInitialState
   byteFields <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded)
 
@@ -298,8 +298,8 @@ prop_tableTableFieldAlignment = property $ do
   vtablePadding === 0
 
 
-prop_tableVectorAlignment :: ([[Word8]] -> WriteTableField) -> Property
-prop_tableVectorAlignment toVectorOfTables = property $  do
+prop_tableVectorAlignment :: ([[Word8]] -> WriteTableField) -> PropertyT IO ()
+prop_tableVectorAlignment toVectorOfTables = do
   initialState <- forAllWith printFBState genInitialState
   byteFieldsList <- forAll $ Gen.list (Range.linear 0 20) (Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded))
 
@@ -356,8 +356,8 @@ prop_tableVectorAlignment toVectorOfTables = property $  do
 
 
 
-prop_rootAlignment :: Property
-prop_rootAlignment = property $ do
+prop_rootAlignment :: PropertyT IO ()
+prop_rootAlignment = do
   initialState <- forAllWith printFBState genInitialState
   byteFields <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded)
 
@@ -385,8 +385,8 @@ prop_rootAlignment = property $ do
   padding `isLessThan` 15
 
 
-prop_rootWithFileIdentifierAlignment :: Property
-prop_rootWithFileIdentifierAlignment = property $ do
+prop_rootWithFileIdentifierAlignment :: PropertyT IO ()
+prop_rootWithFileIdentifierAlignment = do
   initialState <- forAllWith printFBState genInitialState
   byteFields <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8 Range.linearBounded)
 

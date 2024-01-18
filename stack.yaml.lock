@@ -5,13 +5,6 @@
 
 packages:
 - completed:
-    hackage: th-pprint-0.2.0.0@sha256:e21e1d9e1f33f7020cb2bef72840e5d4471cc75e90aba2a43415c16e83c565ad,1035
-    pantry-tree:
-      sha256: d9d70a9d17c615ec5d34eb8687cbbe85e8d4f61ed87015ba360236ac86f01e33
-      size: 376
-  original:
-    hackage: th-pprint-0.2.0.0
-- completed:
     commit: 3c84e463e30e0c1b09850aa4d52a08a8eb3b43a0
     git: https://github.com/myfreeweb/hspec-expectations-pretty-diff.git
     name: hspec-expectations-pretty-diff

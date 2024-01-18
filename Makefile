@@ -51,16 +51,11 @@ ghcid-integration:  ## Launch ghcid and automatically run integration tests
 		--test ":main --match=/FlatBuffers.Integration" \
 		$(GHCID_OPTS)
 
-test-lts:  ## Build the library and run the tests using lts-12.14
-	stack test \
-		--stack-yaml=./stack/stack.lts-12.14.yaml \
-		--work-dir ".stack-work-lts-12.14"
-
 test-min:  ## Build the library and run the tests using lowest possible dependency versions
 	stack test \
+		--ghc-options=-Werror \
 		--stack-yaml=./stack/stack.min.yaml \
 		--work-dir ".stack-work-min"
-
 
 release:  ## Creates a release package
 	stack clean --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"

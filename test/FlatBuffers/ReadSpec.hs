@@ -176,7 +176,7 @@ spec =
           testLargeIndex table vectorsL
 
         it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
-          requireProperty $ do
+          hedgehog do
             listWord8  <- forAll $ Gen.list (Range.linear 0 20) (Gen.word8  (Range.linear 0 20))
             listWord16 <- forAll $ Gen.list (Range.linear 0 20) (Gen.word16 (Range.linear 0 20))
             listWord32 <- forAll $ Gen.list (Range.linear 0 20) (Gen.word32 (Range.linear 0 20))
@@ -250,7 +250,7 @@ spec =
           testLargeIndex table vectorOfStructsAs
 
         it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
-          requireProperty $ do
+          hedgehog $ do
             listInt16 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int16 (Range.linear -20 20))
             n <- forAll $ Gen.int32 (Range.linearFrom 0 -10 30)
 
@@ -277,7 +277,7 @@ spec =
           testLargeIndex table vectorOfTablesXs
 
         it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
-          requireProperty $ do
+          hedgehog $ do
             listInt32 <- forAll $ Gen.list (Range.linear 0 20) (Gen.int32 (Range.linear -20 20))
             n <- forAll $ Gen.int32 (Range.linearFrom 0 -10 30)
 
@@ -301,7 +301,7 @@ spec =
           testLargeIndex table vectorOfUnionsXs
 
         it "`take` and `drop` are consistent with Data.List.take and Data.List.drop" $
-          requireProperty $ do
+          hedgehog $ do
             listOfPairs :: [(String, Int32)] <- forAll $ Gen.list (Range.linear 0 20) $ do
               unionType <- Gen.element ["Axe", "Sword"]
               unionVal <- Gen.int32 (Range.linear -20 20)

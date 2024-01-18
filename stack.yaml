@@ -4,6 +4,5 @@ packages:
 - .
 
 extra-deps:
-- th-pprint-0.2.0.0
 - git: https://github.com/myfreeweb/hspec-expectations-pretty-diff.git
   commit: 3c84e463e30e0c1b09850aa4d52a08a8eb3b43a0

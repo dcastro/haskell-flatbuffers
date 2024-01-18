@@ -24,13 +24,13 @@ import qualified Data.List                      as List
 
 import           Debug.Trace
 
-import           HaskellWorks.Hspec.Hedgehog    as Hedgehog
 
 import           Hedgehog
 
 import           Test.Hspec.Core.Hooks          as Hspec
 import           Test.Hspec.Core.Spec           as Hspec
 import           Test.Hspec.Expectations.Pretty as Hspec hiding (Expectation)
+import           Test.Hspec.Hedgehog            as Hedgehog
 import           Test.Hspec.Runner              as Hspec
 import           Test.HUnit                     (assertFailure)
 

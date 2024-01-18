@@ -579,7 +579,7 @@ spec =
           "[S1]: cyclic dependency detected [S1 -> S2 -> S3 -> S1] - structs cannot contain themselves, directly or indirectly"
 
       it "struct size & alignment & field offsets are consistent" $
-        require prop_structAlignment
+        hedgehog prop_structAlignment
 
     describe "tables" $ do
       it "empty" $
@@ -1378,8 +1378,8 @@ spec =
           ]
 
 
-prop_structAlignment :: Property
-prop_structAlignment = property $ do
+prop_structAlignment :: PropertyT IO ()
+prop_structAlignment = do
 
   n <- forAll $ Gen.int (Range.linear 1 10)
   structs <- forAll $ evalStateT (genStructs n []) 0
