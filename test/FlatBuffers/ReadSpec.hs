@@ -52,9 +52,7 @@ spec =
       requiredFieldsB table `shouldBeLeft` "Missing required table field: b"
       requiredFieldsC table `shouldBeLeft` "Missing required table field: c"
       requiredFieldsE table `shouldBeLeft` "Missing required table field: e"
-
-      table <- evalRight $ decode @VectorOfUnions $ encode $ writeTable []
-      vectorOfUnionsXsReq table `shouldBeLeft` "Missing required table field: xsReq"
+      requiredFieldsF table `shouldBeLeft` "Missing required table field: f"
 
     it "returns `UnionNone` when required union field is missing" $ do
       table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
@@ -70,16 +68,11 @@ spec =
       tableWithUnionUni table `shouldBeLeft` "Union: 'union type' found but 'union value' is missing."
 
     it "throws when union type vector is present, but union value vector is missing" $ do
-      table <- evalRight $ decode $ encode $ writeTable
+      table <- evalRight $ decode @VectorOfUnions $ encode $ writeTable
         [ writeVectorWord8TableField Vec.empty
-        , missing
-        , missing
-        , missing
-        , writeVectorWord8TableField Vec.empty
         , missing
         ]
       vectorOfUnionsXs table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
-      vectorOfUnionsXsReq table `shouldBeLeft` "Union vector: 'type vector' found but 'value vector' is missing."
 
     describe "returns `UnionUnknown` when union type is not recognized" $ do
       it "in union table fields" $ do
@@ -92,9 +85,9 @@ spec =
         let union = writeUnion 99 (writeTable [])
 
         result <- evalRight $ do
-          table <- decode $ encode $ vectorOfUnions Nothing (Vec.singleton union)
-          vec   <- vectorOfUnionsXsReq table
-          vec `unsafeIndex` 0
+          table <- decode $ encode $ vectorOfUnions $ Just $ Vec.singleton union
+          vectorOfUnionsXs table >>= \case
+            Just vec -> vec `unsafeIndex` 0
 
         case result of
           UnionUnknown n -> n `shouldBe` 99
@@ -302,7 +295,6 @@ spec =
       describe "of unions" $ do
         let Right table = decode $ encode $ vectorOfUnions
               (Just Vec.empty)
-              Vec.empty
 
         it "`unsafeIndex` does not throw when index is negative / too large" $
           testInvalidUnsafeIndex table vectorOfUnionsXs
@@ -340,9 +332,8 @@ spec =
                           Right (intVal, _) ->
                             pure ("Sword", intVal)
 
-            table <- evalEither $ decode $ encode $ vectorOfUnions
-              (Just (Vec.fromList' (pairToUnion <$> listOfPairs)))
-              Vec.empty
+            table <- evalEither $ decode $ encode $ vectorOfUnions $ Just $
+              Vec.fromList' (pairToUnion <$> listOfPairs)
 
             prop_takeConsistency n listOfPairs (vectorOfUnionsXs table) unionToPair
             prop_dropConsistency n listOfPairs (vectorOfUnionsXs table) unionToPair

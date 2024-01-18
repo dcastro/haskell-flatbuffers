@@ -121,6 +121,10 @@ table VectorOfTables {
   xs: [Axe];
 }
 
+table VectorOfUnions {
+  xs: [Weapon];
+}
+
 table VectorOfStructs {
   as: [Struct1];
   bs: [Struct2];
@@ -157,6 +161,8 @@ table DeprecatedFields {
   e: byte;
   f: Weapon (deprecated); // deprecated union, should leave 2 vtable entries empty
   g: byte;
+  h: [Weapon] (deprecated); // should leave 2 vtable entries empty
+  i: byte;
 }
 
 table RequiredFields {
@@ -165,6 +171,7 @@ table RequiredFields {
   c: Axe (required);
   d: Weapon (required);
   e: [int] (required);
+  f: [Weapon] (required);
 }
 
 // TODO: add support
@@ -188,4 +195,3 @@ table RequiredFields {
 //   x: UnionOfString;
 //   xs: [UnionOfStrings]
 // }
-

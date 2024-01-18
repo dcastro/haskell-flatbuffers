@@ -2,13 +2,14 @@
 
 module Examples.HandWritten where
 
-import           Data.Bits                           ( (.&.) )
+import           Data.Bits                           ((.&.))
 import           Data.Int
-import           Data.Text                           ( Text )
+import           Data.Text                           (Text)
 import           Data.Word
 
 import           FlatBuffers.Internal.Build
-import           FlatBuffers.Internal.FileIdentifier ( HasFileIdentifier(..), unsafeFileIdentifier )
+import           FlatBuffers.Internal.FileIdentifier (HasFileIdentifier (..),
+                                                      unsafeFileIdentifier)
 import           FlatBuffers.Internal.Read
 import           FlatBuffers.Internal.Types
 import           FlatBuffers.Internal.Write
@@ -100,11 +101,11 @@ toColor :: Int16 -> Maybe Color
 toColor n =
   case n of
     -2 -> Just ColorRed
-    0 -> Just ColorGreen
-    1 -> Just ColorBlue
-    5 -> Just ColorGray
-    8 -> Just ColorBlack
-    _ -> Nothing
+    0  -> Just ColorGreen
+    1  -> Just ColorBlue
+    5  -> Just ColorGray
+    8  -> Just ColorBlack
+    _  -> Nothing
 
 {-# INLINE fromColor #-}
 fromColor :: Color -> Int16
@@ -562,23 +563,14 @@ data VectorOfUnions
 
 vectorOfUnions ::
      Maybe (WriteVector (WriteUnion Weapon))
-  -> WriteVector (WriteUnion Weapon)
   -> WriteTable VectorOfUnions
-vectorOfUnions xs xsReq = writeTable
+vectorOfUnions xs = writeTable
   [ optional writeUnionTypesVectorTableField xs
   , optional writeUnionValuesVectorTableField xs
-  , deprecated
-  , deprecated
-  , writeUnionTypesVectorTableField xsReq
-  , writeUnionValuesVectorTableField xsReq
   ]
 
 vectorOfUnionsXs :: Table VectorOfUnions -> Either ReadError (Maybe (Vector (Union Weapon)))
 vectorOfUnionsXs = readTableFieldUnionVectorOpt readWeapon 1
-
-vectorOfUnionsXsReq :: Table VectorOfUnions -> Either ReadError (Vector (Union Weapon))
-vectorOfUnionsXsReq = readTableFieldUnionVectorReq readWeapon 5 "xsReq"
-
 
 ----------------------------------
 ---- Scalars with defaults -------
@@ -670,8 +662,8 @@ scalarsWithDefaultsR = readTableFieldWithDef readWord16  17 20
 ----------------------------------
 data DeprecatedFields
 
-deprecatedFields :: Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> WriteTable DeprecatedFields
-deprecatedFields a c e g = writeTable
+deprecatedFields :: Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> Maybe Int8 -> WriteTable DeprecatedFields
+deprecatedFields a c e g i = writeTable
   [ optionalDef 0 writeInt8TableField a
   , deprecated
   , optionalDef 0 writeInt8TableField c
@@ -680,6 +672,9 @@ deprecatedFields a c e g = writeTable
   , deprecated
   , deprecated
   , optionalDef 0 writeInt8TableField g
+  , deprecated
+  , deprecated
+  , optionalDef 0 writeInt8TableField i
   ]
 
 deprecatedFieldsA :: Table DeprecatedFields -> Either ReadError Int8
@@ -694,6 +689,8 @@ deprecatedFieldsE = readTableFieldWithDef readInt8 4 0
 deprecatedFieldsG :: Table DeprecatedFields -> Either ReadError Int8
 deprecatedFieldsG = readTableFieldWithDef readInt8 7 0
 
+deprecatedFieldsI :: Table DeprecatedFields -> Either ReadError Int8
+deprecatedFieldsI = readTableFieldWithDef readInt8 10 0
 
 ----------------------------------
 -------- Required fields ---------
@@ -706,14 +703,17 @@ requiredFields ::
   -> WriteTable Axe
   -> WriteUnion Weapon
   -> WriteVector Int32
+  -> WriteVector (WriteUnion Weapon)
   -> WriteTable RequiredFields
-requiredFields a b c d e = writeTable
+requiredFields a b c d e f = writeTable
   [ writeTextTableField a
   , writeStructTableField b
   , writeTableTableField c
   , writeUnionTypeTableField d
   , writeUnionValueTableField d
   , writeVectorInt32TableField e
+  , writeUnionTypesVectorTableField f
+  , writeUnionValuesVectorTableField f
   ]
 
 requiredFieldsA :: Table RequiredFields -> Either ReadError Text
@@ -731,3 +731,5 @@ requiredFieldsD = readTableFieldUnion readWeapon 4
 requiredFieldsE :: Table RequiredFields -> Either ReadError (Vector Int32)
 requiredFieldsE = readTableFieldReq (readPrimVector VectorInt32) 5 "e"
 
+requiredFieldsF :: Table RequiredFields -> Either ReadError (Vector (Union Weapon))
+requiredFieldsF = readTableFieldUnionVectorReq readWeapon 7 "f"

@@ -1,6 +1,6 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications  #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
@@ -9,12 +9,12 @@
 
 module FlatBuffers.RoundTripSpec where
 
-import           Control.Applicative ( liftA3 )
+import           Control.Applicative (liftA3)
 
-import           Data.Bits           ( (.|.) )
-import           Data.Functor        ( (<&>) )
+import           Data.Bits           ((.|.))
+import           Data.Functor        ((<&>))
 import qualified Data.List           as L
-import           Data.Maybe          ( isNothing )
+import           Data.Maybe          (isNothing)
 
 import           Examples
 
@@ -372,60 +372,30 @@ spec =
       it "non empty" $ do
         let
           shouldBeSword x (Union (WeaponSword s)) = swordX s `shouldBe` Right (Just x)
-
           shouldBeAxe y (Union (WeaponAxe s)) = axeY s `shouldBe` Right y
 
-          shouldBeNone UnionNone = pure ()
-
-        x <- evalRight $ decode $ encode $ vectorOfUnions
-          (Just $ Vec.fromList'
+        x <- evalRight $ decode $ encode $ vectorOfUnions $
+          Just $ Vec.fromList'
             [ weaponSword (sword (Just "hi"))
-            , none
             , weaponAxe (axe (Just 98))
             ]
-          )
-          (Vec.fromList'
-            [ weaponSword (sword (Just "hi2"))
-            , none
-            , weaponAxe (axe (Just 100))
-            ]
-          )
 
         Just xs <- evalRight $ vectorOfUnionsXs x
-        Vec.length xs `shouldBe` 3
-        L.length <$> toList xs `shouldBe` Right 3
+        Vec.length xs `shouldBe` 2
+        L.length <$> toList xs `shouldBe` Right 2
         xs `unsafeIndex` 0 `shouldBeRightAndExpect` shouldBeSword "hi"
-        xs `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeNone
-        xs `unsafeIndex` 2 `shouldBeRightAndExpect` shouldBeAxe 98
-        (toList xs <&> (!! 0)) `shouldBeRightAndExpect` shouldBeSword "hi"
-        (toList xs <&> (!! 1)) `shouldBeRightAndExpect` shouldBeNone
-        (toList xs <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 98
-
-        xsReq <- evalRight $ vectorOfUnionsXsReq x
-        Vec.length xsReq `shouldBe` 3
-        L.length <$> toList xsReq `shouldBe` Right 3
-        xsReq `unsafeIndex` 0 `shouldBeRightAndExpect` shouldBeSword "hi2"
-        xsReq `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeNone
-        xsReq `unsafeIndex` 2 `shouldBeRightAndExpect` shouldBeAxe 100
-        (toList xsReq <&> (!! 0)) `shouldBeRightAndExpect` shouldBeSword "hi2"
-        (toList xsReq <&> (!! 1)) `shouldBeRightAndExpect` shouldBeNone
-        (toList xsReq <&> (!! 2)) `shouldBeRightAndExpect` shouldBeAxe 100
+        xs `unsafeIndex` 1 `shouldBeRightAndExpect` shouldBeAxe 98
 
       it "empty" $ do
-        x <- evalRight $ decode $ encode $ vectorOfUnions (Just Vec.empty) Vec.empty
+        x <- evalRight $ decode $ encode $ vectorOfUnions $ Just Vec.empty
 
         Just xs <- evalRight $ vectorOfUnionsXs x
         Vec.length xs `shouldBe` 0
         L.length <$> toList xs `shouldBe` Right 0
 
-        xsReq <- evalRight $ vectorOfUnionsXsReq x
-        Vec.length xsReq `shouldBe` 0
-        L.length <$> toList xsReq `shouldBe` Right 0
-
       it "missing" $ do
-        x <- evalRight $ decode $ encode $ vectorOfUnions Nothing Vec.empty
+        x <- evalRight $ decode $ encode $ vectorOfUnions Nothing
         vectorOfUnionsXs x `shouldBeRightAnd` isNothing
-        (Vec.length <$> vectorOfUnionsXsReq x) `shouldBe` Right 0
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do
@@ -468,12 +438,13 @@ spec =
         Nothing Nothing
 
     it "DeprecatedFields" $ do
-      x <- evalRight $ decode $ encode $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4)
+      x <- evalRight $ decode $ encode $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4) (Just 5)
 
       deprecatedFieldsA x `shouldBe` Right 1
       deprecatedFieldsC x `shouldBe` Right 2
       deprecatedFieldsE x `shouldBe` Right 3
       deprecatedFieldsG x `shouldBe` Right 4
+      deprecatedFieldsI x `shouldBe` Right 5
 
     it "RequiredFields" $ do
       let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z
@@ -483,6 +454,7 @@ spec =
         (axe (Just 44))
         (weaponSword (sword (Just "a")))
         (Vec.fromList' [55, 66])
+        (Vec.singleton $ weaponSword (sword (Just "b")))
 
       requiredFieldsA x `shouldBe` Right "hello"
       (requiredFieldsB x >>= readStruct1) `shouldBe` Right (11, 22, 33)
@@ -490,3 +462,5 @@ spec =
       requiredFieldsD x `shouldBeRightAndExpect` \case
         Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "a")
       (requiredFieldsE x >>= toList) `shouldBe` Right [55, 66]
+      (requiredFieldsF x >>= toList) `shouldBeRightAndExpect` \case
+        [Union (WeaponSword x)] -> swordX x `shouldBe` Right (Just "b")

@@ -19,8 +19,6 @@ cache:
   timeout: 1000
   directories:
   - $HOME/.stack
-  - $HOME/.ivy2/cache
-  - $HOME/.sbt/boot
 
 # Ensure necessary system libraries are present
 addons:
@@ -30,13 +28,9 @@ addons:
 
 before_install:
 - mkdir -p ~/.local/bin
-- mkdir -p $HOME/.sbt/launchers/1.2.3/
 - export PATH=$HOME/.local/bin:$PATH
 # Download and unpack the stack executable
 - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-# Download sbt
-- travis_retry curl -L https://github.com/sbt/sbt/releases/download/v1.2.8/sbt-1.2.8.tgz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/sbt'
-- travis_retry curl -L -o $HOME/.sbt/launchers/1.2.3/sbt-launch.jar https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/1.2.3/sbt-launch.jar
 # Download and compile flatbuffers
 - git clone https://github.com/google/flatbuffers.git $HOME/flatbuffers
 - cd $HOME/flatbuffers
@@ -53,6 +47,4 @@ install:
 
 script:
 # Build the package, its tests, and its docs and run the tests
-- make test-api-detached
-- timeout 60 bash -c 'while ! nc -z localhost 8080; do sleep 0.1; done'
 - stack --no-terminal test --haddock --no-haddock-deps --ghc-options=-Werror

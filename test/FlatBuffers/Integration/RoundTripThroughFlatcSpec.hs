@@ -11,9 +11,9 @@
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
 import           Control.Applicative  (liftA3)
-
-import           Data.Aeson           (Value (..), object, toJSON, (.=))
+import           Data.Aeson           (Value (..), object, (.=))
 import qualified Data.Aeson           as J
+import           Data.Aeson.QQ.Simple (aesonQQ)
 import           Data.Bits            ((.|.))
 import qualified Data.ByteString.Lazy as BSL
 import           Data.Int
@@ -21,9 +21,7 @@ import           Data.Maybe           (isNothing)
 import           Data.Proxy
 import           Data.Typeable        (Typeable, typeRep)
 import           Data.Word
-
 import           Examples
-
 import           FlatBuffers
 import qualified FlatBuffers.Vector   as Vec
 
@@ -45,11 +43,6 @@ Each test:
 
 See "Using flatc as a Conversion Tool" at the bottom:
   https://google.github.io/flatbuffers/flatbuffers_guide_tutorial.html
-
-Note that flatc is not yet able to convert vector of unions from binary to json (even though
-json -> binary works), so we can't use flatc to test this.
-Instead, we check our encoders against java's decoders by
-sending requests to a Scala server: FlatBuffers.Integration.HaskellToScalaSpec.
 
 -}
 
@@ -606,6 +599,54 @@ spec =
         vectorOfStructsCs decoded `shouldBeRightAnd` isNothing
         vectorOfStructsDs decoded `shouldBeRightAnd` isNothing
 
+    describe "VectorOfUnions" do
+      it "non empty" do
+        (json, decoded) <- flatc $ vectorOfUnions $ Just $ Vec.fromList'
+          [ weaponSword (sword (Just "hi"))
+          , weaponAxe (axe (Just maxBound))
+          , weaponSword (sword Nothing)
+          ]
+
+        json `shouldBeJson`
+          [aesonQQ|
+            { "xs": [
+                {"x": "hi"},
+                {"y": 2147483647},
+                {}
+              ],
+              "xs_type": [
+                "Sword",
+                "Axe",
+                "Sword"
+              ]
+            }
+          |]
+
+        vec <- evalRightJust $ vectorOfUnionsXs decoded
+        [x, y, z] <- evalRight $ Vec.toList vec
+        case x of Union (WeaponSword sword) -> swordX sword `shouldBe` Right (Just "hi")
+        case y of Union (WeaponAxe axe) -> axeY axe `shouldBe` Right (maxBound @Int32)
+        case z of Union (WeaponSword sword) -> swordX sword `shouldBe` Right Nothing
+
+      it "empty" do
+        (json, decoded) <- flatc $ vectorOfUnions $ Just Vec.empty
+
+        json `shouldBeJson`
+          [aesonQQ|
+            { "xs": [],
+              "xs_type": []
+            }
+          |]
+
+        vec <- evalRightJust $ vectorOfUnionsXs decoded
+        Vec.length vec `shouldBe` 0
+
+      it "missing" do
+        (json, decoded) <- flatc $ vectorOfUnions Nothing
+
+        json `shouldBeJson` [aesonQQ|{ }|]
+
+        vectorOfUnionsXs decoded `shouldBeRightAnd` isNothing
 
     describe "ScalarsWithDefaults" $ do
       let runTest buffer = do
@@ -650,19 +691,21 @@ spec =
         Nothing Nothing
 
     it "DeprecatedFields" $ do
-      (json, decoded) <- flatc $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4)
+      (json, decoded) <- flatc $ deprecatedFields (Just 1) (Just 2) (Just 3) (Just 4) (Just 5)
 
       json `shouldBeJson` object
         [ "a" .= Number 1
         , "c" .= Number 2
         , "e" .= Number 3
         , "g" .= Number 4
+        , "i" .= Number 5
         ]
 
       deprecatedFieldsA decoded `shouldBe` Right 1
       deprecatedFieldsC decoded `shouldBe` Right 2
       deprecatedFieldsE decoded `shouldBe` Right 3
       deprecatedFieldsG decoded `shouldBe` Right 4
+      deprecatedFieldsI decoded `shouldBe` Right 5
 
     it "RequiredFields" $ do
       let readStruct1 = (liftA3 . liftA3) (,,) struct1X struct1Y struct1Z
@@ -672,15 +715,21 @@ spec =
         (axe (Just 44))
         (weaponSword (sword (Just "a")))
         (Vec.fromList' [55, 66])
+        (Vec.singleton $ weaponSword (sword (Just "b")))
 
-      json `shouldBeJson` object
-        [ "a" .= String "hello"
-        , "b" .= object ["x" .= Number 11, "y" .= Number 22, "z" .= Number 33]
-        , "c" .= object ["y" .= Number 44]
-        , "d" .= object ["x" .= String "a"]
-        , "d_type" .= String "Sword"
-        , "e" .= [Number 55, Number 66]
-        ]
+      json `shouldBeJson`
+        [aesonQQ|
+          {
+            "a": "hello",
+            "b": { "x": 11, "y": 22, "z": 33 },
+            "c": { "y": 44 },
+            "d": { "x": "a" },
+            "d_type": "Sword",
+            "e": [55, 66],
+            "f": [ {"x": "b"} ],
+            "f_type": [ "Sword" ]
+          }
+        |]
 
       requiredFieldsA decoded `shouldBe` Right "hello"
       (requiredFieldsB decoded >>= readStruct1) `shouldBe` Right (11, 22, 33)
@@ -688,7 +737,8 @@ spec =
       requiredFieldsD decoded `shouldBeRightAndExpect` \case
         Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "a")
       (requiredFieldsE decoded >>= Vec.toList) `shouldBe` Right [55, 66]
-
+      (requiredFieldsF decoded >>= Vec.toList) `shouldBeRightAndExpect` \case
+        [Union (WeaponSword x)] -> swordX x `shouldBe` Right (Just "b")
 
 flatc :: forall a. Typeable a => WriteTable a -> IO (J.Value, Table a)
 flatc table = flatcAux False (encode table)

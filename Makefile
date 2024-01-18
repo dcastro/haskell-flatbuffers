@@ -51,23 +51,6 @@ ghcid-integration:  ## Launch ghcid and automatically run integration tests
 		--test ":main --match=/FlatBuffers.Integration" \
 		$(GHCID_OPTS)
 
-flatb: ## Generate java flatbuffers
-	flatc -o ./test-api/src/main/java/ --java \
-		./test/Examples/schema.fbs \
-		./test/Examples/vector_of_unions.fbs
-
-test-api: ## Generate java flatbuffers and launch test-api
-	make flatb
-	cd ./test-api/ && \
-		sbt "~reStart"
-
-test-api-detached: ## Generate java flatbuffers and launch test-api in detached mode
-	make flatb
-	cd ./test-api/ && \
-		sbt -Djline.terminal=jline.UnsupportedTerminal run &
-
-
-
 test-lts:  ## Build the library and run the tests using lts-12.14
 	stack test \
 		--stack-yaml=./stack/stack.lts-12.14.yaml \

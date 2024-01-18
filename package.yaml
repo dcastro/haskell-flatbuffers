@@ -48,6 +48,8 @@ dependencies:
 
 default-extensions:
   - TypeOperators
+  - BlockArguments
+  - QuasiQuotes
 
 library:
   source-dirs:      src
