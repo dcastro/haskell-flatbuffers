@@ -1,14 +1,3 @@
-{-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE InstanceSigs               #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE UnliftedFFITypes           #-}
-
 {-# OPTIONS_HADDOCK not-home #-}
 
 {- HLINT ignore writeTable uoffsetFrom "Eta reduce" -}

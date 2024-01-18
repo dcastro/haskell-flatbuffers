@@ -1,6 +1,4 @@
-{-# LANGUAGE OverloadedLists   #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 

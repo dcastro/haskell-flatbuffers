@@ -1,8 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
-
 module FlatBuffers.Internal.Build where
 
-import           Data.ByteString.Builder ( Builder )
+import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as B
 import           Data.Int
 import           Data.Word

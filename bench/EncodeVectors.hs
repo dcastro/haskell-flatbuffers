@@ -1,7 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
-
 module EncodeVectors where
 
 {- HLINT ignore "Avoid lambda" -}
@@ -11,10 +7,10 @@ import           Criterion
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 import           Data.Foldable        as F
-import           Data.Functor         ( (<&>) )
+import           Data.Functor         ((<&>))
 import           Data.Int
 import qualified Data.List            as L
-import           Data.Text            ( Text )
+import           Data.Text            (Text)
 import qualified Data.Vector          as V
 import qualified Data.Vector.Storable as VS
 import qualified Data.Vector.Unboxed  as VU
@@ -168,8 +164,8 @@ groups =
   ]
 
 data User = User
-  { userId :: !Int32
-  , userAge :: !Int32
+  { userId   :: !Int32
+  , userAge  :: !Int32
   , userName :: !Text
   }
 

@@ -1,8 +1,3 @@
-{-# LANGUAGE ExplicitForAll   #-}
-{-# LANGUAGE NegativeLiterals #-}
-{-# LANGUAGE QuasiQuotes      #-}
-{-# LANGUAGE TemplateHaskell  #-}
-
 module FlatBuffers.Internal.Compiler.THSpec where
 
 import           Control.Arrow                                  (second)

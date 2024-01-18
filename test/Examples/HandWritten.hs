@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Examples.HandWritten where
 
 import           Data.Bits                           ((.&.))

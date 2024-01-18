@@ -4,7 +4,7 @@ module FlatBuffers.Internal.Compiler.Display where
 
 import           Data.Int
 import qualified Data.List          as List
-import           Data.List.NonEmpty ( NonEmpty )
+import           Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text          as T
 import           Data.Word
@@ -35,4 +35,3 @@ instance Display Word8   where display = show
 instance Display Word16  where display = show
 instance Display Word32  where display = show
 instance Display Word64  where display = show
-

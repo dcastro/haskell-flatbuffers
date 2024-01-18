@@ -1,11 +1,8 @@
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE NegativeLiterals #-}
 
 module FlatBuffers.Internal.Compiler.ParserSpec where
 
-import           Data.Void                                ( Void )
+import           Data.Void                                (Void)
 
 import           FlatBuffers.Internal.Compiler.Parser
 import           FlatBuffers.Internal.Compiler.SyntaxTree
@@ -15,7 +12,7 @@ import           Test.Hspec.Megaparsec
 import           TestImports
 
 import           Text.Megaparsec
-import           Text.RawString.QQ                        ( r )
+import           Text.RawString.QQ                        (r)
 
 spec :: Spec
 spec =
@@ -333,7 +330,5 @@ parseEof p = parse (p <* eof) ""
 parses :: HasCallStack => String -> Schema -> Expectation
 parses input expectedSchema =
   case parse schema "" input of
-    l@(Left _) -> l `shouldParse` expectedSchema
+    l@(Left _)   -> l `shouldParse` expectedSchema
     Right result -> result `shouldBe` expectedSchema
-
-

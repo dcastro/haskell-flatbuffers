@@ -1,6 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module FlatBuffers.Internal.Compiler.ValidSyntaxTree
   ( -- * Re-exports from `FlatBuffers.Internal.Compiler.SyntaxTree`
     FlatBuffers.Internal.Compiler.SyntaxTree.Namespace(..)
@@ -28,14 +25,17 @@ module FlatBuffers.Internal.Compiler.ValidSyntaxTree
   , UnionVal(..)
   ) where
 
-import           Data.Bits                                ( Bits )
-import           Data.List.NonEmpty                       ( NonEmpty )
-import           Data.Scientific                          ( Scientific )
-import           Data.String                              ( IsString(..) )
-import           Data.Text                                ( Text )
+import           Data.Bits                                (Bits)
+import           Data.List.NonEmpty                       (NonEmpty)
+import           Data.Scientific                          (Scientific)
+import           Data.String                              (IsString (..))
+import           Data.Text                                (Text)
 import           Data.Word
 
-import           FlatBuffers.Internal.Compiler.SyntaxTree ( HasIdent(..), Ident(..), Namespace(..), TypeRef(..) )
+import           FlatBuffers.Internal.Compiler.SyntaxTree (HasIdent (..),
+                                                           Ident (..),
+                                                           Namespace (..),
+                                                           TypeRef (..))
 import           FlatBuffers.Internal.Types
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
@@ -51,10 +51,10 @@ instance HasIdent UnionVal    where getIdent = unionValIdent
 ------------- Enums --------------
 ----------------------------------
 data EnumDecl = EnumDecl
-  { enumIdent     :: !Ident
-  , enumType      :: !EnumType
-  , enumBitFlags  :: !Bool
-  , enumVals      :: !(NonEmpty EnumVal)
+  { enumIdent    :: !Ident
+  , enumType     :: !EnumType
+  , enumBitFlags :: !Bool
+  , enumVals     :: !(NonEmpty EnumVal)
   } deriving (Show, Eq)
 
 data EnumVal = EnumVal
@@ -77,17 +77,17 @@ data EnumType
 ------------ Structs -------------
 ----------------------------------
 data StructDecl = StructDecl
-  { structIdent      :: !Ident
-  , structAlignment  :: !Alignment
-  , structSize       :: !InlineSize
-  , structFields     :: !(NonEmpty StructField)
+  { structIdent     :: !Ident
+  , structAlignment :: !Alignment
+  , structSize      :: !InlineSize
+  , structFields    :: !(NonEmpty StructField)
   } deriving (Show, Eq)
 
 data StructField = StructField
-  { structFieldIdent    :: !Ident
-  , structFieldPadding  :: !Word8  -- ^ How many zeros to write after this field.
-  , structFieldOffset   :: !Word16 -- ^ This field's offset from the struct's root.
-  , structFieldType     :: !StructFieldType
+  { structFieldIdent   :: !Ident
+  , structFieldPadding :: !Word8  -- ^ How many zeros to write after this field.
+  , structFieldOffset  :: !Word16 -- ^ This field's offset from the struct's root.
+  , structFieldType    :: !StructFieldType
   } deriving (Show, Eq)
 
 data StructFieldType
@@ -123,9 +123,9 @@ data IsRoot
   deriving (Eq, Show)
 
 data TableDecl = TableDecl
-  { tableIdent     :: !Ident
-  , tableIsRoot    :: !IsRoot
-  , tableFields    :: ![TableField]
+  { tableIdent  :: !Ident
+  , tableIsRoot :: !IsRoot
+  , tableFields :: ![TableField]
   } deriving (Eq, Show)
 
 data TableField = TableField

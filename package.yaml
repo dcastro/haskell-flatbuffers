@@ -50,6 +50,23 @@ default-extensions:
   - TypeOperators
   - BlockArguments
   - QuasiQuotes
+  - BangPatterns
+  - ViewPatterns
+  - DerivingStrategies
+  - InstanceSigs
+  - TypeApplications
+  - TypeFamilies
+  - AllowAmbiguousTypes
+  - LambdaCase
+  - RecordWildCards
+  - ScopedTypeVariables
+  - DeriveTraversable
+  - GeneralizedNewtypeDeriving
+  - StandaloneDeriving
+  - NegativeLiterals
+  - TemplateHaskell
+  - OverloadedStrings
+  - DeriveTraversable
 
 library:
   source-dirs:      src

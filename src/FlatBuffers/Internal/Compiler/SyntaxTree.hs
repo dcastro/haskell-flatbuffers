@@ -1,9 +1,3 @@
-{-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE ViewPatterns               #-}
-
 module FlatBuffers.Internal.Compiler.SyntaxTree where
 
 import           Data.List.NonEmpty                    (NonEmpty)

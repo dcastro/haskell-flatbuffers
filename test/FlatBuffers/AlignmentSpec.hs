@@ -1,9 +1,4 @@
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -16,22 +11,23 @@ import           Control.Monad.State.Strict
 import qualified Data.Binary.Get                     as G
 import qualified Data.ByteString                     as BS
 import qualified Data.ByteString.Builder             as B
+import           Data.ByteString.Lazy                (ByteString)
 import qualified Data.ByteString.Lazy                as BSL
-import           Data.ByteString.Lazy                ( ByteString )
 import           Data.Coerce
-import           Data.Foldable                       ( fold, foldrM )
+import           Data.Foldable                       (fold, foldrM)
 import           Data.Int
 import qualified Data.List                           as List
-import           Data.Monoid                         ( Sum(..) )
-import           Data.Semigroup                      ( Max(..) )
-import           Data.Text                           ( Text )
+import           Data.Monoid                         (Sum (..))
+import           Data.Semigroup                      (Max (..))
+import           Data.Text                           (Text)
 import qualified Data.Text.Encoding                  as T
 import           Data.Word
 
 import           Examples
 
-import           FlatBuffers.Internal.FileIdentifier ( unsafeFileIdentifier )
-import           FlatBuffers.Internal.Types          ( Alignment(..), IsStruct(..) )
+import           FlatBuffers.Internal.FileIdentifier (unsafeFileIdentifier)
+import           FlatBuffers.Internal.Types          (Alignment (..),
+                                                      IsStruct (..))
 import           FlatBuffers.Internal.Write
 import qualified FlatBuffers.Vector                  as Vec
 

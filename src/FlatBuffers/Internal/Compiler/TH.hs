@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module FlatBuffers.Internal.Compiler.TH where
 

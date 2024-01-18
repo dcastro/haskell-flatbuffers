@@ -1,10 +1,8 @@
 cabal-version: 1.18
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: f9724d62a7a07ac89fb8f3432d1230a74ead1bd66ef84d7579a06423e0456e66
 
 name:           flatbuffers
 version:        0.3.0.0
@@ -20,9 +18,9 @@ maintainer:     dc@diogocastro.com
 copyright:      2019 Diogo Castro
 license:        BSD3
 license-file:   LICENSE
+build-type:     Simple
 tested-with:
     GHC == 8.4.3 , GHC == 8.6.5
-build-type:     Simple
 extra-source-files:
     README.md
     CHANGELOG.md
@@ -59,6 +57,23 @@ library
       TypeOperators
       BlockArguments
       QuasiQuotes
+      BangPatterns
+      ViewPatterns
+      DerivingStrategies
+      InstanceSigs
+      TypeApplications
+      TypeFamilies
+      AllowAmbiguousTypes
+      LambdaCase
+      RecordWildCards
+      ScopedTypeVariables
+      DeriveTraversable
+      GeneralizedNewtypeDeriving
+      StandaloneDeriving
+      NegativeLiterals
+      TemplateHaskell
+      OverloadedStrings
+      DeriveTraversable
   ghc-options: -Wall -Wno-name-shadowing -Wincomplete-record-updates -Wredundant-constraints
   build-depends:
       base >=4.11 && <5
@@ -99,6 +114,23 @@ test-suite test
       TypeOperators
       BlockArguments
       QuasiQuotes
+      BangPatterns
+      ViewPatterns
+      DerivingStrategies
+      InstanceSigs
+      TypeApplications
+      TypeFamilies
+      AllowAmbiguousTypes
+      LambdaCase
+      RecordWildCards
+      ScopedTypeVariables
+      DeriveTraversable
+      GeneralizedNewtypeDeriving
+      StandaloneDeriving
+      NegativeLiterals
+      TemplateHaskell
+      OverloadedStrings
+      DeriveTraversable
   ghc-options: -Wall -Wno-name-shadowing -Wincomplete-record-updates -Wredundant-constraints
   build-depends:
       HUnit
@@ -148,6 +180,23 @@ benchmark criterion-bench
       TypeOperators
       BlockArguments
       QuasiQuotes
+      BangPatterns
+      ViewPatterns
+      DerivingStrategies
+      InstanceSigs
+      TypeApplications
+      TypeFamilies
+      AllowAmbiguousTypes
+      LambdaCase
+      RecordWildCards
+      ScopedTypeVariables
+      DeriveTraversable
+      GeneralizedNewtypeDeriving
+      StandaloneDeriving
+      NegativeLiterals
+      TemplateHaskell
+      OverloadedStrings
+      DeriveTraversable
   ghc-options: -Wall -Wno-name-shadowing -Wincomplete-record-updates -Wredundant-constraints -threaded -rtsopts
   build-depends:
       aeson

@@ -1,51 +1,61 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysis where
 
-import           Control.Monad                                 ( forM_, join, when )
-import           Control.Monad.Except                          ( throwError )
-import           Control.Monad.Reader                          ( ReaderT, asks, local, runReaderT )
-import           Control.Monad.State                           ( MonadState, State, StateT, evalState, evalStateT, get, mapStateT, modify, put )
-import           Control.Monad.Trans                           ( lift )
+import           Control.Monad                                 (forM_, join,
+                                                                when)
+import           Control.Monad.Except                          (throwError)
+import           Control.Monad.Reader                          (ReaderT, asks,
+                                                                local,
+                                                                runReaderT)
+import           Control.Monad.State                           (MonadState,
+                                                                State, StateT,
+                                                                evalState,
+                                                                evalStateT, get,
+                                                                mapStateT,
+                                                                modify, put)
+import           Control.Monad.Trans                           (lift)
 
-import           Data.Bits                                     ( (.&.), (.|.), Bits, FiniteBits, bit, finiteBitSize )
-import           Data.Coerce                                   ( coerce )
-import           Data.Foldable                                 ( asum, find, foldlM, traverse_ )
+import           Data.Bits                                     (Bits,
+                                                                FiniteBits, bit,
+                                                                finiteBitSize,
+                                                                (.&.), (.|.))
+import           Data.Coerce                                   (coerce)
+import           Data.Foldable                                 (asum, find,
+                                                                foldlM,
+                                                                traverse_)
 import qualified Data.Foldable                                 as Foldable
-import           Data.Functor                                  ( ($>), (<&>) )
+import           Data.Functor                                  (($>), (<&>))
 import           Data.Int
-import           Data.Ix                                       ( inRange )
+import           Data.Ix                                       (inRange)
 import qualified Data.List                                     as List
-import           Data.List.NonEmpty                            ( NonEmpty((:|)) )
+import           Data.List.NonEmpty                            (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                            as NE
-import           Data.Map.Strict                               ( Map )
+import           Data.Map.Strict                               (Map)
 import qualified Data.Map.Strict                               as Map
-import           Data.Maybe                                    ( catMaybes, fromMaybe, isJust )
-import           Data.Monoid                                   ( Sum(..) )
-import           Data.Scientific                               ( Scientific )
+import           Data.Maybe                                    (catMaybes,
+                                                                fromMaybe,
+                                                                isJust)
+import           Data.Monoid                                   (Sum (..))
+import           Data.Scientific                               (Scientific)
 import qualified Data.Scientific                               as Scientific
-import           Data.Set                                      ( Set )
+import           Data.Set                                      (Set)
 import qualified Data.Set                                      as Set
-import           Data.Text                                     ( Text )
+import           Data.Text                                     (Text)
 import qualified Data.Text                                     as T
-import           Data.Traversable                              ( for )
+import           Data.Traversable                              (for)
 import           Data.Word
 
-import           FlatBuffers.Internal.Compiler.Display         ( Display(..) )
-import           FlatBuffers.Internal.Compiler.SyntaxTree      ( FileTree(..), HasMetadata(..), Schema, qualify )
+import           FlatBuffers.Internal.Compiler.Display         (Display (..))
+import           FlatBuffers.Internal.Compiler.SyntaxTree      (FileTree (..),
+                                                                HasMetadata (..),
+                                                                Schema, qualify)
 import qualified FlatBuffers.Internal.Compiler.SyntaxTree      as ST
 import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
 import           FlatBuffers.Internal.Constants
 import           FlatBuffers.Internal.Types
 
-import           Text.Read                                     ( readMaybe )
+import           Text.Read                                     (readMaybe)
 
 
 ----------------------------------
@@ -393,11 +403,11 @@ validateEnum (currentNamespace, _) enum =
     validateBounds enumType enumVal =
       validating enumVal $
         case enumType of
-          EInt8 -> validateBounds' @Int8 enumVal
-          EInt16 -> validateBounds' @Int16 enumVal
-          EInt32 -> validateBounds' @Int32 enumVal
-          EInt64 -> validateBounds' @Int64 enumVal
-          EWord8 -> validateBounds' @Word8 enumVal
+          EInt8   -> validateBounds' @Int8 enumVal
+          EInt16  -> validateBounds' @Int16 enumVal
+          EInt32  -> validateBounds' @Int32 enumVal
+          EInt64  -> validateBounds' @Int64 enumVal
+          EWord8  -> validateBounds' @Word8 enumVal
           EWord16 -> validateBounds' @Word16 enumVal
           EWord32 -> validateBounds' @Word32 enumVal
           EWord64 -> validateBounds' @Word64 enumVal
@@ -614,9 +624,9 @@ validateDefaultValAsInt dflt =
 validateDefaultValAsScientific :: Maybe ST.DefaultVal -> Validation (DefaultVal Scientific)
 validateDefaultValAsScientific dflt =
   case dflt of
-    Nothing                 -> pure (DefaultVal 0)
-    Just (ST.DefaultNum n)  -> pure (DefaultVal n)
-    Just _                  -> throwErrorMsg "default value must be a number"
+    Nothing                -> pure (DefaultVal 0)
+    Just (ST.DefaultNum n) -> pure (DefaultVal n)
+    Just _                 -> throwErrorMsg "default value must be a number"
 
 validateDefaultValAsBool :: Maybe ST.DefaultVal -> Validation (DefaultVal Bool)
 validateDefaultValAsBool dflt =
@@ -951,18 +961,18 @@ validateStruct symbolTables currentNamespace struct =
 structFieldAlignment :: UnpaddedStructField -> Alignment
 structFieldAlignment usf =
   case unpaddedStructFieldType usf of
-    SInt8 -> int8Size
-    SInt16 -> int16Size
-    SInt32 -> int32Size
-    SInt64 -> int64Size
-    SWord8 -> word8Size
-    SWord16 -> word16Size
-    SWord32 -> word32Size
-    SWord64 -> word64Size
-    SFloat -> floatSize
-    SDouble -> doubleSize
-    SBool -> boolSize
-    SEnum _ enumType -> enumAlignment enumType
+    SInt8                     -> int8Size
+    SInt16                    -> int16Size
+    SInt32                    -> int32Size
+    SInt64                    -> int64Size
+    SWord8                    -> word8Size
+    SWord16                   -> word16Size
+    SWord32                   -> word32Size
+    SWord64                   -> word64Size
+    SFloat                    -> floatSize
+    SDouble                   -> doubleSize
+    SBool                     -> boolSize
+    SEnum _ enumType          -> enumAlignment enumType
     SStruct (_, nestedStruct) -> structAlignment nestedStruct
 
 enumAlignment :: EnumType -> Alignment
@@ -972,11 +982,11 @@ enumAlignment = Alignment . enumSize
 enumSize :: EnumType -> Word8
 enumSize e =
   case e of
-    EInt8 -> int8Size
-    EInt16 -> int16Size
-    EInt32 -> int32Size
-    EInt64 -> int64Size
-    EWord8 -> word8Size
+    EInt8   -> int8Size
+    EInt16  -> int16Size
+    EInt32  -> int32Size
+    EInt64  -> int64Size
+    EWord8  -> word8Size
     EWord16 -> word16Size
     EWord32 -> word32Size
     EWord64 -> word64Size

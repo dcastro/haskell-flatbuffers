@@ -1,13 +1,9 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-
 {-# OPTIONS_HADDOCK not-home #-}
 
 module FlatBuffers.Internal.Types where
 
 import           Data.Word
-import           FlatBuffers.Internal.Compiler.Display ( Display )
+import           FlatBuffers.Internal.Compiler.Display (Display)
 
 -- | Metadata for a struct type.
 class IsStruct a where
@@ -26,4 +22,3 @@ newtype InlineSize = InlineSize { unInlineSize :: Word16 }
 -- This number should always be a power of 2 in the range [1, 16].
 newtype Alignment = Alignment { unAlignment :: Word8 }
   deriving newtype (Show, Eq, Num, Enum, Ord, Real, Integral, Bounded, Display)
-

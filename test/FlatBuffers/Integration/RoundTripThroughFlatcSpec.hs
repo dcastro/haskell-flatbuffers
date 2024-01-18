@@ -1,8 +1,3 @@
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 {- HLINT ignore "Reduce duplication" -}

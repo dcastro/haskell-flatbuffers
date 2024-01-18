@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Examples.Generated where
 
 import           FlatBuffers (defaultOptions, mkFlatBuffers)
