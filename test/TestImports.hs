@@ -1,7 +1,6 @@
 module TestImports
   ( module Hspec
   , module Hedgehog
-  , HasCallStack
   , shouldBeLeft
   , shouldBeRightAnd
   , shouldBeRightAndExpect
@@ -24,8 +23,6 @@ import qualified Data.ByteString.Lazy.UTF8      as BSLU
 import qualified Data.List                      as List
 
 import           Debug.Trace
-
-import           GHC.Stack                      (HasCallStack)
 
 import           HaskellWorks.Hspec.Hedgehog    as Hedgehog
 

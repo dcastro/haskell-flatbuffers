@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeApplications  #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 {- HLINT ignore "Reduce duplication" -}
 {- HLINT ignore "Avoid lambda" -}
@@ -12,7 +13,6 @@ module FlatBuffers.RoundTripSpec where
 import           Control.Applicative (liftA3)
 
 import           Data.Bits           ((.|.))
-import           Data.Functor        ((<&>))
 import qualified Data.List           as L
 import           Data.Maybe          (isNothing)
 

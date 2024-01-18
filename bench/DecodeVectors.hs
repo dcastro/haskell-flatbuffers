@@ -1,8 +1,9 @@
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications  #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 {- HLINT ignore "Avoid lambda" -}
 {- HLINT ignore "Use >=>" -}
@@ -13,14 +14,14 @@ import           Control.Monad
 
 import           Criterion
 
-import           Data.Functor       ( (<&>) )
+import           Data.Functor       ((<&>))
 import           Data.Int
 import qualified Data.List          as L
 import qualified Data.Text          as T
 
 import           FlatBuffers
+import           FlatBuffers.Vector (index, unsafeIndex)
 import qualified FlatBuffers.Vector as Vec
-import           FlatBuffers.Vector ( index, unsafeIndex )
 
 import           Types
 
@@ -121,5 +122,3 @@ vectorsTable =
       if odd i
         then weaponUnionSword (swordTable (Just i))
         else weaponUnionAxe  (axeTable (Just i))
-
-

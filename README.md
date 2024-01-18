@@ -121,7 +121,7 @@ enum Color: short {
 }
 ```
 
-Given the enum declarationa above, the following code will be generated:
+Given the enum declaration above, the following code will be generated:
 
 ```haskell
 data Color
@@ -174,7 +174,7 @@ enum Colors: uint16 (bit_flags) {
 }
 ```
 
-Given the enum declarationa above, the following code will be generated:
+Given the enum declaration above, the following code will be generated:
 
 ```haskell
 colorsRed, colorsGreen, colorsBlue :: Word16
