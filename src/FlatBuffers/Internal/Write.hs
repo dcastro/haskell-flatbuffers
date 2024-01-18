@@ -4,31 +4,31 @@
 
 module FlatBuffers.Internal.Write where
 
-import           Control.Monad.State.Strict
+import Control.Monad.State.Strict
 
-import           Data.Bits                           (complement, (.&.))
-import qualified Data.ByteString                     as BS
-import           Data.ByteString.Builder             (Builder)
-import qualified Data.ByteString.Builder             as B
-import qualified Data.ByteString.Lazy                as BSL
-import           Data.Coerce                         (coerce)
-import           Data.Int
-import qualified Data.List                           as L
-import qualified Data.Map.Strict                     as M
-import           Data.Monoid                         (Sum (..))
-import           Data.MonoTraversable                (Element, MonoFoldable)
-import qualified Data.MonoTraversable                as Mono
-import           Data.Semigroup                      (Max (..))
-import           Data.Text                           (Text)
-import qualified Data.Text.Encoding                  as T
-import qualified Data.Text.Internal                  as TI
-import           Data.Word
+import Data.Bits (complement, (.&.))
+import Data.ByteString qualified as BS
+import Data.ByteString.Builder (Builder)
+import Data.ByteString.Builder qualified as B
+import Data.ByteString.Lazy qualified as BSL
+import Data.Coerce (coerce)
+import Data.Int
+import Data.List qualified as L
+import Data.Map.Strict qualified as M
+import Data.Monoid (Sum(..))
+import Data.MonoTraversable (Element, MonoFoldable)
+import Data.MonoTraversable qualified as Mono
+import Data.Semigroup (Max(..))
+import Data.Text (Text)
+import Data.Text.Encoding qualified as T
+import Data.Text.Internal qualified as TI
+import Data.Word
 
-import           FlatBuffers.Internal.Build
-import           FlatBuffers.Internal.Constants
-import           FlatBuffers.Internal.FileIdentifier (FileIdentifier (unFileIdentifier),
-                                                      HasFileIdentifier (getFileIdentifier))
-import           FlatBuffers.Internal.Types
+import FlatBuffers.Internal.Build
+import FlatBuffers.Internal.Constants
+import FlatBuffers.Internal.FileIdentifier
+  (FileIdentifier(unFileIdentifier), HasFileIdentifier(getFileIdentifier))
+import FlatBuffers.Internal.Types
 
 type BufferSize = Sum Int32
 

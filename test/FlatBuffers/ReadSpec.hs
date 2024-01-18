@@ -3,26 +3,20 @@
 
 module FlatBuffers.ReadSpec where
 
-import           Control.Exception          (evaluate)
-
-import           Data.Functor               (($>))
-import           Data.Int
-import qualified Data.List                  as List
-import qualified Data.Maybe                 as Maybe
-import qualified Data.Text                  as Text
-import qualified Data.Text.Read             as Text
-
-import           Examples
-
-import           FlatBuffers.Internal.Read
-import           FlatBuffers.Internal.Write
-import qualified FlatBuffers.Vector         as Vec
-
-import qualified Hedgehog.Gen               as Gen
-import qualified Hedgehog.Range             as Range
-
-import           TestImports
-
+import Control.Exception (evaluate)
+import Data.Functor (($>))
+import Data.Int
+import Data.List qualified as List
+import Data.Maybe qualified as Maybe
+import Data.Text qualified as Text
+import Data.Text.Read qualified as Text
+import Examples
+import FlatBuffers.Internal.Read
+import FlatBuffers.Internal.Write
+import FlatBuffers.Vector qualified as Vec
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
+import TestImports
 
 spec :: Spec
 spec =

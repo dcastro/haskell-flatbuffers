@@ -1,16 +1,15 @@
 module Examples.HandWritten where
 
-import           Data.Bits                           ((.&.))
-import           Data.Int
-import           Data.Text                           (Text)
-import           Data.Word
+import Data.Bits ((.&.))
+import Data.Int
+import Data.Text (Text)
+import Data.Word
 
-import           FlatBuffers.Internal.Build
-import           FlatBuffers.Internal.FileIdentifier (HasFileIdentifier (..),
-                                                      unsafeFileIdentifier)
-import           FlatBuffers.Internal.Read
-import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Write
+import FlatBuffers.Internal.Build
+import FlatBuffers.Internal.FileIdentifier (HasFileIdentifier(..), unsafeFileIdentifier)
+import FlatBuffers.Internal.Read
+import FlatBuffers.Internal.Types
+import FlatBuffers.Internal.Write
 
 ----------------------------------
 ---------- Empty table -----------

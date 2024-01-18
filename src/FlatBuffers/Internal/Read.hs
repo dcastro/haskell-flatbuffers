@@ -8,30 +8,29 @@
 
 module FlatBuffers.Internal.Read where
 
-import           Control.Monad                       (join, (>=>))
+import Control.Monad (join, (>=>))
 
-import           Data.Binary.Get                     (Get)
-import qualified Data.Binary.Get                     as G
-import qualified Data.ByteString                     as BS
-import           Data.ByteString.Lazy                (ByteString)
-import qualified Data.ByteString.Lazy                as BSL
-import qualified Data.ByteString.Lazy.Internal       as BSL
-import qualified Data.ByteString.Unsafe              as BSU
-import           Data.Coerce                         (coerce)
-import           Data.Functor                        ((<&>))
-import           Data.Int
-import qualified Data.List                           as L
-import           Data.Text                           (Text)
-import qualified Data.Text.Encoding                  as T
-import qualified Data.Text.Encoding.Error            as T
-import           Data.Word
+import Data.Binary.Get (Get)
+import Data.Binary.Get qualified as G
+import Data.ByteString qualified as BS
+import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy qualified as BSL
+import Data.ByteString.Lazy.Internal qualified as BSL
+import Data.ByteString.Unsafe qualified as BSU
+import Data.Coerce (coerce)
+import Data.Functor ((<&>))
+import Data.Int
+import Data.List qualified as L
+import Data.Text (Text)
+import Data.Text.Encoding qualified as T
+import Data.Text.Encoding.Error qualified as T
+import Data.Word
 
-import           FlatBuffers.Internal.Constants
-import           FlatBuffers.Internal.FileIdentifier (FileIdentifier (..),
-                                                      HasFileIdentifier (..))
-import           FlatBuffers.Internal.Types
+import FlatBuffers.Internal.Constants
+import FlatBuffers.Internal.FileIdentifier (FileIdentifier(..), HasFileIdentifier(..))
+import FlatBuffers.Internal.Types
 
-import           Prelude                             hiding (drop, length, take)
+import Prelude hiding (drop, length, take)
 
 type ReadError = String
 

@@ -1,38 +1,27 @@
 module FlatBuffers.Internal.Compiler.THSpec where
 
-import           Control.Arrow                                  (second)
+import Control.Arrow (second)
 
-import           Data.Bits                                      ((.&.))
-import           Data.Int
-import           Data.Text                                      (Text)
-import qualified Data.Text                                      as T
-import           Data.Word
-
-import           FlatBuffers.Internal.Build
-import qualified FlatBuffers.Internal.Compiler.Parser           as P
-import           FlatBuffers.Internal.Compiler.SemanticAnalysis (validateSchemas)
-import           FlatBuffers.Internal.Compiler.SyntaxTree       (FileTree (..))
-import           FlatBuffers.Internal.Compiler.TH
-import           FlatBuffers.Internal.FileIdentifier            (HasFileIdentifier (..),
-                                                                 unsafeFileIdentifier)
-import           FlatBuffers.Internal.Read
-import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Write
-
-import           Language.Haskell.TH
--- import           Language.Haskell.TH.Cleanup                    (simplifiedTH)
-import           Language.Haskell.TH.Syntax
-
-import           TestImports
-
-import           Text.Megaparsec                                (ParseErrorBundle,
-                                                                 ShowErrorComponent,
-                                                                 TraversableStream,
-                                                                 VisualStream,
-                                                                 errorBundlePretty,
-                                                                 parse)
-import           Text.RawString.QQ                              (r)
-
+import Data.Bits ((.&.))
+import Data.Int
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Word
+import FlatBuffers.Internal.Build
+import FlatBuffers.Internal.Compiler.Parser qualified as P
+import FlatBuffers.Internal.Compiler.SemanticAnalysis (validateSchemas)
+import FlatBuffers.Internal.Compiler.SyntaxTree (FileTree(..))
+import FlatBuffers.Internal.Compiler.TH
+import FlatBuffers.Internal.FileIdentifier (HasFileIdentifier(..), unsafeFileIdentifier)
+import FlatBuffers.Internal.Read
+import FlatBuffers.Internal.Types
+import FlatBuffers.Internal.Write
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
+import TestImports
+import Text.Megaparsec
+  (ParseErrorBundle, ShowErrorComponent, TraversableStream, VisualStream, errorBundlePretty, parse)
+import Text.RawString.QQ (r)
 
 spec :: Spec
 spec =

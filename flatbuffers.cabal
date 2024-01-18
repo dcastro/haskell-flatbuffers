@@ -54,26 +54,27 @@ library
   hs-source-dirs:
       src
   default-extensions:
-      TypeOperators
-      BlockArguments
-      QuasiQuotes
-      BangPatterns
-      ViewPatterns
-      DerivingStrategies
-      InstanceSigs
-      TypeApplications
-      TypeFamilies
       AllowAmbiguousTypes
+      BangPatterns
+      BlockArguments
+      DeriveTraversable
+      DeriveTraversable
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      InstanceSigs
       LambdaCase
+      NegativeLiterals
+      OverloadedStrings
+      QuasiQuotes
       RecordWildCards
       ScopedTypeVariables
-      DeriveTraversable
-      GeneralizedNewtypeDeriving
       StandaloneDeriving
-      NegativeLiterals
       TemplateHaskell
-      OverloadedStrings
-      DeriveTraversable
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      ViewPatterns
   ghc-options: -Wall -Wno-name-shadowing -Wincomplete-record-updates -Wredundant-constraints
   build-depends:
       base >=4.16 && <5
@@ -111,26 +112,27 @@ test-suite test
   hs-source-dirs:
       test/
   default-extensions:
-      TypeOperators
-      BlockArguments
-      QuasiQuotes
-      BangPatterns
-      ViewPatterns
-      DerivingStrategies
-      InstanceSigs
-      TypeApplications
-      TypeFamilies
       AllowAmbiguousTypes
+      BangPatterns
+      BlockArguments
+      DeriveTraversable
+      DeriveTraversable
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      InstanceSigs
       LambdaCase
+      NegativeLiterals
+      OverloadedStrings
+      QuasiQuotes
       RecordWildCards
       ScopedTypeVariables
-      DeriveTraversable
-      GeneralizedNewtypeDeriving
       StandaloneDeriving
-      NegativeLiterals
       TemplateHaskell
-      OverloadedStrings
-      DeriveTraversable
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      ViewPatterns
   ghc-options: -Wall -Wno-name-shadowing -Wincomplete-record-updates -Wredundant-constraints
   build-depends:
       HUnit
@@ -177,26 +179,27 @@ benchmark criterion-bench
   hs-source-dirs:
       bench/
   default-extensions:
-      TypeOperators
-      BlockArguments
-      QuasiQuotes
-      BangPatterns
-      ViewPatterns
-      DerivingStrategies
-      InstanceSigs
-      TypeApplications
-      TypeFamilies
       AllowAmbiguousTypes
+      BangPatterns
+      BlockArguments
+      DeriveTraversable
+      DeriveTraversable
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      InstanceSigs
       LambdaCase
+      NegativeLiterals
+      OverloadedStrings
+      QuasiQuotes
       RecordWildCards
       ScopedTypeVariables
-      DeriveTraversable
-      GeneralizedNewtypeDeriving
       StandaloneDeriving
-      NegativeLiterals
       TemplateHaskell
-      OverloadedStrings
-      DeriveTraversable
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      ViewPatterns
   ghc-options: -Wall -Wno-name-shadowing -Wincomplete-record-updates -Wredundant-constraints -threaded -rtsopts
   build-depends:
       aeson

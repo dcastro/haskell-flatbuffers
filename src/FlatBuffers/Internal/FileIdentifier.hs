@@ -8,12 +8,12 @@ module FlatBuffers.Internal.FileIdentifier
   ) where
 
 
-import           Data.ByteString                (ByteString)
-import qualified Data.ByteString                as BS
-import           Data.Text                      (Text)
-import qualified Data.Text.Encoding             as T
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
+import Data.Text (Text)
+import Data.Text.Encoding qualified as T
 
-import           FlatBuffers.Internal.Constants (fileIdentifierSize)
+import FlatBuffers.Internal.Constants (fileIdentifierSize)
 
 -- | An identifier that's used to "mark" a buffer.
 -- To add this marker to a buffer, use `FlatBuffers.encodeWithFileIdentifier`.

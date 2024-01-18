@@ -31,9 +31,9 @@ module FlatBuffers
   , R.ReadError
   ) where
 
-import           FlatBuffers.Internal.Compiler.TH    as TH
-import           FlatBuffers.Internal.FileIdentifier as FI
-import           FlatBuffers.Internal.Read           as R
-import           FlatBuffers.Internal.Types          as T
-import           FlatBuffers.Internal.Write          as W
+import FlatBuffers.Internal.Compiler.TH as TH
+import FlatBuffers.Internal.FileIdentifier as FI
+import FlatBuffers.Internal.Read as R
+import FlatBuffers.Internal.Types as T
+import FlatBuffers.Internal.Write as W
 

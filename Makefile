@@ -57,6 +57,9 @@ test-min:  ## Build the library and run the tests using lowest possible dependen
 		--stack-yaml=./stack/stack.min.yaml \
 		--work-dir ".stack-work-min"
 
+stylish:
+	find . -name '.stack-work' -prune -o -name 'dist-newstyle' -prune -o -name '*.hs' -exec stylish-haskell -i '{}' \;
+
 release:  ## Creates a release package
 	stack clean --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"
 	stack test  --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"

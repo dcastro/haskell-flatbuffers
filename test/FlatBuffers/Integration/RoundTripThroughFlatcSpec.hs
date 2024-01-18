@@ -5,25 +5,25 @@
 
 module FlatBuffers.Integration.RoundTripThroughFlatcSpec where
 
-import           Control.Applicative  (liftA3)
-import           Data.Aeson           (Value (..), object, (.=))
-import qualified Data.Aeson           as J
-import           Data.Aeson.QQ.Simple (aesonQQ)
-import           Data.Bits            ((.|.))
-import qualified Data.ByteString.Lazy as BSL
-import           Data.Int
-import           Data.Maybe           (isNothing)
-import           Data.Proxy
-import           Data.Typeable        (Typeable, typeRep)
-import           Data.Word
-import           Examples
-import           FlatBuffers
-import qualified FlatBuffers.Vector   as Vec
+import Control.Applicative (liftA3)
+import Data.Aeson (Value(..), object, (.=))
+import Data.Aeson qualified as J
+import Data.Aeson.QQ.Simple (aesonQQ)
+import Data.Bits ((.|.))
+import Data.ByteString.Lazy qualified as BSL
+import Data.Int
+import Data.Maybe (isNothing)
+import Data.Proxy
+import Data.Typeable (Typeable, typeRep)
+import Data.Word
+import Examples
+import FlatBuffers
+import FlatBuffers.Vector qualified as Vec
 
-import qualified System.Directory     as Dir
-import qualified System.Process       as Sys
+import System.Directory qualified as Dir
+import System.Process qualified as Sys
 
-import           TestImports
+import TestImports
 
 {-
 

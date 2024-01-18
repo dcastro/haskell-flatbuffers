@@ -6,18 +6,18 @@
 
 module FlatBuffers.RoundTripSpec where
 
-import           Control.Applicative (liftA3)
+import Control.Applicative (liftA3)
 
-import           Data.Bits           ((.|.))
-import qualified Data.List           as L
-import           Data.Maybe          (isNothing)
+import Data.Bits ((.|.))
+import Data.List qualified as L
+import Data.Maybe (isNothing)
 
-import           Examples
+import Examples
 
-import           FlatBuffers
-import           FlatBuffers.Vector  as Vec
+import FlatBuffers
+import FlatBuffers.Vector as Vec
 
-import           TestImports
+import TestImports
 
 
 spec :: Spec

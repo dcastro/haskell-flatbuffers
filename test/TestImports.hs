@@ -14,26 +14,20 @@ module TestImports
   , traceBufferM
   ) where
 
-import           Control.Monad                  ((>=>))
-
-import qualified Data.Aeson                     as J
-import           Data.Aeson.Encode.Pretty       (encodePretty)
-import qualified Data.ByteString.Lazy           as BSL
-import qualified Data.ByteString.Lazy.UTF8      as BSLU
-import qualified Data.List                      as List
-
-import           Debug.Trace
-
-
-import           Hedgehog
-
-import           Test.Hspec.Core.Hooks          as Hspec
-import           Test.Hspec.Core.Spec           as Hspec
-import           Test.Hspec.Expectations.Pretty as Hspec hiding (Expectation)
-import           Test.Hspec.Hedgehog            as Hedgehog
-import           Test.Hspec.Runner              as Hspec
-import           Test.HUnit                     (assertFailure)
-
+import Control.Monad ((>=>))
+import Data.Aeson qualified as J
+import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.ByteString.Lazy qualified as BSL
+import Data.ByteString.Lazy.UTF8 qualified as BSLU
+import Data.List qualified as List
+import Debug.Trace
+import Hedgehog
+import Test.Hspec.Core.Hooks as Hspec
+import Test.Hspec.Core.Spec as Hspec
+import Test.Hspec.Expectations.Pretty as Hspec hiding (Expectation)
+import Test.Hspec.Hedgehog as Hedgehog
+import Test.Hspec.Runner as Hspec
+import Test.HUnit (assertFailure)
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
 shouldBeLeft :: HasCallStack => Show e => Eq e => Either e a -> e -> Expectation

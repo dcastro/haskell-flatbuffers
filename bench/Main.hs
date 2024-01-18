@@ -1,9 +1,9 @@
 module Main where
 
-import           DecodeVectors
-import           Encode
-import           EncodeVectors
-import           Criterion.Main
+import Criterion.Main
+import DecodeVectors
+import Encode
+import EncodeVectors
 
 main :: IO ()
 main =

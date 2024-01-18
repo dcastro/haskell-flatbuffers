@@ -2,23 +2,23 @@ module EncodeVectors where
 
 {- HLINT ignore "Avoid lambda" -}
 
-import           Criterion
+import Criterion
 
-import qualified Data.ByteString      as BS
-import qualified Data.ByteString.Lazy as BSL
-import           Data.Foldable        as F
-import           Data.Functor         ((<&>))
-import           Data.Int
-import qualified Data.List            as L
-import           Data.Text            (Text)
-import qualified Data.Vector          as V
-import qualified Data.Vector.Storable as VS
-import qualified Data.Vector.Unboxed  as VU
+import Data.ByteString qualified as BS
+import Data.ByteString.Lazy qualified as BSL
+import Data.Foldable as F
+import Data.Functor ((<&>))
+import Data.Int
+import Data.List qualified as L
+import Data.Text (Text)
+import Data.Vector qualified as V
+import Data.Vector.Storable qualified as VS
+import Data.Vector.Unboxed qualified as VU
 
-import           FlatBuffers
-import qualified FlatBuffers.Vector   as Vec
+import FlatBuffers
+import FlatBuffers.Vector qualified as Vec
 
-import           Types
+import Types
 
 
 n :: Num a => a

@@ -47,26 +47,27 @@ dependencies:
   - mono-traversable >= 1.0.15.3
 
 default-extensions:
-  - TypeOperators
-  - BlockArguments
-  - QuasiQuotes
-  - BangPatterns
-  - ViewPatterns
-  - DerivingStrategies
-  - InstanceSigs
-  - TypeApplications
-  - TypeFamilies
   - AllowAmbiguousTypes
+  - BangPatterns
+  - BlockArguments
+  - DeriveTraversable
+  - DeriveTraversable
+  - DerivingStrategies
+  - GeneralizedNewtypeDeriving
+  - ImportQualifiedPost
+  - InstanceSigs
   - LambdaCase
+  - NegativeLiterals
+  - OverloadedStrings
+  - QuasiQuotes
   - RecordWildCards
   - ScopedTypeVariables
-  - DeriveTraversable
-  - GeneralizedNewtypeDeriving
   - StandaloneDeriving
-  - NegativeLiterals
   - TemplateHaskell
-  - OverloadedStrings
-  - DeriveTraversable
+  - TypeApplications
+  - TypeFamilies
+  - TypeOperators
+  - ViewPatterns
 
 library:
   source-dirs:      src

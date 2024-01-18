@@ -2,37 +2,36 @@
 
 module FlatBuffers.Internal.Compiler.TH where
 
-import           Control.Monad                                   (join)
-import           Control.Monad.Except                            (runExceptT)
+import Control.Monad (join)
+import Control.Monad.Except (runExceptT)
 
-import           Data.Bits                                       ((.&.))
-import           Data.Foldable                                   (traverse_)
-import           Data.Functor                                    ((<&>))
-import           Data.Int
-import qualified Data.List                                       as List
-import           Data.List.NonEmpty                              (NonEmpty (..))
-import qualified Data.List.NonEmpty                              as NE
-import qualified Data.Map.Strict                                 as Map
-import           Data.Text                                       (Text)
-import qualified Data.Text                                       as T
-import           Data.Word
+import Data.Bits ((.&.))
+import Data.Foldable (traverse_)
+import Data.Functor ((<&>))
+import Data.Int
+import Data.List qualified as List
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict qualified as Map
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Word
 
-import           FlatBuffers.Internal.Build
-import qualified FlatBuffers.Internal.Compiler.NamingConventions as NC
-import qualified FlatBuffers.Internal.Compiler.ParserIO          as ParserIO
-import           FlatBuffers.Internal.Compiler.SemanticAnalysis  (SymbolTable (..))
-import qualified FlatBuffers.Internal.Compiler.SemanticAnalysis  as SemanticAnalysis
-import qualified FlatBuffers.Internal.Compiler.SyntaxTree        as SyntaxTree
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-import           FlatBuffers.Internal.FileIdentifier             (HasFileIdentifier (..),
-                                                                  unsafeFileIdentifier)
-import           FlatBuffers.Internal.Read
-import           FlatBuffers.Internal.Types
-import           FlatBuffers.Internal.Write
+import FlatBuffers.Internal.Build
+import FlatBuffers.Internal.Compiler.NamingConventions qualified as NC
+import FlatBuffers.Internal.Compiler.ParserIO qualified as ParserIO
+import FlatBuffers.Internal.Compiler.SemanticAnalysis (SymbolTable(..))
+import FlatBuffers.Internal.Compiler.SemanticAnalysis qualified as SemanticAnalysis
+import FlatBuffers.Internal.Compiler.SyntaxTree qualified as SyntaxTree
+import FlatBuffers.Internal.Compiler.ValidSyntaxTree
+import FlatBuffers.Internal.FileIdentifier (HasFileIdentifier(..), unsafeFileIdentifier)
+import FlatBuffers.Internal.Read
+import FlatBuffers.Internal.Types
+import FlatBuffers.Internal.Write
 
-import           Language.Haskell.TH
-import           Language.Haskell.TH.Syntax                      (lift)
-import qualified Language.Haskell.TH.Syntax                      as TH
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax (lift)
+import Language.Haskell.TH.Syntax qualified as TH
 
 
 -- | Helper method to create function types.

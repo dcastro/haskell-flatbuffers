@@ -2,30 +2,25 @@
 
 module FlatBuffers.Internal.Compiler.ParserIO where
 
-import           Control.Monad                            (when)
-import           Control.Monad.Except                     (MonadError, MonadIO,
-                                                           liftIO, throwError)
-import           Control.Monad.State                      (MonadState,
-                                                           execStateT, get, put)
+import Control.Monad (when)
+import Control.Monad.Except (MonadError, MonadIO, liftIO, throwError)
+import Control.Monad.State (MonadState, execStateT, get, put)
 
-import           Data.Coerce                              (coerce)
-import           Data.Foldable                            (traverse_)
-import           Data.Map.Strict                          (Map)
-import qualified Data.Map.Strict                          as Map
-import qualified Data.Text                                as T
+import Data.Coerce (coerce)
+import Data.Foldable (traverse_)
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 
-import           FlatBuffers.Internal.Compiler.Display    (display)
-import           FlatBuffers.Internal.Compiler.Parser     (schema)
-import           FlatBuffers.Internal.Compiler.SyntaxTree (FileTree (..),
-                                                           Include (..), Schema,
-                                                           StringLiteral (..),
-                                                           includes)
+import FlatBuffers.Internal.Compiler.Display (display)
+import FlatBuffers.Internal.Compiler.Parser (schema)
+import FlatBuffers.Internal.Compiler.SyntaxTree
+  (FileTree(..), Include(..), Schema, StringLiteral(..), includes)
 
-import qualified System.Directory                         as Dir
-import qualified System.FilePath                          as FP
+import System.Directory qualified as Dir
+import System.FilePath qualified as FP
 
-import           Text.Megaparsec                          (errorBundlePretty,
-                                                           parse)
+import Text.Megaparsec (errorBundlePretty, parse)
 
 parseSchemas ::
      MonadIO m

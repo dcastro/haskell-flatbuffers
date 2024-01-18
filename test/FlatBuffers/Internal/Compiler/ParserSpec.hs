@@ -2,17 +2,13 @@
 
 module FlatBuffers.Internal.Compiler.ParserSpec where
 
-import           Data.Void                                (Void)
-
-import           FlatBuffers.Internal.Compiler.Parser
-import           FlatBuffers.Internal.Compiler.SyntaxTree
-
-import           Test.Hspec.Megaparsec
-
-import           TestImports
-
-import           Text.Megaparsec
-import           Text.RawString.QQ                        (r)
+import Data.Void (Void)
+import FlatBuffers.Internal.Compiler.Parser
+import FlatBuffers.Internal.Compiler.SyntaxTree
+import Test.Hspec.Megaparsec
+import TestImports
+import Text.Megaparsec
+import Text.RawString.QQ (r)
 
 spec :: Spec
 spec =

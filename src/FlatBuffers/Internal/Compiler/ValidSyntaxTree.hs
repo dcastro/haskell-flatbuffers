@@ -25,18 +25,16 @@ module FlatBuffers.Internal.Compiler.ValidSyntaxTree
   , UnionVal(..)
   ) where
 
-import           Data.Bits                                (Bits)
-import           Data.List.NonEmpty                       (NonEmpty)
-import           Data.Scientific                          (Scientific)
-import           Data.String                              (IsString (..))
-import           Data.Text                                (Text)
-import           Data.Word
+import Data.Bits (Bits)
+import Data.List.NonEmpty (NonEmpty)
+import Data.Scientific (Scientific)
+import Data.String (IsString(..))
+import Data.Text (Text)
+import Data.Word
 
-import           FlatBuffers.Internal.Compiler.SyntaxTree (HasIdent (..),
-                                                           Ident (..),
-                                                           Namespace (..),
-                                                           TypeRef (..))
-import           FlatBuffers.Internal.Types
+import FlatBuffers.Internal.Compiler.SyntaxTree
+  (HasIdent(..), Ident(..), Namespace(..), TypeRef(..))
+import FlatBuffers.Internal.Types
 
 instance HasIdent EnumDecl    where getIdent = enumIdent
 instance HasIdent EnumVal     where getIdent = enumValIdent

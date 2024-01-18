@@ -23,8 +23,8 @@ module FlatBuffers.Vector
   , R.toLazyByteString
   ) where
 
-import           FlatBuffers.Internal.Read  as R
-import           FlatBuffers.Internal.Write as W
+import FlatBuffers.Internal.Read as R
+import FlatBuffers.Internal.Write as W
 
 
 

@@ -2,35 +2,26 @@
 
 module FlatBuffers.Internal.Compiler.SemanticAnalysisSpec where
 
-import           Control.Monad                                  (forM_,
-                                                                 replicateM)
-import           Control.Monad.State                            (StateT,
-                                                                 evalStateT,
-                                                                 get, lift, put)
-
-import           Data.Bits                                      (shiftL)
-import           Data.Foldable                                  (fold, foldlM)
-import           Data.Int
-import           Data.List.NonEmpty                             (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                             as NE
-import qualified Data.Map.Strict                                as Map
-import           Data.Text                                      (Text)
-import qualified Data.Text                                      as Text
-import           Data.Word
-
-import qualified FlatBuffers.Internal.Compiler.Parser           as P
-import           FlatBuffers.Internal.Compiler.SemanticAnalysis
-import qualified FlatBuffers.Internal.Compiler.SyntaxTree       as ST
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree
-
-import qualified Hedgehog.Gen                                   as Gen
-import qualified Hedgehog.Range                                 as Range
-
-import           TestImports
-
-import           Text.Megaparsec
-import           Text.RawString.QQ                              (r)
-
+import Control.Monad (forM_, replicateM)
+import Control.Monad.State (StateT, evalStateT, get, lift, put)
+import Data.Bits (shiftL)
+import Data.Foldable (fold, foldlM)
+import Data.Int
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict qualified as Map
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Word
+import FlatBuffers.Internal.Compiler.Parser qualified as P
+import FlatBuffers.Internal.Compiler.SemanticAnalysis
+import FlatBuffers.Internal.Compiler.SyntaxTree qualified as ST
+import FlatBuffers.Internal.Compiler.ValidSyntaxTree
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
+import TestImports
+import Text.Megaparsec
+import Text.RawString.QQ (r)
 
 spec :: Spec
 spec =

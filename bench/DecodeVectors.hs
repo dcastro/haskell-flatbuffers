@@ -6,20 +6,20 @@
 
 module DecodeVectors where
 
-import           Control.Monad
+import Control.Monad
 
-import           Criterion
+import Criterion
 
-import           Data.Functor       ((<&>))
-import           Data.Int
-import qualified Data.List          as L
-import qualified Data.Text          as T
+import Data.Functor ((<&>))
+import Data.Int
+import Data.List qualified as L
+import Data.Text qualified as T
 
-import           FlatBuffers
-import           FlatBuffers.Vector (index, unsafeIndex)
-import qualified FlatBuffers.Vector as Vec
+import FlatBuffers
+import FlatBuffers.Vector (index, unsafeIndex)
+import FlatBuffers.Vector qualified as Vec
 
-import           Types
+import Types
 
 n :: Num a => a
 n = 10000

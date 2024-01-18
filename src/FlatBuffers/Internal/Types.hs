@@ -2,8 +2,8 @@
 
 module FlatBuffers.Internal.Types where
 
-import           Data.Word
-import           FlatBuffers.Internal.Compiler.Display (Display)
+import Data.Word
+import FlatBuffers.Internal.Compiler.Display (Display)
 
 -- | Metadata for a struct type.
 class IsStruct a where

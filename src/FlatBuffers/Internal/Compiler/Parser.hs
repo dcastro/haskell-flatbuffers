@@ -3,30 +3,30 @@
 
 module FlatBuffers.Internal.Compiler.Parser where
 
-import           Control.Monad                            (when)
-import qualified Control.Monad.Combinators.NonEmpty       as NE
+import Control.Monad (when)
+import Control.Monad.Combinators.NonEmpty qualified as NE
 
-import qualified Data.ByteString                          as BS
-import           Data.Coerce                              (coerce)
-import           Data.Functor                             (void, (<&>))
-import           Data.List.NonEmpty                       (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                       as NE
-import qualified Data.Map.Strict                          as Map
-import           Data.Maybe                               (catMaybes)
-import           Data.Scientific                          (Scientific)
-import           Data.Text                                (Text)
-import qualified Data.Text                                as T
-import qualified Data.Text.Encoding                       as T
-import           Data.Void                                (Void)
-import           Data.Word                                (Word8)
+import Data.ByteString qualified as BS
+import Data.Coerce (coerce)
+import Data.Functor (void, (<&>))
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict qualified as Map
+import Data.Maybe (catMaybes)
+import Data.Scientific (Scientific)
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Data.Void (Void)
+import Data.Word (Word8)
 
-import           FlatBuffers.Internal.Compiler.SyntaxTree
-import           FlatBuffers.Internal.Constants           (fileIdentifierSize)
+import FlatBuffers.Internal.Compiler.SyntaxTree
+import FlatBuffers.Internal.Constants (fileIdentifierSize)
 
-import           Text.Megaparsec
-import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer               as L
-import           Text.Read                                (readMaybe)
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer qualified as L
+import Text.Read (readMaybe)
 
 
 type Parser = Parsec Void String

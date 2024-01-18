@@ -1,17 +1,12 @@
 module FlatBuffers.Internal.Compiler.NamingConventions where
 
-import qualified Data.Set                                      as Set
-import           Data.Text                                     (Text)
-import qualified Data.Text                                     as T
-import qualified Data.Text.Manipulate                          as TM
+import Data.Set qualified as Set
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Text.Manipulate qualified as TM
 
-import           FlatBuffers.Internal.Compiler.ValidSyntaxTree (EnumDecl,
-                                                                EnumVal,
-                                                                HasIdent (..),
-                                                                Ident (..),
-                                                                Namespace (..),
-                                                                UnionDecl,
-                                                                UnionVal)
+import FlatBuffers.Internal.Compiler.ValidSyntaxTree
+  (EnumDecl, EnumVal, HasIdent(..), Ident(..), Namespace(..), UnionDecl, UnionVal)
 
 -- Style guide: https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
 

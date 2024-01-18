@@ -1,10 +1,10 @@
 module Encode where
 
-import           Criterion
+import Criterion
 
-import           FlatBuffers
+import FlatBuffers
 
-import           Types
+import Types
 
 
 groups :: [Benchmark]

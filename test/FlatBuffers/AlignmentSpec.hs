@@ -6,35 +6,29 @@
 
 module FlatBuffers.AlignmentSpec where
 
-import           Control.Monad.State.Strict
-
-import qualified Data.Binary.Get                     as G
-import qualified Data.ByteString                     as BS
-import qualified Data.ByteString.Builder             as B
-import           Data.ByteString.Lazy                (ByteString)
-import qualified Data.ByteString.Lazy                as BSL
-import           Data.Coerce
-import           Data.Foldable                       (fold, foldrM)
-import           Data.Int
-import qualified Data.List                           as List
-import           Data.Monoid                         (Sum (..))
-import           Data.Semigroup                      (Max (..))
-import           Data.Text                           (Text)
-import qualified Data.Text.Encoding                  as T
-import           Data.Word
-
-import           Examples
-
-import           FlatBuffers.Internal.FileIdentifier (unsafeFileIdentifier)
-import           FlatBuffers.Internal.Types          (Alignment (..),
-                                                      IsStruct (..))
-import           FlatBuffers.Internal.Write
-import qualified FlatBuffers.Vector                  as Vec
-
-import qualified Hedgehog.Gen                        as Gen
-import qualified Hedgehog.Range                      as Range
-
-import           TestImports
+import Control.Monad.State.Strict
+import Data.Binary.Get qualified as G
+import Data.ByteString qualified as BS
+import Data.ByteString.Builder qualified as B
+import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy qualified as BSL
+import Data.Coerce
+import Data.Foldable (fold, foldrM)
+import Data.Int
+import Data.List qualified as List
+import Data.Monoid (Sum(..))
+import Data.Semigroup (Max(..))
+import Data.Text (Text)
+import Data.Text.Encoding qualified as T
+import Data.Word
+import Examples
+import FlatBuffers.Internal.FileIdentifier (unsafeFileIdentifier)
+import FlatBuffers.Internal.Types (Alignment(..), IsStruct(..))
+import FlatBuffers.Internal.Write
+import FlatBuffers.Vector qualified as Vec
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
+import TestImports
 
 
 spec :: Spec

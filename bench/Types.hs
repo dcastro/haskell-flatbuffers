@@ -1,5 +1,5 @@
 module Types where
 
-import           FlatBuffers
+import FlatBuffers
 
 $(mkFlatBuffers "bench/types.fbs" defaultOptions)

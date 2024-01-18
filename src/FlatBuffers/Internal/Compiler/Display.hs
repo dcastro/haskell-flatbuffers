@@ -2,12 +2,12 @@
 
 module FlatBuffers.Internal.Compiler.Display where
 
-import           Data.Int
-import qualified Data.List          as List
-import           Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text          as T
-import           Data.Word
+import Data.Int
+import Data.List qualified as List
+import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty qualified as NE
+import Data.Text qualified as T
+import Data.Word
 
 -- | Maps a value of type @a@ into a string that can be displayed to the user.
 class Display a where
