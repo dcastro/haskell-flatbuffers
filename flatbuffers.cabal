@@ -148,6 +148,7 @@ test-suite test
     , filepath >=1.4.2.2
     , flatbuffers
     , hedgehog
+    , hex-text
     , hspec
     , hspec-core
     , hspec-expectations-pretty-diff

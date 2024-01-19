@@ -12,6 +12,8 @@ module TestImports
   , shouldBeJson
   , showBuffer
   , traceBufferM
+  , showBufferHex
+  , traceBufferHexM
   ) where
 
 import Control.Monad ((>=>))
@@ -19,7 +21,10 @@ import Data.Aeson qualified as J
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy qualified as BSL
 import Data.ByteString.Lazy.UTF8 qualified as BSLU
+import Data.Function ((&))
+import Data.Functor ((<&>))
 import Data.List qualified as List
+import Data.Text qualified as T
 import Debug.Trace
 import Hedgehog
 import Test.Hspec.Core.Hooks as Hspec
@@ -28,6 +33,7 @@ import Test.Hspec.Expectations.Pretty as Hspec hiding (Expectation)
 import Test.Hspec.Hedgehog as Hedgehog
 import Test.Hspec.Runner as Hspec
 import Test.HUnit (assertFailure)
+import Text.Hex
 
 -- | Useful when there's no `Show`/`Eq` instances for @a@.
 shouldBeLeft :: HasCallStack => Show e => Eq e => Either e a -> e -> Expectation
@@ -85,6 +91,20 @@ showBuffer :: BSL.ByteString -> String
 showBuffer bs =
   List.intercalate "\n" . fmap (List.intercalate ", ") . groupsOf 4 . fmap show $
   BSL.unpack bs
+
+traceBufferHexM :: Applicative m => BSL.ByteString -> m ()
+traceBufferHexM = traceM . showBufferHex
+
+showBufferHex :: BSL.ByteString -> String
+showBufferHex bs =
+  bs
+    & BSL.toStrict
+    & encodeHex
+    & T.unpack
+    & groupsOf 2
+    & groupsOf 4
+    <&> List.intercalate ", "
+    & List.intercalate "\n"
 
 groupsOf :: Int -> [a] -> [[a]]
 groupsOf n xs =
