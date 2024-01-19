@@ -29,6 +29,7 @@ language_extensions:
   - InstanceSigs
   - LambdaCase
   - NegativeLiterals
+  - OverloadedRecordDot
   - OverloadedStrings
   - QuasiQuotes
   - RecordWildCards

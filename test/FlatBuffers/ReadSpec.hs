@@ -66,7 +66,7 @@ spec =
     describe "returns `UnionUnknown` when union type is not recognized" $ do
       it "in union table fields" $ do
         let union = writeUnion 99 (writeTable [])
-        table <- evalRight $ decode $ encode $ tableWithUnion union
+        table <- evalRight $ decode $ encode $ tableWithUnion $ Just union
         tableWithUnionUni table `shouldBeRightAndExpect` \case
           UnionUnknown n -> n `shouldBe` 99
 

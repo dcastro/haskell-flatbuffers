@@ -521,9 +521,9 @@ mkTableContructorArg tf =
           TEnum _ enumType dflt  -> mkExps argRef (enumTypeToTableFieldType enumType dflt)
           TStruct _ req          -> pure $ expForNonScalar req (VarE 'writeStructTableField) argRef
           TTable _ req           -> pure $ expForNonScalar req (VarE 'writeTableTableField) argRef
-          TUnion _ _             ->
-            [ VarE 'writeUnionTypeTableField `AppE` argRef
-            , VarE 'writeUnionValueTableField `AppE` argRef
+          TUnion _ req             ->
+            [ expForNonScalar req (VarE 'writeUnionTypeTableField) argRef
+            , expForNonScalar req (VarE 'writeUnionValueTableField) argRef
             ]
           TVector req vecElemType -> mkExpForVector argRef req vecElemType
 
@@ -852,7 +852,7 @@ tableFieldTypeToWriteType tft =
     TEnum _ enumType _      -> ConT ''Maybe `AppT` enumTypeToType enumType
     TStruct typeRef req     -> requiredType req (ConT ''WriteStruct `AppT` typeRefToType typeRef)
     TTable typeRef req      -> requiredType req (ConT ''WriteTable  `AppT` typeRefToType typeRef)
-    TUnion typeRef _        -> ConT ''WriteUnion  `AppT` typeRefToType typeRef
+    TUnion typeRef req      -> requiredType req (ConT ''WriteUnion  `AppT` typeRefToType typeRef)
     TVector req vecElemType -> requiredType req (vectorElementTypeToWriteType vecElemType)
 
 tableFieldTypeToReadType :: TableFieldType -> Type

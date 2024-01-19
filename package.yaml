@@ -58,6 +58,7 @@ default-extensions:
   - InstanceSigs
   - LambdaCase
   - NegativeLiterals
+  - OverloadedRecordDot
   - OverloadedStrings
   - QuasiQuotes
   - RecordWildCards

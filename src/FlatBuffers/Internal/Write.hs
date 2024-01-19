@@ -51,12 +51,10 @@ newtype WriteStruct a = WriteStruct { buildStruct :: Builder }
 newtype WriteTable a = WriteTable (State FBState Position)
 
 -- | A union to be written to a flatbuffer.
-data WriteUnion a
-  = Some
-      {-# UNPACK #-} !Word8
-      !(State FBState Position)
-  | None
-
+data WriteUnion a = WriteUnion
+  { wuUnionType :: {-# UNPACK #-} !Word8
+  , wuUnionValue :: !(State FBState Position)
+  }
 
 -- | Serializes a flatbuffer table as a lazy `BSL.ByteString`.
 {-# INLINE encode #-}
@@ -224,27 +222,15 @@ writeUnionValuesVectorTableField (WriteVectorUnion _ tf) = tf
 
 {-# INLINE writeUnionTypeTableField #-}
 writeUnionTypeTableField :: WriteUnion a -> WriteTableField
-writeUnionTypeTableField !wu =
-  case wu of
-    None             -> missing
-    Some unionType _ -> writeWord8TableField unionType
-
+writeUnionTypeTableField wu = writeWord8TableField wu.wuUnionType
 
 {-# INLINE writeUnionValueTableField #-}
 writeUnionValueTableField :: WriteUnion a -> WriteTableField
-writeUnionValueTableField !wu =
-  case wu of
-    None              -> missing
-    Some _ unionValue -> writeTableTableField (WriteTable unionValue)
-
--- | Constructs a missing union table field / vector element.
-{-# INLINE none #-}
-none :: WriteUnion a
-none = None
+writeUnionValueTableField wu = writeTableTableField (WriteTable wu.wuUnionValue)
 
 {-# INLINE writeUnion #-}
 writeUnion :: Word8 -> WriteTable a -> WriteUnion b
-writeUnion n (WriteTable st) = Some n st
+writeUnion n (WriteTable st) = WriteUnion n st
 
 {-# INLINE vtable #-}
 vtable :: [Word16] -> Word16 -> BSL.ByteString
@@ -678,11 +664,11 @@ instance WriteVectorElement (WriteTable a) where
 
     coerce $ fromMonoFoldable elemCount offsets
 
-data Vecs a = Vecs ![Word8] ![Maybe (State FBState Position)]
+data Vecs a = Vecs ![Word8] ![State FBState Position]
 
 data UnionTableInfo = UnionTableInfo
   { utiState          :: !FBState
-  , utiTablePositions :: ![Maybe Position]
+  , utiTablePositions :: ![Position]
   }
 
 instance WriteVectorElement (WriteUnion a) where
@@ -696,23 +682,19 @@ instance WriteVectorElement (WriteUnion a) where
             go
             (Vecs [] [])
             unions
+
+        go :: WriteUnion a -> Vecs a -> Vecs a
         go writeUnion (Vecs types values) =
-          case writeUnion of
-            None         -> Vecs (0 : types) (Nothing : values)
-            Some typ val -> Vecs (typ : types) (Just val : values)
+          Vecs (writeUnion.wuUnionType : types) (writeUnion.wuUnionValue : values)
 
         writeUnionTables :: WriteTableField
         writeUnionTables = WriteTableField $ do
               fbs1 <- get
               let !(UnionTableInfo fbs2 positions) =
                     foldr
-                      (\unionTableOpt (UnionTableInfo fbs positions) ->
-                        case unionTableOpt of
-                          Just t ->
-                            let (pos, fbs') = runState t fbs
-                            in  UnionTableInfo fbs' (Just pos : positions)
-                          Nothing ->
-                            UnionTableInfo fbs (Nothing : positions)
+                      (\unionTable (UnionTableInfo fbs positions) ->
+                          let (pos, fbs') = runState unionTable fbs
+                          in  UnionTableInfo fbs' (pos : positions)
                       )
                       (UnionTableInfo fbs1 [])
                       values
@@ -723,11 +705,8 @@ instance WriteVectorElement (WriteUnion a) where
               bsize <- gets (getSum . bufferSize)
               let OffsetInfo _ offsets =
                     foldr
-                      (\positionOpt (OffsetInfo ix os) ->
-                        let offset =
-                              case positionOpt of
-                                Just position -> bsize + (ix * 4) + 4 - position
-                                Nothing       -> 0
+                      (\position (OffsetInfo ix os) ->
+                        let offset = bsize + (ix * 4) + 4 - position
                         in  OffsetInfo
                               (ix + 1)
                               (offset : os)

@@ -8,7 +8,6 @@ module FlatBuffers
     -- * Creating a flatbuffer
   , W.encode
   , W.encodeWithFileIdentifier
-  , W.none
 
     -- * Reading a flatbuffer
   , R.decode
@@ -36,4 +35,3 @@ import FlatBuffers.Internal.FileIdentifier as FI
 import FlatBuffers.Internal.Read as R
 import FlatBuffers.Internal.Types as T
 import FlatBuffers.Internal.Write as W
-

@@ -475,10 +475,10 @@ spec =
           |] `shouldCompileTo`
             [d|
               data T1
-              t1 :: WriteUnion U1 -> WriteTable T1
+              t1 :: Maybe (WriteUnion U1) -> WriteTable T1
               t1 x = writeTable
-                [ writeUnionTypeTableField x
-                , writeUnionValueTableField x
+                [ optional writeUnionTypeTableField x
+                , optional writeUnionValueTableField x
                 ]
 
               t1X :: Table T1 -> Either ReadError (Union U1)

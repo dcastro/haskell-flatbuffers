@@ -440,10 +440,10 @@ readWeapon n pos =
 ----------------------------------
 data TableWithUnion
 
-tableWithUnion :: WriteUnion Weapon -> WriteTable TableWithUnion
+tableWithUnion :: Maybe (WriteUnion Weapon) -> WriteTable TableWithUnion
 tableWithUnion uni = writeTable
-  [ writeUnionTypeTableField uni
-  , writeUnionValueTableField uni
+  [ optional writeUnionTypeTableField uni
+  , optional writeUnionValueTableField uni
   ]
 
 tableWithUnionUni :: Table TableWithUnion -> Either ReadError (Union Weapon)
