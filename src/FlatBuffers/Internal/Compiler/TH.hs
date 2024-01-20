@@ -581,12 +581,21 @@ mkTableFieldGetter tableName table tf =
         TEnum _ enumType dflt   -> mkFun $ enumTypeToTableFieldType enumType dflt
         TStruct _ req           -> mkFunWithBody (bodyForNonScalar req (compose [ConE 'Right, VarE 'readStruct]))
         TTable _ req            -> mkFunWithBody (bodyForNonScalar req (VarE 'readTable))
-        TUnion (TypeRef ns ident) _req ->
+        TUnion (TypeRef ns ident) req -> do
+          let readUnionFunName = VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident
           mkFunWithBody $ app
-            [ VarE 'readTableFieldUnion
-            , VarE . mkName . T.unpack . NC.withModulePrefix ns $ NC.readUnionFun ident
-            , fieldIndex
-            ]
+            case req of
+              Req ->
+                [ VarE 'readTableFieldUnionReq
+                , readUnionFunName
+                , fieldIndex
+                , stringLitE . unIdent . getIdent $ tf
+                ]
+              Opt ->
+                [ VarE 'readTableFieldUnionOpt
+                , readUnionFunName
+                , fieldIndex
+                ]
         TVector req vecElemType -> mkFunForVector req vecElemType
 
     mkFunForVector :: Required -> VectorElementType -> Dec
@@ -873,7 +882,7 @@ tableFieldTypeToReadType tft =
     TEnum _ enumType _      -> enumTypeToType enumType
     TStruct typeRef req     -> requiredType req (ConT ''Struct `AppT` typeRefToType typeRef)
     TTable typeRef req      -> requiredType req (ConT ''Table  `AppT` typeRefToType typeRef)
-    TUnion typeRef _        -> ConT ''Union  `AppT` typeRefToType typeRef
+    TUnion typeRef req      -> requiredType req (ConT ''Union  `AppT` typeRefToType typeRef)
     TVector req vecElemType -> requiredType req (vectorElementTypeToReadType vecElemType)
 
 vectorElementTypeToWriteType :: VectorElementType -> Type

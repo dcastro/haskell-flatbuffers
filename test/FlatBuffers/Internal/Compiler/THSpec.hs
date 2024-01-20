@@ -481,8 +481,8 @@ spec =
                 , optional writeUnionValueTableField x
                 ]
 
-              t1X :: Table T1 -> Either ReadError (Union U1)
-              t1X = readTableFieldUnion readU1 1
+              t1X :: Table T1 -> Either ReadError (Maybe (Union U1))
+              t1X = readTableFieldUnionOpt readU1 1
 
               data U1
                 = U1T1 !(Table T1)
@@ -537,7 +537,7 @@ spec =
                 ]
 
               t1X :: Table T1 -> Either ReadError (Union U1)
-              t1X = readTableFieldUnion readU1 1
+              t1X = readTableFieldUnionReq readU1 1 "x"
 
               data U1
                 = U1T1 !(Table T1)

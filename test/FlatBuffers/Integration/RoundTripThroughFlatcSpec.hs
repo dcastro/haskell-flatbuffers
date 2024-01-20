@@ -367,7 +367,7 @@ spec =
             ]
 
           tableWithUnionUni decoded `shouldBeRightAndExpect` \case
-            Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
+            Just (Union (WeaponSword x)) -> swordX x `shouldBe` Right (Just "hi")
 
         it "with axe" $ do
           (json, decoded) <- flatc $ tableWithUnion $ Just $ weaponAxe $ axe $ Just maxBound
@@ -378,7 +378,7 @@ spec =
             ]
 
           tableWithUnionUni decoded `shouldBeRightAndExpect` \case
-            Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
+            Just (Union (WeaponAxe x)) -> axeY x `shouldBe` Right maxBound
 
         it "with none" $ do
           (json, decoded) <- flatc $ tableWithUnion Nothing
@@ -386,7 +386,7 @@ spec =
           json `shouldBeJson` object []
 
           tableWithUnionUni decoded `shouldBeRightAndExpect` \case
-            UnionNone -> pure ()
+            Nothing -> pure ()
 
 
     describe "Vectors" $ do

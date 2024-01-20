@@ -208,15 +208,15 @@ spec =
       it "present" $ do
         x <- evalRight $ decode $ encode $ tableWithUnion $ Just $ weaponSword $ sword $ Just "hi"
         tableWithUnionUni x `shouldBeRightAndExpect` \case
-          Union (WeaponSword x) -> swordX x `shouldBe` Right (Just "hi")
+          Just (Union (WeaponSword x)) -> swordX x `shouldBe` Right (Just "hi")
 
         x <- evalRight $ decode $ encode $ tableWithUnion $ Just $ weaponAxe $ axe $ Just maxBound
         tableWithUnionUni x `shouldBeRightAndExpect` \case
-          Union (WeaponAxe x) -> axeY x `shouldBe` Right maxBound
+          Just (Union (WeaponAxe x)) -> axeY x `shouldBe` Right maxBound
 
         x <- evalRight $ decode $ encode $ tableWithUnion Nothing
         tableWithUnionUni x `shouldBeRightAndExpect` \case
-          UnionNone -> pure ()
+          Nothing -> pure ()
 
     describe "Vectors" $ do
       let Right nonEmptyVecs = decode $ encode $ vectors

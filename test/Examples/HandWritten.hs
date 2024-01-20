@@ -446,8 +446,8 @@ tableWithUnion uni = writeTable
   , optional writeUnionValueTableField uni
   ]
 
-tableWithUnionUni :: Table TableWithUnion -> Either ReadError (Union Weapon)
-tableWithUnionUni = readTableFieldUnion readWeapon 1
+tableWithUnionUni :: Table TableWithUnion -> Either ReadError (Maybe (Union Weapon))
+tableWithUnionUni = readTableFieldUnionOpt readWeapon 1
 
 ----------------------------------
 ------------ Vectors -------------
@@ -723,7 +723,7 @@ requiredFieldsC :: Table RequiredFields -> Either ReadError (Table Axe)
 requiredFieldsC = readTableFieldReq readTable 2 "c"
 
 requiredFieldsD :: Table RequiredFields -> Either ReadError (Union Weapon)
-requiredFieldsD = readTableFieldUnion readWeapon 4
+requiredFieldsD = readTableFieldUnionReq readWeapon 4 "d"
 
 requiredFieldsE :: Table RequiredFields -> Either ReadError (Vector Int32)
 requiredFieldsE = readTableFieldReq (readPrimVector VectorInt32) 5 "e"

@@ -40,17 +40,9 @@ spec =
       requiredFieldsA table `shouldBeLeft` "Missing required table field: a"
       requiredFieldsB table `shouldBeLeft` "Missing required table field: b"
       requiredFieldsC table `shouldBeLeft` "Missing required table field: c"
+      requiredFieldsD table `shouldBeLeft` "Missing required table field: d"
       requiredFieldsE table `shouldBeLeft` "Missing required table field: e"
       requiredFieldsF table `shouldBeLeft` "Missing required table field: f"
-
-    it "returns `UnionNone` when required union field is missing" $ do
-      table <- evalRight $ decode @RequiredFields $ encode $ writeTable []
-      requiredFieldsD table `shouldBeRightAndExpect` \case
-        UnionNone -> pure ()
-
-      table <- evalRight $ decode @RequiredFields $ encode $ writeTable [ missing ]
-      requiredFieldsD table `shouldBeRightAndExpect` \case
-        UnionNone -> pure ()
 
     it "throws when union type is present, but union value is missing" $ do
       table <- evalRight $ decode $ encode $ writeTable [ writeWord8TableField 1]
@@ -68,7 +60,7 @@ spec =
         let union = writeUnion 99 (writeTable [])
         table <- evalRight $ decode $ encode $ tableWithUnion $ Just union
         tableWithUnionUni table `shouldBeRightAndExpect` \case
-          UnionUnknown n -> n `shouldBe` 99
+          Just (UnionUnknown n) -> n `shouldBe` 99
 
       it "in union vectors" $ do
         let union = writeUnion 99 (writeTable [])

@@ -58,7 +58,6 @@ newtype Struct a = Struct
 -- | A union that is being read from a flatbuffer.
 data Union a
   = Union !a
-  | UnionNone
   | UnionUnknown !Word8
 
 
@@ -391,7 +390,7 @@ instance VectorElement (Union a) where
   unsafeIndex (VectorUnion typesPos valuesPos readElem) ix = do
     unionType <- unsafeIndex typesPos ix
     case positive unionType of
-      Nothing         -> Right UnionNone
+      Nothing         -> Left "Union vector: 'None' is not allowed in vectors."
       Just unionType' -> do
         tablePos <- readUOffsetAndSkip $ moveToElem valuesPos tableRefSize ix
         readElem unionType' tablePos
@@ -410,7 +409,7 @@ instance VectorElement (Union a) where
       go (unionType : unionTypes) (offset : offsets) !ix = do
         union <-
           case positive unionType of
-            Nothing -> Right UnionNone
+            Nothing -> Left "Union vector: 'None' is not allowed in vectors."
             Just unionType' ->
               let tablePos = move valuesPos (offset + (ix * 4))
               in  readElem unionType' tablePos
@@ -447,12 +446,35 @@ readTableFieldWithDef read ix dflt t =
     Nothing -> Right dflt
     Just offset -> read (move (tablePos t) offset)
 
-{-# INLINE readTableFieldUnion #-}
-readTableFieldUnion :: (Positive Word8 -> PositionInfo -> Either ReadError (Union a)) -> TableIndex -> Table t -> Either ReadError (Union a)
-readTableFieldUnion read ix t =
+{-# INLINE readTableFieldUnionOpt #-}
+readTableFieldUnionOpt ::
+     (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
+  -> TableIndex
+  -> Table t
+  -> Either ReadError (Maybe (Union a))
+readTableFieldUnionOpt read ix t =
   readTableFieldWithDef readWord8 (ix - 1) 0 t >>= \unionType ->
     case positive unionType of
-      Nothing         -> Right UnionNone
+      Nothing         -> Right Nothing
+      Just unionType' ->
+        tableIndexToVOffset t ix >>= \case
+          Nothing     -> Left "Union: 'union type' found but 'union value' is missing."
+          Just offset ->
+            readUOffsetAndSkip (move (tablePos t) offset)
+              >>= read unionType'
+              <&> Just
+
+{-# INLINE readTableFieldUnionReq #-}
+readTableFieldUnionReq ::
+     (Positive Word8 -> PositionInfo -> Either ReadError (Union a))
+  -> TableIndex
+  -> String
+  -> Table t
+  -> Either ReadError (Union a)
+readTableFieldUnionReq read ix name t =
+  readTableFieldWithDef readWord8 (ix - 1) 0 t >>= \unionType ->
+    case positive unionType of
+      Nothing         -> missingField name
       Just unionType' ->
         tableIndexToVOffset t ix >>= \case
           Nothing     -> Left "Union: 'union type' found but 'union value' is missing."
