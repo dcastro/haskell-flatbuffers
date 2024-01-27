@@ -414,6 +414,8 @@ readName byteString = do
 - [ ] `shared` attribute
     - [Docs](https://google.github.io/flatbuffers/flatbuffers_guide_use_cpp.html#flatbuffers_cpp_object_based_api)
 - [ ] Attach [Haddock documentation to the generated code](https://hackage.haskell.org/package/template-haskell-2.21.0.0/docs/Language-Haskell-TH-Lib.html#g:32).
+- [ ] Add `mmap` support.
+- [ ] Cache and reuse data in the buffer.
 
 ### Other
 
