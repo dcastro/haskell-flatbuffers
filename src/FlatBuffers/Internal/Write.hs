@@ -263,13 +263,19 @@ writeTable fields = WriteTable $ do
         else pure (getSum after)
 
   modify' $ alignTo soffsetSize 0
+
+  -- INFO: position of table (before writing the SOffset)
   tableFieldsPosition <- gets (getSum . bufferSize)
 
+  -- INFO: position of table (after writing the SOffset)
   let tablePosition = tableFieldsPosition + soffsetSize
   -- Note: This might overflow if the table has too many fields
   let tableSize = fromIntegral @Int32 @Word16 $ tablePosition - tableEnd
   let fieldVOffsets = flip fmap inlineFieldPositions $ \case
-                  0 -> 0
+                  0 ->
+                    -- 0 means the field is absent (null or deprecated),
+                    -- so we write 0 in the vtable entry.
+                    0
                   -- Note: This might overflow if the table has too many fields
                   fieldPosition -> fromIntegral @Int32 @Word16 (tablePosition - fieldPosition)
 
@@ -717,8 +723,6 @@ instance WriteVectorElement (WriteUnion a) where
               coerce $ fromMonoFoldable elemCount offsets
 
     in  WriteVectorUnion (coerce $ fromMonoFoldable elemCount types) writeUnionTables
-
-
 
 -- | Calculate how much 0-padding is needed so that, after writing @additionalBytes@,
 -- the buffer becomes aligned to @n@ bytes.
