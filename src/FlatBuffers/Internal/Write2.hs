@@ -1,7 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -9,67 +8,52 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UnliftedFFITypes #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module FlatBuffers.Internal.Write2 where
 
-import Data.List qualified as List
-
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.ST (runST)
 import Control.Monad.State.Strict as S
-import Foreign.C.Types (CSize(CSize))
-import Foreign.ForeignPtr
-import Foreign.ForeignPtr.Unsafe
-import Foreign.Ptr
-import Foreign.Storable
-
-import Foreign.Marshal.Utils (with)
-
+import Data.Bits
+import Data.ByteString qualified as BS
+import Data.ByteString.Internal qualified as BSI
+import Data.ByteString.Lazy qualified as BSL
+import Data.ByteString.Unsafe qualified as BSU
+import Data.Coerce (coerce)
+import Data.Int
+import Data.List qualified as List
 import Data.Map.Internal qualified as MI
 import Data.Map.Strict qualified as M
 import Data.Map.Strict.Internal qualified as MSI
-import Utils.Containers.Internal.StrictPair
-
-
-import Data.ByteString qualified as BS
-import Data.ByteString.Internal qualified as BSI
--- import qualified Data.ByteString.Builder       as B
-import Data.ByteString.Lazy qualified as BSL
-import Data.ByteString.Unsafe qualified as BSU
-
-import Data.Int
 import Data.Semigroup (Max(..))
-import Data.Word
-import Debug.Trace
-
-import Data.Coerce (coerce)
-import FlatBuffers.Internal.Constants
-import FlatBuffers.Internal.Types
-
-import System.IO.Unsafe (unsafePerformIO)
-
-import Data.Bits
-
-
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Text.Array qualified as A
 import Data.Text.Encoding qualified as T
 import Data.Text.Encoding.Error qualified as T
-import GHC.Base (ByteArray#)
-
-
-import Data.Text.Array qualified as A
 import Data.Text.Internal qualified as TI
-
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Generic.Mutable qualified as VGM
 import Data.Vector.Unboxed qualified as VU
 import Data.Vector.Unboxed.Mutable qualified as VUM
+import Data.Word
+import Debug.Trace
+import FlatBuffers.Internal.Constants
+import FlatBuffers.Internal.Types
+import Foreign.C.Types (CSize(CSize))
+import Foreign.ForeignPtr
+import Foreign.ForeignPtr.Unsafe
+import Foreign.Marshal.Utils qualified as Marshal
+import Foreign.Ptr
+import Foreign.Storable
+import GHC.Base (ByteArray#)
+import System.IO.Unsafe (unsafePerformIO)
+import Utils.Containers.Internal.StrictPair
 
 
-#include "MachDeps.h"
+-- #include "MachDeps.h"
 
 -- $> import qualified FlatBuffers.Internal.Write as F
 
@@ -262,7 +246,7 @@ insertMap kx0 x0 t0 = toPair $ go kx0 x0 t0
                   in found :*: MI.balanceL ky y l' r
             GT -> let (found :*: r') = go kx x r
                   in found :*: MI.balanceR ky y l r'
-            EQ -> (Just y :*: branch)
+            EQ -> Just y :*: branch
 
 
 
@@ -474,7 +458,7 @@ reserve bytes = Write $ do
       -- Allocate new buffer and copy over the contents of the previous buffer
       newFp <- liftIO $ BSI.mallocByteString newCapacity
       let newPtr = unsafeForeignPtrToPtr newFp `plusPtr` (newCapacity - size)
-      liftIO $ BSI.memcpy newPtr (spPtr sptr) size
+      liftIO $ Marshal.copyBytes newPtr (spPtr sptr) size
 
       -- Make sure the previous `ForeignPtr` lives at least up until this point,
       -- to avoid invalidating its `Ptr`.
@@ -501,7 +485,7 @@ alignTo !n !additionalBytes = do
     else do
       buffer <- getBuffer
       let newSptr = bufferSptr buffer `minus` padding
-      _ <- liftIO $ BSI.memset (spPtr newSptr) 0 (fromIntegral @Int @CSize padding)
+      _ <- liftIO $ Marshal.fillBytes (spPtr newSptr) 0 padding
 
       putBuffer buffer
         { bufferSptr = newSptr
@@ -525,6 +509,7 @@ instance Put (Ptr a) where
   {-# INLINE putInt16 #-}
   putInt16 :: Ptr a -> Int16 -> IO ()
 #ifdef WORDS_BIGENDIAN
+  -- TODO
 #else
   putInt16 = poke . castPtr
 #endif
@@ -532,6 +517,7 @@ instance Put (Ptr a) where
   {-# INLINE putInt32 #-}
   putInt32 :: Ptr a -> Int32 -> IO ()
 #ifdef WORDS_BIGENDIAN
+  -- TODO
 #else
   putInt32 = poke . castPtr
 #endif
@@ -539,6 +525,7 @@ instance Put (Ptr a) where
   {-# INLINE putWord16 #-}
   putWord16 :: Ptr a -> Word16 -> IO ()
 #ifdef WORDS_BIGENDIAN
+  -- TODO
 #else
   putWord16 = poke . castPtr
 #endif
@@ -547,6 +534,7 @@ instance Put (Ptr a) where
   {-# INLINE putWord32 #-}
   putWord32 :: Ptr a -> Word32 -> IO ()
 #ifdef WORDS_BIGENDIAN
+  -- TODO
 #else
   putWord32 = poke . castPtr
 #endif
@@ -565,7 +553,7 @@ instance Put SmartPtr where
 writeText :: Text -> Write (Location Text)
 writeText text@(TI.Text arr off len) = do
   bsize <- bufferSize <$> getBuffer
-  utf8len <- liftIO $ fromIntegral @Int32 @Int <$> utf8length text
+  let utf8len = utf8length text
   let utf8lenAndTerminator = utf8len + 1
   let pad = calcPadding int32Size utf8lenAndTerminator bsize
   let padAndTerminator = pad + 1
@@ -578,11 +566,10 @@ writeText text@(TI.Text arr off len) = do
     let sptr1 = bufferSptr buffer
 
     let sptr2 = sptr1 `minus` padAndTerminator
-    _ <- BSI.memset (spPtr sptr2) 0 (fromIntegral padAndTerminator)
+    Marshal.fillBytes (spPtr sptr2) 0 (fromIntegral padAndTerminator)
 
     let sptr3 = sptr2 `minus` utf8len
-    with (spPtr sptr3) $ \(destPtr :: Ptr (Ptr Word8)) ->
-      c_encode_utf8 destPtr (A.aBA arr) (fromIntegral off) (fromIntegral len)
+    let !_ = runST $ A.copyToPointer arr off sptr3.spPtr len
 
     let sptr4 = sptr3 `minus` int32Size
     putInt32 sptr4 (fromIntegral @Int @Int32 utf8len)
@@ -601,25 +588,9 @@ writeText text@(TI.Text arr off len) = do
 newtype Location a = Location { getLocation :: Int }
   deriving newtype (Eq, Show)
 
-
-
-
-
-
 {-# INLINE utf8length #-}
-utf8length :: Text -> IO Int32
-utf8length (TI.Text arr off len)
-  | len == 0  = pure 0
-  | otherwise = c_length_utf8 (A.aBA arr) (fromIntegral off) (fromIntegral len)
-
-foreign import ccall unsafe "_hs_text_encode_utf8" c_encode_utf8
-    :: Ptr (Ptr Word8) -> ByteArray# -> CSize -> CSize -> IO ()
-
-foreign import ccall unsafe "_hs_text_length_utf8" c_length_utf8
-  :: ByteArray# -> CSize -> CSize -> IO Int32
-
-
-
+utf8length :: Text -> Int
+utf8length (TI.Text _array _offset len) = len
 
 showBuffer' :: BS.ByteString -> String
 showBuffer' = showBuffer . BSL.fromStrict
