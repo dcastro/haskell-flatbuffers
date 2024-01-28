@@ -122,7 +122,7 @@ writeTable fieldCount wtf = do
   buffer1 <- getBuffer
   let startFieldsLoc = bufferSize buffer1
 
-  locs <- fromIO $ VUM.new @IO @Int fieldCount
+  locs <- liftIO $ VUM.new @IO @Int fieldCount
   runWriteTableField wtf locs
 
 
@@ -162,7 +162,7 @@ writeTable fieldCount wtf = do
 
   let sptr1 = bufferSptr buffer
   let tableSptr = sptr1 `minus` 4
-  buffer <- fromIO $ do
+  buffer <- liftIO $ do
     -- TODO: use `Write` as much as possible
     i <- skipTrailingZeroes (VUM.length locs - 1)
     sptr1 <- writeTableOffsets i tableSptr
@@ -206,7 +206,7 @@ writeInt32 fieldIndex i = WriteTableField $ \locs -> do
   alignTo 4 4
   buffer <- getBuffer
   let sptr = bufferSptr buffer `minus` 4
-  fromIO $ do
+  liftIO $ do
     putInt32 sptr i
     VUM.unsafeWrite locs fieldIndex (spOffset sptr)
   putBuffer buffer { bufferSptr = sptr }
@@ -218,7 +218,7 @@ writeOffset fieldIndex loc = WriteTableField $ \locs -> do
   buffer <- getBuffer
   let sptr = bufferSptr buffer `minus` 4
   let offsetToLocation = spOffset sptr - getLocation loc
-  fromIO $ do
+  liftIO $ do
     putInt32 sptr (fromIntegral @Int @Int32 offsetToLocation)
     VUM.unsafeWrite locs fieldIndex (spOffset sptr)
   putBuffer buffer { bufferSptr = sptr }
@@ -267,6 +267,7 @@ insertMap kx0 x0 t0 = toPair $ go kx0 x0 t0
 
 
 newtype Write a = Write { unsafeRunWrite :: StateT Buffer IO a }
+  deriving newtype MonadIO
 
 instance Functor Write where
   {-# INLINE fmap #-}
@@ -325,11 +326,11 @@ instance WriteVector (Location a) where
   {-# INLINE unfoldNM #-}
   unfoldNM :: forall t. MonadTrans t => Monad (t Write) => Int -> (Int -> t Write (Location a)) -> t Write (Location [a])
   unfoldNM n f = do
-    textLocations <- lift . fromIO $ VUM.new @IO @Int n
+    textLocations <- lift . liftIO $ VUM.new @IO @Int n
 
     forM_ [0 .. n - 1] $ \index -> do
       loc <- f index
-      lift $ fromIO $ VUM.unsafeWrite textLocations index (getLocation loc)
+      lift $ liftIO $ VUM.unsafeWrite textLocations index (getLocation loc)
 
     lift $ writeLocs textLocations
     lift getCurrentLocation
@@ -347,7 +348,7 @@ instance WriteVector Int32 where
     sptr <- lift $ bufferSptr <$> getBuffer
 
     let sptr1 = sptr `minus` totalSize
-    lift . fromIO $ putInt32 sptr1 (fromIntegral @Int @Int32 n)
+    lift . liftIO $ putInt32 sptr1 (fromIntegral @Int @Int32 n)
 
     let sptr2 = sptr1 `plus` 4
 
@@ -363,7 +364,7 @@ instance WriteVector Int32 where
         | index >= n = pure ()
         | otherwise = do
             elem <- f index
-            lift . fromIO $ putInt32 ptr elem
+            lift . liftIO $ putInt32 ptr elem
             go (ptr `plusPtr` 4) (index + 1)
 
 
@@ -384,7 +385,7 @@ writeLocs locs = do
       buffer <- getBuffer
       let sptr = bufferSptr buffer `minus` 4
 
-      fromIO $ putInt32 sptr (fromIntegral @Int @Int32 len)
+      liftIO $ putInt32 sptr (fromIntegral @Int @Int32 len)
 
       putBuffer $ buffer { bufferSptr = sptr }
 
@@ -399,17 +400,12 @@ writeLocs locs = do
 
           let currentLoc = bufferSize buffer + 4
 
-          fromIO $ do
+          liftIO $ do
             textLoc <- VUM.unsafeRead locs index
             putInt32 sptr2 (fromIntegral @Int @Int32 $ currentLoc - textLoc)
 
           putBuffer $ buffer { bufferSptr = sptr2 }
           go (index - 1)
-
-
-{-# INLINE fromIO #-}
-fromIO :: IO a -> Write a
-fromIO = Write . liftIO
 
 {-# INLINE getCurrentLocation #-}
 getCurrentLocation :: Write (Location a)
@@ -429,7 +425,7 @@ modifyBuffer f = Write $ modify f
 finish :: Write BS.ByteString
 finish = do
   buffer <- getBuffer
-  fromIO $ touchForeignPtr (bufferForeignPtr buffer)
+  liftIO $ touchForeignPtr (bufferForeignPtr buffer)
 
   let offset = bufferCapacity buffer - bufferSize buffer
   pure $ BSI.PS (bufferForeignPtr buffer) offset (bufferSize buffer)
@@ -505,7 +501,7 @@ alignTo !n !additionalBytes = do
     else do
       buffer <- getBuffer
       let newSptr = bufferSptr buffer `minus` padding
-      _ <- fromIO $ BSI.memset (spPtr newSptr) 0 (fromIntegral @Int @CSize padding)
+      _ <- liftIO $ BSI.memset (spPtr newSptr) 0 (fromIntegral @Int @CSize padding)
 
       putBuffer buffer
         { bufferSptr = newSptr
@@ -569,7 +565,7 @@ instance Put SmartPtr where
 writeText :: Text -> Write (Location Text)
 writeText text@(TI.Text arr off len) = do
   bsize <- bufferSize <$> getBuffer
-  utf8len <- fromIO $ fromIntegral @Int32 @Int <$> utf8length text
+  utf8len <- liftIO $ fromIntegral @Int32 @Int <$> utf8length text
   let utf8lenAndTerminator = utf8len + 1
   let pad = calcPadding int32Size utf8lenAndTerminator bsize
   let padAndTerminator = pad + 1
@@ -578,7 +574,7 @@ writeText text@(TI.Text arr off len) = do
   reserve totalBytes
   buffer <- getBuffer
 
-  newSptr <- fromIO $ do
+  newSptr <- liftIO $ do
     let sptr1 = bufferSptr buffer
 
     let sptr2 = sptr1 `minus` padAndTerminator
