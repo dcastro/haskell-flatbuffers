@@ -89,6 +89,7 @@ library
     , mono-traversable >=1.0.15.3
     , mtl >=2.2.2
     , parser-combinators >=1.3.0
+    , pretty-simple
     , scientific >=0.3.7.0
     , template-haskell >=2.18.0.0
     , text >=2.0
@@ -222,6 +223,7 @@ benchmark criterion-bench
     , mono-traversable >=1.0.15.3
     , mtl >=2.2.2
     , parser-combinators >=1.3.0
+    , pretty-simple
     , scientific >=0.3.7.0
     , template-haskell >=2.18.0.0
     , text >=2.0

@@ -24,11 +24,52 @@ import Data.Text.Encoding qualified as T
 import Data.Text.Internal qualified as TI
 import Data.Word
 
+import Data.List qualified as List
+import Data.Text.Lazy qualified as LT
 import FlatBuffers.Internal.Build
 import FlatBuffers.Internal.Constants
 import FlatBuffers.Internal.FileIdentifier
   (FileIdentifier(unFileIdentifier), HasFileIdentifier(getFileIdentifier))
 import FlatBuffers.Internal.Types
+import Text.Pretty.Simple (pShowNoColor)
+
+showBuffer' :: BS.ByteString -> String
+showBuffer' = showBuffer . BSL.fromStrict
+
+showBuffer :: BSL.ByteString -> String
+showBuffer bs =
+  List.intercalate "\n" . fmap (List.intercalate ", ") . groupsOf 4 . fmap show $
+  BSL.unpack bs
+
+groupsOf :: Int -> [a] -> [[a]]
+groupsOf n xs =
+  case take n xs of
+    [] -> []
+    group -> group : groupsOf n (drop n xs)
+
+prettyPrint :: Show a => a -> PrettyString
+prettyPrint a = PrettyString $ pShowNoColor a
+
+newtype PrettyString = PrettyString LT.Text
+
+instance Show PrettyString where
+  show (PrettyString text) = LT.unpack text
+
+
+{-
+
+>>> import qualified FlatBuffers.Internal.Write as F1
+
+>>> let enc = prettyPrint . showBuffer . F1.encode
+
+>>> enc $ F1.writeTable [ F1.writeInt32TableField 99 ]
+"12, 0, 0, 0
+0, 0, 6, 0
+8, 0, 4, 0
+6, 0, 0, 0
+99, 0, 0, 0"
+
+ -}
 
 type BufferSize = Sum Int32
 

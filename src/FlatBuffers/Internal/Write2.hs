@@ -9,6 +9,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module FlatBuffers.Internal.Write2 where
 
@@ -22,6 +23,7 @@ import Data.ByteString.Internal qualified as BSI
 import Data.ByteString.Lazy qualified as BSL
 import Data.ByteString.Unsafe qualified as BSU
 import Data.Coerce (coerce)
+import Data.Function ((&))
 import Data.Int
 import Data.List qualified as List
 import Data.Map.Internal qualified as MI
@@ -34,6 +36,7 @@ import Data.Text.Array qualified as A
 import Data.Text.Encoding qualified as T
 import Data.Text.Encoding.Error qualified as T
 import Data.Text.Internal qualified as TI
+import Data.Text.Lazy qualified as LT
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Generic.Mutable qualified as VGM
 import Data.Vector.Unboxed qualified as VU
@@ -50,6 +53,7 @@ import Foreign.Ptr
 import Foreign.Storable
 import GHC.Base (ByteArray#)
 import System.IO.Unsafe (unsafePerformIO)
+import Text.Pretty.Simple (pShowNoColor)
 import Utils.Containers.Internal.StrictPair
 
 
@@ -215,6 +219,8 @@ showWriteT w =
 showWrite :: Write a -> IO ()
 showWrite = showWriteT . lift
 
+showWrite2 :: Write a -> PrettyString
+showWrite2 w = prettyPrint $ showBuffer' $ runWrite defaultWriteSettings $ w >> finish
 
 
 newtype WriteTableField = WriteTableField { runWriteTableField :: VUM.IOVector Int -> Write () }
@@ -605,3 +611,30 @@ groupsOf n xs =
   case take n xs of
     [] -> []
     group -> group : groupsOf n (drop n xs)
+
+
+{- A pretty printer to be used in doctests.
+
+Unlike @doctest@, HLS's @eval@ plugin does not capture stdout.
+This means using `print` or `Text.Pretty.Simple.pPrint` won't work;
+the `eval` plugin will not display the printed text.
+
+The workaround mentioned in the docs (see below) is
+not compatible with doctest: https://github.com/haskell/haskell-language-server/issues/1977#issuecomment-1635508324
+
+This function works around the issue by overloading `show` such that the string is not wrapped in quotes
+and newlines (and other characters) are not escaped.
+
+In other words, whereas a `String` will be displayed with quotes/escape characters in GHCI,
+a `PrettyString` will be rendered verbatim.
+
+See:
+  * Suggested workaround: https://github.com/haskell/haskell-language-server/blob/fb5e5c998c7d4f13546ae015191a7983aedf3345/plugins/hls-eval-plugin/README.md#multiline-output
+-}
+prettyPrint :: Show a => a -> PrettyString
+prettyPrint a = PrettyString $ pShowNoColor a
+
+newtype PrettyString = PrettyString LT.Text
+
+instance Show PrettyString where
+  show (PrettyString text) = LT.unpack text
