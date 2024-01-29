@@ -188,9 +188,9 @@ writeTable fieldCount wtf = do
   pure $ Location $ spOffset tableSptr
 
 
-{-# INLINE writeInt32 #-}
-writeInt32 :: Int -> Int32 -> WriteTableField
-writeInt32 fieldIndex i = WriteTableField $ \locs -> do
+{-# INLINE writeInt32TableField #-}
+writeInt32TableField :: Int -> Int32 -> WriteTableField
+writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
   alignTo 4 4
   buffer <- getBuffer
   let sptr = bufferSptr buffer `minus` 4
@@ -200,8 +200,8 @@ writeInt32 fieldIndex i = WriteTableField $ \locs -> do
   putBuffer buffer { bufferSptr = sptr }
 
 
-writeOffset :: Int -> Location a -> WriteTableField
-writeOffset fieldIndex loc = WriteTableField $ \locs -> do
+writeOffsetTableField :: Int -> Location a -> WriteTableField
+writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
   alignTo 4 4
   buffer <- getBuffer
   let sptr = bufferSptr buffer `minus` 4
@@ -295,7 +295,7 @@ instance Monad Write where
 
   -- $> F.showWrite $ do {
   -- $>   loc <- F.writeText "abc";
-  -- $>   F.writeTable 2 (F.writeInt32 0 99 <> F.writeOffset 1 loc);
+  -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc);
   -- $> }
 
 
