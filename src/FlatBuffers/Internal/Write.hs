@@ -58,16 +58,27 @@ instance Show PrettyString where
 
 {-
 
->>> import qualified FlatBuffers.Internal.Write as F1
+>>> import qualified FlatBuffers.Internal.Write as F
 
->>> let enc = prettyPrint . showBuffer . F1.encode
+>>> let enc = prettyPrint . showBuffer . F.encode
 
->>> enc $ F1.writeTable [ F1.writeInt32TableField 99 ]
+>>> enc $ F.writeTable [ F.writeInt32TableField 99 ]
 "12, 0, 0, 0
 0, 0, 6, 0
 8, 0, 4, 0
 6, 0, 0, 0
 99, 0, 0, 0"
+
+>>> enc $ F.writeTable [ F.writeInt32TableField 99, writeTextTableField "abc" ]
+"12, 0, 0, 0
+8, 0, 12, 0
+8, 0, 4, 0
+8, 0, 0, 0
+8, 0, 0, 0
+99, 0, 0, 0
+3, 0, 0, 0
+97, 98, 99, 0"
+
 
  -}
 

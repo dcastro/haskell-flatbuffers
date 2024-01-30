@@ -70,6 +70,42 @@ import Utils.Containers.Internal.StrictPair
 
  -- $> putStrLn $ F.showBuffer' bs
 
+{-
+
+
+>>> import qualified FlatBuffers.Internal.Write2 as F
+
+>>> let enc = prettyPrint . showBuffer' . F.encodeDef
+
+
+-- >>> F.showWrite2 do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc); }
+>>> F.showWrite2 do { F.writeTable 2 (F.writeInt32TableField 0 99); }
+"6, 0, 8, 0
+4, 0, 6, 0
+0, 0, 99, 0
+0, 0"
+
+>>> enc do { F.writeTable 2 (F.writeInt32TableField 0 99); }
+"12, 0, 0, 0
+0, 0, 6, 0
+8, 0, 4, 0
+6, 0, 0, 0
+99, 0, 0, 0"
+
+>>> enc do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc); }
+"12, 0, 0, 0
+8, 0, 12, 0
+8, 0, 4, 0
+8, 0, 0, 0
+8, 0, 0, 0
+99, 0, 0, 0
+3, 0, 0, 0
+97, 98, 99, 0"
+
+
+
+ -}
+
 data SmartPtr = SmartPtr
   { spPtr :: !(Ptr Word8)
   , spOffset :: !Int
@@ -192,13 +228,18 @@ writeTable fieldCount wtf = do
 writeInt32TableField :: Int -> Int32 -> WriteTableField
 writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
   alignTo 4 4
+  unsafeWriteInt32 i
   buffer <- getBuffer
-  let sptr = bufferSptr buffer `minus` 4
-  liftIO $ do
-    putInt32 sptr i
-    VUM.unsafeWrite locs fieldIndex (spOffset sptr)
-  putBuffer buffer { bufferSptr = sptr }
+  liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
 
+-- | This function is unsafe because it may potentially write outside the buffer's boundaries.
+-- Make sure to use `reserve` (or `alignTo`) before using this function.
+unsafeWriteInt32 :: Int32 -> Write ()
+unsafeWriteInt32 i = do
+  buffer <- getBuffer
+  let sptr = buffer.bufferSptr `minus` int32Size
+  liftIO $ putInt32 sptr i
+  putBuffer buffer { bufferSptr = sptr}
 
 writeOffsetTableField :: Int -> Location a -> WriteTableField
 writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
@@ -297,9 +338,6 @@ instance Monad Write where
   -- $>   loc <- F.writeText "abc";
   -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc);
   -- $> }
-
-
-
 
 
 class WriteVector a where
@@ -412,6 +450,29 @@ putBuffer b = Write $ put b
 modifyBuffer :: (Buffer -> Buffer) -> Write ()
 modifyBuffer f = Write $ modify f
 
+writeUOffsetFrom :: Location a -> Write ()
+writeUOffsetFrom loc = do
+  alignTo uoffsetSize 0
+  buffer <- getBuffer
+  let currentLoc = bufferSize buffer
+  let uoffset = fromIntegral @Int @Int32 $ currentLoc - loc.getLocation + uoffsetSize
+  unsafeWriteInt32 uoffset
+
+encode :: WriteSettings -> Write (Location a) -> BS.ByteString
+encode settings writeTable =
+  runWrite settings do
+    writeTableRoot
+    finish
+  where
+    writeTableRoot = do
+      tableRoot <- writeTable
+      maxAlignment <- gets $ getMax . bufferMaxAlign
+      alignTo maxAlignment uoffsetSize
+      writeUOffsetFrom tableRoot
+
+encodeDef :: Write (Location a) -> BS.ByteString
+encodeDef = encode defaultWriteSettings
+
 finish :: Write BS.ByteString
 finish = do
   buffer <- getBuffer
@@ -433,7 +494,6 @@ runWrite (WriteSettings initialCapacity) write = unsafePerformIO $ do
   let initialBuffer = Buffer fp ptr initialCapacity (Max 1) M.empty
 
   evalStateT (unsafeRunWrite write) initialBuffer
-
 
 data WriteSettings = WriteSettings
   { initialCapacity :: !Int
