@@ -49,6 +49,7 @@ library
       FlatBuffers.Internal.Types
       FlatBuffers.Internal.Write
       FlatBuffers.Internal.Write2
+      FlatBuffers.Internal.Write3
       FlatBuffers.Vector
   other-modules:
       Paths_flatbuffers

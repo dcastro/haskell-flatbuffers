@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
-module FlatBuffers.Internal.Write2 where
+module FlatBuffers.Internal.Write3 where
 
 import Control.Exception (SomeException)
 import Control.Monad.Except
