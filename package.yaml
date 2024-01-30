@@ -55,6 +55,7 @@ default-extensions:
   - DeriveTraversable
   - DeriveTraversable
   - DerivingStrategies
+  - FlexibleContexts
   - GeneralizedNewtypeDeriving
   - ImportQualifiedPost
   - InstanceSigs

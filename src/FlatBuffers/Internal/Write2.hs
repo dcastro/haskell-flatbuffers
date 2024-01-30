@@ -13,6 +13,7 @@
 
 module FlatBuffers.Internal.Write2 where
 
+import Control.Exception (SomeException)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.ST (runST)
@@ -295,25 +296,51 @@ insertMap kx0 x0 t0 = toPair $ go kx0 x0 t0
                   in found :*: MI.balanceR ky y l r'
             EQ -> Just y :*: branch
 
-
-
 newtype Write a = Write { unsafeRunWrite :: StateT Buffer IO a }
-  deriving newtype MonadIO
+  deriving newtype (MonadIO, Functor, Applicative, Monad, MonadState Buffer)
 
-instance Functor Write where
-  {-# INLINE fmap #-}
-  fmap f (Write run) = Write (fmap f run)
+-- TODO: delete `MonadIO` and `MonadState Buffer` instances, re-add `fromIO`
+-- Add a comment explaining why: we don't want users to be able to use `IO` in the `Write` monad,
+-- we want the IO to be an implementation detail.
+-- Not allowing the user to use IO lets us safely use `unsafePerformIO` in `runWrite`.
 
-instance Applicative Write where
-  {-# INLINE pure #-}
-  pure a = Write $ pure a
 
-  {-# INLINE (<*>) #-}
-  fa <*> fb = Write $ unsafeRunWrite fa <*> unsafeRunWrite fb
+----------------------------------------------------------------------------
+-- Experiments: allow using `Write` embded in any monad stack,
+-- as long as it has `MonadState Buffer` and `MonadIO`.
+----------------------------------------------------------------------------
 
-instance Monad Write where
-  {-# INLINE (>>=) #-}
-  Write run >>= f = Write $ run >>= coerce f
+lliifftt :: Write a -> ExceptT SomeException (StateT Buffer (ReaderT Int IO)) a
+lliifftt ww = lift $ liftWrite @(ReaderT Int IO) ww
+
+-- lliifftt2 :: forall t m a. (MonadState Buffer m, MonadIO m, MonadTrans t ) => Write a -> t m a
+-- lliifftt2 ww = lift $ liftWrite @m ww
+
+liftWrite :: MonadIO m => Write a -> StateT Buffer m a
+-- liftWrite :: (MonadState Buffer m, MonadIO m) => Write a -> m a
+liftWrite (Write action) =
+  action
+    & mapStateT \(ioAction :: IO (a, Buffer)) -> do
+        liftIO ioAction
+
+encode' :: MonadIO m => WriteSettings -> StateT Buffer m (Location a) -> m BS.ByteString
+encode' settings writeTable =
+  runWrite' settings do
+    tableRoot <- writeTable
+    liftWrite do
+       writeTableRoot tableRoot
+       finish
+
+{-# INLINE runWrite' #-}
+runWrite' :: MonadIO m => WriteSettings -> StateT Buffer m a -> m a
+runWrite' (WriteSettings initialCapacity) write = do
+  fp <- liftIO $ BSI.mallocByteString initialCapacity
+  let ptr = SmartPtr (unsafeForeignPtrToPtr fp `plusPtr` initialCapacity) 0
+
+  let initialBuffer = Buffer fp ptr initialCapacity (Max 1) M.empty
+
+  evalStateT write initialBuffer
+
 
 
 --  $> import qualified FlatBuffers.Internal.Write as F
@@ -342,6 +369,11 @@ instance Monad Write where
 
 class WriteVector a where
   type WriteVectorElem a
+
+  -- TODO: maybe replace this with some streaming library? pipes/streamly
+  -- And some vanilla unfold:
+  --    unfoldN :: Int -> (Int -> Write a) -> Write a
+  --    unfoldN' :: MonadIO m => Int -> (Int -> StateT Buffer m a) -> StateT Buffer m a
 
   unfoldNM :: (MonadTrans t, Monad (t Write)) => Int -> (Int -> t Write a) -> t Write (Location [WriteVectorElem a])
 
@@ -461,14 +493,15 @@ writeUOffsetFrom loc = do
 encode :: WriteSettings -> Write (Location a) -> BS.ByteString
 encode settings writeTable =
   runWrite settings do
-    writeTableRoot
+    tableRoot <- writeTable
+    writeTableRoot tableRoot
     finish
-  where
-    writeTableRoot = do
-      tableRoot <- writeTable
-      maxAlignment <- gets $ getMax . bufferMaxAlign
-      alignTo maxAlignment uoffsetSize
-      writeUOffsetFrom tableRoot
+
+writeTableRoot :: Location a -> Write ()
+writeTableRoot tableRoot = do
+  maxAlignment <- gets $ getMax . bufferMaxAlign
+  alignTo maxAlignment uoffsetSize
+  writeUOffsetFrom tableRoot
 
 encodeDef :: Write (Location a) -> BS.ByteString
 encodeDef = encode defaultWriteSettings
@@ -480,10 +513,6 @@ finish = do
 
   let offset = bufferCapacity buffer - bufferSize buffer
   pure $ BSI.PS (bufferForeignPtr buffer) offset (bufferSize buffer)
-
-{-# INLINE finishWrite #-}
-finishWrite :: WriteSettings -> Write a -> BS.ByteString
-finishWrite ws w = runWrite ws $ w >> finish
 
 {-# INLINE runWrite #-}
 runWrite :: WriteSettings -> Write a -> a

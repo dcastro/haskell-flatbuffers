@@ -61,6 +61,7 @@ library
       DeriveTraversable
       DeriveTraversable
       DerivingStrategies
+      FlexibleContexts
       GeneralizedNewtypeDeriving
       ImportQualifiedPost
       InstanceSigs
@@ -122,6 +123,7 @@ test-suite test
       DeriveTraversable
       DeriveTraversable
       DerivingStrategies
+      FlexibleContexts
       GeneralizedNewtypeDeriving
       ImportQualifiedPost
       InstanceSigs
@@ -192,6 +194,7 @@ benchmark criterion-bench
       DeriveTraversable
       DeriveTraversable
       DerivingStrategies
+      FlexibleContexts
       GeneralizedNewtypeDeriving
       ImportQualifiedPost
       InstanceSigs
