@@ -316,11 +316,8 @@ newtype Write a = Write { unsafeRunWrite :: StateT Buffer IO a }
 -- as long as it has `MonadState Buffer` and `MonadIO`.
 ----------------------------------------------------------------------------
 
-lliifftt :: Write a -> ExceptT SomeException (StateT Buffer (ReaderT Int IO)) a
-lliifftt ww = lift $ liftWrite @(ReaderT Int IO) ww
-
--- lliifftt2 :: forall t m a. (MonadState Buffer m, MonadIO m, MonadTrans t ) => Write a -> t m a
--- lliifftt2 ww = lift $ liftWrite @m ww
+usageExample :: Write a -> ExceptT SomeException (StateT Buffer (ReaderT Int IO)) a
+usageExample ww = lift $ liftWrite @(ReaderT Int IO) ww
 
 liftWrite :: MonadIO m => Write a -> StateT Buffer m a
 -- liftWrite :: (MonadState Buffer m, MonadIO m) => Write a -> m a

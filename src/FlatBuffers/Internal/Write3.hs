@@ -25,7 +25,9 @@ import Data.ByteString.Lazy qualified as BSL
 import Data.ByteString.Unsafe qualified as BSU
 import Data.Coerce (coerce)
 import Data.Function ((&))
+import Data.Functor ((<&>))
 import Data.Int
+import Data.IORef
 import Data.List qualified as List
 import Data.Map.Internal qualified as MI
 import Data.Map.Strict qualified as M
@@ -74,7 +76,7 @@ import Utils.Containers.Internal.StrictPair
 {-
 
 
->>> import qualified FlatBuffers.Internal.Write2 as F
+>>> import qualified FlatBuffers.Internal.Write3 as F
 
 >>> let enc = prettyPrint . showBuffer' . F.encodeDef
 
@@ -302,8 +304,8 @@ insertMap kx0 x0 t0 = toPair $ go kx0 x0 t0
                   in found :*: MI.balanceR ky y l r'
             EQ -> Just y :*: branch
 
-newtype Write a = Write { unsafeRunWrite :: StateT Buffer IO a }
-  deriving newtype (MonadIO, Functor, Applicative, Monad, MonadState Buffer)
+newtype Write a = Write { unsafeRunWrite :: ReaderT (IORef Buffer) IO a }
+  deriving newtype (MonadIO, Functor, Applicative, Monad)
 
 -- TODO: delete `MonadIO` and `MonadState Buffer` instances, re-add `fromIO`
 -- Add a comment explaining why: we don't want users to be able to use `IO` in the `Write` monad,
@@ -316,38 +318,34 @@ newtype Write a = Write { unsafeRunWrite :: StateT Buffer IO a }
 -- as long as it has `MonadState Buffer` and `MonadIO`.
 ----------------------------------------------------------------------------
 
-lliifftt :: Write a -> ExceptT SomeException (StateT Buffer (ReaderT Int IO)) a
-lliifftt ww = lift $ liftWrite @(ReaderT Int IO) ww
+usageExample :: ExceptT SomeException (ReaderT Int IO) BS.ByteString
+usageExample = do
+  bufferRef <- newBuffer defaultWriteSettings
 
--- lliifftt2 :: forall t m a. (MonadState Buffer m, MonadIO m, MonadTrans t ) => Write a -> t m a
--- lliifftt2 ww = lift $ liftWrite @m ww
+  string <- liftWrite bufferRef $ writeText "abc"
+  tableRoot <- liftWrite bufferRef $ writeTable 2 $
+    writeInt32TableField 0 99
+    <> writeOffsetTableField 1 string
 
-liftWrite :: MonadIO m => Write a -> StateT Buffer m a
--- liftWrite :: (MonadState Buffer m, MonadIO m) => Write a -> m a
-liftWrite (Write action) =
+  encode' bufferRef tableRoot
+
+liftWrite :: MonadIO m => IORef Buffer -> Write a -> m a
+liftWrite bufferRef (Write action) =
   action
-    & mapStateT \(ioAction :: IO (a, Buffer)) -> do
-        liftIO ioAction
+    & flip runReaderT bufferRef
+    & liftIO
 
-encode' :: MonadIO m => WriteSettings -> StateT Buffer m (Location a) -> m BS.ByteString
-encode' settings writeTable =
-  runWrite' settings do
-    tableRoot <- writeTable
-    liftWrite do
-       writeTableRoot tableRoot
-       finish
+encode' :: MonadIO m => IORef Buffer -> Location a -> m BS.ByteString
+encode' bufferRef tableRoot = do
+  liftWrite bufferRef do
+    writeTableRoot tableRoot
+    finish
 
-{-# INLINE runWrite' #-}
-runWrite' :: MonadIO m => WriteSettings -> StateT Buffer m a -> m a
-runWrite' (WriteSettings initialCapacity) write = do
-  fp <- liftIO $ BSI.mallocByteString initialCapacity
-  let ptr = SmartPtr (unsafeForeignPtrToPtr fp `plusPtr` initialCapacity) 0
-
-  let initialBuffer = Buffer fp ptr initialCapacity (Max 1) M.empty
-
-  evalStateT write initialBuffer
-
-
+newBuffer :: MonadIO m => WriteSettings -> m (IORef Buffer)
+newBuffer settings = do
+  fp <- liftIO $ BSI.mallocByteString settings.initialCapacity
+  let ptr = SmartPtr (unsafeForeignPtrToPtr fp `plusPtr` settings.initialCapacity) 0
+  liftIO $ newIORef $ Buffer fp ptr settings.initialCapacity (Max 1) M.empty
 
 --  $> import qualified FlatBuffers.Internal.Write as F
 
@@ -461,7 +459,7 @@ writeLocs locs = do
       | otherwise = do
           buffer <- getBuffer
 
-          let sptr1 = bufferSptr buffer
+          let sptr1 = buffer.bufferSptr
           let sptr2 = sptr1 `minus` 4
 
           let currentLoc = bufferSize buffer + 4
@@ -479,14 +477,22 @@ getCurrentLocation = Location . bufferSize <$> getBuffer
 
 {-# INLINE getBuffer #-}
 getBuffer :: Write Buffer
-getBuffer = Write get
+getBuffer = getBufferRef >>= liftIO . readIORef
+
+{-# INLINE getBufferRef #-}
+getBufferRef :: Write (IORef Buffer)
+getBufferRef = Write ask
 
 {-# INLINE putBuffer #-}
 putBuffer :: Buffer -> Write ()
-putBuffer b = Write $ put b
+putBuffer b = do
+  bufferRef <- getBufferRef
+  liftIO $ writeIORef bufferRef b
 
 modifyBuffer :: (Buffer -> Buffer) -> Write ()
-modifyBuffer f = Write $ modify f
+modifyBuffer f = do
+  bufferRef <- getBufferRef
+  liftIO $ modifyIORef' bufferRef f
 
 writeUOffsetFrom :: Location a -> Write ()
 writeUOffsetFrom loc = do
@@ -505,7 +511,7 @@ encode settings writeTable =
 
 writeTableRoot :: Location a -> Write ()
 writeTableRoot tableRoot = do
-  maxAlignment <- gets $ getMax . bufferMaxAlign
+  maxAlignment <- getBuffer <&> getMax . bufferMaxAlign
   alignTo maxAlignment uoffsetSize
   writeUOffsetFrom tableRoot
 
@@ -526,9 +532,9 @@ runWrite (WriteSettings initialCapacity) write = unsafePerformIO $ do
   fp <- BSI.mallocByteString initialCapacity
   let ptr = SmartPtr (unsafeForeignPtrToPtr fp `plusPtr` initialCapacity) 0
 
-  let initialBuffer = Buffer fp ptr initialCapacity (Max 1) M.empty
+  initialBufferRef <- newIORef $ Buffer fp ptr initialCapacity (Max 1) M.empty
 
-  evalStateT (unsafeRunWrite write) initialBuffer
+  runReaderT (unsafeRunWrite write) initialBufferRef
 
 
 data WriteSettings = WriteSettings
@@ -548,7 +554,8 @@ withInitialCapacity n ws = ws { initialCapacity = n }
 {-# INLINE reserve #-}
 reserve :: Int -> Write ()
 reserve bytes = Write $ do
-  buffer@(Buffer fp sptr capacity _ _) <- get
+  bufferRef <- ask
+  buffer@(Buffer fp sptr capacity _ _) <- liftIO $ readIORef bufferRef
   let size = bufferSize buffer
   if capacity >= size + bytes
     then pure ()
@@ -571,7 +578,7 @@ reserve bytes = Write $ do
       -- See: https://hackage.haskell.org/package/base-4.12.0.0/docs/Foreign-ForeignPtr-Unsafe.html#v:unsafeForeignPtrToPtr
       liftIO $ touchForeignPtr fp
 
-      put buffer
+      liftIO $ writeIORef bufferRef  buffer
             { bufferForeignPtr = newFp
             , bufferSptr = SmartPtr newPtr size
             , bufferCapacity = newCapacity
