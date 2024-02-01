@@ -27,7 +27,8 @@ import Data.Coerce (coerce)
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Int
-import Data.IORef
+import Data.IORef hiding (writeIORef)
+import Data.IORef qualified as IORef
 import Data.List qualified as List
 import Data.Map.Internal qualified as MI
 import Data.Map.Strict qualified as M
@@ -488,6 +489,11 @@ putBuffer :: Buffer -> Write ()
 putBuffer b = do
   bufferRef <- getBufferRef
   liftIO $ writeIORef bufferRef b
+
+-- | A version of `IORef.writeIORef` that evaluates its argument to WHNF before writing it to the `IORef`.
+-- This helps avoid the building up of thunks.
+writeIORef :: IORef a -> a -> IO ()
+writeIORef ioref !a = IORef.writeIORef ioref a
 
 modifyBuffer :: (Buffer -> Buffer) -> Write ()
 modifyBuffer f = do
