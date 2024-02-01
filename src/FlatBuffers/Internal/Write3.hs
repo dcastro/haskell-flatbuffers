@@ -138,6 +138,8 @@ data Buffer = Buffer
   , bufferCache    :: !(M.Map BS.ByteString Int)
   }
 
+type BufferRef = IORef Buffer
+
 bufferSize :: Buffer -> Int
 bufferSize = spOffset . bufferSptr
 
@@ -305,7 +307,7 @@ insertMap kx0 x0 t0 = toPair $ go kx0 x0 t0
                   in found :*: MI.balanceR ky y l r'
             EQ -> Just y :*: branch
 
-newtype Write a = Write { unsafeRunWrite :: ReaderT (IORef Buffer) IO a }
+newtype Write a = Write { unsafeRunWrite :: ReaderT BufferRef IO a }
   deriving newtype (MonadIO, Functor, Applicative, Monad)
 
 -- TODO: delete `MonadIO` and `MonadState Buffer` instances, re-add `fromIO`
@@ -330,19 +332,19 @@ usageExample = do
 
   encode' bufferRef tableRoot
 
-liftWrite :: MonadIO m => IORef Buffer -> Write a -> m a
+liftWrite :: MonadIO m => BufferRef -> Write a -> m a
 liftWrite bufferRef (Write action) =
   action
     & flip runReaderT bufferRef
     & liftIO
 
-encode' :: MonadIO m => IORef Buffer -> Location a -> m BS.ByteString
+encode' :: MonadIO m => BufferRef -> Location a -> m BS.ByteString
 encode' bufferRef tableRoot = do
   liftWrite bufferRef do
     writeTableRoot tableRoot
     finish
 
-newBuffer :: MonadIO m => WriteSettings -> m (IORef Buffer)
+newBuffer :: MonadIO m => WriteSettings -> m BufferRef
 newBuffer settings = do
   fp <- liftIO $ BSI.mallocByteString settings.initialCapacity
   let ptr = SmartPtr (unsafeForeignPtrToPtr fp `plusPtr` settings.initialCapacity) 0
@@ -481,7 +483,7 @@ getBuffer :: Write Buffer
 getBuffer = getBufferRef >>= liftIO . readIORef
 
 {-# INLINE getBufferRef #-}
-getBufferRef :: Write (IORef Buffer)
+getBufferRef :: Write BufferRef
 getBufferRef = Write ask
 
 {-# INLINE putBuffer #-}
