@@ -1,0 +1,11 @@
+
+
+table Person {
+  age: int32;
+  name: string;
+}
+table People {
+  people: [Person];
+}
+
+root_type People;

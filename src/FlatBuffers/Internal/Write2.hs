@@ -30,6 +30,7 @@ import Data.List qualified as List
 import Data.Map.Internal qualified as MI
 import Data.Map.Strict qualified as M
 import Data.Map.Strict.Internal qualified as MSI
+import Data.MonoTraversable
 import Data.Semigroup (Max(..))
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -40,6 +41,7 @@ import Data.Text.Internal qualified as TI
 import Data.Text.Lazy qualified as LT
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Generic.Mutable qualified as VGM
+import Data.Vector.Primitive qualified as VP
 import Data.Vector.Unboxed qualified as VU
 import Data.Vector.Unboxed.Mutable qualified as VUM
 import Data.Word
@@ -125,7 +127,13 @@ SmartPtr ptr offset `minus` n = SmartPtr (ptr `plusPtr` (-n)) (offset + n)
 diff :: SmartPtr -> SmartPtr -> Int
 SmartPtr _ offset1 `diff` SmartPtr _ offset2 = offset1 - offset2
 
+moveSmartPtrM :: Int -> Write ()
+moveSmartPtrM bytes = do
+  modifyBuffer (\buffer -> moveSmartPtr buffer bytes)
 
+moveSmartPtr :: Buffer -> Int -> Buffer
+moveSmartPtr buffer bytes = do
+  buffer { bufferSptr = buffer.bufferSptr `plus` bytes}
 
 data Buffer = Buffer
   { bufferForeignPtr :: !(ForeignPtr Word8)
@@ -369,6 +377,29 @@ runWrite' (WriteSettings initialCapacity) write = do
   -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc);
   -- $> }
 
+-- | This function is optimized for collections whose length can be calculated in @O(1)@.
+--
+-- For large collections whose length cannot be quickly evaluated, it may be better to use `writeManyUnoptimized` instead.
+writeMany
+  :: forall mono a. (MonoFoldable mono, Element mono ~ a)
+  => mono
+  -> (a -> Write (Location a))
+  -> Write (VU.Vector (Location a))
+writeMany collection writeElem = do
+
+  let elemCount = olength collection
+  elemLocations <- liftIO $ VUM.new @IO @(Location a) elemCount
+
+  let
+    writeOneElem :: Int -> a -> Write Int
+    writeOneElem currentIndex elem = do
+      loc <- writeElem elem
+      liftIO do
+        VUM.unsafeWrite elemLocations currentIndex loc
+        pure $ currentIndex + 1
+  _ <- ofoldM writeOneElem 0 collection
+
+  liftIO $ VU.unsafeFreeze elemLocations
 
 class WriteVector a where
   type WriteVectorElem a
@@ -378,6 +409,11 @@ class WriteVector a where
   --    unfoldN :: Int -> (Int -> Write a) -> Write a
   --    unfoldN' :: MonadIO m => Int -> (Int -> StateT Buffer m a) -> StateT Buffer m a
 
+  fromFoldable
+    :: (MonoFoldable coll, Element coll ~ a)
+    => coll
+    -> Write (Location [WriteVectorElem a])
+
   unfoldNM :: (MonadTrans t, Monad (t Write)) => Int -> (Int -> t Write a) -> t Write (Location [WriteVectorElem a])
 
 -- TODO: don't do unfoldNM, use `WriteVectorElement` like table fields.
@@ -385,6 +421,17 @@ class WriteVector a where
 
 instance WriteVector (Location a) where
   type WriteVectorElem (Location a) = a
+
+  fromFoldable
+    :: (MonoFoldable coll, Element coll ~ Location a)
+    => coll
+    -> Write (Location [a])
+  fromFoldable collection = do
+    writeVector int32Size collection \sptr loc -> do
+      let offsetToElement = fromIntegral @Int @Int32 $ sptr.spOffset - loc.getLocation
+      putInt32 sptr offsetToElement
+    getCurrentLocation
+
 
   {-# INLINE unfoldNM #-}
   unfoldNM :: forall t. MonadTrans t => Monad (t Write) => Int -> (Int -> t Write (Location a)) -> t Write (Location [a])
@@ -431,7 +478,40 @@ instance WriteVector Int32 where
             go (ptr `plusPtr` 4) (index + 1)
 
 
+{-# INLINE writeVector #-}
+writeVector
+  :: forall coll a
+   . (MonoFoldable coll, Element coll ~ a)
+   => Int
+   -> coll
+   -> (SmartPtr -> a -> IO ())
+   -> Write ()
+writeVector elemSize collection writeElem = do
+  let vectorByteCount = int32Size + (len * elemSize)
+  alignTo (4 `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
+  moveSmartPtrM (-vectorByteCount)
+  writeCount
+  writeElems
+  moveSmartPtrM (-vectorByteCount)
+  where
+    len = olength collection
 
+    writeElems :: Write ()
+    writeElems = do
+      buffer1 <- getBuffer
+      buffer2 <- liftIO $ ofoldM writeOneElem buffer1 collection
+      putBuffer buffer2
+
+    writeOneElem :: Buffer -> a -> IO Buffer
+    writeOneElem buffer elem = do
+      writeElem buffer.bufferSptr elem
+      pure $ moveSmartPtr buffer elemSize
+
+    writeCount :: Write ()
+    writeCount = do
+      buffer <- getBuffer
+      liftIO $ putInt32 buffer.bufferSptr (fromIntegral @Int @Int32 len)
+      putBuffer $ moveSmartPtr buffer int32Size
 
 
 writeLocs :: VUM.IOVector Int -> Write ()
@@ -690,6 +770,12 @@ writeText text@(TI.Text arr off len) = do
 -- TODO: rename to `Reference`
 newtype Location a = Location { getLocation :: Int }
   deriving newtype (Eq, Show)
+
+newtype instance VU.MVector s (Location a) = MV_Int (VP.MVector s Int)
+newtype instance VU.Vector    (Location a) = V_Int  (VP.Vector    Int)
+deriving via (VU.UnboxViaPrim Int) instance VGM.MVector VU.MVector (Location a)
+deriving via (VU.UnboxViaPrim Int) instance VG.Vector   VU.Vector  (Location a)
+instance VU.Unbox (Location a)
 
 {-# INLINE utf8length #-}
 utf8length :: Text -> Int

@@ -1,5 +1,6 @@
 module Main where
 
+import Compare
 import Criterion.Main
 import DecodeVectors
 import Encode
@@ -9,7 +10,8 @@ main :: IO ()
 main =
   defaultMain $
     mconcat
-    [ Encode.groups
-    , EncodeVectors.groups
-    , DecodeVectors.groups
+    -- [ Encode.groups
+    -- , EncodeVectors.groups
+    -- , DecodeVectors.groups
+    [ Compare.groups
     ]

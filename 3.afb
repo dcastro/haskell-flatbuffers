@@ -1,0 +1,50 @@
+// Annotated Flatbuffer Binary
+//
+// Schema file: people.fbs
+// Binary file: 3.bin
+
+header:
+  +0x00 | 0C 00 00 00             | UOffset32  | 0x0000000C (12) Loc: 0x0C  | offset to root table `People`
+
+padding:
+  +0x04 | 00 00                   | uint8_t[2] | ..                         | padding
+
+vtable (People):
+  +0x06 | 06 00                   | uint16_t   | 0x0006 (6)                 | size of this vtable
+  +0x08 | 08 00                   | uint16_t   | 0x0008 (8)                 | size of referring table
+  +0x0A | 04 00                   | VOffset16  | 0x0004 (4)                 | offset to field `people` (id: 0)
+
+root_table (People):
+  +0x0C | 06 00 00 00             | SOffset32  | 0x00000006 (6) Loc: 0x06   | offset to vtable
+  +0x10 | 04 00 00 00             | UOffset32  | 0x00000004 (4) Loc: 0x14   | offset to field `people` (vector)
+
+vector (People.people):
+  +0x14 | 02 00 00 00             | uint32_t   | 0x00000002 (2)             | length of vector (# items)
+  +0x18 | 24 00 00 00             | UOffset32  | 0x00000024 (36) Loc: 0x3C  | offset to table[0]
+  +0x1C | 04 00 00 00             | UOffset32  | 0x00000004 (4) Loc: 0x20   | offset to table[1]
+
+table (Person):
+  +0x20 | EC FF FF FF             | SOffset32  | 0xFFFFFFEC (-20) Loc: 0x34 | offset to vtable
+  +0x24 | 08 00 00 00             | UOffset32  | 0x00000008 (8) Loc: 0x2C   | offset to field `name` (string)
+  +0x28 | 2C 00 00 00             | uint32_t   | 0x0000002C (44)            | table field `age` (Int)
+
+string (Person.name):
+  +0x2C | 03 00 00 00             | uint32_t   | 0x00000003 (3)             | length of string
+  +0x30 | 61 61 61                | char[3]    | aaa                        | string literal
+  +0x33 | 00                      | char       | 0x00 (0)                   | string terminator
+
+vtable (Person):
+  +0x34 | 08 00                   | uint16_t   | 0x0008 (8)                 | size of this vtable
+  +0x36 | 0C 00                   | uint16_t   | 0x000C (12)                | size of referring table
+  +0x38 | 08 00                   | VOffset16  | 0x0008 (8)                 | offset to field `age` (id: 0)
+  +0x3A | 04 00                   | VOffset16  | 0x0004 (4)                 | offset to field `name` (id: 1)
+
+table (Person):
+  +0x3C | 08 00 00 00             | SOffset32  | 0x00000008 (8) Loc: 0x34   | offset to vtable
+  +0x40 | 08 00 00 00             | UOffset32  | 0x00000008 (8) Loc: 0x48   | offset to field `name` (string)
+  +0x44 | 37 00 00 00             | uint32_t   | 0x00000037 (55)            | table field `age` (Int)
+
+string (Person.name):
+  +0x48 | 03 00 00 00             | uint32_t   | 0x00000003 (3)             | length of string
+  +0x4C | 62 62 62                | char[3]    | bbb                        | string literal
+  +0x4F | 00                      | char       | 0x00 (0)                   | string terminator

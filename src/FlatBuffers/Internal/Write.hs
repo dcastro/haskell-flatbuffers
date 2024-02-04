@@ -24,6 +24,7 @@ import Data.Text.Encoding qualified as T
 import Data.Text.Internal qualified as TI
 import Data.Word
 
+import Data.Functor ((<&>))
 import Data.List qualified as List
 import Data.Text.Lazy qualified as LT
 import FlatBuffers.Internal.Build
@@ -55,12 +56,16 @@ newtype PrettyString = PrettyString LT.Text
 instance Show PrettyString where
   show (PrettyString text) = LT.unpack text
 
+enc :: WriteTable a -> PrettyString
+enc = prettyBuffer . encode
+
+prettyBuffer :: BSL.ByteString -> PrettyString
+prettyBuffer = prettyPrint . showBuffer
 
 {-
 
 >>> import qualified FlatBuffers.Internal.Write as F
 
->>> let enc = prettyPrint . showBuffer . F.encode
 
 >>> enc $ F.writeTable [ F.writeInt32TableField 99 ]
 "12, 0, 0, 0
@@ -79,6 +84,54 @@ instance Show PrettyString where
 3, 0, 0, 0
 97, 98, 99, 0"
 
+
+ -}
+
+data Person = Person
+  { personName :: Text
+  , personAge :: Int32
+  }
+
+encodePeople1 :: [Person] -> BSL.ByteString
+encodePeople1 people =
+  encode do
+    writeTable
+      [ writeVectorTableTableField $ fromList' $ people <&> \p ->
+          writeTable
+            [
+              writeInt32TableField p.personAge
+              ,
+              writeTextTableField p.personName
+            ]
+      ]
+
+{-
+
+>>> people = [Person "aaa" 44, Person "bbb" 55]
+
+>>> BSL.writeFile "1.bin" $ encodePeople1 people
+
+>>> prettyBuffer $ encodePeople1 people
+"12, 0, 0, 0
+0, 0, 6, 0
+8, 0, 4, 0
+6, 0, 0, 0
+4, 0, 0, 0
+2, 0, 0, 0
+8, 0, 0, 0
+32, 0, 0, 0
+236, 255, 255, 255
+8, 0, 0, 0
+44, 0, 0, 0
+3, 0, 0, 0
+97, 97, 97, 0
+8, 0, 12, 0
+8, 0, 4, 0
+8, 0, 0, 0
+8, 0, 0, 0
+55, 0, 0, 0
+3, 0, 0, 0
+98, 98, 98, 0"
 
  -}
 
