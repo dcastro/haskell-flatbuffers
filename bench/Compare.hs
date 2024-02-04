@@ -14,6 +14,7 @@ import Data.Vector qualified as V
 import FlatBuffers.Internal.Write qualified as W1
 import FlatBuffers.Internal.Write2 qualified as W2
 import FlatBuffers.Internal.Write3 qualified as W3
+import FlatBuffers.Internal.Write3Copy qualified as W3C
 
 data Person = Person
   { personName :: Text
@@ -90,11 +91,37 @@ write3 people =
 
     W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
 
+write3Copy :: V.Vector Person -> BS.ByteString
+write3Copy people =
+  W3C.encode W3C.defaultWriteSettings do
+
+    peopleTables <- W3C.writeMany people \person -> do
+      name <- W3C.writeText person.personName
+      friends <- W3C.fromFoldable =<< W3C.writeMany person.personFriends W3C.writeText
+      W3C.writeTable @Person 3 $ mconcat
+        [
+          W3C.writeInt32TableField 0 person.personAge
+          ,
+          W3C.writeOffsetTableField 1 name
+          ,
+          W3C.writeOffsetTableField 2 friends
+        ]
+
+
+    peopleVector <- W3C.fromFoldable peopleTables
+
+    W3C.writeTable 1 $ W3C.writeOffsetTableField 0 peopleVector
+
 groups :: [Benchmark]
 groups =
   [ bgroup "compare"
-    [ bench "Write1" $ nf write1 $ mkPeople 1000 10000
-    , bench "Write2" $ nf write2 $ mkPeople 1000 10000
-    , bench "Write3" $ nf write3 $ mkPeople 1000 10000
+    [
+    -- bench "Write1" $ nf write1 $ mkPeople 1000 10000
+    -- ,
+      bench "Write2" $ nf write2 $ mkPeople 1000 10000
+    ,
+      bench "Write3" $ nf write3 $ mkPeople 1000 10000
+    ,
+      bench "Write3Copy" $ nf write3Copy $ mkPeople 1000 10000
     ]
   ]
