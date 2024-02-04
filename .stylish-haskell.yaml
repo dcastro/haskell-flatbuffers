@@ -24,6 +24,8 @@ language_extensions:
   - DeriveTraversable
   - DeriveTraversable
   - DerivingStrategies
+  - DerivingVia
+  - FlexibleContexts
   - GeneralizedNewtypeDeriving
   - ImportQualifiedPost
   - InstanceSigs
