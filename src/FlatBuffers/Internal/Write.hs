@@ -92,6 +92,30 @@ data Person = Person
   , personAge :: Int32
   }
 
+{-
+>>> prettyBuffer encodePerson
+"16, 0, 0, 0
+0, 0, 10, 0
+12, 0, 8, 0
+0, 0, 4, 0
+10, 0, 0, 0
+22, 0, 0, 0
+11, 0, 0, 0"
+
+-}
+
+encodePerson :: BSL.ByteString
+encodePerson =
+  encode do
+    writeTable
+      [
+        writeInt32TableField 11
+      ,
+        optional writeInt32TableField Nothing
+      ,
+        writeInt32TableField 22
+      ]
+
 encodePeople1 :: [Person] -> BSL.ByteString
 encodePeople1 people =
   encode do

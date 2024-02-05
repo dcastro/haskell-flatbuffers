@@ -274,6 +274,16 @@ newtype WriteTableField = WriteTableField
       -> Write ()
   }
 
+missing :: WriteTableField
+missing = WriteTableField $ const $ pure ()
+
+deprecated :: WriteTableField
+deprecated = missing
+
+optional :: (Int -> a -> WriteTableField) -> (Int -> Maybe a -> WriteTableField)
+optional writeTableField fieldIndex =
+  maybe missing \a -> writeTableField fieldIndex a
+
 instance Semigroup WriteTableField where
   WriteTableField f <> WriteTableField g = WriteTableField $ \locs -> do
     f locs
@@ -375,6 +385,29 @@ data Person = Person
   , personAge :: Int32
   }
 
+{-
+>>> prettyBuffer encodePerson
+"16, 0, 0, 0
+0, 0, 10, 0
+12, 0, 8, 0
+0, 0, 4, 0
+10, 0, 0, 0
+22, 0, 0, 0
+11, 0, 0, 0"
+
+-}
+
+encodePerson :: BS.ByteString
+encodePerson =
+  encode defaultWriteSettings do
+    writeTable 3 $ mconcat
+      [
+        writeInt32TableField 0 11
+      ,
+        optional writeInt32TableField 1 Nothing
+      ,
+        writeInt32TableField 2 22
+      ]
 
 {-
 >>> import Data.ByteString qualified as BS
