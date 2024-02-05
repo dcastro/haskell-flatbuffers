@@ -61,7 +61,6 @@ import Foreign.Storable
 import GHC.Base (ByteArray#)
 import System.IO.Unsafe (unsafePerformIO)
 import Text.Pretty.Simple (pShowNoColor)
-import Unsafe.Coerce
 import Utils.Containers.Internal.StrictPair
 
 
@@ -542,12 +541,15 @@ class WriteVector a where
 instance WriteVector (Location a) where
   type WriteVectorElem (Location a) = a
 
+  {-# SPECIALISE fromFoldable :: VU.Vector (Location a) -> Write (Location [a]) #-}
   fromFoldable
     :: (MonoFoldable coll, Element coll ~ Location a)
     => coll
     -> Write (Location [a])
   fromFoldable collection = do
-    writeLocs $ unsafeCoerce collection
+    writeVector int32Size collection \sptr loc -> do
+      let offsetToElement = fromIntegral @Int @Int32 $ sptr.spOffset - loc.getLocation
+      putInt32 sptr offsetToElement
     getCurrentLocation
 
   unfoldN :: Int -> (Int -> Write (Location a)) -> Write (Location [a])
