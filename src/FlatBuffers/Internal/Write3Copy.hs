@@ -499,14 +499,14 @@ encodePeople2 people =
 -- For large collections whose length cannot be quickly evaluated, it may be better to use `writeManyUnoptimized` instead.
 {-# INLINE writeMany #-}
 writeMany
-  :: forall mono a. (MonoFoldable mono, Element mono ~ a)
+  :: forall a b mono. (MonoFoldable mono, Element mono ~ a)
   => mono
-  -> (a -> Write (Location a))
-  -> Write (VU.Vector (Location a))
+  -> (a -> Write (Location b))
+  -> Write (VU.Vector (Location b))
 writeMany collection writeElem = do
 
   let elemCount = olength collection
-  elemLocations <- liftIO $ VUM.new @IO @(Location a) elemCount
+  elemLocations <- liftIO $ VUM.new @IO @(Location b) elemCount
 
   let
     writeOneElem :: Int -> a -> Write Int
@@ -522,8 +522,8 @@ writeMany collection writeElem = do
 writeManyUnoptimized
   :: (MonoFoldable mono, Element mono ~ a)
   => mono
-  -> (a -> Write (Location a))
-  -> Write (Seq.Seq (Location a))
+  -> (a -> Write (Location b))
+  -> Write (Seq.Seq (Location b))
 writeManyUnoptimized = undefined
 
 
