@@ -547,10 +547,7 @@ instance WriteVector (Location a) where
     => coll
     -> Write (Location [a])
   fromFoldable collection = do
-    writeVector int32Size collection \sptr loc -> do
-      let offsetToElement = fromIntegral @Int @Int32 $ sptr.spOffset - loc.getLocation
-      putInt32 sptr offsetToElement
-    -- writeLocs $ unsafeCoerce collection
+    writeLocs $ unsafeCoerce collection
     getCurrentLocation
 
   unfoldN :: Int -> (Int -> Write (Location a)) -> Write (Location [a])

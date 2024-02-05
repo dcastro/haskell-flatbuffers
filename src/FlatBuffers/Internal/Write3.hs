@@ -541,6 +541,7 @@ class WriteVector a where
 instance WriteVector (Location a) where
   type WriteVectorElem (Location a) = a
 
+  {-# SPECIALISE fromFoldable :: VU.Vector (Location a) -> Write (Location [a]) #-}
   fromFoldable
     :: (MonoFoldable coll, Element coll ~ Location a)
     => coll
