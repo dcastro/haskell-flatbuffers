@@ -116,10 +116,10 @@ groups :: [Benchmark]
 groups =
   [ bgroup "compare"
     [
-    -- bench "Write1" $ nf write1 $ mkPeople 1000 10000
-    -- ,
-    --   bench "Write2" $ nf write2 $ mkPeople 10 10000
-    -- ,
+      bench "Write1" $ nf write1 $ mkPeople 10 10000
+    ,
+      bench "Write2" $ nf write2 $ mkPeople 10 10000
+    ,
       bench "Write3" $ nf write3 $ mkPeople 10 10000
     ,
       bench "Write3Copy" $ nf write3Copy $ mkPeople 10 10000

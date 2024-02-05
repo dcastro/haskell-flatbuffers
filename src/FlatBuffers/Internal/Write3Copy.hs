@@ -464,6 +464,7 @@ encodePeople2 people =
 -- | This function is optimized for collections whose length can be calculated in @O(1)@.
 --
 -- For large collections whose length cannot be quickly evaluated, it may be better to use `writeManyUnoptimized` instead.
+{-# INLINE writeMany #-}
 writeMany
   :: forall mono a. (MonoFoldable mono, Element mono ~ a)
   => mono
