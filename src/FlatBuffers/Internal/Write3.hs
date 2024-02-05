@@ -464,6 +464,7 @@ encodePeople2 people =
 -- | This function is optimized for collections whose length can be calculated in @O(1)@.
 --
 -- For large collections whose length cannot be quickly evaluated, it may be better to use `writeManyUnoptimized` instead.
+{-# INLINE writeMany #-}
 writeMany
   :: forall mono a. (MonoFoldable mono, Element mono ~ a)
   => mono
@@ -482,16 +483,6 @@ writeMany collection writeElem = do
         VUM.unsafeWrite elemLocations currentIndex loc
         pure $ currentIndex + 1
   _ <- ofoldM writeOneElem 0 collection
-
-
-  -- currentIndex <- liftIO $ newIORef 0
-
-  -- oforM_ collection \elem -> do
-  --   loc <- writeElem elem
-  --   liftIO do
-  --     index <- readIORef currentIndex
-  --     VUM.unsafeWrite elemLocations index loc
-  --     modifyIORef' currentIndex (+1)
 
   liftIO $ VU.unsafeFreeze elemLocations
 
