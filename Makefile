@@ -28,10 +28,10 @@ stylish:
 	find . -name '.stack-work' -prune -o -name 'dist-newstyle' -prune -o -name '*.hs' -exec stylish-haskell -i '{}' \;
 
 release:  ## Creates a release package
-	stack clean --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"
-	stack test  --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"
 	stack clean --stack-yaml=./stack/stack.min.yaml	      --work-dir ".stack-work-min"
 	stack test  --stack-yaml=./stack/stack.min.yaml       --work-dir ".stack-work-min"
+	stack clean --stack-yaml=./stack/stack.lts-21.25.yaml --work-dir ".stack-work-lts-21.25"
+	stack test  --stack-yaml=./stack/stack.lts-21.25.yaml --work-dir ".stack-work-lts-21.25"
 	stack clean
 	stack test  --ghc-options=-Werror
 	make hlint
