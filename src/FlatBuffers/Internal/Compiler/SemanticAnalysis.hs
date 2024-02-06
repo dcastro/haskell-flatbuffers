@@ -6,7 +6,7 @@ import Control.Monad (forM_, join, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT, asks, local, runReaderT)
 import Control.Monad.State
-  (MonadState, State, StateT, evalState, evalStateT, get, mapStateT, modify, put)
+  (MonadState, State, StateT, evalState, evalStateT, get, gets, mapStateT, modify, put)
 import Control.Monad.Trans (lift)
 
 import Data.Bits (Bits, FiniteBits, bit, finiteBitSize, (.&.), (.|.))
@@ -359,7 +359,7 @@ validateEnum (currentNamespace, _) enum =
           Just (ST.IntLiteral thisInt) ->
             pure thisInt
           Nothing ->
-            get <&> \case
+            gets \case
               Just lastInt -> lastInt + 1
               Nothing      -> 0
       put (Just thisInt)

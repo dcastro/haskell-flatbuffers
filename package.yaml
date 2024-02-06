@@ -1,5 +1,5 @@
 name:                flatbuffers
-version:             0.3.0.0
+version:             0.4.0.0
 homepage:            https://github.com/dcastro/haskell-flatbuffers
 github:              dcastro/haskell-flatbuffers
 license:             BSD3
