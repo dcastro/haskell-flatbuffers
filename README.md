@@ -416,6 +416,8 @@ readName byteString = do
 - [ ] Attach [Haddock documentation to the generated code](https://hackage.haskell.org/package/template-haskell-2.21.0.0/docs/Language-Haskell-TH-Lib.html#g:32).
 - [ ] Add `mmap` support.
 - [ ] Cache and reuse data in the buffer.
+- [ ] Publish on stackage nightly.
+- [ ] Generate `HasField` instances for field reader functions.
 
 ### Other
 
