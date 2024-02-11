@@ -119,16 +119,95 @@ write3Public people =
 
 groups :: [Benchmark]
 groups =
-  [ bgroup "compare"
+  [ bgroup "People"
     [
-    --   bench "Write1" $ nf write1 $ mkPeople 10 10000
+    --   bench "Write1" $ nf write1 $ mkPeople peopleCount friendsCount
     -- ,
-    --   bench "Write2" $ nf write2 $ mkPeople 10 10000
+    --   bench "Write2" $ nf write2 $ mkPeople peopleCount friendsCount
     -- ,
-      bench "Write3" $ nf write3 $ mkPeople 100000 1
+    --   bench "Write3" $ nf write3 $ mkPeople peopleCount friendsCount
     -- ,
-    --   bench "Write3Copy" $ nf write3Copy $ mkPeople 10 10000
-    ,
-      bench "Write3Public" $ nf write3Public $ mkPeople 100000 1
+    --   bench "Write3Copy" $ nf write3Copy $ mkPeople peopleCount friendsCount
+    -- ,
+    --   bench "Write3Public" $ nf write3Public $ mkPeople peopleCount friendsCount
+    ]
+  , bgroup "Unions"
+    [
+      bench "writeWeapons1" $ nf writeWeapons1 $ mkWeapons unionCount
+      ,
+      bench "writeWeapons3" $ nf writeWeapons3 $ mkWeapons unionCount
+      ,
+      bench "writeWeapons3Public" $ nf writeWeapons3Public $ mkWeapons unionCount
     ]
   ]
+  where
+    peopleCount = 100000
+    friendsCount = 1
+
+    unionCount = 10000
+
+
+----------------------------------------------------------------------------
+-- Unions
+----------------------------------------------------------------------------
+
+data WeaponData
+  = SwordData !Text
+  | AxeData !Int32
+
+mkWeapons :: Int32 -> V.Vector WeaponData
+mkWeapons weaponCount =
+  V.fromList $ [1..weaponCount] <&> \i ->
+    if even i
+      then SwordData "lajl1ij"
+      else AxeData i
+
+writeWeapons1 :: V.Vector WeaponData -> BSL.ByteString
+writeWeapons1 weapons = do
+  W1.encode do
+    let vec = W1.fromMonoFoldable' $ weapons <&> \case
+          SwordData str ->
+            W1.writeUnion 1 $ W1.writeTable [ W1.writeTextTableField str ]
+          AxeData int ->
+            W1.writeUnion 2 $ W1.writeTable [ W1.writeInt32TableField int ]
+    W1.writeTable
+      [ W1.writeUnionTypesVectorTableField vec
+      , W1.writeUnionValuesVectorTableField vec
+      ]
+
+writeWeapons3 :: V.Vector WeaponData -> BS.ByteString
+writeWeapons3 weapons = do
+  W3.encode W3.defaultWriteSettings do
+
+    (unionLocs, unionTypes) <- W3.writeMany2 weapons \case
+      SwordData str -> do
+        text <- W3.writeText str
+        tableLoc <- W3.writeTable 1 $ W3.writeOffsetTableField 0 text
+        pure $ W3.UnionLocation 1 tableLoc
+      AxeData int -> do
+        tableLoc <- W3.writeTable 1 $ W3.writeInt32TableField 0 int
+        pure $ W3.UnionLocation 2 tableLoc
+
+    unionLocsVec <- W3.fromFoldable unionLocs
+    unionTypesVec <- W3.fromFoldable unionTypes
+
+    W3.writeTable 2 $ mconcat
+      [ W3.writeOffsetTableField 0 unionTypesVec
+      , W3.writeOffsetTableField 1 unionLocsVec
+      ]
+
+writeWeapons3Public :: V.Vector WeaponData -> BS.ByteString
+writeWeapons3Public weaponData =
+  W3.encode W3.defaultWriteSettings do
+
+    (weapons, weaponTypes) <- W3.writeMany2 weaponData \case
+      SwordData str -> do
+        str <- W3.writeText str
+        W3P.weaponSword <$> W3P.sword (Just str)
+      AxeData int -> do
+        W3P.weaponAxe <$> W3P.axe (Just int)
+
+    weaponVector <- W3.fromFoldable weapons
+    weaponTypesVector <- W3.fromFoldable weaponTypes
+
+    W3P.weapons (Just (weaponVector, weaponTypesVector))

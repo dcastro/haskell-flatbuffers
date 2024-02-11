@@ -163,7 +163,7 @@ readMonster byteString = do
   i           <- monsterColor someMonster
   case toColor i of
     Just color -> Right ("This monster is " <> colorName color)
-    Nothing    -> Left ("Unknown color: " <> show i) -- Forwards compatibility
+    Nothing    -> Left ("Unknown color: " <> show i) -- Forward compatibility
 ```
 
 ### Bit flags / Bitmasks
@@ -332,7 +332,7 @@ readCharacter byteString = do
       power <- axePower axe
       Right ("Weilding an axe with " <> show power <> " Power.")
     UnionNone         -> Right "Character has no weapon"
-    UnionUnknown byte -> Left "Unknown weapon" -- Forwards compatibility
+    UnionUnknown byte -> Left "Unknown weapon" -- Forward compatibility
 ```
 
 Note that, like in the official FlatBuffers implementation, unions are *always* optional.

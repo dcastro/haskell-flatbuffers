@@ -24,7 +24,7 @@ import Data.Word
 import Examples
 import FlatBuffers.Internal.FileIdentifier (unsafeFileIdentifier)
 import FlatBuffers.Internal.Types (Alignment(..), IsStruct(..))
-import FlatBuffers.Internal.Write
+import FlatBuffers.Internal.Write hiding (showBuffer)
 import FlatBuffers.Vector qualified as Vec
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range

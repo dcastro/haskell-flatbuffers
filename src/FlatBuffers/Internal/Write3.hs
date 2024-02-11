@@ -29,6 +29,7 @@ import Data.Functor ((<&>))
 import Data.Int
 import Data.IORef hiding (modifyIORef, writeIORef)
 import Data.IORef qualified as IORef
+import Data.Kind (Type)
 import Data.List qualified as List
 import Data.Map.Internal qualified as MI
 import Data.Map.Strict qualified as M
@@ -248,6 +249,13 @@ writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
   buffer <- getBuffer
   liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
 
+{-# INLINE writeWord8TableField #-}
+writeWord8TableField :: Int -> Word8 -> WriteTableField
+writeWord8TableField fieldIndex i = WriteTableField $ \locs -> do
+  unsafeWriteWord8 i
+  buffer <- getBuffer
+  liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
+
 -- | This function is unsafe because it may potentially write outside the buffer's boundaries.
 -- Make sure to use `reserve` (or `alignTo`) before using this function.
 unsafeWriteInt32 :: Int32 -> Write ()
@@ -255,6 +263,15 @@ unsafeWriteInt32 i = do
   buffer <- getBuffer
   let sptr = buffer.bufferSptr `minus` int32Size
   liftIO $ putInt32 sptr i
+  putBuffer buffer { bufferSptr = sptr}
+
+-- | This function is unsafe because it may potentially write outside the buffer's boundaries.
+-- Make sure to use `reserve` (or `alignTo`) before using this function.
+unsafeWriteWord8 :: Word8 -> Write ()
+unsafeWriteWord8 i = do
+  buffer <- getBuffer
+  let sptr = buffer.bufferSptr `minus` word8Size
+  liftIO $ putWord8 sptr i
   putBuffer buffer { bufferSptr = sptr}
 
 writeOffsetTableField :: Int -> Location a -> WriteTableField
@@ -494,6 +511,131 @@ encodePeople2 people =
 
     writeTable 1 $ writeOffsetTableField 0 peopleVector
 
+encodeWeapons :: [Either Text Int32] -> BS.ByteString
+encodeWeapons weapons = do
+  encode defaultWriteSettings do
+
+    (unionLocs, unionTypes) <- writeMany2 weapons \case
+      Left str -> do
+        text <- writeText str
+        tableLoc <- writeTable 1 $ writeOffsetTableField 0 text
+        pure $ UnionLocation 1 tableLoc
+      Right int -> do
+        tableLoc <- writeTable 1 $ writeInt32TableField 0 int
+        pure $ UnionLocation 2 tableLoc
+
+    unionLocsVec <- fromFoldable unionLocs
+    unionTypesVec <- fromFoldable unionTypes
+
+    writeTable 2 $ mconcat
+      [ writeOffsetTableField 0 unionTypesVec
+      , writeOffsetTableField 1 unionLocsVec
+      ]
+{-
+
+>>> BS.writeFile "weapons3.bin" $ encodeWeapons [Left "aa", Right 11]
+
+>>> prettyBuffer $ encodeWeapons [Left "aa", Right 11]
+"12, 0, 0, 0
+8, 0, 12, 0
+8, 0, 4, 0
+8, 0, 0, 0 -- start of table
+16, 0, 0, 0 -- pointer to union values vec
+4, 0, 0, 0  -- pointer to union types vec
+2, 0, 0, 0  -- union types vec
+1, 2, 0, 0
+2, 0, 0, 0  -- union values vec
+32, 0, 0, 0
+12, 0, 0, 0
+0, 0, 6, 0
+10, 0, 4, 0
+6, 0, 0, 0 -- start of axe
+11, 0, 0, 0
+0, 0, 6, 0
+8, 0, 4, 0
+6, 0, 0, 0 -- start of sword
+4, 0, 0, 0
+2, 0, 0, 0
+97, 97, 0, 0"
+
+
+-}
+
+class WriteMany loc where
+  type Many loc :: Type
+  writeMany2
+    :: forall elem mono. (MonoFoldable mono, Element mono ~ elem)
+    => mono
+    -> (elem -> Write loc)
+    -> Write (Many loc)
+
+data UnionLocation tag = UnionLocation
+  { ulType :: !(UnionType tag)
+  , ulLocation :: !(Location tag)
+  }
+
+newtype UnionType tag = UntionType { getUnionType :: Word8 }
+  deriving newtype (Num)
+
+newtype instance VU.MVector s (UnionType a) = MV_Word8 (VP.MVector s Word8)
+newtype instance VU.Vector    (UnionType a) = V_Word8  (VP.Vector    Word8)
+deriving via (VU.UnboxViaPrim Word8) instance VGM.MVector VU.MVector (UnionType a)
+deriving via (VU.UnboxViaPrim Word8) instance VG.Vector   VU.Vector  (UnionType a)
+instance VU.Unbox (UnionType a)
+
+instance WriteMany (UnionLocation a) where
+  type Many (UnionLocation a) = (VU.Vector (Location a), VU.Vector (UnionType a))
+
+  {-# INLINE writeMany2 #-}
+  writeMany2
+    :: forall elem a mono. (MonoFoldable mono, Element mono ~ elem)
+    => mono
+    -> (elem -> Write (UnionLocation a))
+    -> Write (VU.Vector (Location a), VU.Vector (UnionType a))
+  writeMany2 collection writeElem = do
+    let elemCount = olength collection
+    elemLocations <- liftIO $ VUM.new @IO @(Location a) elemCount
+    unionTypes <- liftIO $ VUM.new @IO @(UnionType a) elemCount
+
+    let
+      writeOneElem :: Int -> elem -> Write Int
+      writeOneElem currentIndex elem = do
+        unionLoc <- writeElem elem
+        liftIO do
+          VUM.unsafeWrite elemLocations currentIndex unionLoc.ulLocation
+          VUM.unsafeWrite unionTypes currentIndex unionLoc.ulType
+          pure $ currentIndex + 1
+    _ <- ofoldM writeOneElem 0 collection
+
+    liftIO $ (,)
+      <$> VU.unsafeFreeze elemLocations
+      <*> VU.unsafeFreeze unionTypes
+
+instance WriteMany (Location a) where
+  type Many (Location a) = VU.Vector (Location a)
+
+  {-# INLINE writeMany2 #-}
+  writeMany2
+    :: forall elem a mono. (MonoFoldable mono, Element mono ~ elem)
+    => mono
+    -> (elem -> Write (Location a))
+    -> Write (VU.Vector (Location a))
+  writeMany2 collection writeElem = do
+
+    let elemCount = olength collection
+    elemLocations <- liftIO $ VUM.new @IO @(Location a) elemCount
+
+    let
+      writeOneElem :: Int -> elem -> Write Int
+      writeOneElem currentIndex elem = do
+        loc <- writeElem elem
+        liftIO do
+          VUM.unsafeWrite elemLocations currentIndex loc
+          pure $ currentIndex + 1
+    _ <- ofoldM writeOneElem 0 collection
+
+    liftIO $ VU.unsafeFreeze elemLocations
+
 -- | This function is optimized for collections whose length can be calculated in @O(1)@.
 --
 -- For large collections whose length cannot be quickly evaluated, it may be better to use `writeManyUnoptimized` instead.
@@ -560,6 +702,17 @@ class WriteVector a where
   unfoldNM :: (MonadTrans t, Monad (t Write)) => Int -> (Int -> t Write a) -> t Write (Location [WriteVectorElem a])
 
 -- TODO: don't do unfoldNM, use `WriteVectorElement` like table fields.
+
+instance WriteVector (UnionType tag) where
+  type WriteVectorElem (UnionType tag) = (UnionType tag)
+  fromFoldable
+    :: (MonoFoldable coll, Element coll ~ UnionType tag)
+    => coll
+    -> Write (Location [UnionType tag])
+  fromFoldable collection = do
+    writeVector word8Size collection \sptr unionType -> do
+      putWord8 sptr unionType.getUnionType
+    getCurrentLocation
 
 
 instance WriteVector (Location a) where
@@ -859,10 +1012,12 @@ calcPadding !n !additionalBytes bufferSize =
 class Put p where
   putInt16 :: p -> Int16 -> IO ()
   putInt32 :: p -> Int32 -> IO ()
+  putWord8 :: p -> Word8 -> IO ()
   putWord16 :: p -> Word16 -> IO ()
   putWord32 :: p -> Word32 -> IO ()
 
 instance Put (Ptr a) where
+
   {-# INLINE putInt16 #-}
   putInt16 :: Ptr a -> Int16 -> IO ()
 #ifdef WORDS_BIGENDIAN
@@ -878,6 +1033,9 @@ instance Put (Ptr a) where
 #else
   putInt32 = poke . castPtr
 #endif
+
+  putWord8 :: Ptr a -> Word8 -> IO ()
+  putWord8 = poke . castPtr
 
   {-# INLINE putWord16 #-}
   putWord16 :: Ptr a -> Word16 -> IO ()
@@ -904,6 +1062,7 @@ instance Put SmartPtr where
   {-# INLINE putWord32 #-}
   putInt16 = putInt16 . spPtr
   putInt32 = putInt32 . spPtr
+  putWord8 = putWord8 . spPtr
   putWord16 = putWord16 . spPtr
   putWord32 = putWord32 . spPtr
 

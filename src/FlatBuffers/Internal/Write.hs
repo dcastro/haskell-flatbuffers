@@ -159,6 +159,48 @@ encodePeople1 people =
 
  -}
 
+encodeWeapons :: [Either Text Int32] -> BSL.ByteString
+encodeWeapons weapons = do
+  encode do
+    let vec = fromList' $ weapons <&> \case
+          Left str ->
+            writeUnion 1 $ writeTable [ writeTextTableField str ]
+          Right int ->
+            writeUnion 2 $ writeTable [ writeInt32TableField int ]
+    writeTable
+      [ writeUnionTypesVectorTableField vec
+      , writeUnionValuesVectorTableField vec
+      ]
+
+{-
+
+>>> BSL.writeFile "weapons1.bin" $ encodeWeapons [Left "aa", Right 11]
+
+flatc --annotate weapons.fbs weapons1.bin
+
+prettyBuffer $ encodeWeapons [Left "aa", Right 11]
+"12, 0, 0, 0
+8, 0, 12, 0
+8, 0, 4, 0
+8, 0, 0, 0 -- start of table
+8, 0, 0, 0
+48, 0, 0, 0
+2, 0, 0, 0   -- start of 1 union vec
+8, 0, 0, 0
+28, 0, 0, 0
+238, 255, 255, 255   -- 1st weapon, sword
+4, 0, 0, 0
+2, 0, 0, 0
+97, 97, 0, 0
+0, 0, 6, 0
+8, 0, 4, 0
+6, 0, 0, 0     -- 2nd weapon, axe
+11, 0, 0, 0    -- 28 points to here
+2, 0, 0, 0     -- start of union type vec
+1, 2, 0, 0"
+
+-}
+
 type BufferSize = Sum Int32
 
 -- | The position of something in a buffer, expressed as the number of bytes counting from the end.
