@@ -14,6 +14,7 @@
 module FlatBuffers.Internal.Write3 where
 
 import Control.Exception (SomeException)
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.ST (runST)
