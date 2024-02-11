@@ -2,6 +2,7 @@ module TestImports
   ( module Hspec
   , module Hedgehog
   , shouldBeLeft
+  , shouldBeLeftAndExpect
   , shouldBeRightAnd
   , shouldBeRightAndExpect
   , evalRight
@@ -40,6 +41,11 @@ shouldBeLeft :: HasCallStack => Show e => Eq e => Either e a -> e -> Expectation
 shouldBeLeft ea expected = case ea of
     Left e  -> e `shouldBe` expected
     Right _ -> expectationFailure "Expected 'Left', got 'Right'"
+
+shouldBeLeftAndExpect :: HasCallStack => Show a => Either e a -> (e -> Expectation) -> Expectation
+shouldBeLeftAndExpect ea expect = case ea of
+    Left e  -> expect e
+    Right a -> expectationFailure $ "Expected 'Left', got 'Right':\n" <> show a
 
 shouldBeRightAnd :: HasCallStack => Show e => Either e a -> (a -> Bool) -> Expectation
 shouldBeRightAnd ea pred = case ea of

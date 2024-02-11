@@ -3,23 +3,20 @@
 module FlatBuffers.Internal.Compiler.ParserIO where
 
 import Control.Monad (when)
-import Control.Monad.Except (MonadError, MonadIO, liftIO, throwError)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.State (MonadState, execStateT, get, put)
-
 import Data.Coerce (coerce)
 import Data.Foldable (traverse_)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-
 import FlatBuffers.Internal.Compiler.Display (display)
 import FlatBuffers.Internal.Compiler.Parser (schema)
 import FlatBuffers.Internal.Compiler.SyntaxTree
   (FileTree(..), Include(..), Schema, StringLiteral(..), includes)
-
 import System.Directory qualified as Dir
 import System.FilePath qualified as FP
-
 import Text.Megaparsec (errorBundlePretty, parse)
 
 parseSchemas ::

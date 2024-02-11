@@ -32,8 +32,9 @@ spec =
         , missing, missing, missing
         , writeVectorWord8TableField text
         ]
-      primitivesL table `shouldBeLeft`
-        "UTF8 decoding error (byte 255): Data.Text.Encoding: Invalid UTF-8 stream"
+      primitivesL table `shouldBeLeftAndExpect` \errMsg -> do
+        errMsg `shouldStartWith` "UTF8 decoding error (byte 255)"
+        errMsg `shouldEndWith` "Invalid UTF-8 stream"
 
     it "fails when required field is missing" $ do
       table <- evalRight $ decode @RequiredFields $ encode $ writeTable []

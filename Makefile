@@ -28,17 +28,20 @@ stylish:
 	find . -name '.stack-work' -prune -o -name 'dist-newstyle' -prune -o -name '*.hs' -exec stylish-haskell -i '{}' \;
 
 release:  ## Creates a release package
-	stack clean --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"
-	stack test  --stack-yaml=./stack/stack.lts-12.14.yaml --work-dir ".stack-work-lts-12.14"
 	stack clean --stack-yaml=./stack/stack.min.yaml	      --work-dir ".stack-work-min"
-	stack test  --stack-yaml=./stack/stack.min.yaml       --work-dir ".stack-work-min"
+	stack test  --stack-yaml=./stack/stack.min.yaml       --work-dir ".stack-work-min" --ghc-options=-Werror
+	stack clean --stack-yaml=./stack/stack.lts-21.25.yaml --work-dir ".stack-work-lts-21.25"
+	stack test  --stack-yaml=./stack/stack.lts-21.25.yaml --work-dir ".stack-work-lts-21.25" --ghc-options=-Werror
 	stack clean
-	stack test  --ghc-options=-Werror
+	stack build --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+	stack test
+	stack2cabal
 	make hlint
+	make stylish
 	stack sdist
 
 hlint: ## Runs hlint on the project
-	hlint .
+	hlint -X QuasiQuotes .
 
 docs:  ## Builds haddock documentation and watch files for changes
 	stack haddock --no-haddock-deps --file-watch

@@ -309,15 +309,15 @@ table Character {
 ```haskell
 data Character
 
-character       :: WriteUnion Weapon -> WriteTable Character
-characterWeapon :: Table Character -> Either ReadError (Union Weapon)
+character       :: Maybe (WriteUnion Weapon) -> WriteTable Character
+characterWeapon :: Table Character -> Either ReadError (Maybe (Union Weapon))
 ```
 
 ```haskell
 -- Writing
 byteString = encode $
       character
-        (weaponSword (sword (Just 1000)))
+        (Just (weaponSword (sword (Just 1000))))
 
 -- Reading
 readCharacter :: ByteString -> Either ReadError String
@@ -325,26 +325,15 @@ readCharacter byteString = do
   someCharacter <- decode byteString
   weapon        <- characterWeapon someCharacter
   case weapon of
-    Union (WeaponSword sword) -> do
+    Just (Union (WeaponSword sword)) -> do
       power <- swordPower sword
       Right ("Weilding a sword with " <> show power <> " Power.")
-    Union (WeaponAxe axe) -> do
+    Just (Union (WeaponAxe axe)) -> do
       power <- axePower axe
       Right ("Weilding an axe with " <> show power <> " Power.")
-    UnionNone         -> Right "Character has no weapon"
-    UnionUnknown byte -> Left "Unknown weapon" -- Forward compatibility
+    Just (UnionUnknown byte) -> Left "Unknown weapon" -- Forward compatibility
+    Nothing -> Right "Character has no weapon"
 ```
-
-Note that, like in the official FlatBuffers implementation, unions are *always* optional.
-Adding the `required` attribute to a union field has no effect.
-
-To create a character with no weapon, use `none :: WriteUnion a`
-
-```haskell
-byteString = encode $
-      character none
-```
-
 
 ### File Identifiers
 

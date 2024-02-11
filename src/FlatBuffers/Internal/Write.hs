@@ -4,7 +4,9 @@
 
 module FlatBuffers.Internal.Write where
 
+import Control.Monad (forM)
 import Control.Monad.State.Strict
+  (MonadState(..), State, StateT(..), execState, gets, modify', runState)
 
 import Data.Bits (complement, (.&.))
 import Data.ByteString qualified as BS

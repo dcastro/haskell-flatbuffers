@@ -36,6 +36,12 @@
 # Will suggest replacing "wibbleMany [myvar]" with "wibbleOne myvar"
 # - error: {lhs: "wibbleMany [x]", rhs: wibbleOne x}
 
+# The hints are named by the string they display in warning messages.
+# For example, if you see a warning starting like
+#
+# Main.hs:116:51: Warning: Redundant ==
+#
+# You can refer to that hint with `{name: Redundant ==}` (see below).
 
 # Turn on hints that are off by default
 #
@@ -47,12 +53,17 @@
 #
 # Generalise map to fmap, ++ to <>
 # - group: {name: generalise, enabled: true}
+#
+# Warn on use of partial functions
+# - group: {name: partial, enabled: true}
 
 
 # Ignore some builtin hints
 # - ignore: {name: Use let}
 # - ignore: {name: Use const, within: SpecialModule} # Only within certain modules
 - ignore: { name: Use tuple-section }
+- ignore: { name: Avoid lambda using `infix` }
+- ignore: { name: Use list comprehension }
 
 # Define some custom infix operators
 # - fixity: infixr 3 ~^#^~

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0.0 (2024-02-06)
+
+* Added support for `text` >= 2.0 and `template-haskell` >= 2.18.0.0, removed support for older versions.
+* Tested with GHC 9.2.5, 9.4.8 and 9.6.4.
+* Forbid writing/reading `Nothing` to/from union vectors and required unions fields.
+
 ## 0.3.0.0 (2020-11-14)
 
 * `FlatBuffers.Vector.toByteString` renamed to `FlatBuffers.Vector.toLazyByteString`
