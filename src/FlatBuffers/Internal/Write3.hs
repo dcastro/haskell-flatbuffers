@@ -480,21 +480,6 @@ encodePerson =
 
 -}
 
-encodePeople1 :: [Person] -> BS.ByteString
-encodePeople1 people =
-  encode defaultWriteSettings do
-    vec <- unfoldN @(Location Person) (length people) \i -> do
-      let person = people List.!! i
-      name <- writeText person.personName
-      writeTable 2 $ mconcat
-        [
-          writeInt32TableField 0 person.personAge
-          ,
-          writeOffsetTableField 1 name
-        ]
-
-    writeTable 1 $ writeOffsetTableField 0 vec
-
 encodePeople2 :: [Person] -> BS.ByteString
 encodePeople2 people =
   encode defaultWriteSettings do
@@ -678,31 +663,10 @@ data PeopleGroups = PeopleGroups
 class WriteVector a where
   type WriteVectorElem a
 
-  -- TODO: maybe replace this with some streaming library? pipes/streamly
-  -- And some vanilla unfold:
-  --    unfoldN :: Int -> (Int -> Write a) -> Write a
-  --    unfoldN' :: MonadIO m => Int -> (Int -> StateT Buffer m a) -> StateT Buffer m a
-
-  unfoldN :: Int -> (Int -> Write a) -> Write (Location [WriteVectorElem a])
-
-  unfoldN' :: MonadIO m => BufferRef -> (BufferRef -> Int -> m a) -> m (Location [WriteVectorElem a])
-
-  -- new experiment: the user must allocate all strings/tables/whatever beforehand,
-  -- and then just pass us a collection with the locations to those things
   fromFoldable
     :: (MonoFoldable coll, Element coll ~ a)
     => coll
     -> Write (Location [WriteVectorElem a])
-
-  -- fromFoldableUnoptimized
-  --   :: (MonoFoldable coll, Element coll ~ a)
-  --   => Int
-  --   -> coll
-  --   -> Write (Location [WriteVectorElem a])
-
-  unfoldNM :: (MonadTrans t, Monad (t Write)) => Int -> (Int -> t Write a) -> t Write (Location [WriteVectorElem a])
-
--- TODO: don't do unfoldNM, use `WriteVectorElement` like table fields.
 
 instance WriteVector (UnionType tag) where
   type WriteVectorElem (UnionType tag) = (UnionType tag)
@@ -730,62 +694,9 @@ instance WriteVector (Location a) where
       putInt32 sptr offsetToElement
     getCurrentLocation
 
-  unfoldN :: Int -> (Int -> Write (Location a)) -> Write (Location [a])
-  unfoldN elemCount writeElem = do
-    elemLocations <- liftIO $ VUM.new @IO @Int elemCount
-
-    forM_ [0 .. elemCount - 1] \index -> do
-      loc <- writeElem index
-      liftIO $ VUM.unsafeWrite elemLocations index loc.getLocation
-
-    writeLocs elemLocations
-    getCurrentLocation
-
-  {-# INLINE unfoldNM #-}
-  unfoldNM :: forall t. MonadTrans t => Monad (t Write) => Int -> (Int -> t Write (Location a)) -> t Write (Location [a])
-  unfoldNM n f = do
-    textLocations <- lift . liftIO $ VUM.new @IO @Int n
-
-    forM_ [0 .. n - 1] $ \index -> do
-      loc <- f index
-      lift $ liftIO $ VUM.unsafeWrite textLocations index (getLocation loc)
-
-    lift $ writeLocs textLocations
-    lift getCurrentLocation
-
 
 instance WriteVector Int32 where
   type WriteVectorElem Int32 = Int32
-
-  {-# INLINE unfoldNM #-}
-  unfoldNM :: forall t. (MonadTrans t, Monad (t Write)) => Int -> (Int -> t Write Int32) -> t Write (Location [Int32])
-  unfoldNM n f = do
-    let totalSize = 4 + 4 * n
-
-    lift $ alignTo 4 totalSize
-    sptr <- lift $ bufferSptr <$> getBuffer
-
-    let sptr1 = sptr `minus` totalSize
-    lift . liftIO $ putInt32 sptr1 (fromIntegral @Int @Int32 n)
-
-    let sptr2 = sptr1 `plus` 4
-
-    go (castPtr $ spPtr sptr2) 0
-
-    lift $ modifyBuffer $ \b -> b { bufferSptr = sptr1 }
-
-    lift getCurrentLocation
-
-    where
-      go :: Ptr Word8 -> Int -> t Write ()
-      go ptr index
-        | index >= n = pure ()
-        | otherwise = do
-            elem <- f index
-            lift . liftIO $ putInt32 ptr elem
-            go (ptr `plusPtr` 4) (index + 1)
-
-
 
 -- | This function assumes the collection's length can be calculated in O(1).
 --
