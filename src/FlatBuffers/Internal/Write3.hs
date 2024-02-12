@@ -914,69 +914,76 @@ alignTo !n !additionalBytes = do
         , bufferMaxAlign = bufferMaxAlign buffer <> Max n
         }
 
-  -- | Calculate how much 0-padding is needed so that, after writing @additionalBytes@,
+-- | Calculate how much 0-padding is needed so that, after writing @additionalBytes@,
 -- the buffer becomes aligned to @n@ bytes.
 {-# INLINE calcPadding #-}
 calcPadding :: Alignment {- ^ n -} -> Int {- ^ additionalBytes -} -> Int -> Int
 calcPadding !n !additionalBytes bufferSize =
   (complement (bufferSize + additionalBytes) + 1) .&. (fromIntegral n - 1)
 
-class Put p where
-  putInt16 :: p -> Int16 -> IO ()
-  putInt32 :: p -> Int32 -> IO ()
-  putWord8 :: p -> Word8 -> IO ()
-  putWord16 :: p -> Word16 -> IO ()
-  putWord32 :: p -> Word32 -> IO ()
+{-# INLINE putInt8 #-}
+putInt8 :: SmartPtr -> Int8 -> IO ()
+putInt8 sptr = putWord8 sptr . fromIntegral @Int8 @Word8
 
-instance Put (Ptr a) where
+{-# INLINE putInt16 #-}
+putInt16 :: SmartPtr -> Int16 -> IO ()
+putInt16 sptr = putWord16 sptr . fromIntegral @Int16 @Word16
 
-  {-# INLINE putInt16 #-}
-  putInt16 :: Ptr a -> Int16 -> IO ()
+{-# INLINE putInt32 #-}
+putInt32 :: SmartPtr -> Int32 -> IO ()
+putInt32 sptr = putWord32 sptr . fromIntegral @Int32 @Word32
+
+{-# INLINE putInt64 #-}
+putInt64 :: SmartPtr -> Int64 -> IO ()
+putInt64 sptr = putWord64 sptr . fromIntegral @Int64 @Word64
+
+{-# INLINE putWord8 #-}
+putWord8 :: SmartPtr -> Word8 -> IO ()
+putWord8 = poke . spPtr
+
+{-# INLINE putWord16 #-}
+putWord16 :: SmartPtr -> Word16 -> IO ()
 #ifdef WORDS_BIGENDIAN
-  -- TODO
+putWord16 sptr word = poke (castPtr sptr.spPtr) (byteSwap16 word)
 #else
-  putInt16 = poke . castPtr
+putWord16 = poke . castPtr . spPtr
 #endif
 
-  {-# INLINE putInt32 #-}
-  putInt32 :: Ptr a -> Int32 -> IO ()
+{-# INLINE putWord32 #-}
+putWord32 :: SmartPtr -> Word32 -> IO ()
 #ifdef WORDS_BIGENDIAN
-  -- TODO
+putWord32 sptr word = poke (castPtr sptr.spPtr) (byteSwap32 word)
 #else
-  putInt32 = poke . castPtr
+putWord32 = poke . castPtr . spPtr
 #endif
 
-  putWord8 :: Ptr a -> Word8 -> IO ()
-  putWord8 = poke . castPtr
-
-  {-# INLINE putWord16 #-}
-  putWord16 :: Ptr a -> Word16 -> IO ()
+{-# INLINE putWord64 #-}
+putWord64 :: SmartPtr -> Word64 -> IO ()
 #ifdef WORDS_BIGENDIAN
-  -- TODO
+putWord64 sptr word = poke (castPtr sptr.spPtr) (byteSwap64 word)
 #else
-  putWord16 = poke . castPtr
+putWord64 = poke . castPtr . spPtr
 #endif
 
+{-# INLINE putFloat #-}
+putFloat :: SmartPtr -> Float -> IO ()
+putFloat sptr float = do
+  -- Encode a Float via Word32.
+  -- This is done by storing the Float in the buffer and peeking it out again.
+  -- See: https://hackage.haskell.org/package/bytestring-0.12.0.2/docs/src/Data.ByteString.Builder.Prim.Internal.Floating.html#encodeFloatViaWord32F
+  poke @Float (castPtr sptr.spPtr) float
+  word32 <- peek @Word32 (castPtr sptr.spPtr)
+  putWord32 sptr word32
 
-  {-# INLINE putWord32 #-}
-  putWord32 :: Ptr a -> Word32 -> IO ()
-#ifdef WORDS_BIGENDIAN
-  -- TODO
-#else
-  putWord32 = poke . castPtr
-#endif
-
-
-instance Put SmartPtr where
-  {-# INLINE putInt16 #-}
-  {-# INLINE putInt32 #-}
-  {-# INLINE putWord16 #-}
-  {-# INLINE putWord32 #-}
-  putInt16 = putInt16 . spPtr
-  putInt32 = putInt32 . spPtr
-  putWord8 = putWord8 . spPtr
-  putWord16 = putWord16 . spPtr
-  putWord32 = putWord32 . spPtr
+{-# INLINE putDouble #-}
+putDouble :: SmartPtr -> Double -> IO ()
+putDouble sptr double = do
+  -- Encode a Double via Word64.
+  -- This is done by storing the Double in the buffer and peeking it out again.
+  -- See: https://hackage.haskell.org/package/bytestring-0.12.0.2/docs/src/Data.ByteString.Builder.Prim.Internal.Floating.html#encodeDoubleViaWord64F
+  poke @Double (castPtr sptr.spPtr) double
+  word64 <- peek @Word64 (castPtr sptr.spPtr)
+  putWord64 sptr word64
 
 writeText :: Text -> Write (Location Text)
 writeText text@(TI.Text arr off len) = do
