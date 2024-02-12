@@ -21,6 +21,8 @@ import Control.Monad.ST (runST)
 import Control.Monad.State.Strict as S
 import Data.Bits
 import Data.ByteString qualified as BS
+import Data.ByteString.Builder.Prim qualified as BSP
+import Data.ByteString.Builder.Prim.Internal qualified as BSP
 import Data.ByteString.Internal qualified as BSI
 import Data.ByteString.Lazy qualified as BSL
 import Data.ByteString.Unsafe qualified as BSU
@@ -923,67 +925,43 @@ calcPadding !n !additionalBytes bufferSize =
 
 {-# INLINE putInt8 #-}
 putInt8 :: SmartPtr -> Int8 -> IO ()
-putInt8 sptr = putWord8 sptr . fromIntegral @Int8 @Word8
+putInt8 sptr x = BSP.runF BSP.int8 x sptr.spPtr
 
 {-# INLINE putInt16 #-}
 putInt16 :: SmartPtr -> Int16 -> IO ()
-putInt16 sptr = putWord16 sptr . fromIntegral @Int16 @Word16
+putInt16 sptr x = BSP.runF BSP.int16LE x sptr.spPtr
 
 {-# INLINE putInt32 #-}
 putInt32 :: SmartPtr -> Int32 -> IO ()
-putInt32 sptr = putWord32 sptr . fromIntegral @Int32 @Word32
+putInt32 sptr x = BSP.runF BSP.int32LE x sptr.spPtr
 
 {-# INLINE putInt64 #-}
 putInt64 :: SmartPtr -> Int64 -> IO ()
-putInt64 sptr = putWord64 sptr . fromIntegral @Int64 @Word64
+putInt64 sptr x = BSP.runF BSP.int64LE x sptr.spPtr
 
 {-# INLINE putWord8 #-}
 putWord8 :: SmartPtr -> Word8 -> IO ()
-putWord8 = poke . spPtr
+putWord8 sptr x = BSP.runF BSP.word8 x sptr.spPtr
 
 {-# INLINE putWord16 #-}
 putWord16 :: SmartPtr -> Word16 -> IO ()
-#ifdef WORDS_BIGENDIAN
-putWord16 sptr word = poke (castPtr sptr.spPtr) (byteSwap16 word)
-#else
-putWord16 = poke . castPtr . spPtr
-#endif
+putWord16 sptr x = BSP.runF BSP.word16LE x sptr.spPtr
 
 {-# INLINE putWord32 #-}
 putWord32 :: SmartPtr -> Word32 -> IO ()
-#ifdef WORDS_BIGENDIAN
-putWord32 sptr word = poke (castPtr sptr.spPtr) (byteSwap32 word)
-#else
-putWord32 = poke . castPtr . spPtr
-#endif
+putWord32 sptr x = BSP.runF BSP.word32LE x sptr.spPtr
 
 {-# INLINE putWord64 #-}
 putWord64 :: SmartPtr -> Word64 -> IO ()
-#ifdef WORDS_BIGENDIAN
-putWord64 sptr word = poke (castPtr sptr.spPtr) (byteSwap64 word)
-#else
-putWord64 = poke . castPtr . spPtr
-#endif
+putWord64 sptr x = BSP.runF BSP.word64LE x sptr.spPtr
 
 {-# INLINE putFloat #-}
 putFloat :: SmartPtr -> Float -> IO ()
-putFloat sptr float = do
-  -- Encode a Float via Word32.
-  -- This is done by storing the Float in the buffer and peeking it out again.
-  -- See: https://hackage.haskell.org/package/bytestring-0.12.0.2/docs/src/Data.ByteString.Builder.Prim.Internal.Floating.html#encodeFloatViaWord32F
-  poke @Float (castPtr sptr.spPtr) float
-  word32 <- peek @Word32 (castPtr sptr.spPtr)
-  putWord32 sptr word32
+putFloat sptr x = BSP.runF BSP.floatLE x sptr.spPtr
 
 {-# INLINE putDouble #-}
 putDouble :: SmartPtr -> Double -> IO ()
-putDouble sptr double = do
-  -- Encode a Double via Word64.
-  -- This is done by storing the Double in the buffer and peeking it out again.
-  -- See: https://hackage.haskell.org/package/bytestring-0.12.0.2/docs/src/Data.ByteString.Builder.Prim.Internal.Floating.html#encodeDoubleViaWord64F
-  poke @Double (castPtr sptr.spPtr) double
-  word64 <- peek @Word64 (castPtr sptr.spPtr)
-  putWord64 sptr word64
+putDouble sptr x = BSP.runF BSP.doubleLE x sptr.spPtr
 
 writeText :: Text -> Write (Location Text)
 writeText text@(TI.Text arr off len) = do
