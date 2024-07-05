@@ -121,23 +121,23 @@ groups :: [Benchmark]
 groups =
   [ bgroup "People"
     [
-    --   bench "Write1" $ nf write1 $ mkPeople peopleCount friendsCount
-    -- ,
-    --   bench "Write2" $ nf write2 $ mkPeople peopleCount friendsCount
-    -- ,
-    --   bench "Write3" $ nf write3 $ mkPeople peopleCount friendsCount
-    -- ,
-    --   bench "Write3Copy" $ nf write3Copy $ mkPeople peopleCount friendsCount
-    -- ,
-    --   bench "Write3Public" $ nf write3Public $ mkPeople peopleCount friendsCount
+      bench "Write1" $ nf write1 $ mkPeople peopleCount friendsCount
+    ,
+      bench "Write2" $ nf write2 $ mkPeople peopleCount friendsCount
+    ,
+      bench "Write3" $ nf write3 $ mkPeople peopleCount friendsCount
+    ,
+      bench "Write3Copy" $ nf write3Copy $ mkPeople peopleCount friendsCount
+    ,
+      bench "Write3Public" $ nf write3Public $ mkPeople peopleCount friendsCount
     ]
   , bgroup "Unions"
     [
-      bench "writeWeapons1" $ nf writeWeapons1 $ mkWeapons unionCount
-      ,
-      bench "writeWeapons3" $ nf writeWeapons3 $ mkWeapons unionCount
-      ,
-      bench "writeWeapons3Public" $ nf writeWeapons3Public $ mkWeapons unionCount
+      -- bench "writeWeapons1" $ nf writeWeapons1 $ mkWeapons unionCount
+      -- ,
+      -- bench "writeWeapons3" $ nf writeWeapons3 $ mkWeapons unionCount
+      -- ,
+      -- bench "writeWeapons3Public" $ nf writeWeapons3Public $ mkWeapons unionCount
     ]
   ]
   where

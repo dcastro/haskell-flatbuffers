@@ -48,6 +48,7 @@ dependencies:
   - mono-traversable >= 1.0.15.3
   - vector
   - pretty-simple
+  - primitive
 
 default-extensions:
   - AllowAmbiguousTypes
@@ -66,6 +67,7 @@ default-extensions:
   - OverloadedRecordDot
   - OverloadedStrings
   - QuasiQuotes
+  - RankNTypes
   - RecordWildCards
   - ScopedTypeVariables
   - StandaloneDeriving

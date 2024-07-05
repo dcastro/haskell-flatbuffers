@@ -38,6 +38,7 @@ import Data.Map.Internal qualified as MI
 import Data.Map.Strict qualified as M
 import Data.Map.Strict.Internal qualified as MSI
 import Data.MonoTraversable
+import Data.Primitive.ByteArray qualified as Prim
 import Data.Semigroup (Max(..))
 import Data.Sequence qualified as Seq
 import Data.Text (Text)
@@ -662,6 +663,58 @@ data PeopleGroups = PeopleGroups
   , groupPeople :: [Person]
   }
 
+
+class ToVector collection elem where
+  type WriteVectorElement elem
+  toVector :: collection elem -> Write (Location [WriteVectorElement elem])
+
+instance ToVector VP.Vector Word8 where
+  type WriteVectorElement Word8 = Word8
+
+  toVector :: VP.Vector Word8 -> Write (Location [Word8])
+  toVector vec@(VP.Vector off len byteArray) = do
+    genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
+
+    -- let vectorByteCount = word32Size + (VP.length vec * word8Size)
+    -- alignTo word32Size vectorByteCount
+    -- moveSmartPtrM (-vectorByteCount)
+    -- buffer <- getBuffer
+    -- liftIO $ Prim.copyByteArrayToAddr buffer.bufferSptr.spPtr byteArray off len
+    -- getCurrentLocation
+
+instance ToVector VP.Vector Word16 where
+  type WriteVectorElement Word16 = Word16
+
+  toVector :: VP.Vector Word16 -> Write (Location [Word16])
+#ifdef WORDS_BIGENDIAN
+  toVector vec = do
+    genericToVector word16Size (VP.length vec) vec VP.foldM' putWord16
+#else
+  toVector vec@(VP.Vector off len byteArray) = do
+    genericToVectorMemcpy word16Size (VP.length vec) byteArray off len
+#endif
+
+instance ToVector VP.Vector Word32 where
+  type WriteVectorElement Word32 = Word32
+
+  toVector :: VP.Vector Word32 -> Write (Location [Word32])
+#ifdef WORDS_BIGENDIAN
+  toVector vec = do
+    genericToVector word32Size (VP.length vec) vec VP.foldM' putWord32
+#else
+  toVector vec@(VP.Vector off len byteArray) = do
+    genericToVectorMemcpy word32Size (VP.length vec) byteArray off len
+  -- toVector vec@(VP.Vector off len byteArray) = do
+  --   -- Reserve the total amount of bytes needed to write the vector and align the buffer.
+  --   let vectorByteCount = word32Size + (VP.length vec * word32Size)
+  --   alignTo word32Size vectorByteCount
+  --   moveSmartPtrM (-vectorByteCount)
+  --   -- TODO: write vector count
+  --   buffer <- getBuffer
+  --   liftIO $ Prim.copyByteArrayToAddr buffer.bufferSptr.spPtr byteArray off len
+  --   getCurrentLocation
+#endif
+
 class WriteVector a where
   type WriteVectorElem a
 
@@ -707,10 +760,10 @@ instance WriteVector Int32 where
 writeVector
   :: forall coll a
    . (MonoFoldable coll, Element coll ~ a)
-   => Int
-   -> coll
-   -> (SmartPtr -> a -> IO ())
-   -> Write ()
+  => Int
+  -> coll
+  -> (SmartPtr -> a -> IO ())
+  -> Write ()
 writeVector elemSize collection writeElem = do
   let vectorByteCount = int32Size + (len * elemSize)
   alignTo (4 `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
@@ -723,20 +776,75 @@ writeVector elemSize collection writeElem = do
 
     writeElems :: Write ()
     writeElems = do
-      buffer1 <- getBuffer
-      buffer2 <- liftIO $ ofoldM writeOneElem buffer1 collection
-      putBuffer buffer2
+      buffer <- getBuffer
+      newSptr <- liftIO $ ofoldM writeOneElem buffer.bufferSptr collection
+      putBuffer $ buffer { bufferSptr = newSptr }
 
-    writeOneElem :: Buffer -> a -> IO Buffer
-    writeOneElem buffer elem = do
-      writeElem buffer.bufferSptr elem
-      pure $ moveSmartPtr buffer elemSize
+    writeOneElem :: SmartPtr -> a -> IO SmartPtr
+    writeOneElem sptr elem = do
+      writeElem sptr elem
+      pure $ sptr `plus` elemSize
 
     writeCount :: Write ()
     writeCount = do
       buffer <- getBuffer
       liftIO $ putInt32 buffer.bufferSptr (fromIntegral @Int @Int32 len)
       putBuffer $ moveSmartPtr buffer int32Size
+
+-- | Copies a bytearray into the buffer in O(1).
+genericToVectorMemcpy
+  :: Int
+  -> Int
+  -> Prim.ByteArray
+  -> Int
+  -> Int
+  -> Write (Location x)
+genericToVectorMemcpy elemSize collectionLength byteArray byteArrayOffset byteArrayLength = do
+  let vectorByteCount = word32Size + (collectionLength * word32Size)
+  alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
+  moveSmartPtrM (-vectorByteCount)
+  -- TODO: write vector count
+  buffer <- getBuffer
+  liftIO $ Prim.copyByteArrayToAddr buffer.bufferSptr.spPtr byteArray byteArrayOffset byteArrayLength
+  getCurrentLocation
+
+-- | Copies the elements of a source collection into the buffer one by one.
+--
+-- Moves the `bufferSptr` to the start of the vector's location.
+{-# INLINE genericToVector #-}
+genericToVector
+  :: forall collection elem x
+   . Int
+  -> Int
+  -> collection
+  -> ((SmartPtr -> elem -> IO SmartPtr) -> SmartPtr -> collection -> IO SmartPtr)
+  -> (SmartPtr -> elem -> IO ())
+  -> Write (Location x)
+genericToVector elemSize collectionLength collection foldMfunction writeElem = do
+  let vectorByteCount = word32Size + (collectionLength * elemSize)
+  alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
+  moveSmartPtrM (-vectorByteCount)
+  writeCount
+  writeElems
+  moveSmartPtrM (-vectorByteCount)
+  getCurrentLocation
+  where
+    writeElems :: Write ()
+    writeElems = do
+      buffer <- getBuffer
+      newSptr <- liftIO $ foldMfunction writeOneElem buffer.bufferSptr collection
+      putBuffer $ buffer { bufferSptr = newSptr }
+
+    writeOneElem :: SmartPtr -> elem -> IO SmartPtr
+    writeOneElem sptr elem = do
+      writeElem sptr elem
+      pure $ sptr `plus` elemSize
+
+    writeCount :: Write ()
+    writeCount = do
+      buffer <- getBuffer
+      liftIO $ putWord32 buffer.bufferSptr (fromIntegral @Int @Word32 collectionLength)
+      putBuffer $ moveSmartPtr buffer word32Size
 
 -- TODO: delete this
 writeLocs :: VUM.IOVector Int -> Write ()

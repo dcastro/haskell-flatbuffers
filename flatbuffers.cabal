@@ -74,6 +74,7 @@ library
       OverloadedRecordDot
       OverloadedStrings
       QuasiQuotes
+      RankNTypes
       RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
@@ -95,6 +96,7 @@ library
     , mtl >=2.2.2
     , parser-combinators >=1.3.0
     , pretty-simple
+    , primitive
     , scientific >=0.3.7.0
     , template-haskell >=2.18.0.0
     , text >=2.0
@@ -137,6 +139,7 @@ test-suite test
       OverloadedRecordDot
       OverloadedStrings
       QuasiQuotes
+      RankNTypes
       RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
@@ -171,6 +174,7 @@ test-suite test
     , mtl >=2.2.2
     , parser-combinators >=1.3.0
     , pretty-simple
+    , primitive
     , process
     , raw-strings-qq
     , scientific >=0.3.7.0
@@ -210,6 +214,7 @@ benchmark criterion-bench
       OverloadedRecordDot
       OverloadedStrings
       QuasiQuotes
+      RankNTypes
       RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
@@ -234,6 +239,7 @@ benchmark criterion-bench
     , mtl >=2.2.2
     , parser-combinators >=1.3.0
     , pretty-simple
+    , primitive
     , scientific >=0.3.7.0
     , template-haskell >=2.18.0.0
     , text >=2.0
