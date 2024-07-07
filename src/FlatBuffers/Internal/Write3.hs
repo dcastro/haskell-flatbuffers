@@ -800,13 +800,23 @@ genericToVectorMemcpy
   -> Int
   -> Write (Location x)
 genericToVectorMemcpy elemSize collectionLength byteArray byteArrayOffset byteArrayLength = do
-  let vectorByteCount = word32Size + (collectionLength * word32Size)
+  -- Reserve the total amount of bytes needed to write the vector and align the buffer.
+  let vectorByteCount = word32Size + (collectionLength * elemSize)
   alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
   moveSmartPtrM (-vectorByteCount)
-  -- TODO: write vector count
-  buffer <- getBuffer
-  liftIO $ Prim.copyByteArrayToAddr buffer.bufferSptr.spPtr byteArray byteArrayOffset byteArrayLength
-  getCurrentLocation
+
+  -- Write vector count
+  buffer1 <- getBuffer
+  liftIO $ putWord32 buffer1.bufferSptr (fromIntegral @Int @Word32 collectionLength)
+  let buffer2 = moveSmartPtr buffer1 word32Size
+
+  -- Memcpy
+  liftIO $ Prim.copyByteArrayToAddr buffer2.bufferSptr.spPtr byteArray byteArrayOffset byteArrayLength
+
+  let location = getBufferLocation buffer1
+  putBuffer buffer1
+  pure location
+
 
 -- | Copies the elements of a source collection into the buffer one by one.
 --
@@ -885,7 +895,11 @@ writeLocs locs = do
 
 {-# INLINE getCurrentLocation #-}
 getCurrentLocation :: Write (Location a)
-getCurrentLocation = Location . bufferSize <$> getBuffer
+getCurrentLocation = getBufferLocation <$> getBuffer
+
+{-# INLINE getBufferLocation #-}
+getBufferLocation :: Buffer -> Location a
+getBufferLocation = Location . bufferSize
 
 {-# INLINE getBuffer #-}
 getBuffer :: Write Buffer
