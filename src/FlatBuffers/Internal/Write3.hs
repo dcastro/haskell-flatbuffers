@@ -120,21 +120,19 @@ import Utils.Containers.Internal.StrictPair
 
 data SmartPtr = SmartPtr
   { spPtr :: !(Ptr Word8)
-  , spOffset :: !Int -- ^ Number of bytes between `spPtr` and the end of the buffer.
+  , spOffset :: !Word32 -- ^ Number of bytes between `spPtr` and the end of the buffer.
   }
 
 
+-- Move the pointer to the right.
 {-# INLINE plus #-}
-plus :: SmartPtr -> Int -> SmartPtr
-SmartPtr ptr offset `plus` n = SmartPtr (ptr `plusPtr` n) (offset - n)
+plus :: SmartPtr -> Word32 -> SmartPtr
+SmartPtr ptr offset `plus` n = SmartPtr (ptr `plusPtr` fromIntegral @Word32 @Int n) (offset - n)
 
+-- Move the pointer to the left.
 {-# INLINE minus #-}
-minus :: SmartPtr -> Int -> SmartPtr
-SmartPtr ptr offset `minus` n = SmartPtr (ptr `plusPtr` (-n)) (offset + n)
-
-{-# INLINE diff #-}
-diff :: SmartPtr -> SmartPtr -> Int
-SmartPtr _ offset1 `diff` SmartPtr _ offset2 = offset1 - offset2
+minus :: SmartPtr -> Word32 -> SmartPtr
+SmartPtr ptr offset `minus` n = SmartPtr (ptr `plusPtr` (-(fromIntegral @Word32 @Int n))) (offset + n)
 
 moveSmartPtrM :: Int -> Write ()
 moveSmartPtrM bytes = do
@@ -142,19 +140,23 @@ moveSmartPtrM bytes = do
 
 moveSmartPtr :: Buffer -> Int -> Buffer
 moveSmartPtr buffer bytes = do
-  buffer { bufferSptr = buffer.bufferSptr `plus` bytes}
+  buffer { bufferSptr = buffer.bufferSptr `move` bytes }
+  where
+    move :: SmartPtr -> Int -> SmartPtr
+    SmartPtr ptr offset `move` n = SmartPtr (ptr `plusPtr` n) (offset - fromIntegral @Int @Word32 n)
+
 
 data Buffer = Buffer
   { bufferForeignPtr :: !(ForeignPtr Word8)
   , bufferSptr      :: !SmartPtr
   , bufferCapacity :: !Int
   , bufferMaxAlign :: !(Max Alignment)
-  , bufferCache    :: !(M.Map BS.ByteString Int)
+  , bufferCache    :: !(M.Map BS.ByteString Word32)
   }
 
 type BufferRef = IORef Buffer
 
-bufferSize :: Buffer -> Int
+bufferSize :: Buffer -> Word32
 bufferSize = spOffset . bufferSptr
 
 
@@ -166,7 +168,7 @@ writeTable fieldCount wtf = do
   buffer1 <- getBuffer
   let startFieldsLoc = bufferSize buffer1
 
-  locs <- liftIO $ VUM.new @IO @Int fieldCount
+  locs <- liftIO $ VUM.new @IO @Word32 fieldCount
   runWriteTableField wtf locs
 
 
@@ -201,7 +203,7 @@ writeTable fieldCount wtf = do
           loc <- VUM.unsafeRead locs index
           let offset = if loc == 0 then 0 else tableLoc - loc
           let sptr = previousSptr `minus` 2
-          putWord16 sptr (fromIntegral @Int @Word16 offset)
+          putWord16 sptr (fromIntegral @Word32 @Word16 offset)
           writeTableOffsets (index - 1) sptr
 
   let sptr1 = bufferSptr buffer
@@ -211,21 +213,22 @@ writeTable fieldCount wtf = do
     i <- skipTrailingZeroes (VUM.length locs - 1)
     sptr1 <- writeTableOffsets i tableSptr
     let vtableSptr = sptr1 `minus` 4
-    let vtableSize = vtableSptr `diff` tableSptr
-    putWord16 vtableSptr (fromIntegral @Int @Word16 vtableSize)
-    putWord16 (vtableSptr `plus` 2) (fromIntegral @Int @Word16 tableSize)
+    let vtableSize = vtableSptr.spOffset - tableSptr.spOffset
+    putWord16 vtableSptr (fromIntegral @Word32 @Word16 vtableSize)
+    putWord16 (vtableSptr `plus` 2) (fromIntegral @Word32 @Word16 tableSize)
 
     -- TODO: change to the new `BS` constructor???
     let vtableBs = BSI.PS
-          (bufferForeignPtr buffer)
-          (bufferCapacity buffer - spOffset vtableSptr)
-          vtableSize
+          buffer.bufferForeignPtr
+          (buffer.bufferCapacity - fromIntegral @Word32 @Int vtableSptr.spOffset)
+          (fromIntegral @Word32 @Int vtableSize)
 
-    case insertMap vtableBs (spOffset vtableSptr) (bufferCache buffer) of
+    case insertMap vtableBs vtableSptr.spOffset buffer.bufferCache of
       (Nothing, newCache) -> do
-        -- no match was found - cache has been updated
-        -- write offset to vtable
-        putInt32 tableSptr (fromIntegral @Int @Int32 vtableSize)
+        -- No match was found - cache has been updated.
+        -- Write offset to vtable.
+        -- Note: the offset is always positive in this branch, as it points to the left.
+        putInt32 tableSptr (fromIntegral @Word32 @Int32 vtableSize)
 
         pure buffer
           { bufferSptr = vtableSptr
@@ -233,8 +236,9 @@ writeTable fieldCount wtf = do
           }
 
       (Just oldVtablePosition, _) -> do
-        -- a match was found
-        putInt32 tableSptr (fromIntegral @Int @Int32 (oldVtablePosition - spOffset tableSptr))
+        -- A match was found.
+        -- Note: the offset is always negative in this branch, as it points to the right.
+        putInt32 tableSptr $ fromIntegral @Word32 @Int32 oldVtablePosition - fromIntegral @Word32 @Int32 tableSptr.spOffset
         pure buffer
           { bufferSptr = tableSptr
           }
@@ -242,7 +246,7 @@ writeTable fieldCount wtf = do
 
   putBuffer buffer
 
-  pure $ Location $ spOffset tableSptr
+  pure $ Location tableSptr.spOffset
 
 
 {-# INLINE writeInt32TableField #-}
@@ -278,20 +282,29 @@ unsafeWriteWord8 i = do
   liftIO $ putWord8 sptr i
   putBuffer buffer { bufferSptr = sptr}
 
+-- | This function is unsafe because it may potentially write outside the buffer's boundaries.
+-- Make sure to use `reserve` (or `alignTo`) before using this function.
+unsafeWriteWord32 :: Word32 -> Write ()
+unsafeWriteWord32 i = do
+  buffer <- getBuffer
+  let sptr = buffer.bufferSptr `minus` word32Size
+  liftIO $ putWord32 sptr i
+  putBuffer buffer { bufferSptr = sptr}
+
 writeOffsetTableField :: Int -> Location a -> WriteTableField
 writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
   alignTo 4 4
   buffer <- getBuffer
-  let sptr = bufferSptr buffer `minus` 4
-  let offsetToLocation = spOffset sptr - getLocation loc
+  let sptr = buffer.bufferSptr `minus` 4
+  let offsetToLocation = sptr.spOffset - loc.getLocation
   liftIO $ do
-    putInt32 sptr (fromIntegral @Int @Int32 offsetToLocation)
-    VUM.unsafeWrite locs fieldIndex (spOffset sptr)
+    putWord32 sptr offsetToLocation
+    VUM.unsafeWrite locs fieldIndex sptr.spOffset
   putBuffer buffer { bufferSptr = sptr }
 
 newtype WriteTableField = WriteTableField
   { runWriteTableField
-      :: VUM.IOVector Int
+      :: VUM.IOVector Word32
       -> Write ()
   }
 
@@ -745,7 +758,7 @@ instance WriteVector (Location a) where
     -> Write (Location [a])
   fromFoldable collection = do
     writeVector int32Size collection \sptr loc -> do
-      let offsetToElement = fromIntegral @Int @Int32 $ sptr.spOffset - loc.getLocation
+      let offsetToElement = fromIntegral @Word32 @Int32 $ sptr.spOffset - loc.getLocation
       putInt32 sptr offsetToElement
     getCurrentLocation
 
@@ -783,7 +796,7 @@ writeVector elemSize collection writeElem = do
     writeOneElem :: SmartPtr -> a -> IO SmartPtr
     writeOneElem sptr elem = do
       writeElem sptr elem
-      pure $ sptr `plus` elemSize
+      pure $ sptr `plus` fromIntegral @Int @Word32 elemSize
 
     writeCount :: Write ()
     writeCount = do
@@ -792,6 +805,7 @@ writeVector elemSize collection writeElem = do
       putBuffer $ moveSmartPtr buffer int32Size
 
 -- | Copies a bytearray into the buffer in O(1).
+-- Moves the pointer to the start of the vector's location.
 genericToVectorMemcpy
   :: Int
   -> Int
@@ -820,19 +834,19 @@ genericToVectorMemcpy elemSize collectionLength byteArray byteArrayOffset byteAr
 
 -- | Copies the elements of a source collection into the buffer one by one.
 --
--- Moves the `bufferSptr` to the start of the vector's location.
+-- Moves the pointer to the start of the vector's location.
 {-# INLINE genericToVector #-}
 genericToVector
   :: forall collection elem x
-   . Int
+   . Word32
   -> Int
   -> collection
   -> ((SmartPtr -> elem -> IO SmartPtr) -> SmartPtr -> collection -> IO SmartPtr)
   -> (SmartPtr -> elem -> IO ())
   -> Write (Location x)
 genericToVector elemSize collectionLength collection foldMfunction writeElem = do
-  let vectorByteCount = word32Size + (collectionLength * elemSize)
-  alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
+  let vectorByteCount = word32Size + (collectionLength * fromIntegral @Word32 @Int elemSize)
+  alignTo (word32Size `max` fromIntegral @Word32 @Alignment elemSize) vectorByteCount
   moveSmartPtrM (-vectorByteCount)
   writeCount
   writeElems
@@ -855,43 +869,6 @@ genericToVector elemSize collectionLength collection foldMfunction writeElem = d
       buffer <- getBuffer
       liftIO $ putWord32 buffer.bufferSptr (fromIntegral @Int @Word32 collectionLength)
       putBuffer $ moveSmartPtr buffer word32Size
-
--- TODO: delete this
-writeLocs :: VUM.IOVector Int -> Write ()
-writeLocs locs = do
-  alignTo 4 (len * 4 + 4)
-  go (len - 1)
-  writeCount
-
-  where
-    len = VUM.length locs
-
-    writeCount :: Write ()
-    writeCount = do
-      buffer <- getBuffer
-      let sptr = bufferSptr buffer `minus` 4
-
-      liftIO $ putInt32 sptr (fromIntegral @Int @Int32 len)
-
-      putBuffer $ buffer { bufferSptr = sptr }
-
-    go :: Int -> Write ()
-    go index
-      | index < 0 = pure ()
-      | otherwise = do
-          buffer <- getBuffer
-
-          let sptr1 = buffer.bufferSptr
-          let sptr2 = sptr1 `minus` 4
-
-          let currentLoc = bufferSize buffer + 4
-
-          liftIO $ do
-            textLoc <- VUM.unsafeRead locs index
-            putInt32 sptr2 (fromIntegral @Int @Int32 $ currentLoc - textLoc)
-
-          putBuffer $ buffer { bufferSptr = sptr2 }
-          go (index - 1)
 
 {-# INLINE getCurrentLocation #-}
 getCurrentLocation :: Write (Location a)
@@ -928,10 +905,9 @@ modifyBuffer f = do
 writeUOffsetFrom :: Location a -> Write ()
 writeUOffsetFrom loc = do
   alignTo uoffsetSize 0
-  buffer <- getBuffer
-  let currentLoc = bufferSize buffer
-  let uoffset = fromIntegral @Int @Int32 $ currentLoc - loc.getLocation + uoffsetSize
-  unsafeWriteInt32 uoffset
+  currentLoc <- getCurrentLocation
+  let uoffset = currentLoc.getLocation - loc.getLocation + uoffsetSize
+  unsafeWriteWord32 uoffset
 
 encode :: WriteSettings -> Write (Location a) -> BS.ByteString
 encode settings writeTable =
@@ -954,8 +930,9 @@ finish = do
   buffer <- getBuffer
   liftIO $ touchForeignPtr (bufferForeignPtr buffer)
 
-  let offset = bufferCapacity buffer - bufferSize buffer
-  pure $ BSI.PS (bufferForeignPtr buffer) offset (bufferSize buffer)
+  let size = fromIntegral @Word32 @Int $ bufferSize buffer
+  let offset = buffer.bufferCapacity - size
+  pure $ BSI.PS buffer.bufferForeignPtr offset size
 
 {-# INLINE runWrite #-}
 runWrite :: WriteSettings -> Write a -> a
@@ -988,7 +965,8 @@ reserve bytes = Write $ do
   bufferRef <- ask
   buffer@(Buffer fp sptr capacity _ _) <- liftIO $ readIORef bufferRef
   let size = bufferSize buffer
-  if capacity >= size + bytes
+  let size' = fromIntegral @Word32 @Int size
+  if capacity >= size' + bytes
     then pure ()
     else do
       -- TODO: CHECK FOR INT32 OVERFLOWS
@@ -997,8 +975,8 @@ reserve bytes = Write $ do
 
       -- Allocate new buffer and copy over the contents of the previous buffer
       newFp <- liftIO $ BSI.mallocByteString newCapacity
-      let newPtr = unsafeForeignPtrToPtr newFp `plusPtr` (newCapacity - size)
-      liftIO $ Marshal.copyBytes newPtr (spPtr sptr) size
+      let newPtr = unsafeForeignPtrToPtr newFp `plusPtr` (newCapacity - size')
+      liftIO $ Marshal.copyBytes newPtr (spPtr sptr) size'
 
 
       -- TODO: try to have just 1 buffer field in `Buffer`,
@@ -1009,7 +987,7 @@ reserve bytes = Write $ do
       -- See: https://hackage.haskell.org/package/base-4.12.0.0/docs/Foreign-ForeignPtr-Unsafe.html#v:unsafeForeignPtrToPtr
       liftIO $ touchForeignPtr fp
 
-      liftIO $ writeIORef bufferRef  buffer
+      liftIO $ writeIORef bufferRef buffer
             { bufferForeignPtr = newFp
             , bufferSptr = SmartPtr newPtr size
             , bufferCapacity = newCapacity
@@ -1018,11 +996,11 @@ reserve bytes = Write $ do
 -- | Reserves at least @additionalBytes@ bytes and adds enough 0-padding so
 -- that the buffer becomes aligned to @n@ after writing @additionalBytes@.
 --
--- Moves the `bufferSptr` to the position before the padding.
+-- Moves the pointer to the position before the padding.
 {-# INLINE alignTo #-}
 alignTo :: Alignment{- ^ n -} -> Int {- ^ additionalBytes -} -> Write ()
 alignTo !n !additionalBytes = do
-  bsize <- bufferSize <$> getBuffer
+  bsize <- fromIntegral @Word32 @Int . bufferSize <$> getBuffer
   let padding = calcPadding n additionalBytes bsize
   reserve (padding + additionalBytes)
   if padding == 0
@@ -1030,7 +1008,7 @@ alignTo !n !additionalBytes = do
       modifyBuffer $ \b -> b { bufferMaxAlign = bufferMaxAlign b <> Max n }
     else do
       buffer <- getBuffer
-      let newSptr = bufferSptr buffer `minus` padding
+      let newSptr = bufferSptr buffer `minus` fromIntegral @Int @Word32 padding
       _ <- liftIO $ Marshal.fillBytes (spPtr newSptr) 0 padding
 
       putBuffer buffer
@@ -1087,7 +1065,7 @@ putDouble sptr x = BSP.runF BSP.doubleLE x sptr.spPtr
 
 writeText :: Text -> Write (Location Text)
 writeText text@(TI.Text arr off len) = do
-  bsize <- bufferSize <$> getBuffer
+  bsize <- fromIntegral @Word32 @Int . bufferSize <$> getBuffer
   let utf8len = utf8length text
   let utf8lenAndTerminator = utf8len + 1
   let pad = calcPadding int32Size utf8lenAndTerminator bsize
@@ -1100,10 +1078,10 @@ writeText text@(TI.Text arr off len) = do
   newSptr <- liftIO $ do
     let sptr1 = bufferSptr buffer
 
-    let sptr2 = sptr1 `minus` padAndTerminator
+    let sptr2 = sptr1 `minus` fromIntegral @Int @Word32 padAndTerminator
     Marshal.fillBytes (spPtr sptr2) 0 (fromIntegral padAndTerminator)
 
-    let sptr3 = sptr2 `minus` utf8len
+    let sptr3 = sptr2 `minus` fromIntegral @Int @Word32 utf8len
     let !_ = runST $ A.copyToPointer arr off sptr3.spPtr len
 
     let sptr4 = sptr3 `minus` int32Size
@@ -1120,13 +1098,14 @@ writeText text@(TI.Text arr off len) = do
   pure (Location (bufferSize newBuffer))
 
 -- TODO: rename to `Reference`
-newtype Location a = Location { getLocation :: Int }
+newtype Location a = Location { getLocation :: Word32 }
   deriving newtype (Eq, Show)
 
-newtype instance VU.MVector s (Location a) = MV_Int (VP.MVector s Int)
-newtype instance VU.Vector    (Location a) = V_Int  (VP.Vector    Int)
-deriving via (VU.UnboxViaPrim Int) instance VGM.MVector VU.MVector (Location a)
-deriving via (VU.UnboxViaPrim Int) instance VG.Vector   VU.Vector  (Location a)
+
+newtype instance VU.MVector s (Location a) = MV_Word32 (VP.MVector s Word32)
+newtype instance VU.Vector    (Location a) = V_Word32  (VP.Vector    Word32)
+deriving via (VU.UnboxViaPrim Word32) instance VGM.MVector VU.MVector (Location a)
+deriving via (VU.UnboxViaPrim Word32) instance VG.Vector   VU.Vector  (Location a)
 instance VU.Unbox (Location a)
 
 {-# INLINE utf8length #-}
