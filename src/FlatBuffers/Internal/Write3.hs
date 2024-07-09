@@ -13,6 +13,8 @@
 -- {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -ddump-deriv #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 
 module FlatBuffers.Internal.Write3 where
@@ -697,91 +699,11 @@ type instance WriteVectorElement (VU.UnboxViaPrim a) = a
 type instance WriteVectorElement (Location a) = a
 type instance WriteVectorElement (UnionType a) = (UnionType a)
 
--- class ToVector2 collection elem where
---   type WriteVectorElement elem
---   -- TODO: change `collection` from `* -> *` to just `*`?
---   -- In other words, change `toVector :: collection elem -> ...`
---   -- to                     `toVector :: collection -> ...`
---   -- Then `ToVector` could have instances for monomorphic collections, like `Bytestring`?
---   -- toVector :: collection elem -> Write (Location [WriteVectorElement elem])
---   toVector2 :: collection elem -> Write (Location [WriteVectorElement elem])
-
-
--- instance ToVector2 VP.Vector Word8 where
---   -- type WriteVectorElement Word8 = Word8
-
---   toVector2 :: VP.Vector Word8 -> Write (Location [Word8])
---   toVector2 vec@(VP.Vector off len byteArray) = do
---     genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
 
 
 
--- instance (ToVector2 VP.Vector a) => ToVector2 VU.Vector (VU.UnboxViaPrim a) where
---   -- type WriteVectorElement VU.Vector (VU.UnboxViaPrim a) = WriteVectorElement VP.Vector a
---   -- type WriteVectorElement VU.Vector (VU.UnboxViaPrim a) = VU.UnboxViaPrim a
---   -- type WriteVectorElement (VU.UnboxViaPrim a) = a
-
---   -- toVector :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [WriteVectorElement (VU.UnboxViaPrim a)])
---   -- toVector2 :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [VU.UnboxViaPrim a])
---   toVector2 :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
---   toVector2 (VU.V_UnboxViaPrim primVector) = coerce $ toVector2 primVector
-
--- deriving via (VU.UnboxViaPrim Word8) instance ToVector2 VU.Vector Word8
-
--- instance ToVector2 VU.Vector Word8 where
---   type WriteVectorElement
---         VU.Vector
---         Word8 = WriteVectorElement
---                           VU.Vector
---                           (VU.UnboxViaPrim Word8)
-
---   toVector2 ::
---     VU.Vector Word8
---     -> Write
---           (Location
---             [WriteVectorElement
---                 VU.Vector Word8])
---   toVector2
---     = coerce
---         @(VU.Vector
---             (VU.UnboxViaPrim Word8)
---           -> Write
---                 (Location
---                   [WriteVectorElement
---                       VU.Vector
---                       (VU.UnboxViaPrim Word8)]))
---         @(VU.Vector Word8
---           -> Write
---                 (Location
---                   [WriteVectorElement
---                       VU.Vector Word8]))
---         (toVector2
---             @VU.Vector
---             @(VU.UnboxViaPrim Word8))
-
--- instance ToVector2 VU.Vector Word8 where
---   type WriteVectorElement VU.Vector Word8 = Word8
---   toVector2 :: VUB.Vector Word8 -> Write (Location [Word8])
---   -- toVector2 :: VUB.Vector Word8 -> Write (Location [WriteVectorElement VUB.Vector Word8])
---   toVector2 = undefined
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- class ToVector collection elem | collection -> elem where
 class ToVector collection elem where
-  -- type WriteVectorElement elem
   -- TODO: change `collection` from `* -> *` to just `*`?
   -- In other words, change `toVector :: collection elem -> ...`
   -- to                     `toVector :: collection -> ...`
@@ -789,51 +711,25 @@ class ToVector collection elem where
   toVector :: collection elem -> Write (Location [WriteVectorElement elem])
   -- toVector :: collection elem -> Write (Location [elem])
 
--- (VU.Vector (Location a), VU.Vector (UnionType a))
-
 
 instance ToVector VU.Vector (Location a) where
-
-
-
--- instance ToVector VU.Vector (UnionType a) where
---   toVector :: VU.Vector (UnionType a) -> Write (Location [UnionType a])
---   toVector = coerce . toVector @VU.Vector @Word8 . coerce
+-- instance Foldable collection => ToVector collection (Location a) where
 
 deriving via Word8 instance ToVector VU.Vector (UnionType a)
 
 instance (ToVector VP.Vector a) => ToVector VU.Vector (VU.UnboxViaPrim a) where
-  -- type WriteVectorElement (VU.UnboxViaPrim a) = a
-  -- toVector :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [WriteVectorElement (VU.UnboxViaPrim a)])
-  -- toVector :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [VU.UnboxViaPrim a])
   toVector :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
   toVector (VU.V_UnboxViaPrim primVector) = coerce $ toVector primVector
 
 deriving via (VU.UnboxViaPrim Word8) instance ToVector VU.Vector Word8
 deriving via (VU.UnboxViaPrim Word16) instance ToVector VU.Vector Word16
 
--- instance ToVector VU.Vector Word8 where
---   -- type WriteVectorElement Word8 = Word8
---   toVector :: VU.Vector Word8 -> Write (Location [Word8])
---   toVector (VUB.V_Word8 primVector) = toVector primVector
-
 instance ToVector VP.Vector Word8 where
-  -- type WriteVectorElement Word8 = Word8
-
   toVector :: VP.Vector Word8 -> Write (Location [Word8])
   toVector vec@(VP.Vector off len byteArray) = do
     genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
 
-    -- let vectorByteCount = word32Size + (VP.length vec * word8Size)
-    -- alignTo word32Size vectorByteCount
-    -- moveSmartPtrM (-vectorByteCount)
-    -- buffer <- getBuffer
-    -- liftIO $ Prim.copyByteArrayToAddr buffer.bufferSptr.spPtr byteArray off len
-    -- getCurrentLocation
-
 instance ToVector VP.Vector Word16 where
-  -- type WriteVectorElement Word16 = Word16
-
   toVector :: VP.Vector Word16 -> Write (Location [Word16])
 #ifdef WORDS_BIGENDIAN
   toVector vec = do
@@ -844,8 +740,6 @@ instance ToVector VP.Vector Word16 where
 #endif
 
 instance ToVector VP.Vector Word32 where
-  -- type WriteVectorElement Word32 = Word32
-
   toVector :: VP.Vector Word32 -> Write (Location [Word32])
 #ifdef WORDS_BIGENDIAN
   toVector vec = do
