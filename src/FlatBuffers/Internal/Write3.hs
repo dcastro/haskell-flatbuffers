@@ -15,6 +15,7 @@
 {-# OPTIONS_GHC -ddump-deriv #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 
 module FlatBuffers.Internal.Write3 where
@@ -736,30 +737,32 @@ instance MonoFoldable collection => ToVector2 collection (Location a) where
 usage :: Write ()
 usage = do
 
-  let x :: VU.Vector (Location Int) = undefined
-  -- let res = toVector2 x
+  -- let x :: VU.Vector (Location Int) = undefined
+  let x :: VU.Vector Word8 = undefined
+  y <- toVector2 x
+  let x :: [Location Int] = undefined
+  y <- toVector2 x
+  let x :: [Word8] = undefined
+  y <- toVector2 x
+
   undefined
 
 class ToVector2 collection where
-  toVector2 :: collection -> Write (Location [WriteVectorElement (Element collection)])
+  type Elem collection
+  toVector2 :: collection -> Write (Location [Elem collection])
 
 
 newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
 
 instance Foldable collection => ToVector2 (ToVectorViaFoldable collection (Location a)) where
-  toVector2 :: ToVectorViaFoldable collection (Location a) -> Write
-     (Location
-        [WriteVectorElement
-           (Element (ToVectorViaFoldable collection (Location a)))])
+  type Elem (ToVectorViaFoldable collection (Location a)) = a
+  toVector2 :: ToVectorViaFoldable collection (Location a) -> Write (Location [a])
   toVector2 = undefined
 
 instance Foldable collection => ToVector2 (ToVectorViaFoldable collection Word8) where
-  -- TODO: I shouldn't need to use `Element` here....
-  -- toVector2 :: ToVectorViaFoldable collection Word8 -> Write (Location [Word8])
-  toVector2 :: ToVectorViaFoldable collection Word8 -> Write
-     (Location
-        [WriteVectorElement
-           (Element (ToVectorViaFoldable collection Word8))])
+  type Elem (ToVectorViaFoldable collection Word8) = Word8
+
+  toVector2 :: ToVectorViaFoldable collection Word8 -> Write (Location [Word8])
   toVector2 (ToVectorViaFoldable collection) =
     genericToVector @(collection Word8) @Word8 @_
       word8Size
@@ -776,19 +779,18 @@ deriving via (ToVectorViaFoldable [] Word8) instance ToVector2 [Word8]
 
 deriving via (VP.Vector Word8) instance ToVector2 (VU.Vector (UnionType a))
 
-instance (ToVector2 (VP.Vector a)) => ToVector2 (VU.Vector (VU.UnboxViaPrim a))  where
+instance (ToVector2 (VP.Vector a)) => ToVector2 (VU.Vector (VU.UnboxViaPrim a)) where
+  type Elem (VU.Vector (VU.UnboxViaPrim a)) = a
   toVector2 :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
   toVector2 (VU.V_UnboxViaPrim primVector) = coerce $ toVector2 primVector
 
 deriving via (VU.Vector (VU.UnboxViaPrim Word8)) instance ToVector2 (VU.Vector Word8)
 
 instance ToVector2 (VP.Vector Word8) where
+  type Elem (VP.Vector Word8) = Word8
   toVector2 :: VP.Vector Word8 -> Write (Location [Word8])
   toVector2 vec@(VP.Vector off len byteArray) = do
     genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
-
-type instance Element (VP.Vector a) = a
-
 
 
 
