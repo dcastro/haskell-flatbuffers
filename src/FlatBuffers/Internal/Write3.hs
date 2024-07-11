@@ -21,6 +21,7 @@ module FlatBuffers.Internal.Write3 where
 
 import Control.Exception (SomeException)
 import Control.Monad
+import Control.Monad qualified as Monad
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.ST (runST)
@@ -33,6 +34,7 @@ import Data.ByteString.Internal qualified as BSI
 import Data.ByteString.Lazy qualified as BSL
 import Data.ByteString.Unsafe qualified as BSU
 import Data.Coerce (coerce)
+import Data.Foldable qualified as Fold
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Int
@@ -742,13 +744,35 @@ class ToVector2 collection where
   toVector2 :: collection -> Write (Location [WriteVectorElement (Element collection)])
 
 
--- Note: I can't use MonoFoldable instead of Foldable, because then the instance head would just be `f`
--- Let's try writing concrete instances, but use DerivingVia instead.
-instance (Foldable f, Element (f (Location a)) ~ (Location a)) => ToVector2 (f (Location a)) where
--- instance ToVector2 (VU.Vector (Location a)) where
-  -- toVector2 :: VUB.Vector (Location a) -> Write (Location [a])
-  toVector2 :: f (Location a) -> Write (Location [a])
+newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
+
+instance Foldable collection => ToVector2 (ToVectorViaFoldable collection (Location a)) where
+  toVector2 :: ToVectorViaFoldable collection (Location a) -> Write
+     (Location
+        [WriteVectorElement
+           (Element (ToVectorViaFoldable collection (Location a)))])
   toVector2 = undefined
+
+instance Foldable collection => ToVector2 (ToVectorViaFoldable collection Word8) where
+  -- TODO: I shouldn't need to use `Element` here....
+  -- toVector2 :: ToVectorViaFoldable collection Word8 -> Write (Location [Word8])
+  toVector2 :: ToVectorViaFoldable collection Word8 -> Write
+     (Location
+        [WriteVectorElement
+           (Element (ToVectorViaFoldable collection Word8))])
+  toVector2 (ToVectorViaFoldable collection) =
+    genericToVector @(collection Word8) @Word8 @_
+      word8Size
+      (Fold.length collection)
+      collection
+      Monad.foldM
+      putWord8
+
+
+deriving via (ToVectorViaFoldable [] (Location a)) instance ToVector2 [Location a]
+deriving via (ToVectorViaFoldable [] Word8) instance ToVector2 [Word8]
+
+
 
 deriving via (VP.Vector Word8) instance ToVector2 (VU.Vector (UnionType a))
 
