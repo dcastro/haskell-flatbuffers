@@ -699,6 +699,8 @@ usage = do
   y <- toVector2 x
   let x :: VU.Vector Word8 = undefined
   y <- toVector2 x
+  let x :: VU.Vector (UnionType String) = undefined
+  y <- toVector2 x
   let x :: [Location Int] = undefined
   y <- toVector2 x
   let x :: [Word8] = undefined
@@ -722,6 +724,7 @@ instance Foldable collection => ToVector2 (ToVectorViaFoldable collection Word8)
 
   toVector2 :: ToVectorViaFoldable collection Word8 -> Write (Location [Word8])
   toVector2 (ToVectorViaFoldable collection) =
+    -- TODO: write a version of `genericToVector` that doesn't need to know the `length` beforehand
     genericToVector @(collection Word8) @Word8 @_
       word8Size
       (Fold.length collection)
@@ -734,8 +737,12 @@ deriving via (ToVectorViaFoldable [] (Location a)) instance ToVector2 [Location 
 deriving via (ToVectorViaFoldable [] Word8) instance ToVector2 [Word8]
 
 -- Don't need to use `VU.UnboxViaPrim` because `VU` constructors are just newtypes for `VP`
-deriving newtype instance ToVector2 (VU.Vector (UnionType a))
 deriving newtype instance ToVector2 (VU.Vector Word8)
+
+instance ToVector2 (VU.Vector (UnionType a)) where
+  type Elem (VU.Vector (UnionType a)) = UnionType a
+  toVector2 :: VU.Vector (UnionType a) -> Write (Location [Elem (VU.Vector (UnionType a))])
+  toVector2 = coerce $ toVector2 @(VP.Vector Word8)
 
 instance ToVector2 (VP.Vector Word8) where
   type Elem (VP.Vector Word8) = Word8
