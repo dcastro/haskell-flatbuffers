@@ -734,20 +734,12 @@ instance MonoFoldable collection => ToVector2 collection (Location a) where
 usage :: Write ()
 usage = do
 
-  -- let x :: VU.Vector (Location Int) = undefined
-  -- let res = toVector2 @_ @(Location Int) x
-
+  let x :: VU.Vector (Location Int) = undefined
+  -- let res = toVector2 x
   undefined
 
--- class ToVector2 collection elem | collection -> elem where
 class ToVector2 collection where
-  -- TODO: change `collection` from `* -> *` to just `*`?
-  -- In other words, change `toVector2 :: collection elem -> ...`
-  -- to                     `toVector2 :: collection -> ...`
-  -- Then `ToVector2` could have instances for monomorphic collections, like `Bytestring`?
-  -- toVector2 :: collection -> Write (Location [WriteVectorElement elem])
   toVector2 :: collection -> Write (Location [WriteVectorElement (Element collection)])
-  -- toVector2 :: collection elem -> Write (Location [elem])
 
 
 -- Note: I can't use MonoFoldable instead of Foldable, because then the instance head would just be `f`
@@ -758,19 +750,11 @@ instance (Foldable f, Element (f (Location a)) ~ (Location a)) => ToVector2 (f (
   toVector2 :: f (Location a) -> Write (Location [a])
   toVector2 = undefined
 
--- instance ToVector2 (VU.Vector (Location a)) (Location a) where
--- instance MonoFoldable collection => ToVector2 collection (Location a) where
---   toVector2 :: MonoFoldable collection => collection -> Write (Location [a])
---   toVector2 = undefined
-
 deriving via (VP.Vector Word8) instance ToVector2 (VU.Vector (UnionType a))
 
 instance (ToVector2 (VP.Vector a)) => ToVector2 (VU.Vector (VU.UnboxViaPrim a))  where
   toVector2 :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
   toVector2 (VU.V_UnboxViaPrim primVector) = coerce $ toVector2 primVector
--- instance (ToVector2 (VP.Vector a) a) => ToVector2 (VU.Vector (VU.UnboxViaPrim a)) (VU.UnboxViaPrim a) where
---   toVector2 :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
---   toVector2 (VU.V_UnboxViaPrim primVector) = coerce $ toVector2 primVector
 
 deriving via (VU.Vector (VU.UnboxViaPrim Word8)) instance ToVector2 (VU.Vector Word8)
 
