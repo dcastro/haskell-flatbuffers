@@ -680,24 +680,6 @@ writeManyUnoptimized
 writeManyUnoptimized = undefined
 
 
-data PeopleGroups = PeopleGroups
-  { groupName :: Text
-  , groupPeople :: [Person]
-  }
-
-{-
-  NOTE: This type family is not associated with the `ToVector` typeclass because that would lead to
-  having to write duplicate instance for, e.g., `ToVector VP.Vector Word8` and `ToVector VU.Vector Word8`.
-  This also simplifies the usage of `DerivingVia` as it doesn't force us to resort to `UndecidableInstances`.
-
--}
-
-{-
-
-TODO: try moving this back into the typeclass, see if DerivingVia still works.
-  If we can, this would avoid having to use `Element + WriteVectorElement`,
-  we would just use `WriteVectorElement` directly
- -}
 type family WriteVectorElement elem
 type instance WriteVectorElement Int8 = Int8
 type instance WriteVectorElement Int16 = Int16
@@ -709,35 +691,12 @@ type instance WriteVectorElement (VU.UnboxViaPrim a) = a
 type instance WriteVectorElement (Location a) = a
 type instance WriteVectorElement (UnionType a) = (UnionType a)
 
--- type family Element2 collection
-
-
-{-
-NOTES: this variant makes `collection` monomorphic.
-
-We can't use `DerivingVia` anymore, because we can only derivevia the 2nd type arg `elem` and
-not the first `collection.
-
-
-
-// This doesn't work, because the `collection` type arg in the instance breaks the `collection -> elem` fundep
-// I don't think we can have this instance be that generic + usable.
-// We'll have to write one instance at a time.
-// But perhaps we can use DerivingVia to make that easier?
-
-class ToVector2 collection elem | collection -> elem where
-  toVector2 :: collection -> Write (Location [WriteVectorElement elem])
-
-instance MonoFoldable collection => ToVector2 collection (Location a) where
-  toVector2 :: MonoFoldable collection => collection -> Write (Location [a])
-  toVector2 = undefined
-
- -}
-
 usage :: Write ()
 usage = do
 
   -- let x :: VU.Vector (Location Int) = undefined
+  let x :: VP.Vector Word8 = undefined
+  y <- toVector2 x
   let x :: VU.Vector Word8 = undefined
   y <- toVector2 x
   let x :: [Location Int] = undefined
@@ -750,7 +709,6 @@ usage = do
 class ToVector2 collection where
   type Elem collection
   toVector2 :: collection -> Write (Location [Elem collection])
-
 
 newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
 
@@ -775,16 +733,9 @@ instance Foldable collection => ToVector2 (ToVectorViaFoldable collection Word8)
 deriving via (ToVectorViaFoldable [] (Location a)) instance ToVector2 [Location a]
 deriving via (ToVectorViaFoldable [] Word8) instance ToVector2 [Word8]
 
-
-
-deriving via (VP.Vector Word8) instance ToVector2 (VU.Vector (UnionType a))
-
-instance (ToVector2 (VP.Vector a)) => ToVector2 (VU.Vector (VU.UnboxViaPrim a)) where
-  type Elem (VU.Vector (VU.UnboxViaPrim a)) = a
-  toVector2 :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
-  toVector2 (VU.V_UnboxViaPrim primVector) = coerce $ toVector2 primVector
-
-deriving via (VU.Vector (VU.UnboxViaPrim Word8)) instance ToVector2 (VU.Vector Word8)
+-- Don't need to use `VU.UnboxViaPrim` because `VU` constructors are just newtypes for `VP`
+deriving newtype instance ToVector2 (VU.Vector (UnionType a))
+deriving newtype instance ToVector2 (VU.Vector Word8)
 
 instance ToVector2 (VP.Vector Word8) where
   type Elem (VP.Vector Word8) = Word8
