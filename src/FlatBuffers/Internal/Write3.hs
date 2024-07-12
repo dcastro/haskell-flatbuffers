@@ -709,18 +709,18 @@ usage = do
   undefined
 
 class ToVector2 collection where
-  type Elem collection
-  toVector2 :: collection -> Write (Location [Elem collection])
+  type Elem2 collection
+  toVector2 :: collection -> Write (Location [Elem2 collection])
 
 newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
 
 instance Foldable collection => ToVector2 (ToVectorViaFoldable collection (Location a)) where
-  type Elem (ToVectorViaFoldable collection (Location a)) = a
+  type Elem2 (ToVectorViaFoldable collection (Location a)) = a
   toVector2 :: ToVectorViaFoldable collection (Location a) -> Write (Location [a])
   toVector2 = undefined
 
 instance Foldable collection => ToVector2 (ToVectorViaFoldable collection Word8) where
-  type Elem (ToVectorViaFoldable collection Word8) = Word8
+  type Elem2 (ToVectorViaFoldable collection Word8) = Word8
 
   toVector2 :: ToVectorViaFoldable collection Word8 -> Write (Location [Word8])
   toVector2 (ToVectorViaFoldable collection) =
@@ -740,12 +740,12 @@ deriving via (ToVectorViaFoldable [] Word8) instance ToVector2 [Word8]
 deriving newtype instance ToVector2 (VU.Vector Word8)
 
 instance ToVector2 (VU.Vector (UnionType a)) where
-  type Elem (VU.Vector (UnionType a)) = UnionType a
+  type Elem2 (VU.Vector (UnionType a)) = UnionType a
   toVector2 :: VU.Vector (UnionType a) -> Write (Location [Elem (VU.Vector (UnionType a))])
   toVector2 = coerce $ toVector2 @(VP.Vector Word8)
 
 instance ToVector2 (VP.Vector Word8) where
-  type Elem (VP.Vector Word8) = Word8
+  type Elem2 (VP.Vector Word8) = Word8
   toVector2 :: VP.Vector Word8 -> Write (Location [Word8])
   toVector2 vec@(VP.Vector off len byteArray) = do
     genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
@@ -757,34 +757,30 @@ instance ToVector2 (VP.Vector Word8) where
 
 
 
--- class ToVector collection elem | collection -> elem where
-class ToVector collection elem where
-  -- TODO: change `collection` from `* -> *` to just `*`?
-  -- In other words, change `toVector :: collection elem -> ...`
-  -- to                     `toVector :: collection -> ...`
-  -- Then `ToVector` could have instances for monomorphic collections, like `Bytestring`?
-  toVector :: collection elem -> Write (Location [WriteVectorElement elem])
-  -- toVector :: collection elem -> Write (Location [elem])
+class ToVector collection where
+  type Elem collection
+  toVector :: collection -> Write (Location [Elem collection])
 
 
-instance ToVector VU.Vector (Location a) where
+instance ToVector (VU.Vector (Location a)) where
 -- instance Foldable collection => ToVector collection (Location a) where
 
-deriving via Word8 instance ToVector VU.Vector (UnionType a)
+instance ToVector (VU.Vector (UnionType a)) where
+  type Elem (VU.Vector (UnionType a)) = UnionType a
+  toVector :: VU.Vector (UnionType a) -> Write (Location [UnionType a])
+  toVector = coerce $ toVector @(VP.Vector Word8)
 
-instance (ToVector VP.Vector a) => ToVector VU.Vector (VU.UnboxViaPrim a) where
-  toVector :: VU.Vector (VU.UnboxViaPrim a) -> Write (Location [a])
-  toVector (VU.V_UnboxViaPrim primVector) = coerce $ toVector primVector
+deriving newtype instance ToVector (VU.Vector Word8)
+deriving newtype instance ToVector (VU.Vector Word16)
 
-deriving via (VU.UnboxViaPrim Word8) instance ToVector VU.Vector Word8
-deriving via (VU.UnboxViaPrim Word16) instance ToVector VU.Vector Word16
-
-instance ToVector VP.Vector Word8 where
+instance ToVector (VP.Vector Word8) where
+  type Elem (VP.Vector Word8) = Word8
   toVector :: VP.Vector Word8 -> Write (Location [Word8])
   toVector vec@(VP.Vector off len byteArray) = do
     genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
 
-instance ToVector VP.Vector Word16 where
+instance ToVector (VP.Vector Word16) where
+  type Elem (VP.Vector Word16) = Word16
   toVector :: VP.Vector Word16 -> Write (Location [Word16])
 #ifdef WORDS_BIGENDIAN
   toVector vec = do
@@ -794,7 +790,8 @@ instance ToVector VP.Vector Word16 where
     genericToVectorMemcpy word16Size (VP.length vec) byteArray off len
 #endif
 
-instance ToVector VP.Vector Word32 where
+instance ToVector (VP.Vector Word32) where
+  type Elem (VP.Vector Word32) = Word32
   toVector :: VP.Vector Word32 -> Write (Location [Word32])
 #ifdef WORDS_BIGENDIAN
   toVector vec = do
