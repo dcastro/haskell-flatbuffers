@@ -167,7 +167,7 @@ data Buffer = Buffer
 type BufferRef = IORef Buffer
 
 bufferSize :: Buffer -> Word32
-bufferSize = spOffset . bufferSptr
+bufferSize buffer = buffer.bufferSptr.spOffset
 
 
 -- TODO: write table field that was read using ExceptT
@@ -191,7 +191,7 @@ writeTable fieldCount wtf = do
 
 
   alignTo 4 0
-  reserve (4 + maxVtableSize)
+  reserveM (4 + maxVtableSize)
   buffer <- getBuffer
 
   let
@@ -275,7 +275,7 @@ writeWord8TableField fieldIndex i = WriteTableField $ \locs -> do
   liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
 
 -- | This function is unsafe because it may potentially write outside the buffer's boundaries.
--- Make sure to use `reserve` (or `alignTo`) before using this function.
+-- Make sure to use `reserveM` (or `alignTo`) before using this function.
 unsafeWriteInt32 :: Int32 -> Write ()
 unsafeWriteInt32 i = do
   buffer <- getBuffer
@@ -284,7 +284,7 @@ unsafeWriteInt32 i = do
   putBuffer buffer { bufferSptr = sptr}
 
 -- | This function is unsafe because it may potentially write outside the buffer's boundaries.
--- Make sure to use `reserve` (or `alignTo`) before using this function.
+-- Make sure to use `reserveM` (or `alignTo`) before using this function.
 unsafeWriteWord8 :: Word8 -> Write ()
 unsafeWriteWord8 i = do
   buffer <- getBuffer
@@ -293,7 +293,7 @@ unsafeWriteWord8 i = do
   putBuffer buffer { bufferSptr = sptr}
 
 -- | This function is unsafe because it may potentially write outside the buffer's boundaries.
--- Make sure to use `reserve` (or `alignTo`) before using this function.
+-- Make sure to use `reserveM` (or `alignTo`) before using this function.
 unsafeWriteWord32 :: Word32 -> Write ()
 unsafeWriteWord32 i = do
   buffer <- getBuffer
@@ -712,8 +712,6 @@ class ToVector2 collection where
   type Elem2 collection
   toVector2 :: collection -> Write (Location [Elem2 collection])
 
-newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
-
 instance Foldable collection => ToVector2 (ToVectorViaFoldable collection (Location a)) where
   type Elem2 (ToVectorViaFoldable collection (Location a)) = a
   toVector2 :: ToVectorViaFoldable collection (Location a) -> Write (Location [a])
@@ -761,9 +759,40 @@ class ToVector collection where
   type Elem collection
   toVector :: collection -> Write (Location [Elem collection])
 
+newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
+
+deriving via (ToVectorViaFoldable [] (Location a)) instance ToVector [Location a]
 
 instance ToVector (VU.Vector (Location a)) where
--- instance Foldable collection => ToVector collection (Location a) where
+  type Elem (VU.Vector (Location a)) = a
+  toVector :: VU.Vector (Location a) -> Write (Location [a])
+  toVector collection =
+    genericToVector @(VU.Vector (Location a)) @(Location a) word32Size (VU.length collection) collection VU.foldM' putLocation
+
+instance Foldable collection => ToVector (ToVectorViaFoldable collection (Location a)) where
+  type Elem (ToVectorViaFoldable collection (Location a)) = a
+  toVector :: ToVectorViaFoldable collection (Location a) -> Write (Location [a])
+  toVector (ToVectorViaFoldable collection) =
+    genericToVector @(collection (Location a)) @(Location a) word32Size (Fold.length collection) collection Monad.foldM putLocation
+
+instance Foldable collection => ToVector (ToVectorViaFoldable collection Word8) where
+  type Elem (ToVectorViaFoldable collection Word8) = Word8
+  toVector :: ToVectorViaFoldable collection Word8 -> Write (Location [Word8])
+  toVector (ToVectorViaFoldable collection) =
+    genericToVector @(collection Word8) @Word8 word8Size (Fold.length collection) collection Monad.foldM putWord8
+
+instance Foldable collection => ToVector (ToVectorViaFoldable collection Word16) where
+  type Elem (ToVectorViaFoldable collection Word16) = Word16
+  toVector :: ToVectorViaFoldable collection Word16 -> Write (Location [Word16])
+  toVector (ToVectorViaFoldable collection) =
+    genericToVector @(collection Word16) @Word16 word16Size (Fold.length collection) collection Monad.foldM putWord16
+
+instance Foldable collection => ToVector (ToVectorViaFoldable collection Word32) where
+  type Elem (ToVectorViaFoldable collection Word32) = Word32
+  toVector :: ToVectorViaFoldable collection Word32 -> Write (Location [Word32])
+  toVector (ToVectorViaFoldable collection) =
+    genericToVector @(collection Word32) @Word32 word32Size (Fold.length collection) collection Monad.foldM putWord32
+
 
 instance ToVector (VU.Vector (UnionType a)) where
   type Elem (VU.Vector (UnionType a)) = UnionType a
@@ -772,6 +801,11 @@ instance ToVector (VU.Vector (UnionType a)) where
 
 deriving newtype instance ToVector (VU.Vector Word8)
 deriving newtype instance ToVector (VU.Vector Word16)
+deriving newtype instance ToVector (VU.Vector Word32)
+deriving via (ToVectorViaFoldable [] Word8) instance ToVector [Word8]
+deriving via (ToVectorViaFoldable [] Word16) instance ToVector [Word16]
+deriving via (ToVectorViaFoldable [] Word32) instance ToVector [Word32]
+
 
 instance ToVector (VP.Vector Word8) where
   type Elem (VP.Vector Word8) = Word8
@@ -1043,24 +1077,32 @@ withInitialCapacity :: Int -> WriteSettings -> WriteSettings
 withInitialCapacity n ws = ws { initialCapacity = n }
 
 
-{-# INLINE reserve #-}
-reserve :: Int -> Write ()
-reserve bytes = Write $ do
+{-# INLINE reserveM #-}
+reserveM :: Int -> Write ()
+reserveM bytes = Write $ do
   bufferRef <- ask
-  buffer@(Buffer fp sptr capacity _ _) <- liftIO $ readIORef bufferRef
+  liftIO do
+    buffer <- readIORef bufferRef
+    buffer <- reserve bytes buffer
+    writeIORef bufferRef buffer
+
+{-# INLINE reserve #-}
+reserve :: Int -> Buffer -> IO Buffer
+reserve bytes buffer = do
+  let (Buffer fp sptr capacity _ _) = buffer
   let size = bufferSize buffer
   let size' = fromIntegral @Word32 @Int size
   if capacity >= size' + bytes
-    then pure ()
+    then pure buffer
     else do
       -- TODO: CHECK FOR INT32 OVERFLOWS
       -- (maybe cast to an unbound Int, and then check if it's > maxBound @Int32)?
       let newCapacity = (capacity * 2) `max` (capacity + bytes)
 
       -- Allocate new buffer and copy over the contents of the previous buffer
-      newFp <- liftIO $ BSI.mallocByteString newCapacity
+      newFp <- BSI.mallocByteString newCapacity
       let newPtr = unsafeForeignPtrToPtr newFp `plusPtr` (newCapacity - size')
-      liftIO $ Marshal.copyBytes newPtr (spPtr sptr) size'
+      Marshal.copyBytes newPtr (spPtr sptr) size'
 
 
       -- TODO: try to have just 1 buffer field in `Buffer`,
@@ -1069,9 +1111,9 @@ reserve bytes = Write $ do
       -- Make sure the previous `ForeignPtr` lives at least up until this point,
       -- to avoid invalidating its `Ptr`.
       -- See: https://hackage.haskell.org/package/base-4.12.0.0/docs/Foreign-ForeignPtr-Unsafe.html#v:unsafeForeignPtrToPtr
-      liftIO $ touchForeignPtr fp
+      touchForeignPtr fp
 
-      liftIO $ writeIORef bufferRef buffer
+      pure $ buffer
             { bufferForeignPtr = newFp
             , bufferSptr = SmartPtr newPtr size
             , bufferCapacity = newCapacity
@@ -1086,7 +1128,7 @@ alignTo :: Alignment{- ^ n -} -> Int {- ^ additionalBytes -} -> Write ()
 alignTo !n !additionalBytes = do
   bsize <- fromIntegral @Word32 @Int . bufferSize <$> getBuffer
   let padding = calcPadding n additionalBytes bsize
-  reserve (padding + additionalBytes)
+  reserveM (padding + additionalBytes)
   if padding == 0
     then
       modifyBuffer $ \b -> b { bufferMaxAlign = bufferMaxAlign b <> Max n }
@@ -1149,6 +1191,13 @@ putFloat sptr x = BSP.runF BSP.floatLE x sptr.spPtr
 putDouble :: SmartPtr -> Double -> IO ()
 putDouble sptr x = BSP.runF BSP.doubleLE x sptr.spPtr
 
+{-# INLINE putLocation #-}
+putLocation :: SmartPtr -> Location a -> IO ()
+putLocation sptr loc = do
+  let currentLoc = sptr.spOffset
+  let uoffset = currentLoc - loc.getLocation
+  putWord32 sptr uoffset
+
 writeText :: Text -> Write (Location Text)
 writeText text@(TI.Text arr off len) = do
   bsize <- fromIntegral @Word32 @Int . bufferSize <$> getBuffer
@@ -1158,7 +1207,7 @@ writeText text@(TI.Text arr off len) = do
   let padAndTerminator = pad + 1
   let totalBytes = int32Size + utf8lenAndTerminator + pad
 
-  reserve totalBytes
+  reserveM totalBytes
   buffer <- getBuffer
 
   newSptr <- liftIO $ do
