@@ -90,6 +90,27 @@ write3 people =
 
     W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
 
+-- Same as `write3`, but uses `toVector` instead of `fromFoldable`
+write3ToVector :: V.Vector Person -> BS.ByteString
+write3ToVector people =
+  W3.encode W3.defaultWriteSettings do
+    peopleTables <- W3.writeMany people \person -> do
+      name <- W3.writeText person.personName
+      friends <- W3.toVector =<< W3.writeMany person.personFriends W3.writeText
+      W3.writeTable @Person 3 $ mconcat
+        [
+          W3.writeInt32TableField 0 person.personAge
+          ,
+          W3.writeOffsetTableField 1 name
+          ,
+          W3.writeOffsetTableField 2 friends
+        ]
+    peopleVector <- W3.toVector peopleTables
+
+    W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
+
+
+
 write3Copy :: V.Vector Person -> BS.ByteString
 write3Copy people =
   W3C.encode W3C.defaultWriteSettings do
@@ -126,6 +147,8 @@ groups =
       bench "Write2" $ nf write2 $ mkPeople peopleCount friendsCount
     ,
       bench "Write3" $ nf write3 $ mkPeople peopleCount friendsCount
+    ,
+      bench "Write3ToVector" $ nf write3ToVector $ mkPeople peopleCount friendsCount
     ,
       bench "Write3Copy" $ nf write3Copy $ mkPeople peopleCount friendsCount
     ,
