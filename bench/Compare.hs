@@ -92,6 +92,26 @@ write3 people =
 
     W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
 
+-- Like `write3`, but uses the overloaded `writeMany2`
+write3WriteMany2 :: V.Vector Person -> BS.ByteString
+write3WriteMany2 people =
+  W3.encode W3.defaultWriteSettings do
+    peopleTables <- W3.writeMany2 people \person -> do
+      name <- W3.writeText person.personName
+      friends <- W3.toVector =<< W3.writeMany2 person.personFriends W3.writeText
+      W3.writeTable @Person 3 $ mconcat
+        [
+          W3.writeInt32TableField 0 person.personAge
+          ,
+          W3.writeOffsetTableField 1 name
+          ,
+          W3.writeOffsetTableField 2 friends
+        ]
+    peopleVector <- W3.toVector peopleTables
+
+    W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
+
+
 write3Copy :: V.Vector Person -> BS.ByteString
 write3Copy people =
   W3C.encode W3C.defaultWriteSettings do
@@ -119,6 +139,15 @@ write3Public people =
       W3P.person (Just person.personAge) (Just name) (Just friends)
     W3P.people (Just peopleVector)
 
+write3PublicWriteMany2 :: V.Vector Person -> BS.ByteString
+write3PublicWriteMany2 people =
+  W3.encode W3.defaultWriteSettings do
+    peopleVector <- W3.toVector =<< W3.writeMany2 people \person -> do
+      name <- W3.writeText person.personName
+      friends <- W3.toVector =<< W3.writeMany2 person.personFriends W3.writeText
+      W3P.person (Just person.personAge) (Just name) (Just friends)
+    W3P.people (Just peopleVector)
+
 groups :: [Benchmark]
 groups =
   [ bgroup "People"
@@ -129,9 +158,13 @@ groups =
     ,
       bench "Write3" $ nf write3 $ mkPeople peopleCount friendsCount
     ,
+      bench "Write3WriteMany2" $ nf write3WriteMany2 $ mkPeople peopleCount friendsCount
+    ,
       bench "Write3Copy" $ nf write3Copy $ mkPeople peopleCount friendsCount
     ,
       bench "Write3Public" $ nf write3Public $ mkPeople peopleCount friendsCount
+    ,
+      bench "Write3PublicWriteMany2" $ nf write3PublicWriteMany2 $ mkPeople peopleCount friendsCount
     ]
   , bgroup "Unions"
     [
