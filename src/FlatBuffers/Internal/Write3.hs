@@ -490,7 +490,7 @@ encodePeople2 :: [Person] -> BS.ByteString
 encodePeople2 people =
   encode defaultWriteSettings do
 
-    peopleTables :: VU.Vector (Location Person) <- writeMany2 people \person -> do
+    peopleTables :: VU.Vector (Location Person) <- writeMany people \person -> do
       name <- writeText person.personName
       writeTable @Person 2 $ mconcat
         [
@@ -507,7 +507,7 @@ encodeWeapons :: [Either Text Int32] -> BS.ByteString
 encodeWeapons weapons = do
   encode defaultWriteSettings do
 
-    (unionLocs, unionTypes) <- writeMany2 weapons \case
+    (unionLocs, unionTypes) <- writeMany weapons \case
       Left str -> do
         text <- writeText str
         tableLoc <- writeTable 1 $ writeOffsetTableField 0 text
@@ -555,7 +555,7 @@ encodeWeapons weapons = do
 
 class WriteMany loc where
   type Many loc :: Type
-  writeMany2
+  writeMany
     :: forall elem mono. (MonoFoldable mono, Element mono ~ elem)
     => mono
     -> (elem -> Write loc)
@@ -578,13 +578,13 @@ instance VU.Unbox (UnionType a)
 instance WriteMany (UnionLocation a) where
   type Many (UnionLocation a) = (VU.Vector (Location a), VU.Vector (UnionType a))
 
-  {-# INLINE writeMany2 #-}
-  writeMany2
+  {-# INLINE writeMany #-}
+  writeMany
     :: forall elem a mono. (MonoFoldable mono, Element mono ~ elem)
     => mono
     -> (elem -> Write (UnionLocation a))
     -> Write (VU.Vector (Location a), VU.Vector (UnionType a))
-  writeMany2 collection writeElem = do
+  writeMany collection writeElem = do
     let elemCount = olength collection
     elemLocations <- liftIO $ VUM.new @IO @(Location a) elemCount
     unionTypes <- liftIO $ VUM.new @IO @(UnionType a) elemCount
@@ -606,13 +606,13 @@ instance WriteMany (UnionLocation a) where
 instance WriteMany (Location a) where
   type Many (Location a) = VU.Vector (Location a)
 
-  {-# INLINE writeMany2 #-}
-  writeMany2
+  {-# INLINE writeMany #-}
+  writeMany
     :: forall elem a mono. (MonoFoldable mono, Element mono ~ elem)
     => mono
     -> (elem -> Write (Location a))
     -> Write (VU.Vector (Location a))
-  writeMany2 collection writeElem = do
+  writeMany collection writeElem = do
 
     let elemCount = olength collection
     elemLocations <- liftIO $ VUM.new @IO @(Location a) elemCount

@@ -77,9 +77,9 @@ write2 people =
 write3 :: V.Vector Person -> BS.ByteString
 write3 people =
   W3.encode W3.defaultWriteSettings do
-    peopleTables <- W3.writeMany2 people \person -> do
+    peopleTables <- W3.writeMany people \person -> do
       name <- W3.writeText person.personName
-      friends <- W3.toVector =<< W3.writeMany2 person.personFriends W3.writeText
+      friends <- W3.toVector =<< W3.writeMany person.personFriends W3.writeText
       W3.writeTable @Person 3 $ mconcat
         [
           W3.writeInt32TableField 0 person.personAge
@@ -114,9 +114,9 @@ write3Copy people =
 write3Public :: V.Vector Person -> BS.ByteString
 write3Public people =
   W3.encode W3.defaultWriteSettings do
-    peopleVector <- W3.toVector =<< W3.writeMany2 people \person -> do
+    peopleVector <- W3.toVector =<< W3.writeMany people \person -> do
       name <- W3.writeText person.personName
-      friends <- W3.toVector =<< W3.writeMany2 person.personFriends W3.writeText
+      friends <- W3.toVector =<< W3.writeMany person.personFriends W3.writeText
       W3P.person (Just person.personAge) (Just name) (Just friends)
     W3P.people (Just peopleVector)
 
@@ -182,7 +182,7 @@ writeWeapons3 :: V.Vector WeaponData -> BS.ByteString
 writeWeapons3 weapons = do
   W3.encode W3.defaultWriteSettings do
 
-    (unionLocs, unionTypes) <- W3.writeMany2 weapons \case
+    (unionLocs, unionTypes) <- W3.writeMany weapons \case
       SwordData str -> do
         text <- W3.writeText str
         tableLoc <- W3.writeTable 1 $ W3.writeOffsetTableField 0 text
@@ -203,7 +203,7 @@ writeWeapons3Public :: V.Vector WeaponData -> BS.ByteString
 writeWeapons3Public weaponData =
   W3.encode W3.defaultWriteSettings do
 
-    (weapons, weaponTypes) <- W3.writeMany2 weaponData \case
+    (weapons, weaponTypes) <- W3.writeMany weaponData \case
       SwordData str -> do
         str <- W3.writeText str
         W3P.weaponSword <$> W3P.sword (Just str)
