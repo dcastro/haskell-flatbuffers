@@ -1,4 +1,6 @@
 {- HLINT ignore "Avoid lambda" -}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
 
 module Compare where
 
@@ -77,25 +79,6 @@ write3 people =
   W3.encode W3.defaultWriteSettings do
     peopleTables <- W3.writeMany people \person -> do
       name <- W3.writeText person.personName
-      friends <- W3.fromFoldable =<< W3.writeMany person.personFriends W3.writeText
-      W3.writeTable @Person 3 $ mconcat
-        [
-          W3.writeInt32TableField 0 person.personAge
-          ,
-          W3.writeOffsetTableField 1 name
-          ,
-          W3.writeOffsetTableField 2 friends
-        ]
-    peopleVector <- W3.fromFoldable peopleTables
-
-    W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
-
--- Same as `write3`, but uses `toVector` instead of `fromFoldable`
-write3ToVector :: V.Vector Person -> BS.ByteString
-write3ToVector people =
-  W3.encode W3.defaultWriteSettings do
-    peopleTables <- W3.writeMany people \person -> do
-      name <- W3.writeText person.personName
       friends <- W3.toVector =<< W3.writeMany person.personFriends W3.writeText
       W3.writeTable @Person 3 $ mconcat
         [
@@ -108,8 +91,6 @@ write3ToVector people =
     peopleVector <- W3.toVector peopleTables
 
     W3.writeTable 1 $ W3.writeOffsetTableField 0 peopleVector
-
-
 
 write3Copy :: V.Vector Person -> BS.ByteString
 write3Copy people =
@@ -132,9 +113,9 @@ write3Copy people =
 write3Public :: V.Vector Person -> BS.ByteString
 write3Public people =
   W3.encode W3.defaultWriteSettings do
-    peopleVector <- W3.fromFoldable =<< W3.writeMany people \person -> do
+    peopleVector <- W3.toVector =<< W3.writeMany people \person -> do
       name <- W3.writeText person.personName
-      friends <- W3.fromFoldable =<< W3.writeMany person.personFriends W3.writeText
+      friends <- W3.toVector =<< W3.writeMany person.personFriends W3.writeText
       W3P.person (Just person.personAge) (Just name) (Just friends)
     W3P.people (Just peopleVector)
 
@@ -147,8 +128,6 @@ groups =
       bench "Write2" $ nf write2 $ mkPeople peopleCount friendsCount
     ,
       bench "Write3" $ nf write3 $ mkPeople peopleCount friendsCount
-    ,
-      bench "Write3ToVector" $ nf write3ToVector $ mkPeople peopleCount friendsCount
     ,
       bench "Write3Copy" $ nf write3Copy $ mkPeople peopleCount friendsCount
     ,
@@ -167,7 +146,7 @@ groups =
     peopleCount = 100000
     friendsCount = 1
 
-    unionCount = 10000
+    unionCount = 10000 :: Int32
 
 
 ----------------------------------------------------------------------------
@@ -211,8 +190,8 @@ writeWeapons3 weapons = do
         tableLoc <- W3.writeTable 1 $ W3.writeInt32TableField 0 int
         pure $ W3.UnionLocation 2 tableLoc
 
-    unionLocsVec <- W3.fromFoldable unionLocs
-    unionTypesVec <- W3.fromFoldable unionTypes
+    unionLocsVec <- W3.toVector unionLocs
+    unionTypesVec <- W3.toVector unionTypes
 
     W3.writeTable 2 $ mconcat
       [ W3.writeOffsetTableField 0 unionTypesVec
@@ -230,7 +209,7 @@ writeWeapons3Public weaponData =
       AxeData int -> do
         W3P.weaponAxe <$> W3P.axe (Just int)
 
-    weaponVector <- W3.fromFoldable weapons
-    weaponTypesVector <- W3.fromFoldable weaponTypes
+    weaponVector <- W3.toVector weapons
+    weaponTypesVector <- W3.toVector weaponTypes
 
     W3P.weapons (Just (weaponVector, weaponTypesVector))

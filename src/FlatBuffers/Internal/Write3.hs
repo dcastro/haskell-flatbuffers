@@ -12,7 +12,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 -- {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -ddump-deriv #-}
+-- {-# OPTIONS_GHC -ddump-deriv #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -745,45 +745,6 @@ instance ToVector (VP.Vector Word32) where
   --   liftIO $ Prim.copyByteArrayToAddr buffer.bufferSptr.spPtr byteArray off len
   --   getCurrentLocation
 #endif
-
--- TODO: delete this in favor of `toVector`
-class WriteVector a where
-  type WriteVectorElem a
-
-  fromFoldable
-    :: (MonoFoldable coll, Element coll ~ a)
-    => coll
-    -> Write (Location [WriteVectorElem a])
-
-instance WriteVector (UnionType tag) where
-  type WriteVectorElem (UnionType tag) = (UnionType tag)
-  fromFoldable
-    :: (MonoFoldable coll, Element coll ~ UnionType tag)
-    => coll
-    -> Write (Location [UnionType tag])
-  fromFoldable collection = do
-    writeVector word8Size collection \sptr unionType -> do
-      putWord8 sptr unionType.getUnionType
-    getCurrentLocation
-
-
-instance WriteVector (Location a) where
-  type WriteVectorElem (Location a) = a
-
-  {-# SPECIALISE fromFoldable :: VU.Vector (Location a) -> Write (Location [a]) #-}
-  fromFoldable
-    :: (MonoFoldable coll, Element coll ~ Location a)
-    => coll
-    -> Write (Location [a])
-  fromFoldable collection = do
-    writeVector int32Size collection \sptr loc -> do
-      let offsetToElement = fromIntegral @Word32 @Int32 $ sptr.spOffset - loc.getLocation
-      putInt32 sptr offsetToElement
-    getCurrentLocation
-
-
-instance WriteVector Int32 where
-  type WriteVectorElem Int32 = Int32
 
 -- | This function assumes the collection's length can be calculated in O(1).
 --
