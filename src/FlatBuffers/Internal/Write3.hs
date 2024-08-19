@@ -457,29 +457,7 @@ encodePerson =
 >>> import Data.ByteString qualified as BS
 >>> people = [Person "bbb" 55, Person "aaa" 44]
 
->>> BS.writeFile "3.bin" $ encodePeople1 people
-
->>> prettyBuffer $ encodePeople1 people
-"12, 0, 0, 0
-0, 0, 6, 0
-8, 0, 4, 0
-6, 0, 0, 0
-2, 0, 0, 0
-36, 0, 0, 0
-4, 0, 0, 0
-236, 255, 255, 255
-8, 0, 0, 0
-44, 0, 0, 0
-3, 0, 0, 0
-97, 97, 97, 0
-8, 0, 12, 0
-8, 0, 4, 0
-8, 0, 0, 0
-8, 0, 0, 0
-55, 0, 0, 0
-3, 0, 0, 0
-98, 98, 98, 0"
-
+>>> BS.writeFile "3.bin" $ encodePeople2 people
 
 >>> prettyBuffer $ encodePeople2 people
 "12, 0, 0, 0
