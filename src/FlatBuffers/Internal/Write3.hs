@@ -17,6 +17,9 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Unused LANGUAGE pragma" #-}
+{-# HLINT ignore "Avoid lambda" #-}
 
 module FlatBuffers.Internal.Write3 where
 
@@ -487,7 +490,7 @@ encodePeople2 :: [Person] -> BS.ByteString
 encodePeople2 people =
   encode defaultWriteSettings do
 
-    peopleTables :: VU.Vector (Location Person) <- writeMany people \person -> do
+    peopleTables :: VU.Vector (Location Person) <- writeMany2 people \person -> do
       name <- writeText person.personName
       writeTable @Person 2 $ mconcat
         [
@@ -624,38 +627,6 @@ instance WriteMany (Location a) where
     _ <- ofoldM writeOneElem 0 collection
 
     liftIO $ VU.unsafeFreeze elemLocations
-
--- | This function is optimized for collections whose length can be calculated in @O(1)@.
---
--- For large collections whose length cannot be quickly evaluated, it may be better to use `writeManyUnoptimized` instead.
-{-# INLINE writeMany #-}
-writeMany
-  :: forall a b mono. (MonoFoldable mono, Element mono ~ a)
-  => mono
-  -> (a -> Write (Location b))
-  -> Write (VU.Vector (Location b))
-writeMany collection writeElem = do
-
-  let elemCount = olength collection
-  elemLocations <- liftIO $ VUM.new @IO @(Location b) elemCount
-
-  let
-    writeOneElem :: Int -> a -> Write Int
-    writeOneElem currentIndex elem = do
-      loc <- writeElem elem
-      liftIO do
-        VUM.unsafeWrite elemLocations currentIndex loc
-        pure $ currentIndex + 1
-  _ <- ofoldM writeOneElem 0 collection
-
-  liftIO $ VU.unsafeFreeze elemLocations
-
-writeManyUnoptimized
-  :: (MonoFoldable mono, Element mono ~ a)
-  => mono
-  -> (a -> Write (Location b))
-  -> Write (Seq.Seq (Location b))
-writeManyUnoptimized = undefined
 
 class ToVector collection where
   type Elem collection
