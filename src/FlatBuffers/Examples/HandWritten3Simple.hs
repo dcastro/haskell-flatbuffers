@@ -1,4 +1,4 @@
-module FlatBuffers.Examples.HandWritten3 where
+module FlatBuffers.Examples.HandWritten3Simple where
 
 import Data.Coerce (coerce)
 import Data.Int
