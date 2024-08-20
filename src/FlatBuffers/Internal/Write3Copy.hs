@@ -520,14 +520,6 @@ writeMany collection writeElem = do
 
   liftIO $ VU.unsafeFreeze elemLocations
 
-writeManyUnoptimized
-  :: (MonoFoldable mono, Element mono ~ a)
-  => mono
-  -> (a -> Write (Location b))
-  -> Write (Seq.Seq (Location b))
-writeManyUnoptimized = undefined
-
-
 data PeopleGroups = PeopleGroups
   { groupName :: Text
   , groupPeople :: [Person]

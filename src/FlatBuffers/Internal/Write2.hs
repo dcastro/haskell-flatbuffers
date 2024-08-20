@@ -477,6 +477,7 @@ instance WriteVector Int32 where
             elem <- f index
             lift . liftIO $ putInt32 ptr elem
             go (ptr `plusPtr` 4) (index + 1)
+  fromFoldable = undefined
 
 
 {-# INLINE writeVector #-}

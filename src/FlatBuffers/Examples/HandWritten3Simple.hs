@@ -3,7 +3,6 @@ module FlatBuffers.Examples.HandWritten3Simple where
 import Data.Coerce (coerce)
 import Data.Int
 import Data.Text (Text)
-import Data.Word
 import FlatBuffers.Internal.Write3 as W3 hiding (Person)
 
 data Person
