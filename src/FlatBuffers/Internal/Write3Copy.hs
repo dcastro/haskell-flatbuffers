@@ -10,6 +10,8 @@
 {-# LANGUAGE UnliftedFFITypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Avoid lambda" #-}
 
 module FlatBuffers.Internal.Write3Copy where
 
@@ -591,6 +593,7 @@ instance WriteVector (Location a) where
 
     lift $ writeLocs textLocations
     lift getCurrentLocation
+  unfoldN' = undefined
 
 
 instance WriteVector Int32 where
@@ -623,6 +626,9 @@ instance WriteVector Int32 where
             elem <- f index
             lift . liftIO $ putInt32 ptr elem
             go (ptr `plusPtr` 4) (index + 1)
+  unfoldN = undefined
+  unfoldN' = undefined
+  fromFoldable = undefined
 
 
 
@@ -772,8 +778,8 @@ runWrite (WriteSettings initialCapacity) write = unsafePerformIO $ do
   runReaderT (unsafeRunWrite write) initialBufferRef
 
 
-data WriteSettings = WriteSettings
-  { initialCapacity :: !Int
+newtype WriteSettings = WriteSettings
+  { initialCapacity :: Int
   -- TODO: file identifier
   }
 
