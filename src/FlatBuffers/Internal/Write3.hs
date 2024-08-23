@@ -265,7 +265,7 @@ writeTable fieldCount wtf = do
 {-# INLINE writeInt32TableField #-}
 writeInt32TableField :: Int -> Int32 -> WriteTableField
 writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
-  alignTo 4 4
+  alignTo int32Size int32Size
   buffer <- getBuffer
   buffer <- pure $ moveSmartPtr buffer (-int32Size)
   liftIO $ putInt32 buffer.bufferSptr i
@@ -275,6 +275,7 @@ writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
 {-# INLINE writeWord8TableField #-}
 writeWord8TableField :: Int -> Word8 -> WriteTableField
 writeWord8TableField fieldIndex i = WriteTableField $ \locs -> do
+  alignTo word8Size word8Size
   buffer <- getBuffer
   buffer <- pure $ moveSmartPtr buffer (-word8Size)
   liftIO $ putWord8 buffer.bufferSptr i
