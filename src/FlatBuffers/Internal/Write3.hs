@@ -266,43 +266,20 @@ writeTable fieldCount wtf = do
 writeInt32TableField :: Int -> Int32 -> WriteTableField
 writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
   alignTo 4 4
-  unsafeWriteInt32 i
   buffer <- getBuffer
+  buffer <- pure $ moveSmartPtr buffer (-int32Size)
+  liftIO $ putInt32 buffer.bufferSptr i
   liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
+  putBuffer buffer
 
 {-# INLINE writeWord8TableField #-}
 writeWord8TableField :: Int -> Word8 -> WriteTableField
 writeWord8TableField fieldIndex i = WriteTableField $ \locs -> do
-  unsafeWriteWord8 i
   buffer <- getBuffer
+  buffer <- pure $ moveSmartPtr buffer (-word8Size)
+  liftIO $ putWord8 buffer.bufferSptr i
   liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
-
--- | This function is unsafe because it may potentially write outside the buffer's boundaries.
--- Make sure to use `reserveM` (or `alignTo`) before using this function.
-unsafeWriteInt32 :: Int32 -> Write ()
-unsafeWriteInt32 i = do
-  buffer <- getBuffer
-  let sptr = buffer.bufferSptr `minus` int32Size
-  liftIO $ putInt32 sptr i
-  putBuffer buffer { bufferSptr = sptr}
-
--- | This function is unsafe because it may potentially write outside the buffer's boundaries.
--- Make sure to use `reserveM` (or `alignTo`) before using this function.
-unsafeWriteWord8 :: Word8 -> Write ()
-unsafeWriteWord8 i = do
-  buffer <- getBuffer
-  let sptr = buffer.bufferSptr `minus` word8Size
-  liftIO $ putWord8 sptr i
-  putBuffer buffer { bufferSptr = sptr}
-
--- | This function is unsafe because it may potentially write outside the buffer's boundaries.
--- Make sure to use `reserveM` (or `alignTo`) before using this function.
-unsafeWriteWord32 :: Word32 -> Write ()
-unsafeWriteWord32 i = do
-  buffer <- getBuffer
-  let sptr = buffer.bufferSptr `minus` word32Size
-  liftIO $ putWord32 sptr i
-  putBuffer buffer { bufferSptr = sptr}
+  putBuffer buffer
 
 writeOffsetTableField :: Int -> Location a -> WriteTableField
 writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
