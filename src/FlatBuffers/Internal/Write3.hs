@@ -343,6 +343,12 @@ optional :: (Int -> a -> WriteTableField) -> (Int -> Maybe a -> WriteTableField)
 optional writeTableField fieldIndex =
   maybe missing \a -> writeTableField fieldIndex a
 
+optionalDef :: Eq a => a -> (Int -> a -> WriteTableField) -> (Int -> Maybe a -> WriteTableField)
+optionalDef dflt writeTableField fieldIndex ma =
+  case ma of
+    Just a | a /= dflt -> writeTableField fieldIndex a
+    _ -> missing
+
 instance Semigroup WriteTableField where
   WriteTableField f <> WriteTableField g = WriteTableField $ \locs -> do
     f locs
