@@ -295,6 +295,14 @@ writeWord32TableField = writePrimitiveTableField word32Size putWord32
 writeWord64TableField :: Int -> Word64 -> WriteTableField
 writeWord64TableField = writePrimitiveTableField word64Size putWord64
 
+{-# INLINE writeFloatTableField #-}
+writeFloatTableField :: Int -> Float -> WriteTableField
+writeFloatTableField = writePrimitiveTableField floatSize putFloat
+
+{-# INLINE writeDoubleTableField #-}
+writeDoubleTableField :: Int -> Double -> WriteTableField
+writeDoubleTableField = writePrimitiveTableField doubleSize putDouble
+
 {-# INLINE writePrimitiveTableField #-}
 writePrimitiveTableField
   :: forall field
