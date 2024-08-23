@@ -262,23 +262,52 @@ writeTable fieldCount wtf = do
   pure $ Location tableSptr.spOffset
 
 
+{-# INLINE writeInt8TableField #-}
+writeInt8TableField :: Int -> Int8 -> WriteTableField
+writeInt8TableField = writePrimitiveTableField int8Size putInt8
+
+{-# INLINE writeInt16TableField #-}
+writeInt16TableField :: Int -> Int16 -> WriteTableField
+writeInt16TableField = writePrimitiveTableField int16Size putInt16
+
 {-# INLINE writeInt32TableField #-}
 writeInt32TableField :: Int -> Int32 -> WriteTableField
-writeInt32TableField fieldIndex i = WriteTableField $ \locs -> do
-  alignTo int32Size int32Size
-  buffer <- getBuffer
-  buffer <- pure $ moveSmartPtr buffer (-int32Size)
-  liftIO $ putInt32 buffer.bufferSptr i
-  liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
-  putBuffer buffer
+writeInt32TableField = writePrimitiveTableField int32Size putInt32
+
+{-# INLINE writeInt64TableField #-}
+writeInt64TableField :: Int -> Int64 -> WriteTableField
+writeInt64TableField = writePrimitiveTableField int64Size putInt64
 
 {-# INLINE writeWord8TableField #-}
 writeWord8TableField :: Int -> Word8 -> WriteTableField
-writeWord8TableField fieldIndex i = WriteTableField $ \locs -> do
-  alignTo word8Size word8Size
+writeWord8TableField = writePrimitiveTableField word8Size putWord8
+
+{-# INLINE writeWord16TableField #-}
+writeWord16TableField :: Int -> Word16 -> WriteTableField
+writeWord16TableField = writePrimitiveTableField word16Size putWord16
+
+{-# INLINE writeWord32TableField #-}
+writeWord32TableField :: Int -> Word32 -> WriteTableField
+writeWord32TableField = writePrimitiveTableField word32Size putWord32
+
+{-# INLINE writeWord64TableField #-}
+writeWord64TableField :: Int -> Word64 -> WriteTableField
+writeWord64TableField = writePrimitiveTableField word64Size putWord64
+
+{-# INLINE writePrimitiveTableField #-}
+writePrimitiveTableField
+  :: forall field
+   . Alignment
+  -> (SmartPtr -> field -> IO ())
+  -> Int
+  -> field
+  -> WriteTableField
+writePrimitiveTableField alignment putFn fieldIndex fieldData = WriteTableField $ \locs -> do
+  let fieldSize = fromIntegral @Alignment @Int alignment
+  alignTo alignment fieldSize
   buffer <- getBuffer
-  buffer <- pure $ moveSmartPtr buffer (-word8Size)
-  liftIO $ putWord8 buffer.bufferSptr i
+  buffer <- pure $ moveSmartPtr buffer (-fieldSize)
+  liftIO $ putFn buffer.bufferSptr fieldData
   liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
   putBuffer buffer
 
