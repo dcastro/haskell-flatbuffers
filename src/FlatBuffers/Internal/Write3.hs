@@ -877,7 +877,11 @@ writeUOffsetFrom loc = do
   alignTo uoffsetSize 0
   currentLoc <- getCurrentLocation
   let uoffset = currentLoc.getLocation - loc.getLocation + uoffsetSize
-  unsafeWriteWord32 uoffset
+
+  buffer <- getBuffer
+  buffer <- pure $ moveSmartPtr buffer (-word32Size)
+  liftIO $ putWord32 buffer.bufferSptr uoffset
+  putBuffer buffer
 
 encode :: WriteSettings -> Write (Location a) -> BS.ByteString
 encode settings writeTable =
