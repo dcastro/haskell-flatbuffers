@@ -68,6 +68,7 @@ import Data.Vector.Unboxed.Base qualified as VUB
 import Data.Vector.Unboxed.Mutable qualified as VUM
 import Data.Word
 import Debug.Trace
+import FlatBuffers.Internal.Build qualified as Build
 import FlatBuffers.Internal.Constants
 import FlatBuffers.Internal.Types
 import Foreign.C.Types (CSize(CSize))
@@ -310,6 +311,10 @@ writePrimitiveTableField alignment putFn fieldIndex fieldData = WriteTableField 
   liftIO $ putFn buffer.bufferSptr fieldData
   liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
   putBuffer buffer
+
+{-# INLINE writeBoolTableField #-}
+writeBoolTableField :: Int -> Bool -> WriteTableField
+writeBoolTableField fieldIndex = writeWord8TableField fieldIndex . Build.boolToWord8
 
 writeOffsetTableField :: Int -> Location a -> WriteTableField
 writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
