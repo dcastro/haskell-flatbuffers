@@ -20,6 +20,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 {-# HLINT ignore "Avoid lambda" #-}
+{-# HLINT ignore "Redundant pure" #-}
 
 module FlatBuffers.Internal.Write3 where
 
@@ -398,12 +399,26 @@ usageExample :: ExceptT SomeException (ReaderT Int IO) BS.ByteString
 usageExample = do
   bufferRef <- newBuffer defaultWriteSettings
 
+  -- Reading from disk while writing to buffer
+  strLocs <- forM [0..10] \_ -> do
+    str <- readFromDisk
+    strLoc <- liftWrite bufferRef $ writeText str
+    pure strLoc
+  _strings <- liftWrite bufferRef $ toVector strLocs
+
+  _strings <- liftWrite bufferRef do
+    stringsLoc <- writeMany [""] \str -> writeText str
+    toVector stringsLoc
+
   string <- liftWrite bufferRef $ writeText "abc"
   tableRoot <- liftWrite bufferRef $ writeTable 2 $
     writeInt32TableField 0 99
     <> writeLocationTableField 1 string
 
   encode' bufferRef tableRoot
+  where
+    readFromDisk :: MonadIO m => m Text
+    readFromDisk = pure ""
 
 liftWrite :: MonadIO m => BufferRef -> Write a -> m a
 liftWrite bufferRef (Write action) =
