@@ -9,15 +9,15 @@ import FlatBuffers.Internal.Build
 import FlatBuffers.Internal.FileIdentifier (HasFileIdentifier(..), unsafeFileIdentifier)
 import FlatBuffers.Internal.Read
 import FlatBuffers.Internal.Types
-import FlatBuffers.Internal.Write
+import FlatBuffers.Internal.Write3
 
 ----------------------------------
 ---------- Empty table -----------
 ----------------------------------
 data EmptyTable
 
-emptyTable :: WriteTable EmptyTable
-emptyTable = writeTable []
+emptyTable :: Write (Location EmptyTable)
+emptyTable = writeTable 0 $ mconcat []
 
 ----------------------------------
 ---------- Primitives ------------
