@@ -316,8 +316,9 @@ writePrimitiveTableField alignment putFn fieldIndex fieldData = WriteTableField 
   alignTo alignment fieldSize
   buffer <- getBuffer
   buffer <- pure $ moveSmartPtr buffer (-fieldSize)
-  liftIO $ putFn buffer.bufferSptr fieldData
-  liftIO $ VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
+  liftIO do
+    putFn buffer.bufferSptr fieldData
+    VUM.unsafeWrite locs fieldIndex buffer.bufferSptr.spOffset
   putBuffer buffer
 
 {-# INLINE writeBoolTableField #-}
@@ -325,15 +326,7 @@ writeBoolTableField :: Int -> Bool -> WriteTableField
 writeBoolTableField fieldIndex = writeWord8TableField fieldIndex . Build.boolToWord8
 
 writeLocationTableField :: Int -> Location a -> WriteTableField
-writeLocationTableField fieldIndex loc = WriteTableField $ \locs -> do
-  alignTo 4 4
-  buffer <- getBuffer
-  let sptr = buffer.bufferSptr `minus` 4
-  let offsetToLocation = sptr.spOffset - loc.getLocation
-  liftIO $ do
-    putWord32 sptr offsetToLocation
-    VUM.unsafeWrite locs fieldIndex sptr.spOffset
-  putBuffer buffer { bufferSptr = sptr }
+writeLocationTableField = writePrimitiveTableField word32Size putLocation
 
 newtype WriteTableField = WriteTableField
   { runWriteTableField
@@ -1094,7 +1087,7 @@ writeText text@(TI.Text arr off len) = do
         }
   putBuffer newBuffer
 
-  pure (Location (bufferSize newBuffer))
+  pure $ getBufferLocation newBuffer
 
 -- TODO: rename to `Reference`
 newtype Location a = Location { getLocation :: Word32 }
