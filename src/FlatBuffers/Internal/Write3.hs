@@ -53,6 +53,7 @@ import Data.MonoTraversable
 import Data.Primitive.ByteArray qualified as Prim
 import Data.Semigroup (Max(..))
 import Data.Sequence qualified as Seq
+import Data.Set qualified as S
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Array qualified as A
@@ -654,6 +655,7 @@ class ToVector collection where
 newtype ToVectorViaFoldable collection a = ToVectorViaFoldable (collection a)
 
 deriving via (ToVectorViaFoldable [] (Location a)) instance ToVector [Location a]
+deriving via (ToVectorViaFoldable S.Set (Location a)) instance ToVector (S.Set (Location a))
 
 instance ToVector (VU.Vector (Location a)) where
   type Elem (VU.Vector (Location a)) = a
