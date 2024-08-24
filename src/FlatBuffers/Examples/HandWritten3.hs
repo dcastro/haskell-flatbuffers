@@ -39,22 +39,22 @@ primitives ::
   -> Maybe Float
   -> Maybe Double
   -> Maybe Bool
-  -> Maybe Text
-  -> WriteTable Primitives
+  -> Maybe (Location Text)
+  -> Write (Location Primitives)
 primitives a b c d e f g h i j k l =
-  writeTable
-    [ optionalDef 0 writeWord8TableField    a
-    , optionalDef 0 writeWord16TableField   b
-    , optionalDef 0 writeWord32TableField   c
-    , optionalDef 0 writeWord64TableField   d
-    , optionalDef 0 writeInt8TableField     e
-    , optionalDef 0 writeInt16TableField    f
-    , optionalDef 0 writeInt32TableField    g
-    , optionalDef 0 writeInt64TableField    h
-    , optionalDef 0 writeFloatTableField    i
-    , optionalDef 0 writeDoubleTableField   j
-    , optionalDef False writeBoolTableField k
-    , optional writeTextTableField          l
+  writeTable 12 $ mconcat
+    [ optionalDef 0 writeWord8TableField 0 a
+    , optionalDef 0 writeWord16TableField 1 b
+    , optionalDef 0 writeWord32TableField 2 c
+    , optionalDef 0 writeWord64TableField 3 d
+    , optionalDef 0 writeInt8TableField 4 e
+    , optionalDef 0 writeInt16TableField 5 f
+    , optionalDef 0 writeInt32TableField 6 g
+    , optionalDef 0 writeInt64TableField 7 h
+    , optionalDef 0 writeFloatTableField 8 i
+    , optionalDef 0 writeDoubleTableField 9 j
+    , optionalDef False writeBoolTableField 10 k
+    , optional writeLocationTableField 11 l
     ]
 
 primitivesA :: Table Primitives -> Either ReadError Word8
