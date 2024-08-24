@@ -13,9 +13,9 @@ person age name friends = do
     [
       optional W3.writeInt32TableField 0 age
       ,
-      optional W3.writeOffsetTableField 1 name
+      optional W3.writeLocationTableField 1 name
       ,
-      optional W3.writeOffsetTableField 2 friends
+      optional W3.writeLocationTableField 2 friends
     ]
 
 data People
@@ -23,7 +23,7 @@ data People
 people :: Maybe (Location [Person]) -> Write (Location People)
 people vector = do
   W3.writeTable @People 1 $
-    optional W3.writeOffsetTableField 0 vector
+    optional W3.writeLocationTableField 0 vector
 
 
 ----------------------------------------------------------------------------
@@ -32,7 +32,7 @@ people vector = do
 
 data Sword
 sword :: Maybe (Location Text) -> Write (Location Sword)
-sword x = W3.writeTable @Sword 1 $ optional W3.writeOffsetTableField 0 x
+sword x = W3.writeTable @Sword 1 $ optional W3.writeLocationTableField 0 x
 
 data Axe
 axe :: Maybe Int32 -> Write (Location Axe)
@@ -53,7 +53,7 @@ character :: Maybe (UnionLocation Weapon) -> Write (Location Character)
 character weapon =
   W3.writeTable @Character 2 $ mconcat
     [
-      optional W3.writeOffsetTableField 0 (ulLocation <$> weapon)
+      optional W3.writeLocationTableField 0 (ulLocation <$> weapon)
       ,
       optional W3.writeWord8TableField 0 (getUnionType . ulType <$> weapon)
     ]
@@ -65,7 +65,7 @@ weapons :: Maybe (Location [Weapon], Location [UnionType Weapon]) -> Write (Loca
 weapons ws =
   W3.writeTable @Weapons 2 $ mconcat
     [
-      optional W3.writeOffsetTableField 1 (fst <$> ws)
+      optional W3.writeLocationTableField 1 (fst <$> ws)
       ,
-      optional W3.writeOffsetTableField 1 (snd <$> ws)
+      optional W3.writeLocationTableField 1 (snd <$> ws)
     ]

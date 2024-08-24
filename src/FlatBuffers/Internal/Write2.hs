@@ -82,7 +82,7 @@ import Utils.Containers.Internal.StrictPair
 >>> let enc = prettyPrint . showBuffer' . F.encodeDef
 
 
--- >>> F.showWrite2 do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc); }
+-- >>> F.showWrite2 do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeLocationTableField 1 loc); }
 >>> F.showWrite2 do { F.writeTable 2 (F.writeInt32TableField 0 99); }
 "6, 0, 8, 0
 4, 0, 6, 0
@@ -96,7 +96,7 @@ import Utils.Containers.Internal.StrictPair
 6, 0, 0, 0
 99, 0, 0, 0"
 
->>> enc do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc); }
+>>> enc do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeLocationTableField 1 loc); }
 "12, 0, 0, 0
 8, 0, 12, 0
 8, 0, 4, 0
@@ -252,8 +252,8 @@ unsafeWriteInt32 i = do
   liftIO $ putInt32 sptr i
   putBuffer buffer { bufferSptr = sptr}
 
-writeOffsetTableField :: Int -> Location a -> WriteTableField
-writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
+writeLocationTableField :: Int -> Location a -> WriteTableField
+writeLocationTableField fieldIndex loc = WriteTableField $ \locs -> do
   alignTo 4 4
   buffer <- getBuffer
   let sptr = bufferSptr buffer `minus` 4
@@ -375,7 +375,7 @@ runWrite' (WriteSettings initialCapacity) write = do
 
   -- $> F.showWrite $ do {
   -- $>   loc <- F.writeText "abc";
-  -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc);
+  -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeLocationTableField 1 loc);
   -- $> }
 
 -- | This function is optimized for collections whose length can be calculated in @O(1)@.

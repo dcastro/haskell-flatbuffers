@@ -104,7 +104,7 @@ import Utils.Containers.Internal.StrictPair
 >>> let enc = prettyPrint . showBuffer . F.encodeDef
 
 
--- >>> F.showWrite2 do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc); }
+-- >>> F.showWrite2 do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeLocationTableField 1 loc); }
 >>> F.showWrite2 do { F.writeTable 2 (F.writeInt32TableField 0 99); }
 "6, 0, 8, 0
 4, 0, 6, 0
@@ -118,7 +118,7 @@ import Utils.Containers.Internal.StrictPair
 6, 0, 0, 0
 99, 0, 0, 0"
 
->>> enc do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc); }
+>>> enc do { loc <- F.writeText "abc"; F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeLocationTableField 1 loc); }
 "12, 0, 0, 0
 8, 0, 12, 0
 8, 0, 4, 0
@@ -324,8 +324,8 @@ writePrimitiveTableField alignment putFn fieldIndex fieldData = WriteTableField 
 writeBoolTableField :: Int -> Bool -> WriteTableField
 writeBoolTableField fieldIndex = writeWord8TableField fieldIndex . Build.boolToWord8
 
-writeOffsetTableField :: Int -> Location a -> WriteTableField
-writeOffsetTableField fieldIndex loc = WriteTableField $ \locs -> do
+writeLocationTableField :: Int -> Location a -> WriteTableField
+writeLocationTableField fieldIndex loc = WriteTableField $ \locs -> do
   alignTo 4 4
   buffer <- getBuffer
   let sptr = buffer.bufferSptr `minus` 4
@@ -407,7 +407,7 @@ usageExample = do
   string <- liftWrite bufferRef $ writeText "abc"
   tableRoot <- liftWrite bufferRef $ writeTable 2 $
     writeInt32TableField 0 99
-    <> writeOffsetTableField 1 string
+    <> writeLocationTableField 1 string
 
   encode' bufferRef tableRoot
 
@@ -449,7 +449,7 @@ newBuffer settings = do
 
   -- $> F.showWrite $ do {
   -- $>   loc <- F.writeText "abc";
-  -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeOffsetTableField 1 loc);
+  -- $>   F.writeTable 2 (F.writeInt32TableField 0 99 <> F.writeLocationTableField 1 loc);
   -- $> }
 
 
@@ -522,12 +522,12 @@ encodePeople2 people =
         [
           writeInt32TableField 0 person.personAge
           ,
-          writeOffsetTableField 1 name
+          writeLocationTableField 1 name
         ]
 
     peopleVector <- toVector peopleTables
 
-    writeTable 1 $ writeOffsetTableField 0 peopleVector
+    writeTable 1 $ writeLocationTableField 0 peopleVector
 
 encodeWeapons :: [Either Text Int32] -> BS.ByteString
 encodeWeapons weapons = do
@@ -536,7 +536,7 @@ encodeWeapons weapons = do
     (unionLocs, unionTypes) <- writeMany weapons \case
       Left str -> do
         text <- writeText str
-        tableLoc <- writeTable 1 $ writeOffsetTableField 0 text
+        tableLoc <- writeTable 1 $ writeLocationTableField 0 text
         pure $ UnionLocation 1 tableLoc
       Right int -> do
         tableLoc <- writeTable 1 $ writeInt32TableField 0 int
@@ -546,8 +546,8 @@ encodeWeapons weapons = do
     unionTypesVec <- toVector unionTypes
 
     writeTable 2 $ mconcat
-      [ writeOffsetTableField 0 unionTypesVec
-      , writeOffsetTableField 1 unionLocsVec
+      [ writeLocationTableField 0 unionTypesVec
+      , writeLocationTableField 1 unionLocsVec
       ]
 {-
 
