@@ -75,6 +75,7 @@ import FlatBuffers.Internal.Constants
 import FlatBuffers.Internal.Types
 import Foreign.C.Types (CSize(CSize))
 import Foreign.ForeignPtr
+import Foreign.ForeignPtr qualified as Foreign
 import Foreign.ForeignPtr.Unsafe
 import Foreign.Marshal.Utils qualified as Marshal
 import Foreign.Ptr
@@ -714,7 +715,13 @@ deriving newtype instance ToVector (VU.Vector Word32)
 deriving via (ToVectorViaFoldable [] Word8) instance ToVector [Word8]
 deriving via (ToVectorViaFoldable [] Word16) instance ToVector [Word16]
 deriving via (ToVectorViaFoldable [] Word32) instance ToVector [Word32]
+deriving via (ToVectorViaFoldable S.Set Word32) instance ToVector (S.Set Word32)
 
+instance ToVector BS.ByteString where
+  type Elem BS.ByteString = Word8
+  toVector :: BS.ByteString -> Write (Location [Word8])
+  toVector (BSI.BS foreignPtr len) = do
+    copyForeignPtrAsVector word8Size len foreignPtr len
 
 instance ToVector (VP.Vector Word8) where
   type Elem (VP.Vector Word8) = Word8
@@ -818,6 +825,31 @@ genericToVectorMemcpy elemSize collectionLength byteArray byteArrayOffset byteAr
   let location = getBufferLocation buffer1
   putBuffer buffer1
   pure location
+
+copyForeignPtrAsVector
+  :: Int
+  -> Int
+  -> ForeignPtr Word8
+  -> Int
+  -> Write (Location x)
+copyForeignPtrAsVector elemSize elemCount sourceFp sourceLength = do
+  -- Reserve the total amount of bytes needed to write the vector and align the buffer.
+  let vectorByteCount = word32Size + (elemCount * elemSize)
+  alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
+  moveSmartPtrM (-vectorByteCount)
+
+  -- Write vector count
+  buffer1 <- getBuffer
+  liftIO $ putWord32 buffer1.bufferSptr (fromIntegral @Int @Word32 elemCount)
+  let buffer2 = moveSmartPtr buffer1 word32Size
+
+  -- Memcpy
+  liftIO do
+    Foreign.withForeignPtr sourceFp \sourcePtr ->
+      Marshal.copyBytes buffer2.bufferSptr.spPtr sourcePtr sourceLength
+
+  putBuffer buffer1
+  pure $ getBufferLocation buffer1
 
 
 -- | Copies the elements of a source collection into the buffer one by one.
