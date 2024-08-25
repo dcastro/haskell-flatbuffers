@@ -727,7 +727,7 @@ instance ToVector (VP.Vector Word8) where
   type Elem (VP.Vector Word8) = Word8
   toVector :: VP.Vector Word8 -> Write (Location [Word8])
   toVector vec@(VP.Vector off len byteArray) = do
-    genericToVectorMemcpy word8Size (VP.length vec) byteArray off len
+    copyByteArrayAsVector word8Size (VP.length vec) byteArray off len
 
 instance ToVector (VP.Vector Word16) where
   type Elem (VP.Vector Word16) = Word16
@@ -737,7 +737,7 @@ instance ToVector (VP.Vector Word16) where
     genericToVector word16Size (VP.length vec) vec VP.foldM' putWord16
 #else
   toVector vec@(VP.Vector off len byteArray) = do
-    genericToVectorMemcpy word16Size (VP.length vec) byteArray off len
+    copyByteArrayAsVector word16Size (VP.length vec) byteArray off len
 #endif
 
 instance ToVector (VP.Vector Word32) where
@@ -748,7 +748,7 @@ instance ToVector (VP.Vector Word32) where
     genericToVector word32Size (VP.length vec) vec VP.foldM' putWord32
 #else
   toVector vec@(VP.Vector off len byteArray) = do
-    genericToVectorMemcpy word32Size (VP.length vec) byteArray off len
+    copyByteArrayAsVector word32Size (VP.length vec) byteArray off len
   -- toVector vec@(VP.Vector off len byteArray) = do
   --   -- Reserve the total amount of bytes needed to write the vector and align the buffer.
   --   let vectorByteCount = word32Size + (VP.length vec * word32Size)
@@ -801,30 +801,29 @@ writeVector elemSize collection writeElem = do
 
 -- | Copies a bytearray into the buffer in O(1).
 -- Moves the pointer to the start of the vector's location.
-genericToVectorMemcpy
+copyByteArrayAsVector
   :: Int
   -> Int
   -> Prim.ByteArray
   -> Int
   -> Int
   -> Write (Location x)
-genericToVectorMemcpy elemSize collectionLength byteArray byteArrayOffset byteArrayLength = do
+copyByteArrayAsVector elemSize elemCount source sourceOffset sourceLength = do
   -- Reserve the total amount of bytes needed to write the vector and align the buffer.
-  let vectorByteCount = word32Size + (collectionLength * elemSize)
+  let vectorByteCount = word32Size + (elemCount * elemSize)
   alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
   moveSmartPtrM (-vectorByteCount)
 
   -- Write vector count
   buffer1 <- getBuffer
-  liftIO $ putWord32 buffer1.bufferSptr (fromIntegral @Int @Word32 collectionLength)
+  liftIO $ putWord32 buffer1.bufferSptr (fromIntegral @Int @Word32 elemCount)
   let buffer2 = moveSmartPtr buffer1 word32Size
 
   -- Memcpy
-  liftIO $ Prim.copyByteArrayToAddr buffer2.bufferSptr.spPtr byteArray byteArrayOffset byteArrayLength
+  liftIO $ Prim.copyByteArrayToAddr buffer2.bufferSptr.spPtr source sourceOffset sourceLength
 
-  let location = getBufferLocation buffer1
   putBuffer buffer1
-  pure location
+  pure $ getBufferLocation buffer1
 
 copyForeignPtrAsVector
   :: Int
@@ -832,7 +831,7 @@ copyForeignPtrAsVector
   -> ForeignPtr Word8
   -> Int
   -> Write (Location x)
-copyForeignPtrAsVector elemSize elemCount sourceFp sourceLength = do
+copyForeignPtrAsVector elemSize elemCount source sourceLength = do
   -- Reserve the total amount of bytes needed to write the vector and align the buffer.
   let vectorByteCount = word32Size + (elemCount * elemSize)
   alignTo (word32Size `max` fromIntegral @Int @Alignment elemSize) vectorByteCount
@@ -845,12 +844,11 @@ copyForeignPtrAsVector elemSize elemCount sourceFp sourceLength = do
 
   -- Memcpy
   liftIO do
-    Foreign.withForeignPtr sourceFp \sourcePtr ->
+    Foreign.withForeignPtr source \sourcePtr ->
       Marshal.copyBytes buffer2.bufferSptr.spPtr sourcePtr sourceLength
 
   putBuffer buffer1
   pure $ getBufferLocation buffer1
-
 
 -- | Copies the elements of a source collection into the buffer one by one.
 --
